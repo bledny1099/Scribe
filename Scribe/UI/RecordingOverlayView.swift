@@ -1,0 +1,506 @@
+import SwiftUI
+
+/// Recording overlay that switches between Classic and Waveform layouts.
+struct RecordingOverlayView: View {
+
+    @EnvironmentObject var appState: AppState
+
+    var body: some View {
+        Group {
+            switch appState.selectedOverlayStyle {
+            case .classic:
+                ClassicOverlay().environmentObject(appState)
+            case .waveform:
+                WaveformOverlay().environmentObject(appState)
+            case .minimal:
+                MinimalOverlay().environmentObject(appState)
+            case .ecg:
+                ECGOverlay().environmentObject(appState)
+            }
+        }
+        .overlay(
+            Group {
+                if appState.selectedOverlayStyle == .classic {
+                    RoundedRectangle(cornerRadius: 24)
+                        .strokeBorder(
+                            LinearGradient(
+                                colors: [Color.white.opacity(0.3), Color.white.opacity(0.08)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 0.5
+                        )
+                } else if appState.selectedOverlayStyle == .waveform || appState.selectedOverlayStyle == .minimal {
+                    Capsule()
+                        .strokeBorder(
+                            LinearGradient(
+                                colors: [Color.white.opacity(0.3), Color.white.opacity(0.08)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 0.5
+                        )
+                } else if appState.selectedOverlayStyle == .ecg {
+                    RoundedRectangle(cornerRadius: 16)
+                        .strokeBorder(
+                            LinearGradient(
+                                colors: [Color.white.opacity(0.3), Color.white.opacity(0.08)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 0.5
+                        )
+                }
+            }
+        )
+        .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 6)
+    }
+}
+
+// ============================================================================
+// MARK: - Classic Overlay (Original square with concentric rings)
+// ============================================================================
+
+struct ClassicOverlay: View {
+
+    @EnvironmentObject var appState: AppState
+    @State private var spinAngle: Double = 0
+    @State private var orbitAngle: Double = 0
+
+    private var theme: AppTheme { appState.selectedTheme }
+    private var gradient: LinearGradient { theme.accentGradient }
+    private var glow: Color { theme.glowColor }
+
+    var body: some View {
+        ZStack {
+            // Main content
+            VStack(spacing: 12) {
+                ZStack {
+                    // Radial glow
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [
+                                    glow.opacity(0.35 * Double(appState.audioLevel)),
+                                    Color.clear,
+                                ],
+                                center: .center,
+                                startRadius: 15,
+                                endRadius: 85
+                            )
+                        )
+                        .frame(width: 170, height: 170)
+                        .blur(radius: 14)
+
+                    // Outer ring
+                    Circle()
+                        .stroke(gradient, lineWidth: 1.5)
+                        .frame(width: 100, height: 100)
+                        .scaleEffect(1 + CGFloat(appState.audioLevel) * 0.25)
+                        .opacity(0.25 + Double(appState.audioLevel) * 0.55)
+
+                    // Middle ring
+                    Circle()
+                        .stroke(gradient, lineWidth: 2)
+                        .frame(width: 72, height: 72)
+                        .scaleEffect(1 + CGFloat(appState.audioLevel) * 0.18)
+                        .opacity(0.35 + Double(appState.audioLevel) * 0.45)
+
+                    // Inner ring
+                    Circle()
+                        .stroke(gradient, lineWidth: 2.5)
+                        .frame(width: 50, height: 50)
+                        .scaleEffect(1 + CGFloat(appState.audioLevel) * 0.1)
+                        .opacity(0.45 + Double(appState.audioLevel) * 0.35)
+
+                    // Centre disc
+                    Circle()
+                        .fill(gradient.opacity(0.12))
+                        .frame(width: 42, height: 42)
+
+                    // Status icon
+                    classicStatusIcon
+                }
+                .animation(.spring(response: 0.18, dampingFraction: 0.65), value: appState.audioLevel)
+
+                HStack(spacing: 6) {
+                    if appState.recordingStatus == .recording {
+                        Text(appState.formattedDuration)
+                            .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(.primary.opacity(0.9))
+                            .contentTransition(.numericText())
+                            .animation(.default, value: appState.recordingDuration)
+                    }
+
+                    Text(statusLabel)
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundStyle(.primary.opacity(0.7))
+                }
+            }
+
+            // Stop button — top right corner
+            VStack {
+                HStack {
+                    Spacer()
+                    Button(action: { appState.cancelRecording() }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(.primary.opacity(0.5))
+                            .frame(width: 24, height: 24)
+                            .background(Circle().fill(Color.primary.opacity(0.1)))
+                    }
+                    .buttonStyle(.plain)
+                    .opacity(appState.recordingStatus == .recording ? 1 : 0)
+                }
+                Spacer()
+            }
+            .padding(12)
+        }
+        .frame(width: RecordingPanel.classicSize.width, height: RecordingPanel.classicSize.height)
+        .onAppear {
+            withAnimation(.linear(duration: 8).repeatForever(autoreverses: false)) {
+                orbitAngle = 360
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var classicStatusIcon: some View {
+        switch appState.recordingStatus {
+        case .recording:
+            Image(systemName: "mic.fill")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(gradient)
+                .symbolEffect(.pulse, isActive: true)
+
+        case .loadingModel, .transcribing:
+            ZStack {
+                Circle()
+                    .trim(from: 0, to: 0.7)
+                    .stroke(gradient, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                    .frame(width: 30, height: 30)
+                    .rotationEffect(.degrees(spinAngle))
+                    .onAppear {
+                        withAnimation(.linear(duration: 0.9).repeatForever(autoreverses: false)) {
+                            spinAngle = 360
+                        }
+                    }
+                    .onDisappear { spinAngle = 0 }
+
+                Image(systemName: "brain")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(gradient)
+            }
+
+        case .done:
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 24, weight: .medium))
+                .foregroundStyle(.green.gradient)
+                .transition(.scale.combined(with: .opacity))
+
+        case .error:
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 20, weight: .medium))
+                .foregroundStyle(.orange.gradient)
+
+        case .idle:
+            EmptyView()
+        }
+    }
+
+    private var statusLabel: String {
+        switch appState.recordingStatus {
+        case .idle:              ""
+        case .recording:         "Recording…"
+        case .loadingModel:      "Loading model…"
+        case .transcribing:      "Transcribing…"
+        case .done:              "Done ✓"
+        case .error(let msg):    msg
+        }
+    }
+}
+
+// ============================================================================
+// MARK: - Waveform Overlay (Horizontal bar with audio bars)
+// ============================================================================
+
+struct WaveformOverlay: View {
+
+    @EnvironmentObject var appState: AppState
+
+    private let barCount = 48
+    @State private var levels: [Float] = Array(repeating: 0, count: 48)
+    @State private var spinAngle: Double = 0
+
+    private var theme: AppTheme { appState.selectedTheme }
+
+    var body: some View {
+        HStack(spacing: 0) {
+            // Left: status indicator
+            statusIndicator
+                .frame(width: 48)
+
+            // Center: waveform bars
+            waveformBars
+                .frame(maxWidth: .infinity)
+
+            // Right: status label + stop button
+            HStack(spacing: 8) {
+                if appState.recordingStatus == .recording {
+                    Text(appState.formattedDuration)
+                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(.primary.opacity(0.8))
+                        .contentTransition(.numericText())
+                        .animation(.default, value: appState.recordingDuration)
+                }
+
+                if appState.recordingStatus != .recording {
+                    Text(statusLabel)
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.primary.opacity(0.6))
+                        .lineLimit(1)
+                }
+
+                if appState.recordingStatus == .recording {
+                    Button(action: { appState.cancelRecording() }) {
+                        Image(systemName: "stop.fill")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(.primary.opacity(0.6))
+                            .frame(width: 28, height: 28)
+                            .background(Circle().fill(Color.primary.opacity(0.1)))
+                    }
+                    .buttonStyle(.plain)
+                    .transition(.scale.combined(with: .opacity))
+                }
+            }
+            .frame(width: 120)
+            .animation(.easeInOut(duration: 0.2), value: appState.recordingStatus == .recording)
+        }
+        .padding(.horizontal, 12)
+        .frame(
+            width: RecordingPanel.waveformSize.width,
+            height: RecordingPanel.waveformSize.height
+        )
+        .onChange(of: appState.audioLevel) { _, newLevel in
+            levels.removeFirst()
+            levels.append(newLevel)
+        }
+    }
+
+    // MARK: - Waveform Bars
+
+    private var waveformBars: some View {
+        HStack(alignment: .center, spacing: 2) {
+            ForEach(0..<barCount, id: \.self) { i in
+                let level = CGFloat(levels[i])
+                let maxBarHeight: CGFloat = 44
+                let minBarHeight: CGFloat = 3
+                let barHeight = minBarHeight + level * (maxBarHeight - minBarHeight)
+
+                RoundedRectangle(cornerRadius: 1.5)
+                    .fill(barGradient(for: level))
+                    .frame(width: 3.5, height: barHeight)
+                    .animation(.spring(response: 0.12, dampingFraction: 0.7), value: levels[i])
+            }
+        }
+    }
+
+    private func barGradient(for level: CGFloat) -> some ShapeStyle {
+        let colors = theme.gradientColors
+        let opacity = 0.3 + level * 0.7
+        return LinearGradient(
+            colors: [colors[0].opacity(opacity), colors[1].opacity(opacity)],
+            startPoint: .bottom,
+            endPoint: .top
+        )
+    }
+
+    // MARK: - Status Indicator
+
+    @ViewBuilder
+    private var statusIndicator: some View {
+        switch appState.recordingStatus {
+        case .recording:
+            Circle()
+                .fill(theme.gradientColors[1])
+                .frame(width: 10, height: 10)
+                .shadow(color: theme.gradientColors[1].opacity(0.6), radius: 6)
+
+        case .loadingModel, .transcribing:
+            Circle()
+                .trim(from: 0, to: 0.7)
+                .stroke(
+                    theme.accentGradient,
+                    style: StrokeStyle(lineWidth: 2.5, lineCap: .round)
+                )
+                .frame(width: 22, height: 22)
+                .rotationEffect(.degrees(spinAngle))
+                .onAppear {
+                    withAnimation(.linear(duration: 0.9).repeatForever(autoreverses: false)) {
+                        spinAngle = 360
+                    }
+                }
+                .onDisappear { spinAngle = 0 }
+
+        case .done:
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 20, weight: .medium))
+                .foregroundStyle(.green.gradient)
+
+        case .error:
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(.orange.gradient)
+
+        case .idle:
+            EmptyView()
+        }
+    }
+
+    private var statusLabel: String {
+        switch appState.recordingStatus {
+        case .idle:              ""
+        case .recording:         "Recording…"
+        case .loadingModel:      "Loading…"
+        case .transcribing:      "Transcribing…"
+        case .done:              "Done ✓"
+        case .error(let msg):    msg
+        }
+    }
+}
+
+// ============================================================================
+// MARK: - New Overlays
+// ============================================================================
+
+struct MinimalOverlay: View {
+    @EnvironmentObject var appState: AppState
+    private var theme: AppTheme { appState.selectedTheme }
+    
+    var body: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(theme.glowColor)
+                .frame(width: 10, height: 10)
+                .scaleEffect(appState.recordingStatus == .recording ? (1 + CGFloat(appState.audioLevel) * 0.4) : 1.0)
+                .opacity(appState.recordingStatus == .recording ? (0.6 + Double(appState.audioLevel) * 0.4) : 0.3)
+                .animation(.spring(response: 0.2, dampingFraction: 0.7), value: appState.audioLevel)
+                
+            if appState.recordingStatus == .recording {
+                Text(appState.formattedDuration)
+                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(.primary)
+            } else {
+                Text(statusLabel)
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundStyle(.primary.opacity(0.7))
+            }
+            
+            if appState.recordingStatus == .recording {
+                Button(action: { appState.cancelRecording() }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.primary.opacity(0.5))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    private var statusLabel: String {
+        switch appState.recordingStatus {
+        case .idle: return ""
+        case .loadingModel: return "Loading…"
+        case .transcribing: return "Transcribing…"
+        case .done: return "Done ✓"
+        case .error(let msg): return msg
+        default: return ""
+        }
+    }
+}
+
+
+struct ECGOverlay: View {
+    @EnvironmentObject var appState: AppState
+    private var theme: AppTheme { appState.selectedTheme }
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "waveform.path.ecg")
+                .foregroundStyle(theme.accentGradient)
+                .font(.system(size: 16, weight: .semibold))
+                
+            GeometryReader { geo in
+                Path { path in
+                    let midY = geo.size.height / 2
+                    path.move(to: CGPoint(x: 0, y: midY))
+                    
+                    let width = geo.size.width
+                    let segments = 40
+                    let step = width / CGFloat(segments)
+                    
+                    for i in 1...segments {
+                        let x = CGFloat(i) * step
+                        let isCenter = (i > 10 && i < 30)
+                        let amplitude = isCenter ? (CGFloat(appState.audioLevel) * midY) : (CGFloat.random(in: 0...2))
+                        let y = midY + (i % 2 == 0 ? amplitude : -amplitude)
+                        path.addLine(to: CGPoint(x: x, y: y))
+                    }
+                }
+                .stroke(theme.accentGradient, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+                .animation(.linear(duration: 0.1), value: appState.audioLevel)
+            }
+            .frame(height: 30)
+            
+            if appState.recordingStatus == .recording {
+                Button(action: { appState.cancelRecording() }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                        .font(.system(size: 16))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+
+
+/// A floating view to display live transcription preview below the main recording panel.
+struct SubtitleOverlayView: View {
+    @EnvironmentObject var appState: AppState
+
+    var body: some View {
+        VStack {
+            if !appState.livePreviewText.isEmpty && appState.recordingStatus == .recording {
+                Text(appState.livePreviewText)
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(
+                        ZStack {
+                            Capsule()
+                                .fill(Color.black.opacity(0.4))
+                                .overlay(Capsule().stroke(Color.white.opacity(0.15), lineWidth: 1))
+                                .opacity(appState.livePreviewBackground == .dark ? 1 : 0)
+
+                            Capsule()
+                                .fill(Color.primary.opacity(0.1))
+                                .background(.ultraThinMaterial, in: Capsule())
+                                .overlay(Capsule().stroke(Color.primary.opacity(0.15), lineWidth: 1))
+                                .opacity(appState.livePreviewBackground == .glass ? 1 : 0)
+                        }
+                    )
+                    .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                    .animation(.spring(response: 0.4, dampingFraction: 0.8), value: appState.livePreviewText)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+}
