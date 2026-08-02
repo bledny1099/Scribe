@@ -908,13 +908,14 @@ struct SupportDeveloperModal: View {
             
             Divider()
             
-            VStack(spacing: 16) {
-                Text("Scribe is an independent project supported entirely by user donations. If you find it useful, consider buying me a coffee or sending a crypto donation. Donations are completely optional. Thank you!")
+            VStack(spacing: 14) {
+                Text("Scribe is an independent project supported entirely by user donations. If you find it useful, consider supporting its development. Donations are completely optional. Thank you!")
                     .font(.system(size: 13, weight: .medium, design: .rounded))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal)
-                    .padding(.top, 16)
+                    .padding(.top, 14)
                 
                 // Ko-fi Button
                 Button {
@@ -982,7 +983,7 @@ struct SupportDeveloperModal: View {
             
             Spacer(minLength: 0)
         }
-        .frame(width: 420, height: 570)
+        .frame(width: 420, height: 600)
         .background(.ultraThinMaterial)
     }
 }
