@@ -726,7 +726,13 @@ final class AppState: ObservableObject {
             existingPanel.orderFrontRegardless()
         } else {
             // Create new panel with smooth slide-up entrance animation
-            let panel = RecordingPanel.make(style: selectedOverlayStyle, appearance: selectedPanelAppearance, size: selectedOverlaySize)
+            let panel = RecordingPanel.make(
+                style: selectedOverlayStyle,
+                appearance: selectedPanelAppearance,
+                size: selectedOverlaySize,
+                isEmbeddedPreviewActive: isEmbeddedActive,
+                previewTextLength: livePreviewText.count
+            )
             panel.setContent(overlay, style: selectedOverlayStyle, overlaySize: selectedOverlaySize)
             panel.collectionBehavior = [.moveToActiveSpace, .ignoresCycle]
 

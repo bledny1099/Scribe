@@ -70,8 +70,19 @@ final class RecordingPanel: NSPanel {
     }
 
     /// Convenience factory that selects the right size and appearance.
-    static func make(style: OverlayStyle = .waveform, appearance: PanelAppearance = .dark, size overlaySize: OverlaySize = .s100) -> RecordingPanel {
-        let size: NSSize = Self.size(for: style, overlaySize: overlaySize)
+    static func make(
+        style: OverlayStyle = .waveform,
+        appearance: PanelAppearance = .dark,
+        size overlaySize: OverlaySize = .s100,
+        isEmbeddedPreviewActive: Bool = false,
+        previewTextLength: Int = 0
+    ) -> RecordingPanel {
+        let size: NSSize = Self.size(
+            for: style,
+            overlaySize: overlaySize,
+            isEmbeddedPreviewActive: isEmbeddedPreviewActive,
+            previewTextLength: previewTextLength
+        )
         let radius: CGFloat = Self.radius(for: style, overlaySize: overlaySize)
 
         let panel = RecordingPanel(

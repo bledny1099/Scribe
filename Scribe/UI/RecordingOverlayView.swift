@@ -74,9 +74,19 @@ struct ClassicOverlay: View {
     private var glow: Color { theme.glowColor }
 
     var body: some View {
-        ZStack {
+        let isEmbeddedActive = appState.livePreviewEnabled && appState.livePreviewMode == .embedded && !appState.livePreviewText.isEmpty
+        let cardHeight = RecordingPanel.size(
+            for: .classic,
+            overlaySize: appState.selectedOverlaySize,
+            isEmbeddedPreviewActive: isEmbeddedActive,
+            previewTextLength: appState.livePreviewText.count
+        ).height / appState.selectedOverlaySize.scale
+
+        return ZStack {
             // Main content
             VStack(spacing: 12) {
+                Spacer(minLength: 12)
+
                 ZStack {
                     // Radial glow
                     Circle()
@@ -139,7 +149,7 @@ struct ClassicOverlay: View {
                         .foregroundStyle(.primary.opacity(0.7))
                 }
 
-                if appState.livePreviewEnabled && appState.livePreviewMode == .embedded && !appState.livePreviewText.isEmpty {
+                if isEmbeddedActive {
                     Divider()
                         .background(Color.primary.opacity(0.15))
                         .padding(.horizontal, 14)
@@ -152,6 +162,8 @@ struct ClassicOverlay: View {
                         .padding(.horizontal, 10)
                         .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
+
+                Spacer(minLength: 12)
             }
 
             // Stop button — top right corner
@@ -172,7 +184,12 @@ struct ClassicOverlay: View {
             }
             .padding(12)
         }
-        .frame(width: RecordingPanel.classicSize.width, height: RecordingPanel.classicSize.height)
+        .frame(width: RecordingPanel.classicSize.width, height: cardHeight)
+        .onAppear {
+            withAnimation(.linear(duration: 8).repeatForever(autoreverses: false)) {
+                orbitAngle = 360
+            }
+        }
         .onAppear {
             withAnimation(.linear(duration: 8).repeatForever(autoreverses: false)) {
                 orbitAngle = 360
@@ -498,7 +515,15 @@ struct OrbOverlay: View {
     private var gradient: LinearGradient { theme.accentGradient }
 
     var body: some View {
-        ZStack {
+        let isEmbeddedActive = appState.livePreviewEnabled && appState.livePreviewMode == .embedded && !appState.livePreviewText.isEmpty
+        let cardHeight = RecordingPanel.size(
+            for: .orb,
+            overlaySize: appState.selectedOverlaySize,
+            isEmbeddedPreviewActive: isEmbeddedActive,
+            previewTextLength: appState.livePreviewText.count
+        ).height / appState.selectedOverlaySize.scale
+
+        return ZStack {
             VStack(spacing: 8) {
                 Spacer(minLength: 4)
 
@@ -550,7 +575,7 @@ struct OrbOverlay: View {
                 }
 
                 // Embedded Live Preview Text (Inside Card Mode)
-                if appState.livePreviewEnabled && appState.livePreviewMode == .embedded && !appState.livePreviewText.isEmpty {
+                if isEmbeddedActive {
                     Divider()
                         .background(Color.primary.opacity(0.15))
                         .padding(.horizontal, 14)
@@ -585,7 +610,7 @@ struct OrbOverlay: View {
             }
             .padding(12)
         }
-        .frame(width: RecordingPanel.orbSize.width, height: RecordingPanel.orbSize.height)
+        .frame(width: RecordingPanel.orbSize.width, height: cardHeight)
         .onAppear {
             withAnimation(.linear(duration: 6).repeatForever(autoreverses: false)) {
                 rotationAngle = 360
