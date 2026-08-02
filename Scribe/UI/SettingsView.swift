@@ -909,7 +909,7 @@ struct SupportDeveloperModal: View {
             Divider()
             
             VStack(spacing: 16) {
-                Text("Scribe is an independent project supported entirely by user donations. If you find it useful, consider buying me a coffee or sending a crypto donation. Thank you!")
+                Text("Scribe is an independent project supported entirely by user donations. If you find it useful, consider buying me a coffee or sending a crypto donation. Donations are completely optional. Thank you!")
                     .font(.system(size: 13, weight: .medium, design: .rounded))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
