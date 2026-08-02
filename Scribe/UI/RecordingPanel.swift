@@ -17,7 +17,7 @@ final class RecordingPanel: NSPanel {
     static let minimalSize  = NSSize(width: 140, height: 44)
     static let ecgSize      = NSSize(width: 260, height: 64)
 
-    static func size(for style: OverlayStyle, overlaySize: OverlaySize = .standard) -> NSSize {
+    static func size(for style: OverlayStyle, overlaySize: OverlaySize = .s100) -> NSSize {
         let base: NSSize
         switch style {
         case .classic:  base = classicSize
@@ -29,7 +29,7 @@ final class RecordingPanel: NSPanel {
         return NSSize(width: round(base.width * scale), height: round(base.height * scale))
     }
 
-    static func radius(for style: OverlayStyle, overlaySize: OverlaySize = .standard) -> CGFloat {
+    static func radius(for style: OverlayStyle, overlaySize: OverlaySize = .s100) -> CGFloat {
         let baseRadius: CGFloat
         switch style {
         case .classic:  baseRadius = 24
@@ -56,7 +56,7 @@ final class RecordingPanel: NSPanel {
     }
 
     /// Convenience factory that selects the right size and appearance.
-    static func make(style: OverlayStyle = .waveform, appearance: PanelAppearance = .dark, size overlaySize: OverlaySize = .standard) -> RecordingPanel {
+    static func make(style: OverlayStyle = .waveform, appearance: PanelAppearance = .dark, size overlaySize: OverlaySize = .s100) -> RecordingPanel {
         let size: NSSize = Self.size(for: style, overlaySize: overlaySize)
         let radius: CGFloat = Self.radius(for: style, overlaySize: overlaySize)
 
@@ -107,10 +107,10 @@ final class RecordingPanel: NSPanel {
     // MARK: - Content
 
     /// Embeds a SwiftUI view inside the blur background.
-    func setContent<Content: View>(_ view: Content, style: OverlayStyle = .waveform, overlaySize: OverlaySize = .standard) {
+    func setContent<Content: View>(_ view: Content, style: OverlayStyle = .waveform, overlaySize: OverlaySize = .s100) {
         containerView.subviews.filter { $0 != blurView }.forEach { $0.removeFromSuperview() }
 
-        let baseSize: NSSize = Self.size(for: style, overlaySize: .standard)
+        let baseSize: NSSize = Self.size(for: style, overlaySize: .s100)
         let targetSize: NSSize = Self.size(for: style, overlaySize: overlaySize)
         let scale = overlaySize.scale
 

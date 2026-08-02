@@ -51,48 +51,41 @@ enum OverlayStyle: String, CaseIterable, Identifiable {
 
 /// Size/scale variations for the recording panel.
 enum OverlaySize: String, CaseIterable, Identifiable {
-    case standard // 100%
-    case medium   // 85%
-    case small    // 70%
-    case compact  // 55%
+    case s100 // 100%
+    case s90  // 90%
+    case s80  // 80%
+    case s70  // 70%
 
     var id: String { rawValue }
 
     var scale: CGFloat {
         switch self {
-        case .standard: 1.0
-        case .medium:   0.85
-        case .small:    0.70
-        case .compact:  0.55
+        case .s100: 1.00
+        case .s90:  0.90
+        case .s80:  0.80
+        case .s70:  0.70
         }
     }
 
     var displayName: String {
         switch self {
-        case .standard: "Standard (100%)"
-        case .medium:   "Medium (85%)"
-        case .small:    "Small (70%)"
-        case .compact:  "Compact (55%)"
+        case .s100: "100%"
+        case .s90:  "90%"
+        case .s80:  "80%"
+        case .s70:  "70%"
         }
     }
 
     var shortName: String {
         switch self {
-        case .standard: "100%"
-        case .medium:   "85%"
-        case .small:    "70%"
-        case .compact:  "55%"
+        case .s100: "100%"
+        case .s90:  "90%"
+        case .s80:  "80%"
+        case .s70:  "70%"
         }
     }
 
-    var icon: String {
-        switch self {
-        case .standard: "arrow.up.left.and.arrow.down.right"
-        case .medium:   "arrow.down.right.and.arrow.up.left"
-        case .small:    "arrow.up.left.and.down.right.and.arrow.up.right.and.down.left"
-        case .compact:  "minus.magnifyingglass"
-        }
-    }
+    var icon: String { "" }
 }
 
 // MARK: - Panel Appearance
@@ -277,7 +270,7 @@ final class AppState: ObservableObject {
     }
     @AppStorage("selectedTheme") var selectedThemeRaw: String = AppTheme.aurora.rawValue
     @AppStorage("selectedOverlayStyle") var selectedOverlayStyleRaw: String = OverlayStyle.waveform.rawValue
-    @AppStorage("selectedOverlaySize") var selectedOverlaySizeRaw: String = OverlaySize.standard.rawValue
+    @AppStorage("selectedOverlaySize") var selectedOverlaySizeRaw: String = OverlaySize.s100.rawValue
     @AppStorage("selectedPanelAppearance") var selectedPanelAppearanceRaw: String = PanelAppearance.dark.rawValue
     @AppStorage("soundFeedbackEnabled") var soundFeedbackEnabled: Bool = true
     @AppStorage("livePreviewEnabled") var livePreviewEnabled: Bool = false
@@ -298,7 +291,7 @@ final class AppState: ObservableObject {
 
     /// Computed property for type-safe overlay size access.
     var selectedOverlaySize: OverlaySize {
-        get { OverlaySize(rawValue: selectedOverlaySizeRaw) ?? .standard }
+        get { OverlaySize(rawValue: selectedOverlaySizeRaw) ?? .s100 }
         set { selectedOverlaySizeRaw = newValue.rawValue }
     }
 
@@ -528,12 +521,7 @@ final class AppState: ObservableObject {
         let panel = RecordingPanel.make(style: selectedOverlayStyle, appearance: selectedPanelAppearance, size: selectedOverlaySize)
         panel.setContent(overlay, style: selectedOverlayStyle, overlaySize: selectedOverlaySize)
 
-        switch selectedOverlayStyle {
-        case .classic:
-            panel.center()
-        case .waveform, .minimal, .ecg:
-            panel.positionAtBottom()
-        }
+        panel.positionAtBottom()
 
         panel.orderFrontRegardless()
         recordingPanel = panel
@@ -583,18 +571,17 @@ final class AppState: ObservableObject {
             }
         }
         recordingStatus = .idle
-        if SettingsWindowManager.shared.isWindowOpen {
-            showSettingsPreviewPanel()
-        }
     }
 
-    // MARK: - Floating Preview Panel for Settings
+    // MARK: - Floating Preview Panel for Settings (5-second auto-dismiss)
 
     private var settingsPreviewPanel: RecordingPanel?
     private var settingsPreviewAnimTimer: Timer?
+    private var previewDismissTimer: Timer?
 
-    func showSettingsPreviewPanel() {
+    func showSettingsPreviewFor5Seconds() {
         guard !isRecording && !isTranscribing else { return }
+
         updateSettingsPreviewPanel()
 
         settingsPreviewAnimTimer?.invalidate()
@@ -603,6 +590,14 @@ final class AppState: ObservableObject {
             let level = Float.random(in: 0.25...0.65)
             withAnimation(.linear(duration: 0.08)) {
                 self.audioLevel = level
+            }
+        }
+
+        // Schedule auto-dismiss after 5 seconds
+        previewDismissTimer?.invalidate()
+        previewDismissTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: false) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.hideSettingsPreviewPanel()
             }
         }
     }
@@ -619,18 +614,15 @@ final class AppState: ObservableObject {
         let panel = RecordingPanel.make(style: selectedOverlayStyle, appearance: selectedPanelAppearance, size: selectedOverlaySize)
         panel.setContent(overlay, style: selectedOverlayStyle, overlaySize: selectedOverlaySize)
 
-        switch selectedOverlayStyle {
-        case .classic:
-            panel.center()
-        case .waveform, .minimal, .ecg:
-            panel.positionAtBottom()
-        }
+        panel.positionAtBottom()
 
         panel.orderFrontRegardless()
         settingsPreviewPanel = panel
     }
 
     func hideSettingsPreviewPanel() {
+        previewDismissTimer?.invalidate()
+        previewDismissTimer = nil
         settingsPreviewAnimTimer?.invalidate()
         settingsPreviewAnimTimer = nil
         settingsPreviewPanel?.close()

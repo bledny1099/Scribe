@@ -387,23 +387,20 @@ struct SettingsView: View {
         .ignoresSafeArea(.container, edges: .top)
         .frame(width: 440, height: 620)
         .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
-        .onAppear {
-            appState.showSettingsPreviewPanel()
-        }
         .onDisappear {
             appState.hideSettingsPreviewPanel()
         }
         .onChange(of: appState.selectedOverlaySize) { _ in
-            appState.updateSettingsPreviewPanel()
+            appState.showSettingsPreviewFor5Seconds()
         }
         .onChange(of: appState.selectedOverlayStyle) { _ in
-            appState.updateSettingsPreviewPanel()
+            appState.showSettingsPreviewFor5Seconds()
         }
         .onChange(of: appState.selectedTheme) { _ in
-            appState.updateSettingsPreviewPanel()
+            appState.showSettingsPreviewFor5Seconds()
         }
         .onChange(of: appState.selectedPanelAppearance) { _ in
-            appState.updateSettingsPreviewPanel()
+            appState.showSettingsPreviewFor5Seconds()
         }
     }
 
@@ -687,9 +684,11 @@ struct LiquidGlassSegmentedPicker<T: Hashable & Identifiable>: View {
                         if !info.name.isEmpty {
                             Text(info.name)
                                 .font(.system(size: 12, weight: .medium, design: .rounded))
+                                .lineLimit(1)
+                                .fixedSize(horizontal: true, vertical: false)
                         }
                     }
-                    .padding(.horizontal, 12)
+                    .padding(.horizontal, 10)
                     .padding(.vertical, 6)
                     .background(
                         ZStack {
