@@ -278,6 +278,7 @@ final class AppState: ObservableObject {
     private var subtitlePanel: NSPanel?
     private var cancellables   = Set<AnyCancellable>()
     private var escMonitor: Any?
+    private var localEscMonitor: Any?
     private var durationTimer: Timer?
     private var livePreviewTimer: Timer?
     private var isLiveTranscribing = false
@@ -297,12 +298,27 @@ final class AppState: ObservableObject {
                 SettingsWindowManager.shared.showSettings(appState: self)
             }
         }
+        
+        if CommandLine.arguments.contains("--permissions") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                PermissionWindowManager.shared.showWindow(appState: self)
+            }
+        }
     }
 
+    @AppStorage("hasCompletedFirstLaunchSetup") private var hasCompletedFirstLaunchSetup: Bool = false
+
     private func checkFirstLaunchPermissions() {
-        if !PasteService.isAccessibilityGranted() {
+        if !hasCompletedFirstLaunchSetup {
+            hasCompletedFirstLaunchSetup = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                PermissionWindowManager.shared.showWindow()
+                let mic = PermissionManager.shared.isMicrophoneGranted
+                let ax = PasteService.isAccessibilityGranted()
+                if !mic || !ax {
+                    PermissionWindowManager.shared.showWindow(appState: self)
+                } else {
+                    SettingsWindowManager.shared.showSettings(appState: self)
+                }
             }
         }
     }
@@ -529,6 +545,15 @@ final class AppState: ObservableObject {
             Task { @MainActor [weak self] in
                 self?.cancelRecording()
             }
+        }
+        localEscMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            if event.keyCode == 53 {
+                Task { @MainActor [weak self] in
+                    self?.cancelRecording()
+                }
+                return nil // Consume event
+            }
+            return event
         }
     }
 

@@ -42,18 +42,18 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
     /// Initial prompt that conditions Whisper to produce punctuation and recognise common brand names.
     /// Whisper uses this as "previous context" so it learns the expected output style.
     private let initialPrompt: [String: String] = [
-        "en": "Hello, welcome! Terms: Bybit, Binance, Coinbase, MetaMask, Ethereum, Solana, Tether, FinTech, cringe, rofl, chill, based. Let's begin.",
-        "ru": "Привет, добро пожаловать! Термины: Bybit, Binance, Coinbase, MetaMask, Ethereum, Solana, Tether, FinTech, кринж, рофл, чилл, база, вайб. Давайте начнём.",
-        "es": "¡Hola, bienvenidos! Términos: Bybit, Binance, Coinbase, MetaMask, Ethereum, Solana, Tether, FinTech, cringe, rofl. Comencemos.",
-        "de": "Hallo, willkommen! Begriffe: Bybit, Binance, Coinbase, MetaMask, Ethereum, Solana, Tether, FinTech, cringe, rofl. Fangen wir an.",
-        "fr": "Bonjour, bienvenue ! Termes: Bybit, Binance, Coinbase, MetaMask, Ethereum, Solana, Tether, FinTech, cringe, rofl. Commençons.",
-        "it": "Ciao, benvenuti! Termini: Bybit, Binance, Coinbase, MetaMask, Ethereum, Solana, Tether, FinTech, cringe, rofl. Cominciamo.",
-        "zh": "你好，欢迎！术语：Bybit, Binance, Coinbase, MetaMask, Ethereum, Solana, Tether, FinTech, cringe, rofl。我们开始吧。",
-        "ja": "こんにちは、ようこそ！用語：Bybit, Binance, Coinbase, MetaMask, Ethereum, Solana, Tether, FinTech, cringe, rofl。始めましょう。",
-        "pt": "Olá, bem-vindos! Termos: Bybit, Binance, Coinbase, MetaMask, Ethereum, Solana, Tether, FinTech, cringe, rofl. Vamos começar.",
-        "tr": "Merhaba, hoş geldiniz! Terimler: Bybit, Binance, Coinbase, MetaMask, Ethereum, Solana, Tether, FinTech, cringe, rofl. Başlayalım.",
-        "uk": "Привіт, ласкаво просимо! Терміни: Bybit, Binance, Coinbase, MetaMask, Ethereum, Solana, Tether, FinTech, крінж, рофл, чіл, вайб. Почнімо.",
-        "auto": "Hello, welcome! Terms: Bybit, Binance, Coinbase, MetaMask, Ethereum, Solana, Tether, FinTech, cringe, rofl, chill. Let's begin."
+        "en": "Terms: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI.",
+        "ru": "Термины: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI.",
+        "es": "Términos: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI.",
+        "de": "Begriffe: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI.",
+        "fr": "Termes: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI.",
+        "it": "Termini: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI.",
+        "zh": "术语：Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI.",
+        "ja": "用語：Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI.",
+        "pt": "Termos: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI.",
+        "tr": "Terimler: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI.",
+        "uk": "Терміни: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI.",
+        "auto": "Terms: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI."
     ]
 
     // MARK: - Model Lifecycle
@@ -116,7 +116,8 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         let promptText = initialPrompt[langKey] ?? initialPrompt["auto"]!
         if let tokenizer = kit.tokenizer {
             let tokens = tokenizer.encode(text: promptText)
-            options.promptTokens = tokens
+            // WhisperKit prompt tokens must be less than 224 to avoid crashing
+            options.promptTokens = Array(tokens.suffix(min(tokens.count, 200)))
             // Must disable prefill cache when using promptTokens (WhisperKit limitation)
             options.usePrefillCache = false
             logger.debug("Set initial prompt (\(tokens.count) tokens) for language '\(langKey)'")

@@ -10,7 +10,7 @@ struct ScribeApp: App {
         MenuBarExtra {
             ScribeMenuView(appState: appState)
         } label: {
-            Image(systemName: appState.isRecording ? "waveform" : "mic")
+            Label("Scribe", systemImage: appState.isRecording ? "waveform" : "mic")
         }
         .menuBarExtraStyle(.menu)
 
@@ -29,12 +29,12 @@ struct ScribeMenuView: View {
         Divider()
 
         if appState.isTranscribing {
-            Text(appState.l("Transcribing…"))
-                .foregroundColor(.secondary)
+            Button(appState.l("Transcribing…")) {}
+                .disabled(true)
         }
 
-        Text(appState.l("Hotkey: ⌥S"))
-            .foregroundColor(.secondary)
+        Button(appState.l("Hotkey: ⌥S")) {}
+            .disabled(true)
 
         Divider()
 

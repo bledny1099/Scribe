@@ -39,10 +39,17 @@ final class PermissionManager: ObservableObject {
     }
 
     func requestMicrophone() {
-        AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
-            Task { @MainActor in
-                self?.isMicrophoneGranted = granted
-                self?.checkPermissions()
+        let status = AVCaptureDevice.authorizationStatus(for: .audio)
+        if status == .denied || status == .restricted {
+            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone") {
+                NSWorkspace.shared.open(url)
+            }
+        } else {
+            AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
+                Task { @MainActor in
+                    self?.isMicrophoneGranted = granted
+                    self?.checkPermissions()
+                }
             }
         }
     }

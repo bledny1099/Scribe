@@ -31,6 +31,23 @@ struct TranscriptionRecord: Codable, Identifiable {
     }
 }
 
+// MARK: - Statistics Model
+
+enum StatsTimeFrame: String, CaseIterable, Identifiable {
+    case today = "Today"
+    case week = "This Week"
+    case allTime = "All Time"
+
+    var id: String { rawValue }
+}
+
+struct StatsSummary {
+    let wordCount: Int
+    let charCount: Int
+    let duration: TimeInterval
+    let sessionCount: Int
+}
+
 // MARK: - Storage Manager
 
 /// Persists transcription history to a JSON file in Application Support.
@@ -78,6 +95,41 @@ final class TranscriptionHistory: ObservableObject {
     func clearAll() {
         records.removeAll()
         saveToDisk()
+    }
+
+    /// Calculate statistics summary for a given time frame.
+    func stats(for timeFrame: StatsTimeFrame) -> StatsSummary {
+        let calendar = Calendar.current
+        let now = Date()
+
+        let filtered = records.filter { record in
+            switch timeFrame {
+            case .today:
+                return calendar.isDateInToday(record.date)
+            case .week:
+                return calendar.isDate(record.date, equalTo: now, toGranularity: .weekOfYear) &&
+                       calendar.isDate(record.date, equalTo: now, toGranularity: .yearForWeekOfYear)
+            case .allTime:
+                return true
+            }
+        }
+
+        let words = filtered.reduce(0) { total, rec in
+            total + rec.text.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.count
+        }
+        let chars = filtered.reduce(0) { total, rec in
+            total + rec.text.count
+        }
+        let totalDuration = filtered.reduce(0.0) { total, rec in
+            total + rec.duration
+        }
+
+        return StatsSummary(
+            wordCount: words,
+            charCount: chars,
+            duration: totalDuration,
+            sessionCount: filtered.count
+        )
     }
 
     // MARK: - Persistence

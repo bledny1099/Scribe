@@ -100,7 +100,15 @@ enum Localization {
             "Auto Translate to Selected Language": "Auto Translate to Selected Language",
             "Minimal": "Minimal",
             "Magic": "Magic",
-            "Pulse": "Pulse"
+            "Pulse": "Pulse",
+            "Statistics": "Statistics",
+            "Today": "Today",
+            "This Week": "This Week",
+            "All Time": "All Time",
+            "Words Spoken": "Words Spoken",
+            "Characters": "Characters",
+            "Time Dictated": "Time Dictated",
+            "Sessions": "Sessions"
         ],
         "ru": [
             "Start Dictation": "Начать диктовку",
@@ -166,7 +174,15 @@ enum Localization {
             "Auto Translate to Selected Language": "Автоматический перевод на выбранный язык",
             "Minimal": "Компактный",
             "Magic": "Магия",
-            "Pulse": "Пульс"
+            "Pulse": "Пульс",
+            "Statistics": "Статистика",
+            "Today": "Сегодня",
+            "This Week": "На этой неделе",
+            "All Time": "За всё время",
+            "Words Spoken": "Сказано слов",
+            "Characters": "Символов",
+            "Time Dictated": "Время диктовки",
+            "Sessions": "Сессий"
         ],
         "es": [
             "Start Dictation": "Iniciar dictado",

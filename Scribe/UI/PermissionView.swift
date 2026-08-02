@@ -102,6 +102,8 @@ struct PermissionRow: View {
 
 struct PermissionWelcomeView: View {
     @ObservedObject var permissionManager = PermissionManager.shared
+    @State private var showingSupportModal = false
+    var onComplete: (() -> Void)? = nil
 
     var body: some View {
         VStack(spacing: 0) {
@@ -180,10 +182,45 @@ struct PermissionWelcomeView: View {
                         )
                     }
 
+                    // Support Developer Button
+                    Button(action: {
+                        showingSupportModal = true
+                    }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "heart.fill")
+                                .foregroundStyle(.pink)
+                            Text("Support Scribe ☕️")
+                                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.primary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 11)
+                        .background(
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(.ultraThinMaterial)
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color.primary.opacity(0.04))
+                            }
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .strokeBorder(Color.primary.opacity(0.15), lineWidth: 1)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .sheet(isPresented: $showingSupportModal) {
+                        SupportDeveloperModal()
+                    }
+
                     // Get Started Button
                     let allGranted = permissionManager.isMicrophoneGranted && permissionManager.isAccessibilityGranted
                     Button(action: {
-                        PermissionWindowManager.shared.closeWindow()
+                        if let onComplete = onComplete {
+                            onComplete()
+                        } else {
+                            PermissionWindowManager.shared.closeWindow()
+                        }
                     }) {
                         HStack(spacing: 8) {
                             Text(allGranted ? "Get Started" : "Continue")
@@ -238,7 +275,7 @@ struct PermissionWelcomeView: View {
             }
         }
         .ignoresSafeArea(.container, edges: .top)
-        .frame(width: 400, height: 480)
+        .frame(width: 400, height: 550)
         .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
         .onAppear {
             // Force a fresh permission check when the view appears
@@ -254,8 +291,13 @@ final class PermissionWindowManager {
     static let shared = PermissionWindowManager()
 
     private var window: NSWindow?
+    private var appState: AppState?
 
-    func showWindow() {
+    func showWindow(appState: AppState? = nil) {
+        if let appState = appState {
+            self.appState = appState
+        }
+
         if let existing = window {
             existing.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
@@ -263,7 +305,7 @@ final class PermissionWindowManager {
         }
 
         let newWindow = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 400, height: 480),
+            contentRect: NSRect(x: 0, y: 0, width: 400, height: 550),
             styleMask: [.titled, .fullSizeContentView, .closable],
             backing: .buffered,
             defer: false
@@ -290,7 +332,16 @@ final class PermissionWindowManager {
         blurView.blendingMode = .behindWindow
         blurView.state = .active
 
-        let hostingView = NSHostingView(rootView: PermissionWelcomeView())
+        let welcomeView = PermissionWelcomeView(onComplete: { [weak self] in
+            guard let self = self else { return }
+            let state = self.appState
+            self.closeWindow()
+            if let state = state {
+                SettingsWindowManager.shared.showSettings(appState: state)
+            }
+        })
+
+        let hostingView = NSHostingView(rootView: welcomeView)
         hostingView.translatesAutoresizingMaskIntoConstraints = false
         hostingView.wantsLayer = true
         hostingView.layer?.backgroundColor = NSColor.clear.cgColor
