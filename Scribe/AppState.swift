@@ -382,6 +382,7 @@ final class AppState: ObservableObject {
         setupHotkeyHandler()
         setupEscHandler()
         setupAudioLevelForwarding()
+        setupLivePreviewResizing()
         preloadModel()
         checkFirstLaunchPermissions()
         
@@ -562,8 +563,21 @@ final class AppState: ObservableObject {
         let overlay = RecordingOverlayView()
             .environmentObject(self)
 
-        let panel = RecordingPanel.make(style: selectedOverlayStyle, appearance: selectedPanelAppearance, size: selectedOverlaySize)
-        panel.setContent(overlay, style: selectedOverlayStyle, overlaySize: selectedOverlaySize)
+        let isEmbedded = livePreviewEnabled && livePreviewMode == .embedded && !livePreviewText.isEmpty
+        let panel = RecordingPanel.make(
+            style: selectedOverlayStyle,
+            appearance: selectedPanelAppearance,
+            size: selectedOverlaySize,
+            isEmbeddedPreviewActive: isEmbedded,
+            previewTextLength: livePreviewText.count
+        )
+        panel.setContent(
+            overlay,
+            style: selectedOverlayStyle,
+            overlaySize: selectedOverlaySize,
+            isEmbeddedPreviewActive: isEmbedded,
+            previewTextLength: livePreviewText.count
+        )
 
         panel.positionAtBottom()
 
@@ -615,6 +629,55 @@ final class AppState: ObservableObject {
             }
         }
         recordingStatus = .idle
+    }
+
+    // MARK: - Live Preview Panel Resizing (during recording)
+
+    /// Observe `livePreviewText` changes and resize the recording panel dynamically.
+    private func setupLivePreviewResizing() {
+        $livePreviewText
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.resizeRecordingPanelForEmbeddedPreview()
+            }
+            .store(in: &cancellables)
+    }
+
+    /// Resize the live recording panel's NSWindow when embedded preview text changes.
+    private func resizeRecordingPanelForEmbeddedPreview() {
+        guard let panel = recordingPanel, isRecording else { return }
+        guard livePreviewEnabled, livePreviewMode == .embedded else { return }
+
+        let isEmbedded = !livePreviewText.isEmpty
+        let newSize = RecordingPanel.size(
+            for: selectedOverlayStyle,
+            overlaySize: selectedOverlaySize,
+            isEmbeddedPreviewActive: isEmbedded,
+            previewTextLength: livePreviewText.count
+        )
+
+        let overlay = RecordingOverlayView().environmentObject(self)
+        panel.setContent(
+            overlay,
+            style: selectedOverlayStyle,
+            overlaySize: selectedOverlaySize,
+            isEmbeddedPreviewActive: isEmbedded,
+            previewTextLength: livePreviewText.count
+        )
+
+        let oldFrame = panel.frame
+        // Keep the top edge anchored; expand downward
+        let newY = oldFrame.maxY - newSize.height
+        let newFrame = NSRect(x: oldFrame.origin.x, y: newY, width: newSize.width, height: newSize.height)
+
+        if oldFrame != newFrame {
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.25
+                ctx.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                panel.animator().setFrame(newFrame, display: true)
+            }
+        }
     }
 
     // MARK: - Floating Preview Panel for Settings (5-second auto-dismiss)
@@ -707,7 +770,7 @@ final class AppState: ObservableObject {
         if let existingPanel = settingsPreviewPanel {
             // Update existing panel in-place without recreation or flashing
             existingPanel.updateAppearance(selectedPanelAppearance)
-            existingPanel.setContent(overlay, style: selectedOverlayStyle, overlaySize: selectedOverlaySize)
+            existingPanel.setContent(overlay, style: selectedOverlayStyle, overlaySize: selectedOverlaySize, isEmbeddedPreviewActive: isEmbeddedActive, previewTextLength: livePreviewText.count)
             existingPanel.updateCornerRadius(targetRadius)
 
             let oldFrame = existingPanel.frame
@@ -733,7 +796,7 @@ final class AppState: ObservableObject {
                 isEmbeddedPreviewActive: isEmbeddedActive,
                 previewTextLength: livePreviewText.count
             )
-            panel.setContent(overlay, style: selectedOverlayStyle, overlaySize: selectedOverlaySize)
+            panel.setContent(overlay, style: selectedOverlayStyle, overlaySize: selectedOverlaySize, isEmbeddedPreviewActive: isEmbeddedActive, previewTextLength: livePreviewText.count)
             panel.collectionBehavior = [.moveToActiveSpace, .ignoresCycle]
 
             let startY = targetOrigin.y - 24

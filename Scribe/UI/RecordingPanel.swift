@@ -137,11 +137,17 @@ final class RecordingPanel: NSPanel {
     // MARK: - Content
 
     /// Embeds a SwiftUI view inside the blur background.
-    func setContent<Content: View>(_ view: Content, style: OverlayStyle = .waveform, overlaySize: OverlaySize = .s100) {
+    func setContent<Content: View>(
+        _ view: Content,
+        style: OverlayStyle = .waveform,
+        overlaySize: OverlaySize = .s100,
+        isEmbeddedPreviewActive: Bool = false,
+        previewTextLength: Int = 0
+    ) {
         containerView.subviews.filter { $0 != blurView }.forEach { $0.removeFromSuperview() }
 
-        let baseSize: NSSize = Self.size(for: style, overlaySize: .s100)
-        let targetSize: NSSize = Self.size(for: style, overlaySize: overlaySize)
+        let baseSize: NSSize = Self.size(for: style, overlaySize: .s100, isEmbeddedPreviewActive: isEmbeddedPreviewActive, previewTextLength: previewTextLength)
+        let targetSize: NSSize = Self.size(for: style, overlaySize: overlaySize, isEmbeddedPreviewActive: isEmbeddedPreviewActive, previewTextLength: previewTextLength)
         let scale = overlaySize.scale
 
         blurView.isHidden = false

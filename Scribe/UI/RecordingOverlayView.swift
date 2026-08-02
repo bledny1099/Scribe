@@ -190,11 +190,6 @@ struct ClassicOverlay: View {
                 orbitAngle = 360
             }
         }
-        .onAppear {
-            withAnimation(.linear(duration: 8).repeatForever(autoreverses: false)) {
-                orbitAngle = 360
-            }
-        }
     }
 
     @ViewBuilder
