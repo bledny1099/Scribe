@@ -47,6 +47,54 @@ enum OverlayStyle: String, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - Overlay Size
+
+/// Size/scale variations for the recording panel.
+enum OverlaySize: String, CaseIterable, Identifiable {
+    case standard // 100%
+    case medium   // 85%
+    case small    // 70%
+    case compact  // 55%
+
+    var id: String { rawValue }
+
+    var scale: CGFloat {
+        switch self {
+        case .standard: 1.0
+        case .medium:   0.85
+        case .small:    0.70
+        case .compact:  0.55
+        }
+    }
+
+    var displayName: String {
+        switch self {
+        case .standard: "Standard (100%)"
+        case .medium:   "Medium (85%)"
+        case .small:    "Small (70%)"
+        case .compact:  "Compact (55%)"
+        }
+    }
+
+    var shortName: String {
+        switch self {
+        case .standard: "100%"
+        case .medium:   "85%"
+        case .small:    "70%"
+        case .compact:  "55%"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .standard: "arrow.up.left.and.arrow.down.right"
+        case .medium:   "arrow.down.right.and.arrow.up.left"
+        case .small:    "arrow.up.left.and.down.right.and.arrow.up.right.and.down.left"
+        case .compact:  "minus.magnifyingglass"
+        }
+    }
+}
+
 // MARK: - Panel Appearance
 
 /// Background appearance for the recording panel.
@@ -229,6 +277,7 @@ final class AppState: ObservableObject {
     }
     @AppStorage("selectedTheme") var selectedThemeRaw: String = AppTheme.aurora.rawValue
     @AppStorage("selectedOverlayStyle") var selectedOverlayStyleRaw: String = OverlayStyle.waveform.rawValue
+    @AppStorage("selectedOverlaySize") var selectedOverlaySizeRaw: String = OverlaySize.standard.rawValue
     @AppStorage("selectedPanelAppearance") var selectedPanelAppearanceRaw: String = PanelAppearance.dark.rawValue
     @AppStorage("soundFeedbackEnabled") var soundFeedbackEnabled: Bool = true
     @AppStorage("livePreviewEnabled") var livePreviewEnabled: Bool = false
@@ -245,6 +294,12 @@ final class AppState: ObservableObject {
     var selectedOverlayStyle: OverlayStyle {
         get { OverlayStyle(rawValue: selectedOverlayStyleRaw) ?? .waveform }
         set { selectedOverlayStyleRaw = newValue.rawValue }
+    }
+
+    /// Computed property for type-safe overlay size access.
+    var selectedOverlaySize: OverlaySize {
+        get { OverlaySize(rawValue: selectedOverlaySizeRaw) ?? .standard }
+        set { selectedOverlaySizeRaw = newValue.rawValue }
     }
 
     /// Computed property for type-safe panel appearance access.
@@ -469,8 +524,8 @@ final class AppState: ObservableObject {
         let overlay = RecordingOverlayView()
             .environmentObject(self)
 
-        let panel = RecordingPanel.make(style: selectedOverlayStyle, appearance: selectedPanelAppearance)
-        panel.setContent(overlay, style: selectedOverlayStyle)
+        let panel = RecordingPanel.make(style: selectedOverlayStyle, appearance: selectedPanelAppearance, size: selectedOverlaySize)
+        panel.setContent(overlay, style: selectedOverlayStyle, overlaySize: selectedOverlaySize)
 
         switch selectedOverlayStyle {
         case .classic:

@@ -131,6 +131,22 @@ struct SettingsView: View {
                                 )
                             }
 
+                            // Overlay size picker
+                            HStack {
+                                Text(appState.l("Overlay Size"))
+                                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                LiquidGlassSegmentedPicker(
+                                    items: OverlaySize.allCases,
+                                    selection: Binding(
+                                        get: { appState.selectedOverlaySize },
+                                        set: { appState.selectedOverlaySize = $0 }
+                                    ),
+                                    label: { (appState.l($0.shortName), $0.icon) }
+                                )
+                            }
+
                             // Background appearance picker
                             HStack {
                                 Text(appState.l("Panel Appearance"))
@@ -146,6 +162,9 @@ struct SettingsView: View {
                                     label: { (appState.l($0.displayName), $0.icon) }
                                 )
                             }
+
+                            // Live Overlay Size Preview
+                            OverlaySizePreviewCard()
                         }
                     }
 
@@ -1039,6 +1058,97 @@ struct CopyAddressRow: View {
                 RoundedRectangle(cornerRadius: 8)
                     .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
             )
+        }
+    }
+}
+
+// MARK: - Overlay Size Live Preview
+
+struct OverlaySizePreviewCard: View {
+    @EnvironmentObject var appState: AppState
+    @State private var timer: Timer?
+
+    private var currentSize: OverlaySize { appState.selectedOverlaySize }
+    private var currentStyle: OverlayStyle { appState.selectedOverlayStyle }
+
+    private var dimensionsText: String {
+        let scaled = RecordingPanel.size(for: currentStyle, overlaySize: currentSize)
+        return "\(Int(scaled.width)) × \(Int(scaled.height)) px"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(appState.l("Overlay Size Preview"))
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.primary)
+
+                Spacer()
+
+                Text(dimensionsText)
+                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.primary.opacity(0.06))
+                    .cornerRadius(6)
+            }
+
+            // Preview Container
+            ZStack {
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(Color.primary.opacity(0.03))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+                    )
+
+                // Simulated panel blur & preview overlay
+                VStack {
+                    ZStack {
+                        // Blurred background card simulating NSPanel
+                        RoundedRectangle(cornerRadius: RecordingPanel.radius(for: currentStyle, overlaySize: currentSize))
+                            .fill(appState.selectedPanelAppearance == .dark ? Color.black.opacity(0.75) : Color.white.opacity(0.85))
+                            .shadow(color: Color.black.opacity(0.2), radius: 10, x: 0, y: 4)
+
+                        // Render live overlay
+                        RecordingOverlayView()
+                            .environmentObject(appState)
+                    }
+                    .frame(
+                        width: RecordingPanel.size(for: currentStyle, overlaySize: .standard).width,
+                        height: RecordingPanel.size(for: currentStyle, overlaySize: .standard).height
+                    )
+                    .scaleEffect(currentSize.scale)
+                    .frame(
+                        width: RecordingPanel.size(for: currentStyle, overlaySize: currentSize).width,
+                        height: RecordingPanel.size(for: currentStyle, overlaySize: currentSize).height
+                    )
+                    .animation(.spring(response: 0.35, dampingFraction: 0.75), value: currentSize)
+                }
+                .padding(.vertical, 16)
+            }
+            .frame(height: 150)
+            .clipped()
+        }
+        .padding(.top, 4)
+        .onAppear {
+            startSimulatedAudio()
+        }
+        .onDisappear {
+            timer?.invalidate()
+            timer = nil
+        }
+    }
+
+    private func startSimulatedAudio() {
+        timer?.invalidate()
+        timer = Timer.scheduledTimer(withTimeInterval: 0.08, repeats: true) { _ in
+            guard !appState.isRecording else { return }
+            let level = Float.random(in: 0.2...0.7)
+            withAnimation(.linear(duration: 0.08)) {
+                appState.audioLevel = level
+            }
         }
     }
 }

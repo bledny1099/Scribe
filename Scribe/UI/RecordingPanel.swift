@@ -17,22 +17,27 @@ final class RecordingPanel: NSPanel {
     static let minimalSize  = NSSize(width: 140, height: 44)
     static let ecgSize      = NSSize(width: 260, height: 64)
 
-    static func size(for style: OverlayStyle) -> NSSize {
+    static func size(for style: OverlayStyle, overlaySize: OverlaySize = .standard) -> NSSize {
+        let base: NSSize
         switch style {
-        case .classic:  return classicSize
-        case .waveform: return waveformSize
-        case .minimal:  return minimalSize
-        case .ecg:      return ecgSize
+        case .classic:  base = classicSize
+        case .waveform: base = waveformSize
+        case .minimal:  base = minimalSize
+        case .ecg:      base = ecgSize
         }
+        let scale = overlaySize.scale
+        return NSSize(width: round(base.width * scale), height: round(base.height * scale))
     }
 
-    static func radius(for style: OverlayStyle) -> CGFloat {
+    static func radius(for style: OverlayStyle, overlaySize: OverlaySize = .standard) -> CGFloat {
+        let baseRadius: CGFloat
         switch style {
-        case .classic:  return 24
-        case .waveform: return waveformSize.height / 2
-        case .minimal:  return minimalSize.height / 2
-        case .ecg:      return 16
+        case .classic:  baseRadius = 24
+        case .waveform: baseRadius = waveformSize.height / 2
+        case .minimal:  baseRadius = minimalSize.height / 2
+        case .ecg:      baseRadius = 16
         }
+        return round(baseRadius * overlaySize.scale)
     }
 
     private var cornerRadiusValue: CGFloat = 24
@@ -51,9 +56,9 @@ final class RecordingPanel: NSPanel {
     }
 
     /// Convenience factory that selects the right size and appearance.
-    static func make(style: OverlayStyle = .waveform, appearance: PanelAppearance = .dark) -> RecordingPanel {
-        let size: NSSize = Self.size(for: style)
-        let radius: CGFloat = Self.radius(for: style)
+    static func make(style: OverlayStyle = .waveform, appearance: PanelAppearance = .dark, size overlaySize: OverlaySize = .standard) -> RecordingPanel {
+        let size: NSSize = Self.size(for: style, overlaySize: overlaySize)
+        let radius: CGFloat = Self.radius(for: style, overlaySize: overlaySize)
 
         let panel = RecordingPanel(
             contentRect: NSRect(origin: .zero, size: size),
@@ -102,15 +107,19 @@ final class RecordingPanel: NSPanel {
     // MARK: - Content
 
     /// Embeds a SwiftUI view inside the blur background.
-    func setContent<Content: View>(_ view: Content, style: OverlayStyle = .waveform) {
+    func setContent<Content: View>(_ view: Content, style: OverlayStyle = .waveform, overlaySize: OverlaySize = .standard) {
         containerView.subviews.filter { $0 != blurView }.forEach { $0.removeFromSuperview() }
 
-        let size: NSSize = Self.size(for: style)
-        let radius: CGFloat = Self.radius(for: style)
+        let baseSize: NSSize = Self.size(for: style, overlaySize: .standard)
+        let targetSize: NSSize = Self.size(for: style, overlaySize: overlaySize)
+        let scale = overlaySize.scale
+
         blurView.isHidden = false
 
         let wrappedView = view
-            .frame(width: size.width, height: size.height)
+            .frame(width: baseSize.width, height: baseSize.height)
+            .scaleEffect(scale)
+            .frame(width: targetSize.width, height: targetSize.height)
             .background(Color.clear)
 
         let hostingView = NSHostingView(rootView: wrappedView)
@@ -127,7 +136,8 @@ final class RecordingPanel: NSPanel {
             hostingView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
         ])
 
-        updateCornerRadius(radius)
+        let targetRadius = Self.radius(for: style, overlaySize: overlaySize)
+        updateCornerRadius(targetRadius)
         invalidateShadow()
     }
 

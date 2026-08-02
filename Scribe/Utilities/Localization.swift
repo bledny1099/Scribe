@@ -133,6 +133,8 @@ enum Localization {
             "Appearance": "Внешний вид",
             "Theme": "Тема оформления",
             "Overlay Style": "Стиль оверлея",
+            "Overlay Size": "Размер оверлея",
+            "Overlay Size Preview": "Предпросмотр размера",
             "Waveform": "Волна",
             "Classic": "Классический",
             "Panel Appearance": "Тема панели",
