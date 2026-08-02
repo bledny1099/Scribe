@@ -128,15 +128,15 @@ struct ClassicOverlay: View {
                 .animation(.spring(response: 0.18, dampingFraction: 0.65), value: appState.audioLevel)
 
                 HStack(spacing: 6) {
-                    if appState.recordingStatus == .recording {
-                        Text(appState.formattedDuration)
+                    if appState.recordingStatus == .recording || appState.isShowingPreview {
+                        Text(appState.isShowingPreview ? "0:05" : appState.formattedDuration)
                             .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .monospaced))
                             .foregroundStyle(.primary.opacity(0.9))
                             .contentTransition(.numericText())
                             .animation(.default, value: appState.recordingDuration)
                     }
 
-                    Text(statusLabel)
+                    Text(appState.isShowingPreview ? appState.l("Recording…") : statusLabel)
                         .font(.system(size: 11 * appState.overlayTextCompensation, weight: .medium, design: .rounded))
                         .foregroundStyle(.primary.opacity(0.7))
                 }
@@ -153,7 +153,7 @@ struct ClassicOverlay: View {
                     .background(Circle().fill(Color.primary.opacity(0.15)))
             }
             .buttonStyle(.plain)
-            .opacity(appState.recordingStatus == .recording ? 1 : 0)
+            .opacity((appState.recordingStatus == .recording || appState.isShowingPreview) ? 1 : 0)
             .padding(.top, 12)
             .padding(.trailing, 12)
         }
@@ -167,45 +167,46 @@ struct ClassicOverlay: View {
 
     @ViewBuilder
     private var classicStatusIcon: some View {
-        switch appState.recordingStatus {
-        case .recording:
+        if appState.isShowingPreview || appState.recordingStatus == .recording {
             Image(systemName: "mic.fill")
                 .font(.system(size: 20, weight: .semibold))
                 .foregroundStyle(gradient)
                 .symbolEffect(.pulse, isActive: true)
-
-        case .loadingModel, .transcribing:
-            ZStack {
-                Circle()
-                    .trim(from: 0, to: 0.7)
-                    .stroke(gradient, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                    .frame(width: 30, height: 30)
-                    .rotationEffect(.degrees(spinAngle))
-                    .onAppear {
-                        withAnimation(.linear(duration: 0.9).repeatForever(autoreverses: false)) {
-                            spinAngle = 360
+        } else {
+            switch appState.recordingStatus {
+            case .loadingModel, .transcribing:
+                ZStack {
+                    Circle()
+                        .trim(from: 0, to: 0.7)
+                        .stroke(gradient, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                        .frame(width: 30, height: 30)
+                        .rotationEffect(.degrees(spinAngle))
+                        .onAppear {
+                            withAnimation(.linear(duration: 0.9).repeatForever(autoreverses: false)) {
+                                spinAngle = 360
+                            }
                         }
-                    }
-                    .onDisappear { spinAngle = 0 }
+                        .onDisappear { spinAngle = 0 }
 
-                Image(systemName: "brain")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(gradient)
+                    Image(systemName: "brain")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(gradient)
+                }
+
+            case .done:
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 24, weight: .medium))
+                    .foregroundStyle(.green.gradient)
+                    .transition(.scale.combined(with: .opacity))
+
+            case .error:
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundStyle(.orange.gradient)
+
+            case .idle, .recording:
+                EmptyView()
             }
-
-        case .done:
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 24, weight: .medium))
-                .foregroundStyle(.green.gradient)
-                .transition(.scale.combined(with: .opacity))
-
-        case .error:
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 20, weight: .medium))
-                .foregroundStyle(.orange.gradient)
-
-        case .idle:
-            EmptyView()
         }
     }
 
@@ -256,22 +257,22 @@ struct WaveformOverlay: View {
 
                 // Right: status label + stop button
                 HStack(spacing: 8) {
-                    if appState.recordingStatus == .recording {
-                        Text(appState.formattedDuration)
+                    if appState.recordingStatus == .recording || appState.isShowingPreview {
+                        Text(appState.isShowingPreview ? "0:05" : appState.formattedDuration)
                             .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .monospaced))
                             .foregroundStyle(.primary.opacity(0.8))
                             .contentTransition(.numericText())
                             .animation(.default, value: appState.recordingDuration)
                     }
 
-                    if appState.recordingStatus != .recording {
+                    if appState.recordingStatus != .recording && !appState.isShowingPreview {
                         Text(statusLabel)
                             .font(.system(size: 11 * appState.overlayTextCompensation, weight: .semibold, design: .rounded))
                             .foregroundStyle(.primary.opacity(0.6))
                             .lineLimit(1)
                     }
 
-                    if appState.recordingStatus == .recording {
+                    if appState.recordingStatus == .recording || appState.isShowingPreview {
                         Button(action: { appState.cancelRecording() }) {
                             Image(systemName: "stop.fill")
                                 .font(.system(size: 12, weight: .bold))
@@ -346,41 +347,42 @@ struct WaveformOverlay: View {
 
     @ViewBuilder
     private var statusIndicator: some View {
-        switch appState.recordingStatus {
-        case .recording:
+        if appState.isShowingPreview || appState.recordingStatus == .recording {
             Circle()
                 .fill(theme.gradientColors[1])
                 .frame(width: 10, height: 10)
                 .shadow(color: theme.gradientColors[1].opacity(0.6), radius: 6)
-
-        case .loadingModel, .transcribing:
-            Circle()
-                .trim(from: 0, to: 0.7)
-                .stroke(
-                    theme.accentGradient,
-                    style: StrokeStyle(lineWidth: 2.5, lineCap: .round)
-                )
-                .frame(width: 22, height: 22)
-                .rotationEffect(.degrees(spinAngle))
-                .onAppear {
-                    withAnimation(.linear(duration: 0.9).repeatForever(autoreverses: false)) {
-                        spinAngle = 360
+        } else {
+            switch appState.recordingStatus {
+            case .loadingModel, .transcribing:
+                Circle()
+                    .trim(from: 0, to: 0.7)
+                    .stroke(
+                        theme.accentGradient,
+                        style: StrokeStyle(lineWidth: 2.5, lineCap: .round)
+                    )
+                    .frame(width: 22, height: 22)
+                    .rotationEffect(.degrees(spinAngle))
+                    .onAppear {
+                        withAnimation(.linear(duration: 0.9).repeatForever(autoreverses: false)) {
+                            spinAngle = 360
+                        }
                     }
-                }
-                .onDisappear { spinAngle = 0 }
+                    .onDisappear { spinAngle = 0 }
 
-        case .done:
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 20, weight: .medium))
-                .foregroundStyle(.green.gradient)
+            case .done:
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 20, weight: .medium))
+                    .foregroundStyle(.green.gradient)
 
-        case .error:
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 18, weight: .medium))
-                .foregroundStyle(.orange.gradient)
+            case .error:
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(.orange.gradient)
 
-        case .idle:
-            EmptyView()
+            case .idle, .recording:
+                EmptyView()
+            }
         }
     }
 
@@ -409,12 +411,12 @@ struct MinimalOverlay: View {
             Circle()
                 .fill(theme.glowColor)
                 .frame(width: 10, height: 10)
-                .scaleEffect(appState.recordingStatus == .recording ? (1 + CGFloat(appState.audioLevel) * 0.4) : 1.0)
-                .opacity(appState.recordingStatus == .recording ? (0.6 + Double(appState.audioLevel) * 0.4) : 0.3)
+                .scaleEffect((appState.recordingStatus == .recording || appState.isShowingPreview) ? (1 + CGFloat(appState.audioLevel) * 0.4) : 1.0)
+                .opacity((appState.recordingStatus == .recording || appState.isShowingPreview) ? (0.6 + Double(appState.audioLevel) * 0.4) : 0.3)
                 .animation(.spring(response: 0.2, dampingFraction: 0.7), value: appState.audioLevel)
                 
-            if appState.recordingStatus == .recording {
-                Text(appState.formattedDuration)
+            if appState.recordingStatus == .recording || appState.isShowingPreview {
+                Text(appState.isShowingPreview ? "0:05" : appState.formattedDuration)
                     .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .monospaced))
                     .foregroundStyle(.primary)
             } else {
@@ -423,7 +425,7 @@ struct MinimalOverlay: View {
                     .foregroundStyle(.primary.opacity(0.7))
             }
             
-            if appState.recordingStatus == .recording {
+            if appState.recordingStatus == .recording || appState.isShowingPreview {
                 Button(action: { appState.cancelRecording() }) {
                     Image(systemName: "xmark")
                         .font(.system(size: 10, weight: .bold))
@@ -490,7 +492,7 @@ struct ECGOverlay: View {
                 }
                 .frame(height: 30)
                 
-                if appState.recordingStatus == .recording {
+                if appState.recordingStatus == .recording || appState.isShowingPreview {
                     Button(action: { appState.cancelRecording() }) {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(.secondary)
@@ -573,15 +575,15 @@ struct OrbOverlay: View {
 
                 // Timer & Status Text
                 HStack(spacing: 6) {
-                    if appState.recordingStatus == .recording {
-                        Text(appState.formattedDuration)
+                    if appState.recordingStatus == .recording || appState.isShowingPreview {
+                        Text(appState.isShowingPreview ? "0:05" : appState.formattedDuration)
                             .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .monospaced))
                             .foregroundStyle(.primary.opacity(0.9))
                             .contentTransition(.numericText())
                             .animation(.default, value: appState.recordingDuration)
                     }
 
-                    Text(statusLabel)
+                    Text(appState.isShowingPreview ? appState.l("Recording…") : statusLabel)
                         .font(.system(size: 11 * appState.overlayTextCompensation, weight: .medium, design: .rounded))
                         .foregroundStyle(.primary.opacity(0.7))
                 }
@@ -598,7 +600,7 @@ struct OrbOverlay: View {
                     .background(Circle().fill(Color.primary.opacity(0.15)))
             }
             .buttonStyle(.plain)
-            .opacity(appState.recordingStatus == .recording ? 1 : 0)
+            .opacity((appState.recordingStatus == .recording || appState.isShowingPreview) ? 1 : 0)
             .padding(.top, 16)
             .padding(.trailing, 16)
         }
