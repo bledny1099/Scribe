@@ -693,7 +693,13 @@ final class AppState: ObservableObject {
         let overlay = RecordingOverlayView()
             .environmentObject(self)
 
-        let targetSize = RecordingPanel.size(for: selectedOverlayStyle, overlaySize: selectedOverlaySize)
+        let isEmbeddedActive = livePreviewEnabled && livePreviewMode == .embedded && !livePreviewText.isEmpty
+        let targetSize = RecordingPanel.size(
+            for: selectedOverlayStyle,
+            overlaySize: selectedOverlaySize,
+            isEmbeddedPreviewActive: isEmbeddedActive,
+            previewTextLength: livePreviewText.count
+        )
         let targetRadius = RecordingPanel.radius(for: selectedOverlayStyle, overlaySize: selectedOverlaySize)
         let targetOrigin = targetPreviewOrigin(for: selectedOverlayStyle, size: targetSize)
         let targetFrame = NSRect(origin: targetOrigin, size: targetSize)

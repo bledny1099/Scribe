@@ -18,8 +18,13 @@ final class RecordingPanel: NSPanel {
     static let ecgSize      = NSSize(width: 260, height: 64)
     static let orbSize      = NSSize(width: 200, height: 200)
 
-    static func size(for style: OverlayStyle, overlaySize: OverlaySize = .s100) -> NSSize {
-        let base: NSSize
+    static func size(
+        for style: OverlayStyle,
+        overlaySize: OverlaySize = .s100,
+        isEmbeddedPreviewActive: Bool = false,
+        previewTextLength: Int = 0
+    ) -> NSSize {
+        var base: NSSize
         switch style {
         case .classic:  base = classicSize
         case .waveform: base = waveformSize
@@ -27,6 +32,12 @@ final class RecordingPanel: NSPanel {
         case .ecg:      base = ecgSize
         case .orb:      base = orbSize
         }
+
+        if isEmbeddedPreviewActive {
+            let extraHeight: CGFloat = previewTextLength > 40 ? 68 : 52
+            base.height += extraHeight
+        }
+
         let scale = overlaySize.scale
         return NSSize(width: round(base.width * scale), height: round(base.height * scale))
     }
