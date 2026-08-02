@@ -166,17 +166,18 @@ struct ClassicOverlay: View {
                 Spacer(minLength: 12)
             }
 
-            // Stop button — fixed at top-right, never moves
+            // Stop button — fixed at top-right, perfectly inset inside rounded corner
             Button(action: { appState.cancelRecording() }) {
                 Image(systemName: "xmark")
                     .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(.primary.opacity(0.5))
+                    .foregroundStyle(.primary.opacity(0.6))
                     .frame(width: 24, height: 24)
-                    .background(Circle().fill(Color.primary.opacity(0.1)))
+                    .background(Circle().fill(Color.primary.opacity(0.15)))
             }
             .buttonStyle(.plain)
             .opacity(appState.recordingStatus == .recording ? 1 : 0)
-            .padding(12)
+            .padding(.top, 14)
+            .padding(.trailing, 14)
         }
         .frame(width: RecordingPanel.classicSize.width, height: cardHeight)
         .onAppear {
@@ -581,17 +582,18 @@ struct OrbOverlay: View {
                 Spacer(minLength: 4)
             }
 
-            // Stop button — fixed at top-right, never moves
+            // Stop button — fixed at top-right, perfectly inset inside rounded corner
             Button(action: { appState.cancelRecording() }) {
                 Image(systemName: "xmark")
                     .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(.primary.opacity(0.5))
+                    .foregroundStyle(.primary.opacity(0.6))
                     .frame(width: 24, height: 24)
-                    .background(Circle().fill(Color.primary.opacity(0.1)))
+                    .background(Circle().fill(Color.primary.opacity(0.15)))
             }
             .buttonStyle(.plain)
             .opacity(appState.recordingStatus == .recording ? 1 : 0)
-            .padding(12)
+            .padding(.top, 14)
+            .padding(.trailing, 14)
         }
         .frame(width: RecordingPanel.orbSize.width, height: cardHeight)
         .onAppear {
