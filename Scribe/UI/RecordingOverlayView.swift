@@ -176,8 +176,8 @@ struct ClassicOverlay: View {
             }
             .buttonStyle(.plain)
             .opacity(appState.recordingStatus == .recording ? 1 : 0)
-            .padding(.top, 14)
-            .padding(.trailing, 14)
+            .padding(.top, 16)
+            .padding(.trailing, 16)
         }
         .frame(width: RecordingPanel.classicSize.width, height: cardHeight)
         .onAppear {
@@ -592,8 +592,8 @@ struct OrbOverlay: View {
             }
             .buttonStyle(.plain)
             .opacity(appState.recordingStatus == .recording ? 1 : 0)
-            .padding(.top, 14)
-            .padding(.trailing, 14)
+            .padding(.top, 16)
+            .padding(.trailing, 16)
         }
         .frame(width: RecordingPanel.orbSize.width, height: cardHeight)
         .onAppear {
