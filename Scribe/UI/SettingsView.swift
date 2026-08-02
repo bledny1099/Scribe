@@ -69,6 +69,7 @@ struct SettingsView: View {
                                     set: { newValue in
                                         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                             appState.livePreviewEnabled = newValue
+                                            appState.showSettingsPreviewFor5Seconds()
                                         }
                                     }
                                 ))
@@ -77,19 +78,44 @@ struct SettingsView: View {
                             }
 
                             if appState.livePreviewEnabled {
-                                HStack {
-                                    Text(appState.l("Preview Background"))
-                                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                                        .foregroundStyle(.primary)
-                                    Spacer()
-                                    LiquidGlassSegmentedPicker(
-                                        items: SubtitleBackground.allCases,
-                                        selection: Binding(
-                                            get: { appState.livePreviewBackground },
-                                            set: { appState.livePreviewBackground = $0 }
-                                        ),
-                                        label: { (appState.l($0.displayName), $0.icon) }
-                                    )
+                                VStack(spacing: 10) {
+                                    HStack {
+                                        Text(appState.l("Display Mode"))
+                                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                                            .foregroundStyle(.primary)
+                                        Spacer()
+                                        LiquidGlassSegmentedPicker(
+                                            items: LivePreviewMode.allCases,
+                                            selection: Binding(
+                                                get: { appState.livePreviewMode },
+                                                set: {
+                                                    appState.livePreviewMode = $0
+                                                    appState.showSettingsPreviewFor5Seconds()
+                                                }
+                                            ),
+                                            label: { (appState.l($0.displayName), $0.icon) }
+                                        )
+                                    }
+
+                                    if appState.livePreviewMode == .external {
+                                        HStack {
+                                            Text(appState.l("Preview Background"))
+                                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                                .foregroundStyle(.primary)
+                                            Spacer()
+                                            LiquidGlassSegmentedPicker(
+                                                items: SubtitleBackground.allCases,
+                                                selection: Binding(
+                                                    get: { appState.livePreviewBackground },
+                                                    set: {
+                                                        appState.livePreviewBackground = $0
+                                                        appState.showSettingsPreviewFor5Seconds()
+                                                    }
+                                                ),
+                                                label: { (appState.l($0.displayName), $0.icon) }
+                                            )
+                                        }
+                                    }
                                 }
                                 .padding(.top, 4)
                                 .transition(.opacity.combined(with: .move(edge: .top)))

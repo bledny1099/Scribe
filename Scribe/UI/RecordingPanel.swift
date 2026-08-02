@@ -16,6 +16,7 @@ final class RecordingPanel: NSPanel {
     static let waveformSize = NSSize(width: 480, height: 72)
     static let minimalSize  = NSSize(width: 140, height: 44)
     static let ecgSize      = NSSize(width: 260, height: 64)
+    static let orbSize      = NSSize(width: 200, height: 200)
 
     static func size(for style: OverlayStyle, overlaySize: OverlaySize = .s100) -> NSSize {
         let base: NSSize
@@ -24,6 +25,7 @@ final class RecordingPanel: NSPanel {
         case .waveform: base = waveformSize
         case .minimal:  base = minimalSize
         case .ecg:      base = ecgSize
+        case .orb:      base = orbSize
         }
         let scale = overlaySize.scale
         return NSSize(width: round(base.width * scale), height: round(base.height * scale))
@@ -36,6 +38,7 @@ final class RecordingPanel: NSPanel {
         case .waveform: baseRadius = waveformSize.height / 2
         case .minimal:  baseRadius = minimalSize.height / 2
         case .ecg:      baseRadius = 16
+        case .orb:      baseRadius = 28
         }
         return round(baseRadius * overlaySize.scale)
     }

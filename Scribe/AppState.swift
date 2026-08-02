@@ -25,6 +25,7 @@ enum OverlayStyle: String, CaseIterable, Identifiable {
     case waveform  // Horizontal bar with waveform bars
     case minimal   // Tiny pill with just mic icon and time
     case ecg       // Pulse/oscilloscope line
+    case orb       // Bouncy fluid liquid orb sphere
 
     var id: String { rawValue }
 
@@ -34,6 +35,7 @@ enum OverlayStyle: String, CaseIterable, Identifiable {
         case .waveform: "Waveform"
         case .minimal:  "Minimal"
         case .ecg:      "Pulse"
+        case .orb:      "Orb"
         }
     }
 
@@ -43,6 +45,7 @@ enum OverlayStyle: String, CaseIterable, Identifiable {
         case .waveform: "waveform"
         case .minimal:  "capsule"
         case .ecg:      "waveform.path.ecg"
+        case .orb:      "sparkles"
         }
     }
 }
@@ -152,24 +155,51 @@ enum PasteMode: String, CaseIterable, Identifiable {
 
 // MARK: - Subtitle Background
 
-/// Background style for the live preview subtitle text.
+/// Background style for live subtitle window.
 enum SubtitleBackground: String, CaseIterable, Identifiable {
-    case dark
     case glass
+    case dark
+    case transparent
 
     var id: String { rawValue }
 
     var displayName: String {
         switch self {
-        case .dark:  "Dark"
         case .glass: "Glass"
+        case .dark: "Solid"
+        case .transparent: "Transparent"
         }
     }
 
     var icon: String {
         switch self {
-        case .dark:  "square.fill"
-        case .glass: "square.on.square"
+        case .glass: "square.stack.3d.up.fill"
+        case .dark: "square.fill"
+        case .transparent: "square.dashed"
+        }
+    }
+}
+
+// MARK: - Live Preview Mode
+
+/// Placement mode for Live Preview text (Floating Pill vs Inside Card).
+enum LivePreviewMode: String, CaseIterable, Identifiable {
+    case external = "external"
+    case embedded = "embedded"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .external: "Floating Pill"
+        case .embedded: "Inside Card"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .external: "capsule"
+        case .embedded: "rectangle.inset.filled"
         }
     }
 }
@@ -311,6 +341,14 @@ final class AppState: ObservableObject {
     var livePreviewBackground: SubtitleBackground {
         get { SubtitleBackground(rawValue: livePreviewBackgroundRaw) ?? .glass }
         set { livePreviewBackgroundRaw = newValue.rawValue }
+    }
+
+    @AppStorage("livePreviewMode") var livePreviewModeRaw: String = LivePreviewMode.external.rawValue
+
+    /// Computed property for type-safe live preview mode access.
+    var livePreviewMode: LivePreviewMode {
+        get { LivePreviewMode(rawValue: livePreviewModeRaw) ?? .external }
+        set { livePreviewModeRaw = newValue.rawValue }
     }
 
     @AppStorage("selectedPasteMode") var selectedPasteModeRaw: String = PasteMode.paste.rawValue
@@ -582,11 +620,18 @@ final class AppState: ObservableObject {
     // MARK: - Floating Preview Panel for Settings (5-second auto-dismiss)
 
     private var settingsPreviewPanel: RecordingPanel?
+    var isShowingPreview: Bool { settingsPreviewPanel != nil }
     private var settingsPreviewAnimTimer: Timer?
     private var previewDismissTimer: Timer?
 
     func showSettingsPreviewFor5Seconds() {
         guard !isRecording && !isTranscribing else { return }
+
+        if livePreviewEnabled {
+            livePreviewText = l("Scribe transcribes your speech live…")
+        } else {
+            livePreviewText = ""
+        }
 
         updateSettingsPreviewPanel()
 
@@ -628,7 +673,7 @@ final class AppState: ObservableObject {
         guard let screen = NSScreen.main else { return .zero }
         let screenFrame = screen.visibleFrame
 
-        if style == .classic, let settingsFrame = SettingsWindowManager.shared.windowFrame {
+        if (style == .classic || style == .orb), let settingsFrame = SettingsWindowManager.shared.windowFrame {
             let preferredX = settingsFrame.maxX + 24
             let maxAllowedX = screenFrame.maxX - size.width - 20
             let x = min(preferredX, maxAllowedX)

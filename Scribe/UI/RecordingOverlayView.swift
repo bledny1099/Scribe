@@ -16,11 +16,13 @@ struct RecordingOverlayView: View {
                 MinimalOverlay().environmentObject(appState)
             case .ecg:
                 ECGOverlay().environmentObject(appState)
+            case .orb:
+                OrbOverlay().environmentObject(appState)
             }
         }
         .overlay(
             Group {
-                if appState.selectedOverlayStyle == .classic {
+                if appState.selectedOverlayStyle == .classic || appState.selectedOverlayStyle == .orb {
                     RoundedRectangle(cornerRadius: 24)
                         .strokeBorder(
                             LinearGradient(
@@ -136,6 +138,20 @@ struct ClassicOverlay: View {
                         .font(.system(size: 11 * appState.overlayTextCompensation, weight: .medium, design: .rounded))
                         .foregroundStyle(.primary.opacity(0.7))
                 }
+
+                if appState.livePreviewEnabled && appState.livePreviewMode == .embedded && !appState.livePreviewText.isEmpty {
+                    Divider()
+                        .background(Color.primary.opacity(0.15))
+                        .padding(.horizontal, 14)
+
+                    Text(appState.livePreviewText)
+                        .font(.system(size: 11 * appState.overlayTextCompensation, weight: .medium, design: .rounded))
+                        .foregroundStyle(.primary.opacity(0.9))
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .padding(.horizontal, 10)
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
+                }
             }
 
             // Stop button — top right corner
@@ -211,9 +227,9 @@ struct ClassicOverlay: View {
     private var statusLabel: String {
         switch appState.recordingStatus {
         case .idle:              ""
-        case .recording:         "Recording…"
-        case .loadingModel:      "Loading model…"
-        case .transcribing:      "Transcribing…"
+        case .recording:         "Recording"
+        case .loadingModel:      "Loading model"
+        case .transcribing:      "Transcribing"
         case .done:              "Done ✓"
         case .error(let msg):    msg
         }
@@ -470,13 +486,132 @@ struct ECGOverlay: View {
 
 
 
+// ============================================================================
+// MARK: - Orb Overlay (Fluid Siri-style Bouncy Liquid Sphere)
+// ============================================================================
+
+struct OrbOverlay: View {
+    @EnvironmentObject var appState: AppState
+    @State private var rotationAngle: Double = 0
+
+    private var theme: AppTheme { appState.selectedTheme }
+    private var gradient: LinearGradient { theme.accentGradient }
+
+    var body: some View {
+        ZStack {
+            VStack(spacing: 8) {
+                Spacer(minLength: 4)
+
+                // Bouncy Fluid Liquid Orb Sphere
+                ZStack {
+                    // Outer fluid aura glow
+                    Circle()
+                        .fill(theme.glowColor.opacity(0.3 + Double(appState.audioLevel) * 0.45))
+                        .blur(radius: 16)
+                        .scaleEffect(1.0 + CGFloat(appState.audioLevel) * 0.35)
+
+                    // Layer 1: Rotating Gradient Ring
+                    Circle()
+                        .stroke(gradient, lineWidth: 5)
+                        .frame(width: 80, height: 80)
+                        .rotationEffect(.degrees(rotationAngle))
+                        .scaleEffect(1.0 + CGFloat(appState.audioLevel) * 0.2)
+                        .opacity(0.85)
+
+                    // Layer 2: Inner Fluid Blob Sphere
+                    Circle()
+                        .fill(gradient.opacity(0.75))
+                        .frame(width: 64, height: 64)
+                        .scaleEffect(1.0 + CGFloat(appState.audioLevel) * 0.25)
+
+                    // Center Mic Icon
+                    Image(systemName: "mic.fill")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundStyle(.white)
+                        .shadow(color: .black.opacity(0.3), radius: 4)
+                        .scaleEffect(1.0 + CGFloat(appState.audioLevel) * 0.15)
+                }
+                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: appState.audioLevel)
+                .frame(width: 96, height: 96)
+
+                // Timer & Status Text
+                HStack(spacing: 6) {
+                    if appState.recordingStatus == .recording {
+                        Text(appState.formattedDuration)
+                            .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(.primary.opacity(0.9))
+                            .contentTransition(.numericText())
+                            .animation(.default, value: appState.recordingDuration)
+                    }
+
+                    Text(statusLabel)
+                        .font(.system(size: 11 * appState.overlayTextCompensation, weight: .medium, design: .rounded))
+                        .foregroundStyle(.primary.opacity(0.7))
+                }
+
+                // Embedded Live Preview Text (Inside Card Mode)
+                if appState.livePreviewEnabled && appState.livePreviewMode == .embedded && !appState.livePreviewText.isEmpty {
+                    Divider()
+                        .background(Color.primary.opacity(0.15))
+                        .padding(.horizontal, 14)
+
+                    Text(appState.livePreviewText)
+                        .font(.system(size: 11 * appState.overlayTextCompensation, weight: .medium, design: .rounded))
+                        .foregroundStyle(.primary.opacity(0.9))
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .padding(.horizontal, 10)
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
+                }
+
+                Spacer(minLength: 4)
+            }
+
+            // Stop button — top right corner
+            VStack {
+                HStack {
+                    Spacer()
+                    Button(action: { appState.cancelRecording() }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(.primary.opacity(0.5))
+                            .frame(width: 24, height: 24)
+                            .background(Circle().fill(Color.primary.opacity(0.1)))
+                    }
+                    .buttonStyle(.plain)
+                    .opacity(appState.recordingStatus == .recording ? 1 : 0)
+                }
+                Spacer()
+            }
+            .padding(12)
+        }
+        .frame(width: RecordingPanel.orbSize.width, height: RecordingPanel.orbSize.height)
+        .onAppear {
+            withAnimation(.linear(duration: 6).repeatForever(autoreverses: false)) {
+                rotationAngle = 360
+            }
+        }
+    }
+
+    private var statusLabel: String {
+        switch appState.recordingStatus {
+        case .idle:              ""
+        case .recording:         "Recording"
+        case .loadingModel:      "Loading model"
+        case .transcribing:      "Transcribing"
+        case .done:              "Done ✓"
+        case .error(let msg):    msg
+        }
+    }
+}
+
 /// A floating view to display live transcription preview below the main recording panel.
 struct SubtitleOverlayView: View {
     @EnvironmentObject var appState: AppState
 
     var body: some View {
         VStack {
-            if !appState.livePreviewText.isEmpty && appState.recordingStatus == .recording {
+            if !appState.livePreviewText.isEmpty && appState.livePreviewMode == .external && (appState.recordingStatus == .recording || appState.isShowingPreview) {
                 Text(appState.livePreviewText)
                     .font(.system(size: 14, weight: .medium, design: .rounded))
                     .foregroundStyle(.white)
