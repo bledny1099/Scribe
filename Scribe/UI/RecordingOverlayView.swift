@@ -176,8 +176,8 @@ struct ClassicOverlay: View {
             }
             .buttonStyle(.plain)
             .opacity(appState.recordingStatus == .recording ? 1 : 0)
-            .padding(.top, 16)
-            .padding(.trailing, 16)
+            .padding(.top, 12)
+            .padding(.trailing, 12)
         }
         .frame(width: RecordingPanel.classicSize.width, height: cardHeight)
         .onAppear {

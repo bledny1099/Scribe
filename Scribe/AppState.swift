@@ -646,7 +646,7 @@ final class AppState: ObservableObject {
 
     /// Resize the live recording panel's NSWindow when embedded preview text changes.
     private func resizeRecordingPanelForEmbeddedPreview() {
-        guard let panel = recordingPanel, isRecording else { return }
+        guard let panel = recordingPanel, (isRecording || isTranscribing) else { return }
         guard livePreviewEnabled, livePreviewMode == .embedded else { return }
 
         let isEmbedded = !livePreviewText.isEmpty
