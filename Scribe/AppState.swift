@@ -710,11 +710,16 @@ final class AppState: ObservableObject {
             existingPanel.setContent(overlay, style: selectedOverlayStyle, overlaySize: selectedOverlaySize)
             existingPanel.updateCornerRadius(targetRadius)
 
-            if existingPanel.frame != targetFrame {
+            let oldFrame = existingPanel.frame
+            // Anchor top edge (oldFrame.maxY) so window stretches DOWNWARDS when height expands
+            let calculatedY = oldFrame.maxY - targetSize.height
+            let calculatedFrame = NSRect(x: targetOrigin.x, y: calculatedY, width: targetSize.width, height: targetSize.height)
+
+            if oldFrame != calculatedFrame {
                 NSAnimationContext.runAnimationGroup { ctx in
                     ctx.duration = 0.25
                     ctx.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-                    existingPanel.animator().setFrame(targetFrame, display: true)
+                    existingPanel.animator().setFrame(calculatedFrame, display: true)
                 }
             }
 
