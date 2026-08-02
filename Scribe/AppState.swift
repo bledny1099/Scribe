@@ -618,6 +618,24 @@ final class AppState: ObservableObject {
         }
     }
 
+    private func targetPreviewOrigin(for style: OverlayStyle, size: NSSize) -> NSPoint {
+        guard let screen = NSScreen.main else { return .zero }
+        let screenFrame = screen.visibleFrame
+
+        if style == .classic, let settingsFrame = SettingsWindowManager.shared.windowFrame {
+            let preferredX = settingsFrame.maxX + 24
+            let maxAllowedX = screenFrame.maxX - size.width - 20
+            let x = min(preferredX, maxAllowedX)
+            let preferredY = settingsFrame.midY - size.height / 2
+            let y = max(screenFrame.minY + 20, min(preferredY, screenFrame.maxY - size.height - 20))
+            return NSPoint(x: x, y: y)
+        } else {
+            let x = screenFrame.midX - size.width / 2
+            let y = screenFrame.minY + 60
+            return NSPoint(x: x, y: y)
+        }
+    }
+
     func updateSettingsPreviewPanel() {
         guard !isRecording && !isTranscribing else { return }
 
@@ -626,6 +644,8 @@ final class AppState: ObservableObject {
 
         let targetSize = RecordingPanel.size(for: selectedOverlayStyle, overlaySize: selectedOverlaySize)
         let targetRadius = RecordingPanel.radius(for: selectedOverlayStyle, overlaySize: selectedOverlaySize)
+        let targetOrigin = targetPreviewOrigin(for: selectedOverlayStyle, size: targetSize)
+        let targetFrame = NSRect(origin: targetOrigin, size: targetSize)
 
         if let existingPanel = settingsPreviewPanel {
             // Update existing panel in-place without recreation or flashing
@@ -633,32 +653,24 @@ final class AppState: ObservableObject {
             existingPanel.setContent(overlay, style: selectedOverlayStyle, overlaySize: selectedOverlaySize)
             existingPanel.updateCornerRadius(targetRadius)
 
-            guard let screen = NSScreen.main else { return }
-            let screenFrame = screen.visibleFrame
-            let newX = screenFrame.maxX - targetSize.width - 60
-            let newY = screenFrame.minY + 60
-            let newFrame = NSRect(x: newX, y: newY, width: targetSize.width, height: targetSize.height)
-
-            if existingPanel.frame != newFrame {
+            if existingPanel.frame != targetFrame {
                 NSAnimationContext.runAnimationGroup { ctx in
                     ctx.duration = 0.25
                     ctx.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-                    existingPanel.animator().setFrame(newFrame, display: true)
+                    existingPanel.animator().setFrame(targetFrame, display: true)
                 }
             }
 
             existingPanel.orderFrontRegardless()
         } else {
-            // Create new panel at bottom-right with smooth slide-up entrance animation
+            // Create new panel with smooth slide-up entrance animation
             let panel = RecordingPanel.make(style: selectedOverlayStyle, appearance: selectedPanelAppearance, size: selectedOverlaySize)
             panel.setContent(overlay, style: selectedOverlayStyle, overlaySize: selectedOverlaySize)
             panel.collectionBehavior = [.moveToActiveSpace, .ignoresCycle]
 
-            panel.positionAtBottomRight()
-
-            let targetY = panel.frame.minY
-            let startY = targetY - 24
-            panel.setFrameOrigin(NSPoint(x: panel.frame.minX, y: startY))
+            let startY = targetOrigin.y - 24
+            panel.setFrame(targetFrame, display: false)
+            panel.setFrameOrigin(NSPoint(x: targetOrigin.x, y: startY))
             panel.alphaValue = 0
 
             panel.orderFrontRegardless()
@@ -668,7 +680,7 @@ final class AppState: ObservableObject {
                 ctx.duration = 0.35
                 ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
                 panel.animator().alphaValue = 1
-                panel.animator().setFrameOrigin(NSPoint(x: panel.frame.minX, y: targetY))
+                panel.animator().setFrameOrigin(targetOrigin)
             }
         }
     }

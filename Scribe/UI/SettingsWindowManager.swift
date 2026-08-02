@@ -76,6 +76,10 @@ final class SettingsWindowManager {
         window != nil
     }
 
+    var windowFrame: NSRect? {
+        window?.frame
+    }
+
     func closeWindow() {
         currentAppState?.hideSettingsPreviewPanel()
         window?.close()

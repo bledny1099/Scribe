@@ -164,6 +164,21 @@ final class RecordingPanel: NSPanel {
         setFrameOrigin(NSPoint(x: x, y: y))
     }
 
+    /// Positions the panel directly to the right of a reference window frame (e.g. Settings window).
+    func positionToRight(of referenceFrame: NSRect, spacing: CGFloat = 24) {
+        guard let screen = NSScreen.main else { center(); return }
+        let screenFrame = screen.visibleFrame
+        
+        let preferredX = referenceFrame.maxX + spacing
+        let maxAllowedX = screenFrame.maxX - frame.width - 20
+        let x = min(preferredX, maxAllowedX)
+        
+        let preferredY = referenceFrame.midY - frame.height / 2
+        let y = max(screenFrame.minY + 20, min(preferredY, screenFrame.maxY - frame.height - 20))
+        
+        setFrameOrigin(NSPoint(x: x, y: y))
+    }
+
     // MARK: - Overrides — keep the panel passive
 
     override var canBecomeKey: Bool  { false }
