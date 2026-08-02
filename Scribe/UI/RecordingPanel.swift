@@ -34,7 +34,10 @@ final class RecordingPanel: NSPanel {
         }
 
         if isEmbeddedPreviewActive {
-            let extraHeight: CGFloat = previewTextLength > 40 ? 68 : 52
+            // ~18pt per line, ~20 chars per line at 11pt in 220px width
+            let estimatedLines = max(1, Int(ceil(Double(previewTextLength) / 20.0)))
+            let textHeight: CGFloat = CGFloat(estimatedLines) * 18.0
+            let extraHeight: CGFloat = 24 + textHeight  // 24 = divider + padding
             base.height += extraHeight
         }
 

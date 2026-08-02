@@ -82,7 +82,7 @@ struct ClassicOverlay: View {
             previewTextLength: appState.livePreviewText.count
         ).height / appState.selectedOverlaySize.scale
 
-        return ZStack {
+        return ZStack(alignment: .topTrailing) {
             // Main content
             VStack(spacing: 12) {
                 Spacer(minLength: 12)
@@ -158,7 +158,7 @@ struct ClassicOverlay: View {
                         .font(.system(size: 11 * appState.overlayTextCompensation, weight: .medium, design: .rounded))
                         .foregroundStyle(.primary.opacity(0.9))
                         .multilineTextAlignment(.center)
-                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
                         .padding(.horizontal, 10)
                         .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
@@ -166,22 +166,16 @@ struct ClassicOverlay: View {
                 Spacer(minLength: 12)
             }
 
-            // Stop button — top right corner
-            VStack {
-                HStack {
-                    Spacer()
-                    Button(action: { appState.cancelRecording() }) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(.primary.opacity(0.5))
-                            .frame(width: 24, height: 24)
-                            .background(Circle().fill(Color.primary.opacity(0.1)))
-                    }
-                    .buttonStyle(.plain)
-                    .opacity(appState.recordingStatus == .recording ? 1 : 0)
-                }
-                Spacer()
+            // Stop button — fixed at top-right, never moves
+            Button(action: { appState.cancelRecording() }) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(.primary.opacity(0.5))
+                    .frame(width: 24, height: 24)
+                    .background(Circle().fill(Color.primary.opacity(0.1)))
             }
+            .buttonStyle(.plain)
+            .opacity(appState.recordingStatus == .recording ? 1 : 0)
             .padding(12)
         }
         .frame(width: RecordingPanel.classicSize.width, height: cardHeight)
@@ -518,7 +512,7 @@ struct OrbOverlay: View {
             previewTextLength: appState.livePreviewText.count
         ).height / appState.selectedOverlaySize.scale
 
-        return ZStack {
+        return ZStack(alignment: .topTrailing) {
             VStack(spacing: 8) {
                 Spacer(minLength: 4)
 
@@ -579,7 +573,7 @@ struct OrbOverlay: View {
                         .font(.system(size: 11 * appState.overlayTextCompensation, weight: .medium, design: .rounded))
                         .foregroundStyle(.primary.opacity(0.9))
                         .multilineTextAlignment(.center)
-                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
                         .padding(.horizontal, 10)
                         .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
@@ -587,22 +581,16 @@ struct OrbOverlay: View {
                 Spacer(minLength: 4)
             }
 
-            // Stop button — top right corner
-            VStack {
-                HStack {
-                    Spacer()
-                    Button(action: { appState.cancelRecording() }) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(.primary.opacity(0.5))
-                            .frame(width: 24, height: 24)
-                            .background(Circle().fill(Color.primary.opacity(0.1)))
-                    }
-                    .buttonStyle(.plain)
-                    .opacity(appState.recordingStatus == .recording ? 1 : 0)
-                }
-                Spacer()
+            // Stop button — fixed at top-right, never moves
+            Button(action: { appState.cancelRecording() }) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(.primary.opacity(0.5))
+                    .frame(width: 24, height: 24)
+                    .background(Circle().fill(Color.primary.opacity(0.1)))
             }
+            .buttonStyle(.plain)
+            .opacity(appState.recordingStatus == .recording ? 1 : 0)
             .padding(12)
         }
         .frame(width: RecordingPanel.orbSize.width, height: cardHeight)
