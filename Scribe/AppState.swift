@@ -584,12 +584,13 @@ final class AppState: ObservableObject {
 
         updateSettingsPreviewPanel()
 
-        settingsPreviewAnimTimer?.invalidate()
-        settingsPreviewAnimTimer = Timer.scheduledTimer(withTimeInterval: 0.08, repeats: true) { [weak self] _ in
-            guard let self = self, !self.isRecording && !self.isTranscribing else { return }
-            let level = Float.random(in: 0.25...0.65)
-            withAnimation(.linear(duration: 0.08)) {
-                self.audioLevel = level
+        if settingsPreviewAnimTimer == nil {
+            settingsPreviewAnimTimer = Timer.scheduledTimer(withTimeInterval: 0.08, repeats: true) { [weak self] _ in
+                guard let self = self, !self.isRecording && !self.isTranscribing else { return }
+                let level = Float.random(in: 0.25...0.65)
+                withAnimation(.linear(duration: 0.08)) {
+                    self.audioLevel = level
+                }
             }
         }
 
@@ -599,6 +600,21 @@ final class AppState: ObservableObject {
             Task { @MainActor [weak self] in
                 self?.hideSettingsPreviewPanel()
             }
+        }
+    }
+
+    func onThemeChangedPreview() {
+        guard !isRecording && !isTranscribing else { return }
+        if settingsPreviewPanel != nil {
+            // Preview is active: colors update automatically via SwiftUI binding. Reset 5-second timer.
+            previewDismissTimer?.invalidate()
+            previewDismissTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: false) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.hideSettingsPreviewPanel()
+                }
+            }
+        } else {
+            showSettingsPreviewFor5Seconds()
         }
     }
 
@@ -619,7 +635,7 @@ final class AppState: ObservableObject {
 
             guard let screen = NSScreen.main else { return }
             let screenFrame = screen.visibleFrame
-            let newX = screenFrame.midX - targetSize.width / 2
+            let newX = screenFrame.maxX - targetSize.width - 60
             let newY = screenFrame.minY + 60
             let newFrame = NSRect(x: newX, y: newY, width: targetSize.width, height: targetSize.height)
 
@@ -633,12 +649,12 @@ final class AppState: ObservableObject {
 
             existingPanel.orderFrontRegardless()
         } else {
-            // Create new panel with smooth slide-up entrance animation
+            // Create new panel at bottom-right with smooth slide-up entrance animation
             let panel = RecordingPanel.make(style: selectedOverlayStyle, appearance: selectedPanelAppearance, size: selectedOverlaySize)
             panel.setContent(overlay, style: selectedOverlayStyle, overlaySize: selectedOverlaySize)
             panel.collectionBehavior = [.moveToActiveSpace, .ignoresCycle]
 
-            panel.positionAtBottom()
+            panel.positionAtBottomRight()
 
             let targetY = panel.frame.minY
             let startY = targetY - 24

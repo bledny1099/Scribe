@@ -397,7 +397,7 @@ struct SettingsView: View {
             appState.showSettingsPreviewFor5Seconds()
         }
         .onChange(of: appState.selectedTheme) { _ in
-            appState.showSettingsPreviewFor5Seconds()
+            appState.onThemeChangedPreview()
         }
         .onChange(of: appState.selectedPanelAppearance) { _ in
             appState.showSettingsPreviewFor5Seconds()

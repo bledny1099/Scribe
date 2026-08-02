@@ -155,6 +155,15 @@ final class RecordingPanel: NSPanel {
         setFrameOrigin(NSPoint(x: x, y: y))
     }
 
+    /// Positions the panel near the bottom-right of the main screen.
+    func positionAtBottomRight() {
+        guard let screen = NSScreen.main else { center(); return }
+        let screenFrame = screen.visibleFrame
+        let x = screenFrame.maxX - frame.width - 60
+        let y = screenFrame.minY + 60
+        setFrameOrigin(NSPoint(x: x, y: y))
+    }
+
     // MARK: - Overrides — keep the panel passive
 
     override var canBecomeKey: Bool  { false }
