@@ -605,19 +605,56 @@ final class AppState: ObservableObject {
     func updateSettingsPreviewPanel() {
         guard !isRecording && !isTranscribing else { return }
 
-        settingsPreviewPanel?.close()
-        settingsPreviewPanel = nil
-
         let overlay = RecordingOverlayView()
             .environmentObject(self)
 
-        let panel = RecordingPanel.make(style: selectedOverlayStyle, appearance: selectedPanelAppearance, size: selectedOverlaySize)
-        panel.setContent(overlay, style: selectedOverlayStyle, overlaySize: selectedOverlaySize)
+        let targetSize = RecordingPanel.size(for: selectedOverlayStyle, overlaySize: selectedOverlaySize)
+        let targetRadius = RecordingPanel.radius(for: selectedOverlayStyle, overlaySize: selectedOverlaySize)
 
-        panel.positionAtBottom()
+        if let existingPanel = settingsPreviewPanel {
+            // Update existing panel in-place without recreation or flashing
+            existingPanel.updateAppearance(selectedPanelAppearance)
+            existingPanel.setContent(overlay, style: selectedOverlayStyle, overlaySize: selectedOverlaySize)
+            existingPanel.updateCornerRadius(targetRadius)
 
-        panel.orderFrontRegardless()
-        settingsPreviewPanel = panel
+            guard let screen = NSScreen.main else { return }
+            let screenFrame = screen.visibleFrame
+            let newX = screenFrame.midX - targetSize.width / 2
+            let newY = screenFrame.minY + 60
+            let newFrame = NSRect(x: newX, y: newY, width: targetSize.width, height: targetSize.height)
+
+            if existingPanel.frame != newFrame {
+                NSAnimationContext.runAnimationGroup { ctx in
+                    ctx.duration = 0.25
+                    ctx.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                    existingPanel.animator().setFrame(newFrame, display: true)
+                }
+            }
+
+            existingPanel.orderFrontRegardless()
+        } else {
+            // Create new panel with smooth slide-up entrance animation
+            let panel = RecordingPanel.make(style: selectedOverlayStyle, appearance: selectedPanelAppearance, size: selectedOverlaySize)
+            panel.setContent(overlay, style: selectedOverlayStyle, overlaySize: selectedOverlaySize)
+            panel.collectionBehavior = [.moveToActiveSpace, .ignoresCycle]
+
+            panel.positionAtBottom()
+
+            let targetY = panel.frame.minY
+            let startY = targetY - 24
+            panel.setFrameOrigin(NSPoint(x: panel.frame.minX, y: startY))
+            panel.alphaValue = 0
+
+            panel.orderFrontRegardless()
+            settingsPreviewPanel = panel
+
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.35
+                ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                panel.animator().alphaValue = 1
+                panel.animator().setFrameOrigin(NSPoint(x: panel.frame.minX, y: targetY))
+            }
+        }
     }
 
     func hideSettingsPreviewPanel() {
@@ -625,10 +662,28 @@ final class AppState: ObservableObject {
         previewDismissTimer = nil
         settingsPreviewAnimTimer?.invalidate()
         settingsPreviewAnimTimer = nil
-        settingsPreviewPanel?.close()
+
+        guard let panel = settingsPreviewPanel else {
+            if !isRecording && !isTranscribing { audioLevel = 0 }
+            return
+        }
+
         settingsPreviewPanel = nil
-        if !isRecording && !isTranscribing {
-            audioLevel = 0
+
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.35
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            panel.animator().alphaValue = 0
+
+            let currentFrame = panel.frame
+            panel.animator().setFrameOrigin(NSPoint(x: currentFrame.minX, y: currentFrame.minY - 24))
+        } completionHandler: { [weak self] in
+            MainActor.assumeIsolated {
+                panel.close()
+                if self?.isRecording == false && self?.isTranscribing == false {
+                    self?.audioLevel = 0
+                }
+            }
         }
     }
 

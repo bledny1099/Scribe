@@ -67,12 +67,17 @@ final class RecordingPanel: NSPanel {
             defer: false
         )
 
-        panel.appearance = appearance.nsAppearance
-        panel.blurView.material = appearance.material
+        panel.updateAppearance(appearance)
         panel.blurView.isHidden = false
         panel.updateCornerRadius(radius)
 
         return panel
+    }
+
+    /// Updates background appearance and material.
+    func updateAppearance(_ appearance: PanelAppearance) {
+        self.appearance = appearance.nsAppearance
+        blurView.material = appearance.material
     }
 
     // MARK: - Corner Masking (Prevents Grey Square Artifacts)

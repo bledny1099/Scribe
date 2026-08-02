@@ -7,10 +7,12 @@ final class SettingsWindowManager {
     static let shared = SettingsWindowManager()
 
     private var window: NSWindow?
+    private weak var currentAppState: AppState?
 
     private init() {}
 
     func showSettings(appState: AppState) {
+        self.currentAppState = appState
         if let existingWindow = window {
             existingWindow.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
@@ -75,12 +77,15 @@ final class SettingsWindowManager {
     }
 
     func closeWindow() {
+        currentAppState?.hideSettingsPreviewPanel()
         window?.close()
         window = nil
     }
 
     func windowClosed() {
+        currentAppState?.hideSettingsPreviewPanel()
         window = nil
+        currentAppState = nil
     }
 }
 
