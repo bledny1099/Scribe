@@ -905,21 +905,20 @@ struct ThemeSwatchButton: View {
                 ZStack {
                     Circle()
                         .fill(theme.accentGradient)
+                        .overlay(
+                            Circle()
+                                .stroke(Color.white.opacity(isSelected ? 0.7 : 0.2), lineWidth: isSelected ? 2 : 1)
+                        )
                         .frame(width: 44, height: 44)
-                        .shadow(color: theme.gradientColors[0].opacity(isSelected ? 0.5 : 0), radius: 8, x: 0, y: 4)
+                        .shadow(color: theme.gradientColors[0].opacity(isSelected ? 0.4 : 0.1), radius: isSelected ? 8 : 3, x: 0, y: isSelected ? 4 : 2)
 
                     if isSelected {
                         Image(systemName: "checkmark")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundStyle(.white)
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(theme == .whiteGlow ? Color.black : Color.white)
                             .transition(.scale.combined(with: .opacity))
                     }
                 }
-                .overlay(
-                    Circle()
-                        .strokeBorder(.white.opacity(isSelected ? 0.6 : 0.2), lineWidth: isSelected ? 2.5 : 1)
-                        .frame(width: 44, height: 44)
-                )
                 .scaleEffect(isSelected ? 1.08 : 1.0)
 
                 Text(theme.displayName)

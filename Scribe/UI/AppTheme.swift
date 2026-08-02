@@ -74,8 +74,8 @@ enum AppTheme: String, CaseIterable, Identifiable {
             ]
         case .darkBlue:
             [
-                Color(red: 0.02, green: 0.04, blue: 0.12),       // midnight black-blue
-                Color(red: 0.06, green: 0.10, blue: 0.24)        // deep navy
+                Color(red: 0.14, green: 0.20, blue: 0.52),   // deep sapphire
+                Color(red: 0.28, green: 0.40, blue: 0.85)    // electric indigo
             ]
         case .green:
             [
@@ -101,7 +101,7 @@ enum AppTheme: String, CaseIterable, Identifiable {
         case .ember:  Color(red: 0.976, green: 0.412, blue: 0.224)
         case .ocean:  .blue
         case .whiteGlow: .white
-        case .darkBlue:  Color(red: 0.04, green: 0.08, blue: 0.20)
+        case .darkBlue:  Color(red: 0.28, green: 0.40, blue: 0.85)
         case .green:     .green
         }
     }
