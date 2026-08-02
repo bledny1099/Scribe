@@ -74,14 +74,6 @@ struct ClassicOverlay: View {
     private var glow: Color { theme.glowColor }
 
     var body: some View {
-        let isEmbeddedActive = appState.livePreviewEnabled && appState.livePreviewMode == .embedded && !appState.livePreviewText.isEmpty
-        let cardHeight = RecordingPanel.size(
-            for: .classic,
-            overlaySize: appState.selectedOverlaySize,
-            isEmbeddedPreviewActive: isEmbeddedActive,
-            previewTextLength: appState.livePreviewText.count
-        ).height / appState.selectedOverlaySize.scale
-
         return ZStack(alignment: .topTrailing) {
             // Main content
             VStack(spacing: 12) {
@@ -149,20 +141,6 @@ struct ClassicOverlay: View {
                         .foregroundStyle(.primary.opacity(0.7))
                 }
 
-                if isEmbeddedActive {
-                    Divider()
-                        .background(Color.primary.opacity(0.15))
-                        .padding(.horizontal, 14)
-
-                    Text(appState.livePreviewText)
-                        .font(.system(size: 11 * appState.overlayTextCompensation, weight: .medium, design: .rounded))
-                        .foregroundStyle(.primary.opacity(0.9))
-                        .multilineTextAlignment(.center)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.horizontal, 10)
-                        .transition(.opacity.combined(with: .move(edge: .bottom)))
-                }
-
                 Spacer(minLength: 12)
             }
 
@@ -179,7 +157,7 @@ struct ClassicOverlay: View {
             .padding(.top, 12)
             .padding(.trailing, 12)
         }
-        .frame(width: RecordingPanel.classicSize.width, height: cardHeight)
+        .frame(width: RecordingPanel.classicSize.width, height: RecordingPanel.classicSize.height)
         .onAppear {
             withAnimation(.linear(duration: 8).repeatForever(autoreverses: false)) {
                 orbitAngle = 360
@@ -258,51 +236,77 @@ struct WaveformOverlay: View {
     private var theme: AppTheme { appState.selectedTheme }
 
     var body: some View {
-        HStack(spacing: 0) {
-            // Left: status indicator
-            statusIndicator
-                .frame(width: 48)
+        let isEmbeddedActive = appState.livePreviewEnabled && appState.livePreviewMode == .embedded && appState.selectedOverlayStyle.supportsEmbeddedPreview && !appState.livePreviewText.isEmpty
+        let cardHeight = RecordingPanel.size(
+            for: .waveform,
+            overlaySize: appState.selectedOverlaySize,
+            isEmbeddedPreviewActive: isEmbeddedActive,
+            previewTextLength: appState.livePreviewText.count
+        ).height / appState.selectedOverlaySize.scale
 
-            // Center: waveform bars
-            waveformBars
-                .frame(maxWidth: .infinity)
+        return VStack(spacing: 8) {
+            HStack(spacing: 0) {
+                // Left: status indicator
+                statusIndicator
+                    .frame(width: 48)
 
-            // Right: status label + stop button
-            HStack(spacing: 8) {
-                if appState.recordingStatus == .recording {
-                    Text(appState.formattedDuration)
-                        .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(.primary.opacity(0.8))
-                        .contentTransition(.numericText())
-                        .animation(.default, value: appState.recordingDuration)
-                }
+                // Center: waveform bars
+                waveformBars
+                    .frame(maxWidth: .infinity)
 
-                if appState.recordingStatus != .recording {
-                    Text(statusLabel)
-                        .font(.system(size: 11 * appState.overlayTextCompensation, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.primary.opacity(0.6))
-                        .lineLimit(1)
-                }
-
-                if appState.recordingStatus == .recording {
-                    Button(action: { appState.cancelRecording() }) {
-                        Image(systemName: "stop.fill")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(.primary.opacity(0.6))
-                            .frame(width: 28, height: 28)
-                            .background(Circle().fill(Color.primary.opacity(0.1)))
+                // Right: status label + stop button
+                HStack(spacing: 8) {
+                    if appState.recordingStatus == .recording {
+                        Text(appState.formattedDuration)
+                            .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(.primary.opacity(0.8))
+                            .contentTransition(.numericText())
+                            .animation(.default, value: appState.recordingDuration)
                     }
-                    .buttonStyle(.plain)
-                    .transition(.scale.combined(with: .opacity))
+
+                    if appState.recordingStatus != .recording {
+                        Text(statusLabel)
+                            .font(.system(size: 11 * appState.overlayTextCompensation, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.primary.opacity(0.6))
+                            .lineLimit(1)
+                    }
+
+                    if appState.recordingStatus == .recording {
+                        Button(action: { appState.cancelRecording() }) {
+                            Image(systemName: "stop.fill")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(.primary.opacity(0.6))
+                                .frame(width: 28, height: 28)
+                                .background(Circle().fill(Color.primary.opacity(0.1)))
+                        }
+                        .buttonStyle(.plain)
+                        .transition(.scale.combined(with: .opacity))
+                    }
                 }
+                .frame(width: 120)
+                .animation(.easeInOut(duration: 0.2), value: appState.recordingStatus == .recording)
             }
-            .frame(width: 120)
-            .animation(.easeInOut(duration: 0.2), value: appState.recordingStatus == .recording)
+            .frame(height: RecordingPanel.waveformSize.height)
+
+            if isEmbeddedActive {
+                Divider()
+                    .background(Color.primary.opacity(0.15))
+                    .padding(.horizontal, 14)
+
+                Text(appState.livePreviewText)
+                    .font(.system(size: 12 * appState.overlayTextCompensation, weight: .medium, design: .rounded))
+                    .foregroundStyle(.primary.opacity(0.9))
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 8)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
         }
         .padding(.horizontal, 12)
         .frame(
             width: RecordingPanel.waveformSize.width,
-            height: RecordingPanel.waveformSize.height
+            height: cardHeight
         )
         .onChange(of: appState.audioLevel) { _, newLevel in
             levels.removeFirst()
@@ -450,44 +454,70 @@ struct ECGOverlay: View {
     private var theme: AppTheme { appState.selectedTheme }
     
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "waveform.path.ecg")
-                .foregroundStyle(theme.accentGradient)
-                .font(.system(size: 16, weight: .semibold))
-                
-            GeometryReader { geo in
-                Path { path in
-                    let midY = geo.size.height / 2
-                    path.move(to: CGPoint(x: 0, y: midY))
+        let isEmbeddedActive = appState.livePreviewEnabled && appState.livePreviewMode == .embedded && appState.selectedOverlayStyle.supportsEmbeddedPreview && !appState.livePreviewText.isEmpty
+        let cardHeight = RecordingPanel.size(
+            for: .ecg,
+            overlaySize: appState.selectedOverlaySize,
+            isEmbeddedPreviewActive: isEmbeddedActive,
+            previewTextLength: appState.livePreviewText.count
+        ).height / appState.selectedOverlaySize.scale
+
+        return VStack(spacing: 8) {
+            HStack(spacing: 12) {
+                Image(systemName: "waveform.path.ecg")
+                    .foregroundStyle(theme.accentGradient)
+                    .font(.system(size: 16, weight: .semibold))
                     
-                    let width = geo.size.width
-                    let segments = 40
-                    let step = width / CGFloat(segments)
-                    
-                    for i in 1...segments {
-                        let x = CGFloat(i) * step
-                        let isCenter = (i > 10 && i < 30)
-                        let amplitude = isCenter ? (CGFloat(appState.audioLevel) * midY) : (CGFloat.random(in: 0...2))
-                        let y = midY + (i % 2 == 0 ? amplitude : -amplitude)
-                        path.addLine(to: CGPoint(x: x, y: y))
+                GeometryReader { geo in
+                    Path { path in
+                        let midY = geo.size.height / 2
+                        path.move(to: CGPoint(x: 0, y: midY))
+                        
+                        let width = geo.size.width
+                        let segments = 40
+                        let step = width / CGFloat(segments)
+                        
+                        for i in 1...segments {
+                            let x = CGFloat(i) * step
+                            let isCenter = (i > 10 && i < 30)
+                            let amplitude = isCenter ? (CGFloat(appState.audioLevel) * midY) : (CGFloat.random(in: 0...2))
+                            let y = midY + (i % 2 == 0 ? amplitude : -amplitude)
+                            path.addLine(to: CGPoint(x: x, y: y))
+                        }
                     }
+                    .stroke(theme.accentGradient, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+                    .animation(.linear(duration: 0.1), value: appState.audioLevel)
                 }
-                .stroke(theme.accentGradient, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
-                .animation(.linear(duration: 0.1), value: appState.audioLevel)
+                .frame(height: 30)
+                
+                if appState.recordingStatus == .recording {
+                    Button(action: { appState.cancelRecording() }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                            .font(.system(size: 16))
+                    }
+                    .buttonStyle(.plain)
+                }
             }
-            .frame(height: 30)
-            
-            if appState.recordingStatus == .recording {
-                Button(action: { appState.cancelRecording() }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
-                        .font(.system(size: 16))
-                }
-                .buttonStyle(.plain)
+            .frame(height: RecordingPanel.ecgSize.height)
+
+            if isEmbeddedActive {
+                Divider()
+                    .background(Color.primary.opacity(0.15))
+                    .padding(.horizontal, 12)
+
+                Text(appState.livePreviewText)
+                    .font(.system(size: 11 * appState.overlayTextCompensation, weight: .medium, design: .rounded))
+                    .foregroundStyle(.primary.opacity(0.9))
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 8)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
         }
         .padding(.horizontal, 16)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(width: RecordingPanel.ecgSize.width, height: cardHeight)
     }
 }
 
@@ -505,14 +535,6 @@ struct OrbOverlay: View {
     private var gradient: LinearGradient { theme.accentGradient }
 
     var body: some View {
-        let isEmbeddedActive = appState.livePreviewEnabled && appState.livePreviewMode == .embedded && !appState.livePreviewText.isEmpty
-        let cardHeight = RecordingPanel.size(
-            for: .orb,
-            overlaySize: appState.selectedOverlaySize,
-            isEmbeddedPreviewActive: isEmbeddedActive,
-            previewTextLength: appState.livePreviewText.count
-        ).height / appState.selectedOverlaySize.scale
-
         return ZStack(alignment: .topTrailing) {
             VStack(spacing: 8) {
                 Spacer(minLength: 4)
@@ -564,21 +586,6 @@ struct OrbOverlay: View {
                         .foregroundStyle(.primary.opacity(0.7))
                 }
 
-                // Embedded Live Preview Text (Inside Card Mode)
-                if isEmbeddedActive {
-                    Divider()
-                        .background(Color.primary.opacity(0.15))
-                        .padding(.horizontal, 14)
-
-                    Text(appState.livePreviewText)
-                        .font(.system(size: 11 * appState.overlayTextCompensation, weight: .medium, design: .rounded))
-                        .foregroundStyle(.primary.opacity(0.9))
-                        .multilineTextAlignment(.center)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.horizontal, 10)
-                        .transition(.opacity.combined(with: .move(edge: .bottom)))
-                }
-
                 Spacer(minLength: 4)
             }
 
@@ -595,7 +602,7 @@ struct OrbOverlay: View {
             .padding(.top, 16)
             .padding(.trailing, 16)
         }
-        .frame(width: RecordingPanel.orbSize.width, height: cardHeight)
+        .frame(width: RecordingPanel.orbSize.width, height: RecordingPanel.orbSize.height)
         .onAppear {
             withAnimation(.linear(duration: 6).repeatForever(autoreverses: false)) {
                 rotationAngle = 360

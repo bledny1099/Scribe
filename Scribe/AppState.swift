@@ -48,6 +48,14 @@ enum OverlayStyle: String, CaseIterable, Identifiable {
         case .orb:      "sparkles"
         }
     }
+
+    /// Whether this overlay style supports embedded (inside-card) live preview text.
+    var supportsEmbeddedPreview: Bool {
+        switch self {
+        case .waveform, .ecg: true
+        case .classic, .minimal, .orb: false
+        }
+    }
 }
 
 // MARK: - Overlay Size
@@ -563,7 +571,7 @@ final class AppState: ObservableObject {
         let overlay = RecordingOverlayView()
             .environmentObject(self)
 
-        let isEmbedded = livePreviewEnabled && livePreviewMode == .embedded && !livePreviewText.isEmpty
+        let isEmbedded = livePreviewEnabled && livePreviewMode == .embedded && selectedOverlayStyle.supportsEmbeddedPreview && !livePreviewText.isEmpty
         let panel = RecordingPanel.make(
             style: selectedOverlayStyle,
             appearance: selectedPanelAppearance,
@@ -647,7 +655,7 @@ final class AppState: ObservableObject {
     /// Resize the live recording panel's NSWindow when embedded preview text changes.
     private func resizeRecordingPanelForEmbeddedPreview() {
         guard let panel = recordingPanel, (isRecording || isTranscribing) else { return }
-        guard livePreviewEnabled, livePreviewMode == .embedded else { return }
+        guard livePreviewEnabled, livePreviewMode == .embedded, selectedOverlayStyle.supportsEmbeddedPreview else { return }
 
         let isEmbedded = !livePreviewText.isEmpty
         let newSize = RecordingPanel.size(
@@ -756,14 +764,14 @@ final class AppState: ObservableObject {
         let overlay = RecordingOverlayView()
             .environmentObject(self)
 
-        let isEmbeddedActive = livePreviewEnabled && livePreviewMode == .embedded && !livePreviewText.isEmpty
+        let isEmbeddedActive = livePreviewEnabled && livePreviewMode == .embedded && selectedOverlayStyle.supportsEmbeddedPreview && !livePreviewText.isEmpty
         let targetSize = RecordingPanel.size(
             for: selectedOverlayStyle,
             overlaySize: selectedOverlaySize,
             isEmbeddedPreviewActive: isEmbeddedActive,
             previewTextLength: livePreviewText.count
         )
-        let targetRadius = RecordingPanel.radius(for: selectedOverlayStyle, overlaySize: selectedOverlaySize)
+        let targetRadius = RecordingPanel.radius(for: selectedOverlayStyle, overlaySize: selectedOverlaySize, isEmbeddedPreviewActive: isEmbeddedActive)
         let targetOrigin = targetPreviewOrigin(for: selectedOverlayStyle, size: targetSize)
         let targetFrame = NSRect(origin: targetOrigin, size: targetSize)
 
@@ -774,9 +782,13 @@ final class AppState: ObservableObject {
             existingPanel.updateCornerRadius(targetRadius)
 
             let oldFrame = existingPanel.frame
-            // Anchor top edge (oldFrame.maxY) so window stretches DOWNWARDS when height expands
-            let calculatedY = oldFrame.maxY - targetSize.height
-            let calculatedFrame = NSRect(x: targetOrigin.x, y: calculatedY, width: targetSize.width, height: targetSize.height)
+            let calculatedFrame: NSRect
+            if abs(oldFrame.origin.y - targetOrigin.y) > 50 || abs(oldFrame.origin.x - targetOrigin.x) > 50 {
+                calculatedFrame = targetFrame
+            } else {
+                let calculatedY = oldFrame.maxY - targetSize.height
+                calculatedFrame = NSRect(x: targetOrigin.x, y: calculatedY, width: targetSize.width, height: targetSize.height)
+            }
 
             if oldFrame != calculatedFrame {
                 NSAnimationContext.runAnimationGroup { ctx in

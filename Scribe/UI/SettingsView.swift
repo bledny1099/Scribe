@@ -97,7 +97,20 @@ struct SettingsView: View {
                                         )
                                     }
 
-                                    if appState.livePreviewMode == .external {
+                                    if !appState.selectedOverlayStyle.supportsEmbeddedPreview {
+                                        HStack(spacing: 6) {
+                                            Image(systemName: "info.circle")
+                                                .font(.system(size: 12))
+                                                .foregroundStyle(.secondary)
+                                            Text(appState.l("Inside Card mode is not supported for Classic, Minimal, or Orb styles."))
+                                                .font(.system(size: 11, weight: .medium, design: .rounded))
+                                                .foregroundStyle(.secondary)
+                                        }
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .padding(.top, 2)
+                                    }
+
+                                    if appState.livePreviewMode == .external || !appState.selectedOverlayStyle.supportsEmbeddedPreview {
                                         HStack {
                                             Text(appState.l("Preview Background"))
                                                 .font(.system(size: 14, weight: .medium, design: .rounded))

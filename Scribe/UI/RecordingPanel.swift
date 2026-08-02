@@ -33,11 +33,16 @@ final class RecordingPanel: NSPanel {
         case .orb:      base = orbSize
         }
 
-        if isEmbeddedPreviewActive {
-            // ~18pt per line, ~20 chars per line at 11pt in 220px width
-            let estimatedLines = max(1, Int(ceil(Double(previewTextLength) / 20.0)))
+        if isEmbeddedPreviewActive && style.supportsEmbeddedPreview {
+            let charsPerLine: Double
+            switch style {
+            case .waveform: charsPerLine = 45.0
+            case .ecg:      charsPerLine = 24.0
+            default:        charsPerLine = 20.0
+            }
+            let estimatedLines = max(1, Int(ceil(Double(previewTextLength) / charsPerLine)))
             let textHeight: CGFloat = CGFloat(estimatedLines) * 18.0
-            let extraHeight: CGFloat = 24 + textHeight  // 24 = divider + padding
+            let extraHeight: CGFloat = 20 + textHeight
             base.height += extraHeight
         }
 
@@ -45,11 +50,11 @@ final class RecordingPanel: NSPanel {
         return NSSize(width: round(base.width * scale), height: round(base.height * scale))
     }
 
-    static func radius(for style: OverlayStyle, overlaySize: OverlaySize = .s100) -> CGFloat {
+    static func radius(for style: OverlayStyle, overlaySize: OverlaySize = .s100, isEmbeddedPreviewActive: Bool = false) -> CGFloat {
         let baseRadius: CGFloat
         switch style {
         case .classic:  baseRadius = 24
-        case .waveform: baseRadius = waveformSize.height / 2
+        case .waveform: baseRadius = (isEmbeddedPreviewActive && style.supportsEmbeddedPreview) ? 16 : waveformSize.height / 2
         case .minimal:  baseRadius = minimalSize.height / 2
         case .ecg:      baseRadius = 16
         case .orb:      baseRadius = 28
