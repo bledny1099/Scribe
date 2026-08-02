@@ -126,14 +126,14 @@ struct ClassicOverlay: View {
                 HStack(spacing: 6) {
                     if appState.recordingStatus == .recording {
                         Text(appState.formattedDuration)
-                            .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                            .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .monospaced))
                             .foregroundStyle(.primary.opacity(0.9))
                             .contentTransition(.numericText())
                             .animation(.default, value: appState.recordingDuration)
                     }
 
                     Text(statusLabel)
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .font(.system(size: 11 * appState.overlayTextCompensation, weight: .medium, design: .rounded))
                         .foregroundStyle(.primary.opacity(0.7))
                 }
             }
@@ -248,7 +248,7 @@ struct WaveformOverlay: View {
             HStack(spacing: 8) {
                 if appState.recordingStatus == .recording {
                     Text(appState.formattedDuration)
-                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                        .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .monospaced))
                         .foregroundStyle(.primary.opacity(0.8))
                         .contentTransition(.numericText())
                         .animation(.default, value: appState.recordingDuration)
@@ -256,7 +256,7 @@ struct WaveformOverlay: View {
 
                 if appState.recordingStatus != .recording {
                     Text(statusLabel)
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .font(.system(size: 11 * appState.overlayTextCompensation, weight: .semibold, design: .rounded))
                         .foregroundStyle(.primary.opacity(0.6))
                         .lineLimit(1)
                 }
@@ -388,11 +388,11 @@ struct MinimalOverlay: View {
                 
             if appState.recordingStatus == .recording {
                 Text(appState.formattedDuration)
-                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .monospaced))
                     .foregroundStyle(.primary)
             } else {
                 Text(statusLabel)
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .font(.system(size: 11 * appState.overlayTextCompensation, weight: .medium, design: .rounded))
                     .foregroundStyle(.primary.opacity(0.7))
             }
             

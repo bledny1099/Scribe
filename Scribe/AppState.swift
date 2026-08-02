@@ -295,6 +295,12 @@ final class AppState: ObservableObject {
         set { selectedOverlaySizeRaw = newValue.rawValue }
     }
 
+    /// Compensation multiplier for text/timers when the overlay panel is scaled down.
+    var overlayTextCompensation: CGFloat {
+        let scale = selectedOverlaySize.scale
+        return 1.0 + (1.0 - scale) * 0.75
+    }
+
     /// Computed property for type-safe panel appearance access.
     var selectedPanelAppearance: PanelAppearance {
         get { PanelAppearance(rawValue: selectedPanelAppearanceRaw) ?? .dark }
