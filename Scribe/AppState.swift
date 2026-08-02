@@ -414,6 +414,7 @@ final class AppState: ObservableObject {
     // MARK: - Private — Recording Flow
 
     private func startRecording() {
+        hideSettingsPreviewPanel()
         do {
             try audioRecorder.startRecording()
             isRecording     = true
@@ -582,6 +583,61 @@ final class AppState: ObservableObject {
             }
         }
         recordingStatus = .idle
+        if SettingsWindowManager.shared.isWindowOpen {
+            showSettingsPreviewPanel()
+        }
+    }
+
+    // MARK: - Floating Preview Panel for Settings
+
+    private var settingsPreviewPanel: RecordingPanel?
+    private var settingsPreviewAnimTimer: Timer?
+
+    func showSettingsPreviewPanel() {
+        guard !isRecording && !isTranscribing else { return }
+        updateSettingsPreviewPanel()
+
+        settingsPreviewAnimTimer?.invalidate()
+        settingsPreviewAnimTimer = Timer.scheduledTimer(withTimeInterval: 0.08, repeats: true) { [weak self] _ in
+            guard let self = self, !self.isRecording && !self.isTranscribing else { return }
+            let level = Float.random(in: 0.25...0.65)
+            withAnimation(.linear(duration: 0.08)) {
+                self.audioLevel = level
+            }
+        }
+    }
+
+    func updateSettingsPreviewPanel() {
+        guard !isRecording && !isTranscribing else { return }
+
+        settingsPreviewPanel?.close()
+        settingsPreviewPanel = nil
+
+        let overlay = RecordingOverlayView()
+            .environmentObject(self)
+
+        let panel = RecordingPanel.make(style: selectedOverlayStyle, appearance: selectedPanelAppearance, size: selectedOverlaySize)
+        panel.setContent(overlay, style: selectedOverlayStyle, overlaySize: selectedOverlaySize)
+
+        switch selectedOverlayStyle {
+        case .classic:
+            panel.center()
+        case .waveform, .minimal, .ecg:
+            panel.positionAtBottom()
+        }
+
+        panel.orderFrontRegardless()
+        settingsPreviewPanel = panel
+    }
+
+    func hideSettingsPreviewPanel() {
+        settingsPreviewAnimTimer?.invalidate()
+        settingsPreviewAnimTimer = nil
+        settingsPreviewPanel?.close()
+        settingsPreviewPanel = nil
+        if !isRecording && !isTranscribing {
+            audioLevel = 0
+        }
     }
 
     // MARK: - Setup Helpers

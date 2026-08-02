@@ -70,6 +70,10 @@ final class SettingsWindowManager {
         NSApp.activate(ignoringOtherApps: true)
     }
 
+    var isWindowOpen: Bool {
+        window != nil
+    }
+
     func closeWindow() {
         window?.close()
         window = nil

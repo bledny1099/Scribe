@@ -163,8 +163,23 @@ struct SettingsView: View {
                                 )
                             }
 
-                            // Live Overlay Size Preview
-                            OverlaySizePreviewCard()
+                            // Live Floating Preview Info Bar
+                            HStack {
+                                Label("Live Floating Preview", systemImage: "sparkles")
+                                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                let currentStyle = appState.selectedOverlayStyle
+                                let currentSize = appState.selectedOverlaySize
+                                let scaled = RecordingPanel.size(for: currentStyle, overlaySize: currentSize)
+                                Text("\(Int(scaled.width)) × \(Int(scaled.height)) px")
+                                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color.primary.opacity(0.04))
+                            .cornerRadius(8)
                         }
                     }
 
@@ -372,6 +387,24 @@ struct SettingsView: View {
         .ignoresSafeArea(.container, edges: .top)
         .frame(width: 440, height: 620)
         .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
+        .onAppear {
+            appState.showSettingsPreviewPanel()
+        }
+        .onDisappear {
+            appState.hideSettingsPreviewPanel()
+        }
+        .onChange(of: appState.selectedOverlaySize) { _ in
+            appState.updateSettingsPreviewPanel()
+        }
+        .onChange(of: appState.selectedOverlayStyle) { _ in
+            appState.updateSettingsPreviewPanel()
+        }
+        .onChange(of: appState.selectedTheme) { _ in
+            appState.updateSettingsPreviewPanel()
+        }
+        .onChange(of: appState.selectedPanelAppearance) { _ in
+            appState.updateSettingsPreviewPanel()
+        }
     }
 
     private var modelDescription: String {
@@ -1058,97 +1091,6 @@ struct CopyAddressRow: View {
                 RoundedRectangle(cornerRadius: 8)
                     .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
             )
-        }
-    }
-}
-
-// MARK: - Overlay Size Live Preview
-
-struct OverlaySizePreviewCard: View {
-    @EnvironmentObject var appState: AppState
-    @State private var timer: Timer?
-
-    private var currentSize: OverlaySize { appState.selectedOverlaySize }
-    private var currentStyle: OverlayStyle { appState.selectedOverlayStyle }
-
-    private var dimensionsText: String {
-        let scaled = RecordingPanel.size(for: currentStyle, overlaySize: currentSize)
-        return "\(Int(scaled.width)) × \(Int(scaled.height)) px"
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(appState.l("Overlay Size Preview"))
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.primary)
-
-                Spacer()
-
-                Text(dimensionsText)
-                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(Color.primary.opacity(0.06))
-                    .cornerRadius(6)
-            }
-
-            // Preview Container
-            ZStack {
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(Color.primary.opacity(0.03))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14)
-                            .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
-                    )
-
-                // Simulated panel blur & preview overlay
-                VStack {
-                    ZStack {
-                        // Blurred background card simulating NSPanel
-                        RoundedRectangle(cornerRadius: RecordingPanel.radius(for: currentStyle, overlaySize: currentSize))
-                            .fill(appState.selectedPanelAppearance == .dark ? Color.black.opacity(0.75) : Color.white.opacity(0.85))
-                            .shadow(color: Color.black.opacity(0.2), radius: 10, x: 0, y: 4)
-
-                        // Render live overlay
-                        RecordingOverlayView()
-                            .environmentObject(appState)
-                    }
-                    .frame(
-                        width: RecordingPanel.size(for: currentStyle, overlaySize: .standard).width,
-                        height: RecordingPanel.size(for: currentStyle, overlaySize: .standard).height
-                    )
-                    .scaleEffect(currentSize.scale)
-                    .frame(
-                        width: RecordingPanel.size(for: currentStyle, overlaySize: currentSize).width,
-                        height: RecordingPanel.size(for: currentStyle, overlaySize: currentSize).height
-                    )
-                    .animation(.spring(response: 0.35, dampingFraction: 0.75), value: currentSize)
-                }
-                .padding(.vertical, 16)
-            }
-            .frame(height: 150)
-            .clipped()
-        }
-        .padding(.top, 4)
-        .onAppear {
-            startSimulatedAudio()
-        }
-        .onDisappear {
-            timer?.invalidate()
-            timer = nil
-        }
-    }
-
-    private func startSimulatedAudio() {
-        timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 0.08, repeats: true) { _ in
-            guard !appState.isRecording else { return }
-            let level = Float.random(in: 0.2...0.7)
-            withAnimation(.linear(duration: 0.08)) {
-                appState.audioLevel = level
-            }
         }
     }
 }
