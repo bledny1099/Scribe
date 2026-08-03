@@ -120,6 +120,7 @@ final class RecordingPanel: NSPanel {
         self.cornerRadiusValue = radius
         let size = targetSize ?? frame.size
         guard size.width > 0 && size.height > 0 else { return }
+        guard blurView.superview != nil else { return }
 
         // Create an exact NSImage mask matching the rounded shape
         let maskImage = NSImage(size: size, flipped: false) { rect in
@@ -144,11 +145,13 @@ final class RecordingPanel: NSPanel {
 
     override func setFrame(_ frameRect: NSRect, display displayFlag: Bool) {
         super.setFrame(frameRect, display: displayFlag)
+        guard contentView != nil else { return }
         updateCornerRadius(cornerRadiusValue, targetSize: frameRect.size)
     }
 
     override func setFrame(_ frameRect: NSRect, display displayFlag: Bool, animate animateFlag: Bool) {
         super.setFrame(frameRect, display: displayFlag, animate: animateFlag)
+        guard contentView != nil else { return }
         updateCornerRadius(cornerRadiusValue, targetSize: frameRect.size)
     }
 

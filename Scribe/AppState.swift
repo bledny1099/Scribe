@@ -822,11 +822,7 @@ final class AppState: ObservableObject {
             }
 
             if oldFrame != calculatedFrame {
-                NSAnimationContext.runAnimationGroup { ctx in
-                    ctx.duration = 0.25
-                    ctx.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-                    existingPanel.animator().setFrame(calculatedFrame, display: true)
-                }
+                existingPanel.setFrame(calculatedFrame, display: true)
             }
 
             existingPanel.orderFrontRegardless()
