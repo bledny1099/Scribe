@@ -32,7 +32,7 @@ final class SettingsWindowManager {
         newWindow.standardWindowButton(.miniaturizeButton)?.isHidden = true
         newWindow.standardWindowButton(.zoomButton)?.isHidden = true
 
-        newWindow.isMovableByWindowBackground = true
+        newWindow.isMovableByWindowBackground = false
         newWindow.isOpaque = false
         newWindow.backgroundColor = .clear 
         newWindow.hasShadow = true

@@ -397,9 +397,10 @@ struct SettingsView: View {
                 }
             )
             
-            // Header
+            // Header — draggable to move the window
             VStack(spacing: 0) {
                 Color.clear.frame(height: 24)
+                    .background(WindowDragView())
                 
                 HStack {
                     Text(appState.l("Scribe Settings"))
@@ -416,6 +417,7 @@ struct SettingsView: View {
                 .padding(.horizontal, 24)
                 .padding(.top, 24)
                 .padding(.bottom, 16)
+                .background(WindowDragView())
             }
         }
         .ignoresSafeArea(.container, edges: .top)
@@ -1124,5 +1126,26 @@ struct CopyAddressRow: View {
                     .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
             )
         }
+    }
+}
+
+// MARK: - Window Drag Helper
+
+/// An NSView-backed drag area that allows moving the parent window by dragging.
+/// Used instead of `isMovableByWindowBackground` which intercepts ALL clicks on the window background.
+struct WindowDragView: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = WindowDragNSView()
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {}
+}
+
+private class WindowDragNSView: NSView {
+    override var mouseDownCanMoveWindow: Bool { true }
+
+    override func mouseDown(with event: NSEvent) {
+        window?.performDrag(with: event)
     }
 }
