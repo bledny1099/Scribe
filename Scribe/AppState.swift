@@ -807,6 +807,7 @@ final class AppState: ObservableObject {
 
         if let existingPanel = settingsPreviewPanel {
             // Update existing panel in-place without recreation or flashing
+            existingPanel.ignoresMouseEvents = true
             existingPanel.updateAppearance(selectedPanelAppearance)
             existingPanel.setContent(overlay, style: selectedOverlayStyle, overlaySize: selectedOverlaySize, isEmbeddedPreviewActive: isEmbeddedActive, previewTextLength: livePreviewText.count)
             existingPanel.updateCornerRadius(targetRadius, targetSize: targetSize)
@@ -846,6 +847,7 @@ final class AppState: ObservableObject {
             panel.setFrameOrigin(NSPoint(x: targetOrigin.x, y: startY))
             panel.alphaValue = 0
 
+            panel.ignoresMouseEvents = true
             panel.orderFrontRegardless()
             settingsPreviewPanel = panel
 

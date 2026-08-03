@@ -245,7 +245,7 @@ final class RecordingPanel: NSPanel {
     private func configurePanel() {
         isFloatingPanel           = true
         level                     = .floating
-        isMovableByWindowBackground = true
+        isMovableByWindowBackground = false
         hidesOnDeactivate         = false
         isOpaque                  = false
         backgroundColor           = .clear
