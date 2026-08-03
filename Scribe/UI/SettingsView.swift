@@ -69,7 +69,13 @@ struct SettingsView: View {
                                     set: { newValue in
                                         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                             appState.livePreviewEnabled = newValue
-                                            appState.showSettingsPreviewFor5Seconds()
+                                        }
+                                        DispatchQueue.main.async {
+                                            if newValue {
+                                                appState.showSettingsPreviewFor5Seconds()
+                                            } else {
+                                                appState.hideSettingsPreviewPanel()
+                                            }
                                         }
                                     }
                                 ))

@@ -170,28 +170,35 @@ final class RecordingPanel: NSPanel {
 
         blurView.isHidden = false
 
-        let wrappedView = view
-            .frame(width: baseSize.width, height: baseSize.height)
-            .scaleEffect(scale)
-            .frame(width: targetSize.width, height: targetSize.height)
-            .background(Color.clear)
+        let wrappedView = AnyView(
+            view
+                .frame(width: baseSize.width, height: baseSize.height)
+                .scaleEffect(scale)
+                .frame(width: targetSize.width, height: targetSize.height)
+                .background(Color.clear)
+        )
 
-        let hostingView = NSHostingView(rootView: wrappedView)
-        hostingView.translatesAutoresizingMaskIntoConstraints = false
+        if let existingHosting = containerView.subviews.compactMap({ $0 as? NSHostingView<AnyView> }).first {
+            existingHosting.rootView = wrappedView
+        } else {
+            containerView.subviews.filter { $0 != blurView }.forEach { $0.removeFromSuperview() }
+            let hostingView = NSHostingView(rootView: wrappedView)
+            hostingView.translatesAutoresizingMaskIntoConstraints = false
 
-        hostingView.wantsLayer = true
-        hostingView.layer?.backgroundColor = .clear
+            hostingView.wantsLayer = true
+            hostingView.layer?.backgroundColor = .clear
 
-        containerView.addSubview(hostingView)
-        NSLayoutConstraint.activate([
-            hostingView.topAnchor.constraint(equalTo: containerView.topAnchor),
-            hostingView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
-            hostingView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
-            hostingView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
-        ])
+            containerView.addSubview(hostingView)
+            NSLayoutConstraint.activate([
+                hostingView.topAnchor.constraint(equalTo: containerView.topAnchor),
+                hostingView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
+                hostingView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
+                hostingView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
+            ])
+        }
 
         let targetRadius = Self.radius(for: style, overlaySize: overlaySize, isEmbeddedPreviewActive: isEmbeddedPreviewActive)
-        updateCornerRadius(targetRadius)
+        updateCornerRadius(targetRadius, targetSize: targetSize)
         invalidateShadow()
     }
 
