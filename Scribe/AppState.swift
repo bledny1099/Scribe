@@ -795,7 +795,7 @@ final class AppState: ObservableObject {
             // Update existing panel in-place without recreation or flashing
             existingPanel.updateAppearance(selectedPanelAppearance)
             existingPanel.setContent(overlay, style: selectedOverlayStyle, overlaySize: selectedOverlaySize, isEmbeddedPreviewActive: isEmbeddedActive, previewTextLength: livePreviewText.count)
-            existingPanel.updateCornerRadius(targetRadius)
+            existingPanel.updateCornerRadius(targetRadius, targetSize: targetSize)
 
             let oldFrame = existingPanel.frame
             let calculatedFrame: NSRect

@@ -116,9 +116,9 @@ final class RecordingPanel: NSPanel {
     // MARK: - Corner Masking (Prevents Grey Square Artifacts)
 
     /// Masks blurView and all layers with a pixel-perfect rounded mask image.
-    func updateCornerRadius(_ radius: CGFloat) {
+    func updateCornerRadius(_ radius: CGFloat, targetSize: NSSize? = nil) {
         self.cornerRadiusValue = radius
-        let size = frame.size
+        let size = targetSize ?? frame.size
         guard size.width > 0 && size.height > 0 else { return }
 
         // Create an exact NSImage mask matching the rounded shape
@@ -140,6 +140,16 @@ final class RecordingPanel: NSPanel {
             content.layer?.cornerRadius = radius
             content.layer?.masksToBounds = true
         }
+    }
+
+    override func setFrame(_ frameRect: NSRect, display displayFlag: Bool) {
+        super.setFrame(frameRect, display: displayFlag)
+        updateCornerRadius(cornerRadiusValue, targetSize: frameRect.size)
+    }
+
+    override func setFrame(_ frameRect: NSRect, display displayFlag: Bool, animate animateFlag: Bool) {
+        super.setFrame(frameRect, display: displayFlag, animate: animateFlag)
+        updateCornerRadius(cornerRadiusValue, targetSize: frameRect.size)
     }
 
     // MARK: - Content
