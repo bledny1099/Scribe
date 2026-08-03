@@ -103,6 +103,15 @@ struct SettingsView: View {
                                                 label: { (appState.l($0.displayName), $0.icon) }
                                             )
                                         }
+                                    } else {
+                                        HStack(spacing: 6) {
+                                            Image(systemName: "info.circle")
+                                                .font(.system(size: 11, weight: .medium))
+                                                .foregroundStyle(.secondary)
+                                            Text(appState.l("Inside Card mode is only available for Waveform and Pulse styles"))
+                                                .font(.system(size: 11, weight: .medium, design: .rounded))
+                                                .foregroundStyle(.secondary)
+                                        }
                                     }
 
                                     if appState.livePreviewMode == .external || !appState.selectedOverlayStyle.supportsEmbeddedPreview {
