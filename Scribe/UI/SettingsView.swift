@@ -79,12 +79,12 @@ struct SettingsView: View {
 
                             if appState.livePreviewEnabled {
                                 VStack(spacing: 10) {
-                                    HStack {
-                                        Text(appState.l("Display Mode"))
-                                            .font(.system(size: 14, weight: .medium, design: .rounded))
-                                            .foregroundStyle(.primary)
-                                        Spacer()
-                                        if appState.selectedOverlayStyle.supportsEmbeddedPreview {
+                                    if appState.selectedOverlayStyle.supportsEmbeddedPreview {
+                                        HStack {
+                                            Text(appState.l("Display Mode"))
+                                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                                .foregroundStyle(.primary)
+                                            Spacer()
                                             LiquidGlassSegmentedPicker(
                                                 items: LivePreviewMode.allCases,
                                                 selection: Binding(
@@ -96,32 +96,7 @@ struct SettingsView: View {
                                                 ),
                                                 label: { (appState.l($0.displayName), $0.icon) }
                                             )
-                                        } else {
-                                            HStack(spacing: 6) {
-                                                Image(systemName: "capsule")
-                                                    .font(.system(size: 11, weight: .medium))
-                                                Text(appState.l("Floating Pill"))
-                                                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                                            }
-                                            .foregroundStyle(.primary.opacity(0.8))
-                                            .padding(.horizontal, 12)
-                                            .padding(.vertical, 6)
-                                            .background(.ultraThinMaterial, in: Capsule())
-                                            .overlay(Capsule().strokeBorder(Color.white.opacity(0.15), lineWidth: 0.5))
                                         }
-                                    }
-
-                                    if !appState.selectedOverlayStyle.supportsEmbeddedPreview {
-                                        HStack(spacing: 6) {
-                                            Image(systemName: "info.circle")
-                                                .font(.system(size: 12))
-                                                .foregroundStyle(.secondary)
-                                            Text(appState.l("Inside Card mode is not available for Classic, Minimal, or Orb styles."))
-                                                .font(.system(size: 11, weight: .medium, design: .rounded))
-                                                .foregroundStyle(.secondary)
-                                        }
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                        .padding(.top, 2)
                                     }
 
                                     if appState.livePreviewMode == .external || !appState.selectedOverlayStyle.supportsEmbeddedPreview {

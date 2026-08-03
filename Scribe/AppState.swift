@@ -760,13 +760,19 @@ final class AppState: ObservableObject {
         guard let screen = NSScreen.main else { return .zero }
         let screenFrame = screen.visibleFrame
 
-        if (style == .classic || style == .orb), let settingsFrame = SettingsWindowManager.shared.windowFrame {
-            let preferredX = settingsFrame.maxX + 24
-            let maxAllowedX = screenFrame.maxX - size.width - 20
-            let x = min(preferredX, maxAllowedX)
-            let preferredY = settingsFrame.midY - size.height / 2
-            let y = max(screenFrame.minY + 20, min(preferredY, screenFrame.maxY - size.height - 20))
-            return NSPoint(x: x, y: y)
+        if let settingsFrame = SettingsWindowManager.shared.windowFrame {
+            let spaceOnRight = screenFrame.maxX - settingsFrame.maxX
+            if spaceOnRight >= size.width + 30 {
+                let x = settingsFrame.maxX + 24
+                let preferredY = settingsFrame.midY - size.height / 2
+                let y = max(screenFrame.minY + 20, min(preferredY, screenFrame.maxY - size.height - 20))
+                return NSPoint(x: x, y: y)
+            } else {
+                let x = max(screenFrame.minX + 20, min(settingsFrame.midX - size.width / 2, screenFrame.maxX - size.width - 20))
+                let preferredY = settingsFrame.minY - size.height - 16
+                let y = max(screenFrame.minY + 20, preferredY)
+                return NSPoint(x: x, y: y)
+            }
         } else {
             let x = screenFrame.midX - size.width / 2
             let y = screenFrame.minY + 60
