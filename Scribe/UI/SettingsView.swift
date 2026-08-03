@@ -85,30 +85,34 @@ struct SettingsView: View {
 
                             if appState.livePreviewEnabled {
                                 VStack(spacing: 10) {
-                                    if appState.selectedOverlayStyle.supportsEmbeddedPreview {
-                                        HStack {
-                                            Text(appState.l("Display Mode"))
-                                                .font(.system(size: 14, weight: .medium, design: .rounded))
-                                                .foregroundStyle(.primary)
-                                            Spacer()
-                                            LiquidGlassSegmentedPicker(
-                                                items: LivePreviewMode.allCases,
-                                                selection: Binding(
-                                                    get: { appState.livePreviewMode },
-                                                    set: {
-                                                        appState.livePreviewMode = $0
-                                                        appState.showSettingsPreviewFor5Seconds()
-                                                    }
-                                                ),
-                                                label: { (appState.l($0.displayName), $0.icon) }
-                                            )
-                                        }
-                                    } else {
+                                    HStack {
+                                        Text(appState.l("Display Mode"))
+                                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                                            .foregroundStyle(.primary)
+                                        Spacer()
+                                        let supportsEmbedded = appState.selectedOverlayStyle.supportsEmbeddedPreview
+                                        LiquidGlassSegmentedPicker(
+                                            items: LivePreviewMode.allCases,
+                                            selection: Binding(
+                                                get: { supportsEmbedded ? appState.livePreviewMode : .external },
+                                                set: { newValue in
+                                                    guard supportsEmbedded else { return }
+                                                    appState.livePreviewMode = newValue
+                                                    appState.showSettingsPreviewFor5Seconds()
+                                                }
+                                            ),
+                                            label: { (appState.l($0.displayName), $0.icon) }
+                                        )
+                                        .opacity(supportsEmbedded ? 1.0 : 0.5)
+                                        .allowsHitTesting(supportsEmbedded)
+                                    }
+
+                                    if !appState.selectedOverlayStyle.supportsEmbeddedPreview {
                                         HStack(spacing: 6) {
                                             Image(systemName: "info.circle")
                                                 .font(.system(size: 11, weight: .medium))
                                                 .foregroundStyle(.secondary)
-                                            Text(appState.l("Inside Card mode is only available for Waveform and Pulse styles"))
+                                            Text(appState.l("Inside Card mode is only available for Waveform and Pulse"))
                                                 .font(.system(size: 11, weight: .medium, design: .rounded))
                                                 .foregroundStyle(.secondary)
                                         }
