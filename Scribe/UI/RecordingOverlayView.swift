@@ -109,20 +109,21 @@ struct ClassicOverlay: View {
                 Spacer(minLength: 12)
             }
 
-            // Stop button — fixed at top-right, perfectly inset inside rounded corner
+            // Stop button — fixed at top-right, inset inside rounded corner
             Button(action: { appState.cancelRecording() }) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(.primary.opacity(0.6))
-                    .frame(width: 24, height: 24)
+                    .frame(width: 22, height: 22)
                     .background(Circle().fill(Color.primary.opacity(0.15)))
             }
             .buttonStyle(.plain)
             .opacity((appState.recordingStatus == .recording || appState.isShowingPreview) ? 1 : 0)
-            .padding(.top, 28)
-            .padding(.trailing, 28)
+            .padding(.top, 14)
+            .padding(.trailing, 14)
         }
         .frame(width: RecordingPanel.classicSize.width, height: RecordingPanel.classicSize.height)
+        .clipped()
         .onAppear {
             withAnimation(.linear(duration: 8).repeatForever(autoreverses: false)) {
                 orbitAngle = 360
