@@ -119,11 +119,10 @@ struct ClassicOverlay: View {
             }
             .buttonStyle(.plain)
             .opacity((appState.recordingStatus == .recording || appState.isShowingPreview) ? 1 : 0)
-            .padding(.top, 8)
-            .padding(.trailing, 8)
+            .padding(.top, 16)
+            .padding(.trailing, 16)
         }
         .frame(width: RecordingPanel.classicSize.width, height: RecordingPanel.classicSize.height)
-        .clipped()
         .onAppear {
             withAnimation(.linear(duration: 8).repeatForever(autoreverses: false)) {
                 orbitAngle = 360
