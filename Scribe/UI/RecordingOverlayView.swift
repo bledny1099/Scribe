@@ -22,37 +22,18 @@ struct RecordingOverlayView: View {
         }
         .overlay(
             Group {
-                if appState.selectedOverlayStyle == .classic || appState.selectedOverlayStyle == .orb {
-                    RoundedRectangle(cornerRadius: 24)
-                        .strokeBorder(
-                            LinearGradient(
-                                colors: [Color.white.opacity(0.3), Color.white.opacity(0.08)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 0.5
-                        )
-                } else if appState.selectedOverlayStyle == .waveform || appState.selectedOverlayStyle == .minimal {
-                    Capsule()
-                        .strokeBorder(
-                            LinearGradient(
-                                colors: [Color.white.opacity(0.3), Color.white.opacity(0.08)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 0.5
-                        )
-                } else if appState.selectedOverlayStyle == .ecg {
-                    RoundedRectangle(cornerRadius: 16)
-                        .strokeBorder(
-                            LinearGradient(
-                                colors: [Color.white.opacity(0.3), Color.white.opacity(0.08)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 0.5
-                        )
-                }
+                let isEmbeddedActive = appState.livePreviewEnabled && appState.livePreviewMode == .embedded && appState.selectedOverlayStyle.supportsEmbeddedPreview && !appState.livePreviewText.isEmpty
+                let radius = RecordingPanel.radius(for: appState.selectedOverlayStyle, overlaySize: appState.selectedOverlaySize, isEmbeddedPreviewActive: isEmbeddedActive)
+
+                RoundedRectangle(cornerRadius: radius, style: .continuous)
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [Color.white.opacity(0.3), Color.white.opacity(0.08)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 0.5
+                    )
             }
         )
         .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 6)

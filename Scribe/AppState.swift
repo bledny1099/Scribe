@@ -324,7 +324,12 @@ final class AppState: ObservableObject {
     /// Computed property for type-safe overlay style access.
     var selectedOverlayStyle: OverlayStyle {
         get { OverlayStyle(rawValue: selectedOverlayStyleRaw) ?? .waveform }
-        set { selectedOverlayStyleRaw = newValue.rawValue }
+        set {
+            selectedOverlayStyleRaw = newValue.rawValue
+            if !newValue.supportsEmbeddedPreview && livePreviewMode == .embedded {
+                livePreviewMode = .external
+            }
+        }
     }
 
     /// Computed property for type-safe overlay size access.
@@ -355,8 +360,19 @@ final class AppState: ObservableObject {
 
     /// Computed property for type-safe live preview mode access.
     var livePreviewMode: LivePreviewMode {
-        get { LivePreviewMode(rawValue: livePreviewModeRaw) ?? .external }
-        set { livePreviewModeRaw = newValue.rawValue }
+        get {
+            if !selectedOverlayStyle.supportsEmbeddedPreview {
+                return .external
+            }
+            return LivePreviewMode(rawValue: livePreviewModeRaw) ?? .external
+        }
+        set {
+            if !selectedOverlayStyle.supportsEmbeddedPreview {
+                livePreviewModeRaw = LivePreviewMode.external.rawValue
+            } else {
+                livePreviewModeRaw = newValue.rawValue
+            }
+        }
     }
 
     @AppStorage("selectedPasteMode") var selectedPasteModeRaw: String = PasteMode.paste.rawValue

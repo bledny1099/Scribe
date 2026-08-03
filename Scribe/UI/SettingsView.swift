@@ -84,17 +84,31 @@ struct SettingsView: View {
                                             .font(.system(size: 14, weight: .medium, design: .rounded))
                                             .foregroundStyle(.primary)
                                         Spacer()
-                                        LiquidGlassSegmentedPicker(
-                                            items: LivePreviewMode.allCases,
-                                            selection: Binding(
-                                                get: { appState.livePreviewMode },
-                                                set: {
-                                                    appState.livePreviewMode = $0
-                                                    appState.showSettingsPreviewFor5Seconds()
-                                                }
-                                            ),
-                                            label: { (appState.l($0.displayName), $0.icon) }
-                                        )
+                                        if appState.selectedOverlayStyle.supportsEmbeddedPreview {
+                                            LiquidGlassSegmentedPicker(
+                                                items: LivePreviewMode.allCases,
+                                                selection: Binding(
+                                                    get: { appState.livePreviewMode },
+                                                    set: {
+                                                        appState.livePreviewMode = $0
+                                                        appState.showSettingsPreviewFor5Seconds()
+                                                    }
+                                                ),
+                                                label: { (appState.l($0.displayName), $0.icon) }
+                                            )
+                                        } else {
+                                            HStack(spacing: 6) {
+                                                Image(systemName: "capsule")
+                                                    .font(.system(size: 11, weight: .medium))
+                                                Text(appState.l("Floating Pill"))
+                                                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                                            }
+                                            .foregroundStyle(.primary.opacity(0.8))
+                                            .padding(.horizontal, 12)
+                                            .padding(.vertical, 6)
+                                            .background(.ultraThinMaterial, in: Capsule())
+                                            .overlay(Capsule().strokeBorder(Color.white.opacity(0.15), lineWidth: 0.5))
+                                        }
                                     }
 
                                     if !appState.selectedOverlayStyle.supportsEmbeddedPreview {
@@ -102,7 +116,7 @@ struct SettingsView: View {
                                             Image(systemName: "info.circle")
                                                 .font(.system(size: 12))
                                                 .foregroundStyle(.secondary)
-                                            Text(appState.l("Inside Card mode is not supported for Classic, Minimal, or Orb styles."))
+                                            Text(appState.l("Inside Card mode is not available for Classic, Minimal, or Orb styles."))
                                                 .font(.system(size: 11, weight: .medium, design: .rounded))
                                                 .foregroundStyle(.secondary)
                                         }

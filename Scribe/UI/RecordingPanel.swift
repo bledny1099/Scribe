@@ -180,7 +180,7 @@ final class RecordingPanel: NSPanel {
             hostingView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
         ])
 
-        let targetRadius = Self.radius(for: style, overlaySize: overlaySize)
+        let targetRadius = Self.radius(for: style, overlaySize: overlaySize, isEmbeddedPreviewActive: isEmbeddedPreviewActive)
         updateCornerRadius(targetRadius)
         invalidateShadow()
     }
