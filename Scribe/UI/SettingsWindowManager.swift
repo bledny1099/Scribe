@@ -87,11 +87,9 @@ final class SettingsWindowManager {
             guard let screen = window.screen ?? NSScreen.main else { return }
             let maxY = screen.visibleFrame.maxY - currentFrame.height - 20
             let newY = min(minY, maxY)
-            let newFrame = NSRect(x: currentFrame.origin.x, y: newY, width: currentFrame.width, height: currentFrame.height)
-            NSAnimationContext.runAnimationGroup { ctx in
-                ctx.duration = 0.25
-                ctx.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-                window.animator().setFrame(newFrame, display: true)
+            if abs(currentFrame.minY - newY) > 2 {
+                let newFrame = NSRect(x: currentFrame.origin.x, y: newY, width: currentFrame.width, height: currentFrame.height)
+                window.setFrame(newFrame, display: true)
             }
         }
     }

@@ -764,20 +764,26 @@ final class AppState: ObservableObject {
         guard let screen = NSScreen.main else { return .zero }
         let screenFrame = screen.visibleFrame
 
-        if (style == .classic || style == .orb), let settingsFrame = SettingsWindowManager.shared.windowFrame {
-            let preferredX = settingsFrame.maxX + 24
-            let maxAllowedX = screenFrame.maxX - size.width - 20
-            let x = min(preferredX, maxAllowedX)
-            let preferredY = settingsFrame.midY - size.height / 2
-            let y = max(screenFrame.minY + 20, min(preferredY, screenFrame.maxY - size.height - 20))
-            return NSPoint(x: x, y: y)
+        if let settingsFrame = SettingsWindowManager.shared.windowFrame {
+            if style == .classic || style == .orb {
+                let preferredX = settingsFrame.maxX + 20
+                let maxAllowedX = screenFrame.maxX - size.width - 20
+                let x = min(preferredX, maxAllowedX)
+                let preferredY = settingsFrame.midY - size.height / 2
+                let y = max(screenFrame.minY + 20, min(preferredY, screenFrame.maxY - size.height - 20))
+                return NSPoint(x: x, y: y)
+            } else {
+                let requiredMinY = screenFrame.minY + 20 + size.height + 14
+                SettingsWindowManager.shared.ensureMinimumY(requiredMinY)
+
+                let currentSettingsFrame = SettingsWindowManager.shared.windowFrame ?? settingsFrame
+                let x = max(screenFrame.minX + 20, min(currentSettingsFrame.midX - size.width / 2, screenFrame.maxX - size.width - 20))
+                let y = max(screenFrame.minY + 20, currentSettingsFrame.minY - size.height - 12)
+                return NSPoint(x: x, y: y)
+            }
         } else {
             let x = screenFrame.midX - size.width / 2
-            let y = screenFrame.minY + 40
-
-            let requiredSettingsMinY = y + size.height + 24
-            SettingsWindowManager.shared.ensureMinimumY(requiredSettingsMinY)
-
+            let y = screenFrame.minY + 60
             return NSPoint(x: x, y: y)
         }
     }
