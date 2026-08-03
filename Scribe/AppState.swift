@@ -458,6 +458,10 @@ final class AppState: ObservableObject {
 
     /// Cancel the current recording without transcribing — just stop and close.
     func cancelRecording() {
+        if isShowingPreview {
+            hideSettingsPreviewPanel()
+            return
+        }
         guard isRecording else { return }
         stopDurationTimer()
         stopLivePreviewTimer()
@@ -760,22 +764,20 @@ final class AppState: ObservableObject {
         guard let screen = NSScreen.main else { return .zero }
         let screenFrame = screen.visibleFrame
 
-        if let settingsFrame = SettingsWindowManager.shared.windowFrame {
-            let spaceOnRight = screenFrame.maxX - settingsFrame.maxX
-            if spaceOnRight >= size.width + 30 {
-                let x = settingsFrame.maxX + 24
-                let preferredY = settingsFrame.midY - size.height / 2
-                let y = max(screenFrame.minY + 20, min(preferredY, screenFrame.maxY - size.height - 20))
-                return NSPoint(x: x, y: y)
-            } else {
-                let x = max(screenFrame.minX + 20, min(settingsFrame.midX - size.width / 2, screenFrame.maxX - size.width - 20))
-                let preferredY = settingsFrame.minY - size.height - 16
-                let y = max(screenFrame.minY + 20, preferredY)
-                return NSPoint(x: x, y: y)
-            }
+        if (style == .classic || style == .orb), let settingsFrame = SettingsWindowManager.shared.windowFrame {
+            let preferredX = settingsFrame.maxX + 24
+            let maxAllowedX = screenFrame.maxX - size.width - 20
+            let x = min(preferredX, maxAllowedX)
+            let preferredY = settingsFrame.midY - size.height / 2
+            let y = max(screenFrame.minY + 20, min(preferredY, screenFrame.maxY - size.height - 20))
+            return NSPoint(x: x, y: y)
         } else {
             let x = screenFrame.midX - size.width / 2
-            let y = screenFrame.minY + 60
+            let y = screenFrame.minY + 40
+
+            let requiredSettingsMinY = y + size.height + 24
+            SettingsWindowManager.shared.ensureMinimumY(requiredSettingsMinY)
+
             return NSPoint(x: x, y: y)
         }
     }

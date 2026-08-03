@@ -80,6 +80,22 @@ final class SettingsWindowManager {
         window?.frame
     }
 
+    func ensureMinimumY(_ minY: CGFloat) {
+        guard let window = window else { return }
+        let currentFrame = window.frame
+        if currentFrame.minY < minY {
+            guard let screen = window.screen ?? NSScreen.main else { return }
+            let maxY = screen.visibleFrame.maxY - currentFrame.height - 20
+            let newY = min(minY, maxY)
+            let newFrame = NSRect(x: currentFrame.origin.x, y: newY, width: currentFrame.width, height: currentFrame.height)
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.25
+                ctx.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                window.animator().setFrame(newFrame, display: true)
+            }
+        }
+    }
+
     func closeWindow() {
         currentAppState?.hideSettingsPreviewPanel()
         window?.close()
