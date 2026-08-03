@@ -119,8 +119,8 @@ struct ClassicOverlay: View {
             }
             .buttonStyle(.plain)
             .opacity((appState.recordingStatus == .recording || appState.isShowingPreview) ? 1 : 0)
-            .padding(.top, 14)
-            .padding(.trailing, 14)
+            .padding(.top, 8)
+            .padding(.trailing, 8)
         }
         .frame(width: RecordingPanel.classicSize.width, height: RecordingPanel.classicSize.height)
         .clipped()
