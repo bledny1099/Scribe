@@ -870,6 +870,7 @@ final class AppState: ObservableObject {
         }
 
         settingsPreviewPanel = nil
+        panel.ignoresMouseEvents = true
 
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.35
@@ -880,9 +881,14 @@ final class AppState: ObservableObject {
             panel.animator().setFrameOrigin(NSPoint(x: currentFrame.minX, y: currentFrame.minY - 24))
         } completionHandler: { [weak self] in
             MainActor.assumeIsolated {
+                panel.orderOut(nil)
                 panel.close()
                 if self?.isRecording == false && self?.isTranscribing == false {
                     self?.audioLevel = 0
+                }
+                // Re-activate Settings window so buttons remain clickable
+                if SettingsWindowManager.shared.isWindowOpen {
+                    SettingsWindowManager.shared.makeKeyIfNeeded()
                 }
             }
         }

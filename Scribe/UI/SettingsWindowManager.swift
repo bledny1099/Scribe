@@ -94,6 +94,10 @@ final class SettingsWindowManager {
         }
     }
 
+    func makeKeyIfNeeded() {
+        window?.makeKeyAndOrderFront(nil)
+    }
+
     func closeWindow() {
         currentAppState?.hideSettingsPreviewPanel()
         window?.close()
