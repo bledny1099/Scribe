@@ -39,77 +39,75 @@ struct ClassicOverlay: View {
     private var glow: Color { theme.glowColor }
 
     var body: some View {
-        return ZStack(alignment: .topTrailing) {
-            // Main content
-            VStack(spacing: 12) {
-                Spacer(minLength: 12)
+        VStack(spacing: 12) {
+            Spacer(minLength: 12)
 
-                ZStack {
-                    // Radial glow
-                    Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: [
-                                    glow.opacity(0.35 * Double(appState.audioLevel)),
-                                    Color.clear,
-                                ],
-                                center: .center,
-                                startRadius: 15,
-                                endRadius: 85
-                            )
+            ZStack {
+                // Radial glow
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [
+                                glow.opacity(0.35 * Double(appState.audioLevel)),
+                                Color.clear,
+                            ],
+                            center: .center,
+                            startRadius: 15,
+                            endRadius: 85
                         )
-                        .frame(width: 170, height: 170)
-                        .blur(radius: 14)
+                    )
+                    .frame(width: 170, height: 170)
+                    .blur(radius: 14)
 
-                    // Outer ring
-                    Circle()
-                        .stroke(gradient, lineWidth: 1.5)
-                        .frame(width: 100, height: 100)
-                        .scaleEffect(1 + CGFloat(appState.audioLevel) * 0.25)
-                        .opacity(0.25 + Double(appState.audioLevel) * 0.55)
+                // Outer ring
+                Circle()
+                    .stroke(gradient, lineWidth: 1.5)
+                    .frame(width: 100, height: 100)
+                    .scaleEffect(1 + CGFloat(appState.audioLevel) * 0.25)
+                    .opacity(0.25 + Double(appState.audioLevel) * 0.55)
 
-                    // Middle ring
-                    Circle()
-                        .stroke(gradient, lineWidth: 2)
-                        .frame(width: 72, height: 72)
-                        .scaleEffect(1 + CGFloat(appState.audioLevel) * 0.18)
-                        .opacity(0.35 + Double(appState.audioLevel) * 0.45)
+                // Middle ring
+                Circle()
+                    .stroke(gradient, lineWidth: 2)
+                    .frame(width: 72, height: 72)
+                    .scaleEffect(1 + CGFloat(appState.audioLevel) * 0.18)
+                    .opacity(0.35 + Double(appState.audioLevel) * 0.45)
 
-                    // Inner ring
-                    Circle()
-                        .stroke(gradient, lineWidth: 2.5)
-                        .frame(width: 50, height: 50)
-                        .scaleEffect(1 + CGFloat(appState.audioLevel) * 0.1)
-                        .opacity(0.45 + Double(appState.audioLevel) * 0.35)
+                // Inner ring
+                Circle()
+                    .stroke(gradient, lineWidth: 2.5)
+                    .frame(width: 50, height: 50)
+                    .scaleEffect(1 + CGFloat(appState.audioLevel) * 0.1)
+                    .opacity(0.45 + Double(appState.audioLevel) * 0.35)
 
-                    // Centre disc
-                    Circle()
-                        .fill(gradient.opacity(0.12))
-                        .frame(width: 42, height: 42)
+                // Centre disc
+                Circle()
+                    .fill(gradient.opacity(0.12))
+                    .frame(width: 42, height: 42)
 
-                    // Status icon
-                    classicStatusIcon
-                }
-                .animation(.spring(response: 0.18, dampingFraction: 0.65), value: appState.audioLevel)
+                // Status icon
+                classicStatusIcon
+            }
+            .animation(.spring(response: 0.18, dampingFraction: 0.65), value: appState.audioLevel)
 
-                HStack(spacing: 6) {
-                    if appState.recordingStatus == .recording || appState.isShowingPreview {
-                        Text(appState.isShowingPreview ? "0:05" : appState.formattedDuration)
-                            .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .monospaced))
-                            .foregroundStyle(.primary.opacity(0.9))
-                            .contentTransition(.numericText())
-                            .animation(.default, value: appState.recordingDuration)
-                    }
-
-                    Text(appState.isShowingPreview ? appState.l("Recording…") : statusLabel)
-                        .font(.system(size: 11 * appState.overlayTextCompensation, weight: .medium, design: .rounded))
-                        .foregroundStyle(.primary.opacity(0.7))
+            HStack(spacing: 6) {
+                if appState.recordingStatus == .recording || appState.isShowingPreview {
+                    Text(appState.isShowingPreview ? "0:05" : appState.formattedDuration)
+                        .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(.primary.opacity(0.9))
+                        .contentTransition(.numericText())
+                        .animation(.default, value: appState.recordingDuration)
                 }
 
-                Spacer(minLength: 12)
+                Text(appState.isShowingPreview ? appState.l("Recording…") : statusLabel)
+                    .font(.system(size: 11 * appState.overlayTextCompensation, weight: .medium, design: .rounded))
+                    .foregroundStyle(.primary.opacity(0.7))
             }
 
-            // Stop button — fixed at top-right, inset inside rounded corner
+            Spacer(minLength: 12)
+        }
+        .frame(width: RecordingPanel.classicSize.width, height: RecordingPanel.classicSize.height)
+        .overlay(alignment: .topTrailing) {
             Button(action: { appState.cancelRecording() }) {
                 Image(systemName: "xmark")
                     .font(.system(size: 10, weight: .bold))
@@ -119,10 +117,8 @@ struct ClassicOverlay: View {
             }
             .buttonStyle(.plain)
             .opacity((appState.recordingStatus == .recording || appState.isShowingPreview) ? 1 : 0)
-            .padding(.top, 16)
-            .padding(.trailing, 16)
+            .padding(10)
         }
-        .frame(width: RecordingPanel.classicSize.width, height: RecordingPanel.classicSize.height)
         .onAppear {
             withAnimation(.linear(duration: 8).repeatForever(autoreverses: false)) {
                 orbitAngle = 360
