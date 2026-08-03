@@ -54,9 +54,9 @@ final class RecordingPanel: NSPanel {
         let baseRadius: CGFloat
         switch style {
         case .classic:  baseRadius = 24
-        case .waveform: baseRadius = (isEmbeddedPreviewActive && style.supportsEmbeddedPreview) ? 28 : waveformSize.height / 2
+        case .waveform: baseRadius = waveformSize.height / 2
         case .minimal:  baseRadius = minimalSize.height / 2
-        case .ecg:      baseRadius = (isEmbeddedPreviewActive && style.supportsEmbeddedPreview) ? 24 : 16
+        case .ecg:      baseRadius = 24
         case .orb:      baseRadius = 28
         }
         return round(baseRadius * overlaySize.scale)
