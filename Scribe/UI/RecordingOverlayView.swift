@@ -117,7 +117,8 @@ struct ClassicOverlay: View {
             }
             .buttonStyle(.plain)
             .opacity((appState.recordingStatus == .recording || appState.isShowingPreview) ? 1 : 0)
-            .padding(10)
+            .padding(.top, 8)
+            .padding(.trailing, 8)
         }
         .onAppear {
             withAnimation(.linear(duration: 8).repeatForever(autoreverses: false)) {
