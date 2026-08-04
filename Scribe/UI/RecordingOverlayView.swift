@@ -499,74 +499,72 @@ struct OrbOverlay: View {
     private var gradient: LinearGradient { theme.accentGradient }
 
     var body: some View {
-        return ZStack(alignment: .topTrailing) {
-            VStack(spacing: 8) {
-                Spacer(minLength: 4)
+        VStack(spacing: 8) {
+            Spacer(minLength: 4)
 
-                // Bouncy Fluid Liquid Orb Sphere
-                ZStack {
-                    // Outer fluid aura glow
-                    Circle()
-                        .fill(theme.glowColor.opacity(0.3 + Double(appState.audioLevel) * 0.45))
-                        .blur(radius: 16)
-                        .scaleEffect(1.0 + CGFloat(appState.audioLevel) * 0.35)
+            // Bouncy Fluid Liquid Orb Sphere
+            ZStack {
+                // Outer fluid aura glow
+                Circle()
+                    .fill(theme.glowColor.opacity(0.3 + Double(appState.audioLevel) * 0.45))
+                    .blur(radius: 16)
+                    .scaleEffect(1.0 + CGFloat(appState.audioLevel) * 0.35)
 
-                    // Layer 1: Rotating Gradient Ring
-                    Circle()
-                        .stroke(gradient, lineWidth: 5)
-                        .frame(width: 80, height: 80)
-                        .rotationEffect(.degrees(rotationAngle))
-                        .scaleEffect(1.0 + CGFloat(appState.audioLevel) * 0.2)
-                        .opacity(0.85)
+                // Layer 1: Rotating Gradient Ring
+                Circle()
+                    .stroke(gradient, lineWidth: 5)
+                    .frame(width: 80, height: 80)
+                    .rotationEffect(.degrees(rotationAngle))
+                    .scaleEffect(1.0 + CGFloat(appState.audioLevel) * 0.2)
+                    .opacity(0.85)
 
-                    // Layer 2: Inner Fluid Blob Sphere
-                    Circle()
-                        .fill(gradient.opacity(0.75))
-                        .frame(width: 64, height: 64)
-                        .scaleEffect(1.0 + CGFloat(appState.audioLevel) * 0.25)
+                // Layer 2: Inner Fluid Blob Sphere
+                Circle()
+                    .fill(gradient.opacity(0.75))
+                    .frame(width: 64, height: 64)
+                    .scaleEffect(1.0 + CGFloat(appState.audioLevel) * 0.25)
 
-                    // Center Mic Icon
-                    Image(systemName: "mic.fill")
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundStyle(.white)
-                        .shadow(color: .black.opacity(0.3), radius: 4)
-                        .scaleEffect(1.0 + CGFloat(appState.audioLevel) * 0.15)
-                }
-                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: appState.audioLevel)
-                .frame(width: 96, height: 96)
+                // Center Mic Icon
+                Image(systemName: "mic.fill")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(.white)
+                    .shadow(color: .black.opacity(0.3), radius: 4)
+                    .scaleEffect(1.0 + CGFloat(appState.audioLevel) * 0.15)
+            }
+            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: appState.audioLevel)
+            .frame(width: 96, height: 96)
 
-                // Timer & Status Text
-                HStack(spacing: 6) {
-                    if appState.recordingStatus == .recording || appState.isShowingPreview {
-                        Text(appState.isShowingPreview ? "0:05" : appState.formattedDuration)
-                            .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .monospaced))
-                            .foregroundStyle(.primary.opacity(0.9))
-                            .contentTransition(.numericText())
-                            .animation(.default, value: appState.recordingDuration)
-                    }
-
-                    Text(appState.isShowingPreview ? appState.l("Recording…") : statusLabel)
-                        .font(.system(size: 11 * appState.overlayTextCompensation, weight: .medium, design: .rounded))
-                        .foregroundStyle(.primary.opacity(0.7))
+            // Timer & Status Text
+            HStack(spacing: 6) {
+                if appState.recordingStatus == .recording || appState.isShowingPreview {
+                    Text(appState.isShowingPreview ? "0:05" : appState.formattedDuration)
+                        .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(.primary.opacity(0.9))
+                        .contentTransition(.numericText())
+                        .animation(.default, value: appState.recordingDuration)
                 }
 
-                Spacer(minLength: 4)
+                Text(appState.isShowingPreview ? appState.l("Recording…") : statusLabel)
+                    .font(.system(size: 11 * appState.overlayTextCompensation, weight: .medium, design: .rounded))
+                    .foregroundStyle(.primary.opacity(0.7))
             }
 
-            // Stop button — fixed at top-right, perfectly inset inside rounded corner
+            Spacer(minLength: 4)
+        }
+        .frame(width: RecordingPanel.orbSize.width, height: RecordingPanel.orbSize.height)
+        .overlay(alignment: .topTrailing) {
             Button(action: { appState.cancelRecording() }) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(.primary.opacity(0.6))
-                    .frame(width: 24, height: 24)
+                    .frame(width: 22, height: 22)
                     .background(Circle().fill(Color.primary.opacity(0.15)))
             }
             .buttonStyle(.plain)
             .opacity((appState.recordingStatus == .recording || appState.isShowingPreview) ? 1 : 0)
-            .padding(.top, 16)
-            .padding(.trailing, 16)
+            .padding(.top, 8)
+            .padding(.trailing, 8)
         }
-        .frame(width: RecordingPanel.orbSize.width, height: RecordingPanel.orbSize.height)
         .onAppear {
             withAnimation(.linear(duration: 6).repeatForever(autoreverses: false)) {
                 rotationAngle = 360
