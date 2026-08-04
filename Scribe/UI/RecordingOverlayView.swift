@@ -117,8 +117,8 @@ struct ClassicOverlay: View {
             }
             .buttonStyle(.plain)
             .opacity((appState.recordingStatus == .recording || appState.isShowingPreview) ? 1 : 0)
-            .padding(.top, 8)
-            .padding(.trailing, 8)
+            .padding(.top, 12)
+            .padding(.trailing, 12)
         }
         .onAppear {
             withAnimation(.linear(duration: 8).repeatForever(autoreverses: false)) {
@@ -562,8 +562,8 @@ struct OrbOverlay: View {
             }
             .buttonStyle(.plain)
             .opacity((appState.recordingStatus == .recording || appState.isShowingPreview) ? 1 : 0)
-            .padding(.top, 8)
-            .padding(.trailing, 8)
+            .padding(.top, 12)
+            .padding(.trailing, 12)
         }
         .onAppear {
             withAnimation(.linear(duration: 6).repeatForever(autoreverses: false)) {
