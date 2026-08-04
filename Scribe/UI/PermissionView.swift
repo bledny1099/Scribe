@@ -4,11 +4,12 @@ import SwiftUI
 // MARK: - Reusable Permissions Card (Matching Liquid Glass Design)
 
 struct PermissionsCard: View {
+    @EnvironmentObject var appState: AppState
     @ObservedObject var permissionManager = PermissionManager.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("PERMISSIONS")
+            Text(appState.l("Permissions").uppercased())
                 .font(.system(size: 11, weight: .bold, design: .rounded))
                 .foregroundStyle(.secondary)
                 .padding(.bottom, 8)
@@ -17,7 +18,7 @@ struct PermissionsCard: View {
             VStack(spacing: 0) {
                 // Microphone row
                 PermissionRow(
-                    title: "Microphone",
+                    title: appState.l("Microphone"),
                     icon: "mic.fill",
                     isGranted: permissionManager.isMicrophoneGranted,
                     action: { permissionManager.requestMicrophone() }
@@ -28,7 +29,7 @@ struct PermissionsCard: View {
 
                 // Accessibility row
                 PermissionRow(
-                    title: "Accessibility",
+                    title: appState.l("Accessibility"),
                     icon: "hand.raised.fill",
                     isGranted: permissionManager.isAccessibilityGranted,
                     action: { permissionManager.requestAccessibility() }
@@ -47,6 +48,7 @@ struct PermissionsCard: View {
 }
 
 struct PermissionRow: View {
+    @EnvironmentObject var appState: AppState
     let title: String
     let icon: String
     let isGranted: Bool
@@ -80,13 +82,13 @@ struct PermissionRow: View {
                         .font(.system(size: 15, weight: .bold))
                         .foregroundStyle(.green)
 
-                    Text("Granted")
+                    Text(appState.l("Granted"))
                         .font(.system(size: 13, weight: .medium, design: .rounded))
                         .foregroundStyle(.secondary)
                 }
                 .transition(.scale.combined(with: .opacity))
             } else {
-                Button("Grant Access") {
+                Button(appState.l("Grant Access")) {
                     action()
                 }
                 .buttonStyle(GlassButtonStyle())

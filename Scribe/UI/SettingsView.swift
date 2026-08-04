@@ -390,6 +390,7 @@ struct SettingsView: View {
                     .padding(.top, 8)
                     .sheet(isPresented: $showingSupportModal) {
                         SupportDeveloperModal()
+                            .environmentObject(appState)
                     }
                 }
                 .padding(.horizontal, 24)
@@ -456,7 +457,7 @@ struct SettingsView: View {
     }
 
     private var modelDescription: String {
-        models.first(where: { $0.id == appState.selectedModel })?.desc ?? ""
+        appState.l(models.first(where: { $0.id == appState.selectedModel })?.desc ?? "")
     }
 }
 
@@ -987,13 +988,14 @@ struct ThemeSwatchButton: View {
 // MARK: - Support Developer
 
 struct SupportDeveloperModal: View {
+    @EnvironmentObject var appState: AppState
     @Environment(\.dismiss) var dismiss
     
     var body: some View {
         VStack(spacing: 0) {
             // Header
             HStack {
-                Text("Support Scribe ☕️")
+                Text(appState.l("Support Scribe") + " ☕️")
                     .font(.system(size: 16, weight: .bold, design: .rounded))
                 Spacer()
                 Button {
@@ -1010,7 +1012,7 @@ struct SupportDeveloperModal: View {
             Divider()
             
             VStack(spacing: 16) {
-                Text("Scribe is an independent project supported entirely by user donations. If you find it useful, consider supporting its development. Donations are completely optional. Thank you!")
+                Text(appState.l("Scribe is an independent project supported entirely by user donations. If you find it useful, consider supporting its development. Donations are completely optional. Thank you!"))
                     .font(.system(size: 13, weight: .medium, design: .rounded))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -1029,7 +1031,7 @@ struct SupportDeveloperModal: View {
                         Image(systemName: "cup.and.saucer.fill")
                             .font(.system(size: 16, weight: .bold))
                             .foregroundStyle(.white)
-                        Text("Buy Me a Coffee on Ko-fi")
+                        Text(appState.l("Buy Me a Coffee on Ko-fi"))
                             .font(.system(size: 14, weight: .bold, design: .rounded))
                             .foregroundStyle(.white)
                         Spacer()
@@ -1066,7 +1068,7 @@ struct SupportDeveloperModal: View {
 
                 HStack {
                     Rectangle().frame(height: 1).foregroundStyle(Color.primary.opacity(0.1))
-                    Text("or Crypto")
+                    Text(appState.l("or Crypto"))
                         .font(.system(size: 11, weight: .semibold, design: .rounded))
                         .foregroundStyle(.tertiary)
                     Rectangle().frame(height: 1).foregroundStyle(Color.primary.opacity(0.1))
