@@ -1,0 +1,1042 @@
+9d8
+<     case system = "System"
+11a11
+>     case system = "System"
+13a14
+> 
+27,30d27
+<     
+<     private var modelDescription: String {
+<         appState.l(models.first(where: { $0.id == appState.selectedModel })?.desc ?? "")
+<     }
+50c47
+<                             .background(selectedTab == tab ? appState.selectedTheme.gradientColors.first!.opacity(0.2) : Color.clear)
+---
+>                             .background(selectedTab == tab ? Color.primary.opacity(0.1) : Color.clear)
+55d51
+<                     
+57,77d52
+<                     
+<                     // Support Developer Button in Sidebar
+<                     Button {
+<                         showingSupportModal = true
+<                     } label: {
+<                         HStack {
+<                             Image(systemName: "heart.fill")
+<                                 .foregroundStyle(.red)
+<                             Text("Support Scribe")
+<                                 .font(.system(size: 13, weight: .bold, design: .rounded))
+<                                 .lineLimit(1)
+<                                 .minimumScaleFactor(0.8)
+<                             Spacer()
+<                         }
+<                         .padding(.horizontal, 12)
+<                         .padding(.vertical, 8)
+<                         .background(Color.primary.opacity(0.04))
+<                         .cornerRadius(8)
+<                     }
+<                     .buttonStyle(.plain)
+<                     .padding(.bottom, 8)
+83,86d57
+<                 .sheet(isPresented: $showingSupportModal) {
+<                     SupportDeveloperModal()
+<                         .environmentObject(appState)
+<                 }
+93,224c64,74
+<                         contentForTab
+<                     }
+<                     .padding(.horizontal, 24)
+<                     .padding(.top, 116)
+<                     .padding(.bottom, 24)
+<                 }
+<             }
+<             
+<             // App Header Overlay
+<             VStack {
+<                 HStack(alignment: .center, spacing: 12) {
+<                     Image("AppIconImage")
+<                         .resizable()
+<                         .frame(width: 44, height: 44)
+<                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+<                         .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+<                         .overlay(
+<                             RoundedRectangle(cornerRadius: 12, style: .continuous)
+<                                 .stroke(Color.white.opacity(0.2), lineWidth: 1)
+<                         )
+< 
+<                     VStack(alignment: .leading, spacing: 2) {
+<                         Text("Scribe")
+<                             .font(.system(size: 20, weight: .bold, design: .rounded))
+<                             .foregroundStyle(.primary)
+<                         Text(appState.l("Voice Typing"))
+<                             .font(.system(size: 12, weight: .medium))
+<                             .foregroundStyle(.secondary)
+<                     }
+< 
+<                     Spacer()
+< 
+<                     Button(action: {
+<                         SettingsWindowManager.shared.closeWindow()
+<                     }) {
+<                         Image(systemName: "xmark.circle.fill")
+<                             .font(.system(size: 20))
+<                             .foregroundStyle(.tertiary)
+<                     }
+<                     .buttonStyle(.plain)
+<                 }
+<                 .padding(.horizontal, 24)
+<                 .padding(.top, 24)
+<                 .padding(.bottom, 16)
+<                 .background(WindowDragView())
+<             }
+<         }
+<         .ignoresSafeArea(.container, edges: .top)
+<         .frame(width: 650, height: 620)
+<         .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
+<         .onDisappear {
+<             appState.hideSettingsPreviewPanel()
+<         }
+<         .onChange(of: appState.selectedOverlaySize) { _ in
+<             appState.showSettingsPreviewFor5Seconds()
+<         }
+<         .onChange(of: appState.selectedOverlayStyle) { _ in
+<             appState.showSettingsPreviewFor5Seconds()
+<         }
+<         .onChange(of: appState.selectedTheme) { _ in
+<             appState.onThemeChangedPreview()
+<         }
+<         .onChange(of: appState.selectedPanelAppearance) { _ in
+<             appState.showSettingsPreviewFor5Seconds()
+<         }
+<     }
+<     
+<     @ViewBuilder
+<     private var contentForTab: some View {
+<         switch selectedTab {
+<         case .general: generalSettings
+<         case .appearance: appearanceSettings
+<         case .recognition: recognitionSettings
+<         case .statistics: StatisticsSectionView()
+<         case .system: systemSettings
+<         case .replacements: ReplacementsSettingsView()
+<         case .integrations: IntegrationsSettingsView()
+<         }
+<     }
+< 
+<     private var generalSettings: some View {
+<         GlassSection(title: appState.l("Recording"), icon: "keyboard") {
+<             VStack(spacing: 16) {
+<                 HStack {
+<                     Text(appState.l("Global Hotkey"))
+<                         .font(.system(size: 14, weight: .medium, design: .rounded))
+<                         .foregroundStyle(.primary)
+<                     Spacer()
+<                     KeyboardShortcuts.Recorder(for: .toggleRecording)
+<                 }
+< 
+<                 HStack {
+<                     Text(appState.l("Paste Mode"))
+<                         .font(.system(size: 14, weight: .medium, design: .rounded))
+<                         .foregroundStyle(.primary)
+<                     Spacer()
+<                     LiquidGlassSegmentedPicker(
+<                         items: PasteMode.allCases,
+<                         selection: Binding(
+<                             get: { appState.selectedPasteMode },
+<                             set: { appState.selectedPasteMode = $0 }
+<                         ),
+<                         label: { (appState.l($0.displayName), $0.icon) }
+<                     )
+<                 }
+< 
+<                 Text(appState.selectedPasteMode == .paste
+<                     ? appState.l("Replaces clipboard content with transcribed text.")
+<                     : appState.l("Appends transcribed text to current clipboard content.")
+<                 )
+<                 .font(.system(size: 11, weight: .regular))
+<                 .foregroundStyle(.secondary)
+<                 .frame(maxWidth: .infinity, alignment: .leading)
+<                 .padding(.top, -8)
+< 
+<                 HStack {
+<                     VStack(alignment: .leading, spacing: 2) {
+<                         Text(appState.l("Live Preview"))
+<                             .font(.system(size: 14, weight: .medium, design: .rounded))
+<                             .foregroundStyle(.primary)
+<                         Text(appState.l("Shows intermediate text while recording"))
+<                             .font(.system(size: 11))
+<                             .foregroundStyle(.secondary)
+<                     }
+<                     Spacer()
+<                     let supportsLivePreview = appState.selectedOverlayStyle.supportsEmbeddedPreview
+<                     Toggle("", isOn: Binding(
+<                         get: { supportsLivePreview ? appState.livePreviewEnabled : false },
+<                         set: { newValue in
+<                             guard supportsLivePreview else { return }
+<                             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+<                                 appState.livePreviewEnabled = newValue
+---
+>                         switch selectedTab {
+>                         case .general:
+>                     // SECTION: Shortcut & Paste Mode
+>                     GlassSection(title: appState.l("Recording"), icon: "keyboard") {
+>                         VStack(spacing: 16) {
+>                             HStack {
+>                                 Text(appState.l("Global Hotkey"))
+>                                     .font(.system(size: 14, weight: .medium, design: .rounded))
+>                                     .foregroundStyle(.primary)
+>                                 Spacer()
+>                                 KeyboardShortcuts.Recorder(for: .toggleRecording)
+226,239d75
+<                             DispatchQueue.main.async {
+<                                 if newValue {
+<                                     appState.showSettingsPreviewFor5Seconds()
+<                                 } else {
+<                                     appState.hideSettingsPreviewPanel()
+<                                 }
+<                             }
+<                         }
+<                     ))
+<                         .toggleStyle(.switch)
+<                         .labelsHidden()
+<                         .allowsHitTesting(supportsLivePreview)
+<                         .opacity(supportsLivePreview ? 1.0 : 0.5)
+<                 }
+241,254d76
+<                 if !appState.selectedOverlayStyle.supportsEmbeddedPreview {
+<                     HStack(spacing: 6) {
+<                         Image(systemName: "info.circle")
+<                             .font(.system(size: 11, weight: .medium))
+<                             .foregroundStyle(.secondary)
+<                         Text(appState.l("Live Preview is only available for Waveform and Pulse"))
+<                             .font(.system(size: 11, weight: .medium, design: .rounded))
+<                             .foregroundStyle(.secondary)
+<                     }
+<                 }
+< 
+<                 if appState.livePreviewEnabled && appState.selectedOverlayStyle.supportsEmbeddedPreview {
+<                     VStack(spacing: 10) {
+<                         if appState.selectedOverlayStyle.supportsEmbeddedPreview {
+256c78
+<                                 Text(appState.l("Display Mode"))
+---
+>                                 Text(appState.l("Paste Mode"))
+259d80
+<                                     .fixedSize(horizontal: true, vertical: false)
+262c83
+<                                     items: LivePreviewMode.allCases,
+---
+>                                     items: PasteMode.allCases,
+264,268c85,86
+<                                         get: { appState.livePreviewMode },
+<                                         set: {
+<                                             appState.livePreviewMode = $0
+<                                             appState.showSettingsPreviewFor5Seconds()
+<                                         }
+---
+>                                         get: { appState.selectedPasteMode },
+>                                         set: { appState.selectedPasteMode = $0 }
+273d90
+<                         }
+275c92,100
+<                         if appState.livePreviewMode == .external || !appState.selectedOverlayStyle.supportsEmbeddedPreview {
+---
+>                             Text(appState.selectedPasteMode == .paste
+>                                 ? appState.l("Replaces clipboard content with transcribed text.")
+>                                 : appState.l("Appends transcribed text to current clipboard content.")
+>                             )
+>                             .font(.system(size: 11, weight: .regular))
+>                             .foregroundStyle(.secondary)
+>                             .frame(maxWidth: .infinity, alignment: .leading)
+>                             .padding(.top, -8)
+> 
+277c102,215
+<                                 Text(appState.l("Preview Background"))
+---
+>                                 VStack(alignment: .leading, spacing: 2) {
+>                                     Text(appState.l("Live Preview"))
+>                                         .font(.system(size: 14, weight: .medium, design: .rounded))
+>                                         .foregroundStyle(.primary)
+>                                     Text(appState.l("Shows intermediate text while recording"))
+>                                         .font(.system(size: 11))
+>                                         .foregroundStyle(.secondary)
+>                                 }
+>                                 Spacer()
+>                                 let supportsLivePreview = appState.selectedOverlayStyle.supportsEmbeddedPreview
+>                                 Toggle("", isOn: Binding(
+>                                     get: { supportsLivePreview ? appState.livePreviewEnabled : false },
+>                                     set: { newValue in
+>                                         guard supportsLivePreview else { return }
+>                                         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+>                                             appState.livePreviewEnabled = newValue
+>                                         }
+>                                         DispatchQueue.main.async {
+>                                             if newValue {
+>                                                 appState.showSettingsPreviewFor5Seconds()
+>                                             } else {
+>                                                 appState.hideSettingsPreviewPanel()
+>                                             }
+>                                         }
+>                                     }
+>                                 ))
+>                                     .toggleStyle(.switch)
+>                                     .labelsHidden()
+>                                     .allowsHitTesting(supportsLivePreview)
+>                                     .opacity(supportsLivePreview ? 1.0 : 0.5)
+>                             }
+> 
+>                             if !appState.selectedOverlayStyle.supportsEmbeddedPreview {
+>                                 HStack(spacing: 6) {
+>                                     Image(systemName: "info.circle")
+>                                         .font(.system(size: 11, weight: .medium))
+>                                         .foregroundStyle(.secondary)
+>                                     Text(appState.l("Live Preview is only available for Waveform and Pulse"))
+>                                         .font(.system(size: 11, weight: .medium, design: .rounded))
+>                                         .foregroundStyle(.secondary)
+>                                 }
+>                             }
+> 
+>                             if appState.livePreviewEnabled && appState.selectedOverlayStyle.supportsEmbeddedPreview {
+>                                 VStack(spacing: 10) {
+>                                     if appState.selectedOverlayStyle.supportsEmbeddedPreview {
+>                                         HStack {
+>                                             Text(appState.l("Display Mode"))
+>                                                 .font(.system(size: 14, weight: .medium, design: .rounded))
+>                                                 .foregroundStyle(.primary)
+>                                                 .fixedSize(horizontal: true, vertical: false)
+>                                             Spacer()
+>                                             LiquidGlassSegmentedPicker(
+>                                                 items: LivePreviewMode.allCases,
+>                                                 selection: Binding(
+>                                                     get: { appState.livePreviewMode },
+>                                                     set: {
+>                                                         appState.livePreviewMode = $0
+>                                                         appState.showSettingsPreviewFor5Seconds()
+>                                                     }
+>                                                 ),
+>                                                 label: { (appState.l($0.displayName), $0.icon) }
+>                                             )
+>                                         }
+>                                     }
+> 
+>                                     if appState.livePreviewMode == .external || !appState.selectedOverlayStyle.supportsEmbeddedPreview {
+>                                         HStack {
+>                                             Text(appState.l("Preview Background"))
+>                                                 .font(.system(size: 14, weight: .medium, design: .rounded))
+>                                                 .foregroundStyle(.primary)
+>                                             Spacer()
+>                                             LiquidGlassSegmentedPicker(
+>                                                 items: SubtitleBackground.allCases,
+>                                                 selection: Binding(
+>                                                     get: { appState.livePreviewBackground },
+>                                                     set: {
+>                                                         appState.livePreviewBackground = $0
+>                                                         appState.showSettingsPreviewFor5Seconds()
+>                                                     }
+>                                                 ),
+>                                                 label: { (appState.l($0.displayName), $0.icon) }
+>                                             )
+>                                         }
+>                                     }
+>                                 }
+>                                 .padding(.top, 4)
+>                                 .transition(.opacity.combined(with: .move(edge: .top)))
+>                             }
+>                         }
+>                     }
+> 
+>                         case .appearance:
+>                     // SECTION: Theme & Style
+>                     GlassSection(title: appState.l("Appearance"), icon: "paintbrush.fill") {
+>                         VStack(spacing: 16) {
+>                             // Theme picker
+>                             HStack(alignment: .top, spacing: 14) {
+>                                 ForEach(AppTheme.allCases) { theme in
+>                                     ThemeSwatchButton(
+>                                         theme: theme,
+>                                         isSelected: appState.selectedTheme == theme
+>                                     ) {
+>                                         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+>                                             appState.selectedTheme = theme
+>                                         }
+>                                     }
+>                                 }
+>                             }
+>                             .frame(maxWidth: .infinity)
+> 
+>                             // Overlay style picker
+>                             HStack {
+>                                 Text(appState.l("Overlay Style"))
+282c220
+<                                     items: SubtitleBackground.allCases,
+---
+>                                     items: OverlayStyle.allCases,
+284,288c222,223
+<                                         get: { appState.livePreviewBackground },
+<                                         set: {
+<                                             appState.livePreviewBackground = $0
+<                                             appState.showSettingsPreviewFor5Seconds()
+<                                         }
+---
+>                                         get: { appState.selectedOverlayStyle },
+>                                         set: { appState.selectedOverlayStyle = $0 }
+289a225,256
+>                                     label: { ("", $0.icon) }
+>                                 )
+>                             }
+> 
+>                             // Overlay size picker
+>                             HStack {
+>                                 Text(appState.l("Overlay Size"))
+>                                     .font(.system(size: 14, weight: .medium, design: .rounded))
+>                                     .foregroundStyle(.primary)
+>                                 Spacer()
+>                                 LiquidGlassSegmentedPicker(
+>                                     items: OverlaySize.allCases,
+>                                     selection: Binding(
+>                                         get: { appState.selectedOverlaySize },
+>                                         set: { appState.selectedOverlaySize = $0 }
+>                                     ),
+>                                     label: { (appState.l($0.shortName), $0.icon) }
+>                                 )
+>                             }
+> 
+>                             // Background appearance picker
+>                             HStack {
+>                                 Text(appState.l("Panel Appearance"))
+>                                     .font(.system(size: 14, weight: .medium, design: .rounded))
+>                                     .foregroundStyle(.primary)
+>                                 Spacer()
+>                                 LiquidGlassSegmentedPicker(
+>                                     items: PanelAppearance.allCases,
+>                                     selection: Binding(
+>                                         get: { appState.selectedPanelAppearance },
+>                                         set: { appState.selectedPanelAppearance = $0 }
+>                                     ),
+293,300d259
+<                         }
+<                     }
+<                     .padding(.top, 4)
+<                     .transition(.opacity.combined(with: .move(edge: .top)))
+<                 }
+<             }
+<         }
+<     }
+302,313c261,272
+<     private var appearanceSettings: some View {
+<         GlassSection(title: appState.l("Appearance"), icon: "paintbrush.fill") {
+<             VStack(spacing: 16) {
+<                 // Theme picker
+<                 HStack(alignment: .top, spacing: 14) {
+<                     ForEach(AppTheme.allCases) { theme in
+<                         ThemeSwatchButton(
+<                             theme: theme,
+<                             isSelected: appState.selectedTheme == theme
+<                         ) {
+<                             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+<                                 appState.selectedTheme = theme
+---
+>                             // Live Floating Preview Info Bar
+>                             HStack {
+>                                 Label("Live Floating Preview", systemImage: "sparkles")
+>                                     .font(.system(size: 12, weight: .semibold, design: .rounded))
+>                                     .foregroundStyle(.secondary)
+>                                 Spacer()
+>                                 let currentStyle = appState.selectedOverlayStyle
+>                                 let currentSize = appState.selectedOverlaySize
+>                                 let scaled = RecordingPanel.size(for: currentStyle, overlaySize: currentSize)
+>                                 Text("\(Int(scaled.width)) × \(Int(scaled.height)) px")
+>                                     .font(.system(size: 11, weight: .semibold, design: .monospaced))
+>                                     .foregroundStyle(.tertiary)
+314a274,277
+>                             .padding(.horizontal, 12)
+>                             .padding(.vertical, 8)
+>                             .background(Color.primary.opacity(0.04))
+>                             .cornerRadius(8)
+317,318d279
+<                 }
+<                 .frame(maxWidth: .infinity)
+320,334c281,294
+<                 // Overlay style picker
+<                 HStack {
+<                     Text(appState.l("Overlay Style"))
+<                         .font(.system(size: 14, weight: .medium, design: .rounded))
+<                         .foregroundStyle(.primary)
+<                     Spacer()
+<                     LiquidGlassSegmentedPicker(
+<                         items: OverlayStyle.allCases,
+<                         selection: Binding(
+<                             get: { appState.selectedOverlayStyle },
+<                             set: { appState.selectedOverlayStyle = $0 }
+<                         ),
+<                         label: { ("", $0.icon) }
+<                     )
+<                 }
+---
+>                         case .recognition:
+>                     // SECTION: Language & Model
+>                     GlassSection(title: appState.l("Recognition"), icon: "waveform.and.mic") {
+>                         VStack(spacing: 16) {
+>                             HStack {
+>                                 Text(appState.l("Dictation Language"))
+>                                     .font(.system(size: 14, weight: .medium, design: .rounded))
+>                                     .foregroundStyle(.primary)
+>                                 Spacer()
+>                                 LiquidGlassLanguageMenu(
+>                                     items: supportedLanguages,
+>                                     selection: $appState.selectedLanguage
+>                                 )
+>                             }
+336,350c296,304
+<                 // Overlay size picker
+<                 HStack {
+<                     Text(appState.l("Overlay Size"))
+<                         .font(.system(size: 14, weight: .medium, design: .rounded))
+<                         .foregroundStyle(.primary)
+<                     Spacer()
+<                     LiquidGlassSegmentedPicker(
+<                         items: OverlaySize.allCases,
+<                         selection: Binding(
+<                             get: { appState.selectedOverlaySize },
+<                             set: { appState.selectedOverlaySize = $0 }
+<                         ),
+<                         label: { (appState.l($0.shortName), $0.icon) }
+<                     )
+<                 }
+---
+>                             HStack {
+>                                 Text(appState.l("Auto Translate to Selected Language"))
+>                                     .font(.system(size: 14, weight: .medium, design: .rounded))
+>                                     .foregroundStyle(.primary)
+>                                 Spacer()
+>                                 Toggle("", isOn: $appState.autoTranslate)
+>                                     .toggleStyle(.switch)
+>                                     .labelsHidden()
+>                             }
+352,366c306,315
+<                 // Background appearance picker
+<                 HStack {
+<                     Text(appState.l("Panel Appearance"))
+<                         .font(.system(size: 14, weight: .medium, design: .rounded))
+<                         .foregroundStyle(.primary)
+<                     Spacer()
+<                     LiquidGlassSegmentedPicker(
+<                         items: PanelAppearance.allCases,
+<                         selection: Binding(
+<                             get: { appState.selectedPanelAppearance },
+<                             set: { appState.selectedPanelAppearance = $0 }
+<                         ),
+<                         label: { (appState.l($0.displayName), $0.icon) }
+<                     )
+<                 }
+---
+>                             HStack {
+>                                 Text(appState.l("Interface Language"))
+>                                     .font(.system(size: 14, weight: .medium, design: .rounded))
+>                                     .foregroundStyle(.primary)
+>                                 Spacer()
+>                                 LiquidGlassLanguageMenu(
+>                                     items: supportedLanguages,
+>                                     selection: $appState.selectedUILanguage
+>                                 )
+>                             }
+368,387c317,333
+<                 // Live Floating Preview Info Bar
+<                 HStack {
+<                     Label("Live Floating Preview", systemImage: "sparkles")
+<                         .font(.system(size: 12, weight: .semibold, design: .rounded))
+<                         .foregroundStyle(.secondary)
+<                     Spacer()
+<                     let currentStyle = appState.selectedOverlayStyle
+<                     let currentSize = appState.selectedOverlaySize
+<                     let scaled = RecordingPanel.size(for: currentStyle, overlaySize: currentSize)
+<                     Text("\(Int(scaled.width)) × \(Int(scaled.height)) px")
+<                         .font(.system(size: 11, weight: .semibold, design: .monospaced))
+<                         .foregroundStyle(.tertiary)
+<                 }
+<                 .padding(.horizontal, 12)
+<                 .padding(.vertical, 8)
+<                 .background(Color.primary.opacity(0.04))
+<                 .cornerRadius(8)
+<             }
+<         }
+<     }
+---
+>                             HStack {
+>                                 Text(appState.l("Model Quality"))
+>                                     .font(.system(size: 14, weight: .medium, design: .rounded))
+>                                     .foregroundStyle(.primary)
+>                                 Spacer()
+>                                 LiquidGlassMenu(
+>                                     items: models.map { $0.id },
+>                                     selection: $appState.selectedModel,
+>                                     title: { id in appState.l(models.first(where: { $0.id == id })?.name ?? id) }
+>                                 )
+>                             }
+>                             
+>                             VStack(alignment: .leading, spacing: 6) {
+>                                 Text(appState.l(modelDescription))
+>                                     .font(.system(size: 11, weight: .regular))
+>                                     .foregroundStyle(.secondary)
+>                                     .frame(maxWidth: .infinity, alignment: .leading)
+389,405c335,352
+<     private var recognitionSettings: some View {
+<         GlassSection(title: appState.l("Recognition"), icon: "waveform.and.mic") {
+<             VStack(spacing: 16) {
+<                 HStack {
+<                     Text(appState.l("Recognition Mode"))
+<                         .font(.system(size: 14, weight: .medium, design: .rounded))
+<                         .foregroundStyle(.primary)
+<                     Spacer()
+<                     LiquidGlassSegmentedPicker(
+<                         items: RecognitionMode.allCases,
+<                         selection: Binding(
+<                             get: { appState.recognitionMode },
+<                             set: { appState.recognitionMode = $0 }
+<                         ),
+<                         label: { (appState.l($0.displayName), "") }
+<                     )
+<                 }
+---
+>                                 if appState.selectedLanguage == "auto" {
+>                                     HStack(alignment: .top, spacing: 6) {
+>                                         Image(systemName: "lightbulb.fill")
+>                                             .foregroundStyle(.yellow.opacity(0.8))
+>                                             .font(.system(size: 11))
+>                                             .padding(.top, 1)
+>                                         Text(appState.l("Setting a specific language improves accuracy on short phrases."))
+>                                             .lineLimit(2)
+>                                             .fixedSize(horizontal: false, vertical: true)
+>                                     }
+>                                     .font(.system(size: 11, weight: .medium))
+>                                     .foregroundStyle(.secondary)
+>                                     .padding(.top, 4)
+>                                 }
+>                             }
+>                             .padding(.top, -4)
+>                         }
+>                     }
+407,416c354,376
+<                 HStack {
+<                     Text(appState.l("Dictation Language"))
+<                         .font(.system(size: 14, weight: .medium, design: .rounded))
+<                         .foregroundStyle(.primary)
+<                     Spacer()
+<                     LiquidGlassLanguageMenu(
+<                         items: supportedLanguages,
+<                         selection: $appState.selectedLanguage
+<                     )
+<                 }
+---
+>                         case .statistics:
+>                             StatisticsSectionView()
+>                         case .replacements:
+>                             ReplacementsSettingsView()
+>                         case .integrations:
+>                             IntegrationsSettingsView()
+>                         case .system:
+>                     // SECTION: System
+>                     GlassSection(title: appState.l("System"), icon: "lock.shield") {
+>                         VStack(alignment: .leading, spacing: 16) {
+>                             // Launch at login
+>                             HStack {
+>                                 Text(appState.l("Launch at Login"))
+>                                     .font(.system(size: 14, weight: .medium, design: .rounded))
+>                                     .foregroundStyle(.primary)
+>                                 Spacer()
+>                                 Toggle("", isOn: Binding(
+>                                     get: { LaunchAtLoginHelper.isEnabled },
+>                                     set: { LaunchAtLoginHelper.setEnabled($0) }
+>                                 ))
+>                                 .toggleStyle(.switch)
+>                                 .labelsHidden()
+>                             }
+418,426c378,387
+<                 HStack {
+<                     Text(appState.l("Auto Translate to Selected Language"))
+<                         .font(.system(size: 14, weight: .medium, design: .rounded))
+<                         .foregroundStyle(.primary)
+<                     Spacer()
+<                     Toggle("", isOn: $appState.autoTranslate)
+<                         .toggleStyle(.switch)
+<                         .labelsHidden()
+<                 }
+---
+>                             // Sound feedback
+>                             HStack {
+>                                 Text(appState.l("Sound Feedback"))
+>                                     .font(.system(size: 14, weight: .medium, design: .rounded))
+>                                     .foregroundStyle(.primary)
+>                                 Spacer()
+>                                 Toggle("", isOn: $appState.soundFeedbackEnabled)
+>                                     .toggleStyle(.switch)
+>                                     .labelsHidden()
+>                             }
+428,437c389
+<                 HStack {
+<                     Text(appState.l("Interface Language"))
+<                         .font(.system(size: 14, weight: .medium, design: .rounded))
+<                         .foregroundStyle(.primary)
+<                     Spacer()
+<                     LiquidGlassLanguageMenu(
+<                         items: supportedLanguages,
+<                         selection: $appState.selectedUILanguage
+<                     )
+<                 }
+---
+>                             PermissionsCard()
+439,465c391,409
+<                 HStack {
+<                     Text(appState.l("Model Quality"))
+<                         .font(.system(size: 14, weight: .medium, design: .rounded))
+<                         .foregroundStyle(.primary)
+<                     Spacer()
+<                     LiquidGlassMenu(
+<                         items: models.map { $0.id },
+<                         selection: $appState.selectedModel,
+<                         title: { id in appState.l(models.first(where: { $0.id == id })?.name ?? id) }
+<                     )
+<                 }
+<                 
+<                 VStack(alignment: .leading, spacing: 6) {
+<                     Text(appState.l(modelDescription))
+<                         .font(.system(size: 11, weight: .regular))
+<                         .foregroundStyle(.secondary)
+<                         .frame(maxWidth: .infinity, alignment: .leading)
+< 
+<                     if appState.selectedLanguage == "auto" {
+<                         HStack(alignment: .top, spacing: 6) {
+<                             Image(systemName: "lightbulb.fill")
+<                                 .foregroundStyle(.yellow.opacity(0.8))
+<                                 .font(.system(size: 11))
+<                                 .padding(.top, 1)
+<                             Text(appState.l("Setting a specific language improves accuracy on short phrases."))
+<                                 .lineLimit(2)
+<                                 .fixedSize(horizontal: false, vertical: true)
+---
+>                             // History Button
+>                             Button(action: {
+>                                 HistoryWindowManager.shared.showWindow(appState: appState)
+>                             }) {
+>                                 HStack {
+>                                     Image(systemName: "clock.arrow.circlepath")
+>                                         .font(.system(size: 14, weight: .medium))
+>                                     Text(appState.l("View Transcription History"))
+>                                         .font(.system(size: 14, weight: .medium, design: .rounded))
+>                                     Spacer()
+>                                     Image(systemName: "chevron.right")
+>                                         .font(.system(size: 12, weight: .semibold))
+>                                         .foregroundStyle(.secondary)
+>                                 }
+>                                 .padding(12)
+>                                 .background(Color.primary.opacity(0.04))
+>                                 .cornerRadius(8)
+>                             }
+>                             .buttonStyle(.plain)
+467,469d410
+<                         .font(.system(size: 11, weight: .medium))
+<                         .foregroundStyle(.secondary)
+<                         .padding(.top, 4)
+472,478c413,423
+<                     if appState.selectedModel == "openai_whisper-large-v3_turbo" {
+<                         HStack(spacing: 6) {
+<                             Image(systemName: "exclamationmark.triangle.fill")
+<                                 .foregroundColor(.orange)
+<                             Text(appState.l("May be slow on older Macs (M1/M2 recommended)"))
+<                                 .font(.system(size: 11, weight: .medium))
+<                                 .foregroundStyle(.orange)
+---
+>                     // Support Developer Button
+>                     Button {
+>                         showingSupportModal = true
+>                     } label: {
+>                         HStack {
+>                             Spacer()
+>                             Image(systemName: "heart.fill")
+>                                 .foregroundStyle(.red)
+>                             Text("Support Scribe ☕️")
+>                                 .font(.system(size: 14, weight: .bold, design: .rounded))
+>                             Spacer()
+480c425,438
+<                         .padding(.top, 2)
+---
+>                         .padding(14)
+>                         .background(
+>                             ZStack {
+>                                 RoundedRectangle(cornerRadius: 12)
+>                                     .fill(Color.primary.opacity(0.04))
+>                                 RoundedRectangle(cornerRadius: 12)
+>                                     .fill(.ultraThinMaterial.opacity(0.8))
+>                             }
+>                         )
+>                         .overlay(
+>                             RoundedRectangle(cornerRadius: 12)
+>                                 .strokeBorder(Color.primary.opacity(0.1), lineWidth: 1)
+>                         )
+>                         .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
+482,491c440,473
+<                 }
+<                 .frame(maxWidth: .infinity, alignment: .leading)
+<                 .padding(.top, -8)
+<             }
+<         }
+<     }
+<     private var systemSettings: some View {
+<         GlassSection(title: appState.l("System"), icon: "lock.shield") {
+<             VStack(alignment: .leading, spacing: 16) {
+<                 // Launch at login
+---
+>                     .buttonStyle(.plain)
+>                     .padding(.top, 8)
+>                     .sheet(isPresented: $showingSupportModal) {
+>                         SupportDeveloperModal()
+>                             .environmentObject(appState)
+>                     }
+>                         }
+>                     }
+>                     .padding(.horizontal, 24)
+>                     .padding(.top, 116)
+>                     .padding(.bottom, 24)
+>                 }
+>             }
+>             .mask(
+>                 VStack(spacing: 0) {
+>                     Color.clear.frame(height: 80)
+>                     LinearGradient(
+>                         stops: [
+>                             .init(color: .clear, location: 0),
+>                             .init(color: .black, location: 1)
+>                         ],
+>                         startPoint: .top,
+>                         endPoint: .bottom
+>                     )
+>                     .frame(height: 32)
+>                     Color.black
+>                 }
+>             )
+>             
+>             // Header — draggable to move the window
+>             VStack(spacing: 0) {
+>                 Color.clear.frame(height: 24)
+>                     .background(WindowDragView())
+>                 
+493,494c475,476
+<                     Text(appState.l("Launch at Login"))
+<                         .font(.system(size: 14, weight: .medium, design: .rounded))
+---
+>                     Text(appState.l("Scribe Settings"))
+>                         .font(.system(size: 20, weight: .bold, design: .rounded))
+497,521c479,482
+<                     Toggle("", isOn: Binding(
+<                         get: { LaunchAtLoginHelper.isEnabled },
+<                         set: { LaunchAtLoginHelper.setEnabled($0) }
+<                     ))
+<                     .toggleStyle(.switch)
+<                     .labelsHidden()
+<                 }
+< 
+< 
+< 
+<                 PermissionsCard()
+< 
+<                 // History Button
+<                 Button(action: {
+<                     HistoryWindowManager.shared.showWindow(appState: appState)
+<                 }) {
+<                     HStack {
+<                         Image(systemName: "clock.arrow.circlepath")
+<                             .font(.system(size: 14, weight: .medium))
+<                         Text(appState.l("View Transcription History"))
+<                             .font(.system(size: 14, weight: .medium, design: .rounded))
+<                         Spacer()
+<                         Image(systemName: "chevron.right")
+<                             .font(.system(size: 12, weight: .semibold))
+<                             .foregroundStyle(.secondary)
+---
+>                     Button(action: { SettingsWindowManager.shared.closeWindow() }) {
+>                         Image(systemName: "xmark.circle.fill")
+>                             .font(.system(size: 20))
+>                             .foregroundStyle(.tertiary)
+523,525c484
+<                     .padding(12)
+<                     .background(Color.primary.opacity(0.04))
+<                     .cornerRadius(8)
+---
+>                     .buttonStyle(.plain)
+527c486,489
+<                 .buttonStyle(.plain)
+---
+>                 .padding(.horizontal, 24)
+>                 .padding(.top, 24)
+>                 .padding(.bottom, 16)
+>                 .background(WindowDragView())
+529a492,517
+>         .ignoresSafeArea(.container, edges: .top)
+>                 .frame(height: 620)
+>         .onAppear {
+>             let newWidth: CGFloat = (selectedTab == .statistics || selectedTab == .replacements || selectedTab == .integrations) ? 620 : 440
+>             SettingsWindowManager.shared.resizeWindow(to: newWidth)
+>         }
+>         .onChange(of: selectedTab) { newValue in
+>             let newWidth: CGFloat = (newValue == .statistics || newValue == .replacements || newValue == .integrations) ? 620 : 440
+>             SettingsWindowManager.shared.resizeWindow(to: newWidth)
+>         }
+>         .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
+>         .onDisappear {
+>             appState.hideSettingsPreviewPanel()
+>         }
+>         .onChange(of: appState.selectedOverlaySize) { _ in
+>             appState.showSettingsPreviewFor5Seconds()
+>         }
+>         .onChange(of: appState.selectedOverlayStyle) { _ in
+>             appState.showSettingsPreviewFor5Seconds()
+>         }
+>         .onChange(of: appState.selectedTheme) { _ in
+>             appState.onThemeChangedPreview()
+>         }
+>         .onChange(of: appState.selectedPanelAppearance) { _ in
+>             appState.showSettingsPreviewFor5Seconds()
+>         }
+531a520,522
+>     private var modelDescription: String {
+>         appState.l(models.first(where: { $0.id == appState.selectedModel })?.desc ?? "")
+>     }
+533a525
+> // MARK: - Statistics Section Component
+585c577,612
+<                 
+---
+>                 // Level and XP
+>                 VStack(spacing: 8) {
+>                     HStack {
+>                         Text("\(history.currentLevelName) - Level \(history.currentLevel)")
+>                             .font(.system(size: 16, weight: .bold))
+>                             .shadow(color: history.currentLevelColor.opacity(0.8), radius: 8, x: 0, y: 0)
+>                         Spacer()
+>                         Text("\(history.totalWords) / \(history.totalWords + history.wordsToNextLevel) Words")
+>                             .font(.system(size: 13, weight: .medium))
+>                             .shadow(color: history.currentLevelColor.opacity(0.8), radius: 8, x: 0, y: 0)
+>                     }
+>                     
+>                     // Smooth glow progress bar
+>                     GeometryReader { geo in
+>                         ZStack(alignment: .leading) {
+>                             RoundedRectangle(cornerRadius: 8)
+>                                 .fill(Color.primary.opacity(0.1))
+>                             
+>                             RoundedRectangle(cornerRadius: 8)
+>                                 .fill(
+>                                     LinearGradient(colors: [history.currentLevelColor, history.currentLevelColor.opacity(0.5)], startPoint: .leading, endPoint: .trailing)
+>                                 )
+>                                 .frame(width: max(0, geo.size.width * CGFloat(history.currentLevelProgress)))
+>                                 .shadow(color: history.currentLevelColor.opacity(0.6), radius: 6, x: 0, y: 0)
+>                         }
+>                     }
+>                     .frame(height: 12)
+>                 }
+>                 .padding()
+>                 .background(Color.primary.opacity(0.05))
+>                 .cornerRadius(12)
+>                 .overlay(
+>                     RoundedRectangle(cornerRadius: 12)
+>                         .stroke(history.currentLevelColor.opacity(0.3), lineWidth: 1)
+>                         .shadow(color: history.currentLevelColor.opacity(0.3), radius: 10, x: 0, y: 0)
+>                 )
+1253c1280
+<                         Text("Send transcripts directly to Obsidian")
+---
+>                         Text(appState.obsidianVaultURL.isEmpty ? "Not configured" : appState.obsidianVaultURL)
+1258c1285
+<                     Toggle("", isOn: $appState.enableObsidian)
+---
+>                     Toggle("", isOn: $appState.obsidianIntegrationEnabled)
+1263,1276c1290,1296
+<                 if appState.enableObsidian {
+<                     VStack(alignment: .leading, spacing: 8) {
+<                         Button("Select Vault Folder") {
+<                             let panel = NSOpenPanel()
+<                             panel.canChooseFiles = false
+<                             panel.canChooseDirectories = true
+<                             panel.allowsMultipleSelection = false
+<                             panel.message = appState.l("Select your Obsidian Vault folder")
+<                             
+<                             if panel.runModal() == .OK, let url = panel.url {
+<                                 appState.obsidianVaultURL = url.absoluteString
+<                             }
+<                         }
+<                         .buttonStyle(.borderedProminent)
+---
+>                 if appState.obsidianIntegrationEnabled {
+>                     Button("Select Vault Folder") {
+>                         let panel = NSOpenPanel()
+>                         panel.canChooseFiles = false
+>                         panel.canChooseDirectories = true
+>                         panel.allowsMultipleSelection = false
+>                         panel.message = appState.l("Select your Obsidian Vault folder")
+1278,1285c1298,1299
+<                         Text(appState.obsidianVaultURL.isEmpty ? "No vault selected" : appState.obsidianVaultURL)
+<                             .font(.system(size: 11))
+<                             .foregroundColor(.secondary)
+<                             
+<                         HStack {
+<                             Text("Target Note:")
+<                             TextField("e.g. Scribe Transcriptions", text: $appState.obsidianTargetNote)
+<                                 .textFieldStyle(.roundedBorder)
+---
+>                         if panel.runModal() == .OK, let url = panel.url {
+>                             appState.obsidianVaultURL = url.absoluteString
+1288c1302
+<                     .padding(.leading, 10)
+---
+>                     .buttonStyle(.borderedProminent)
+1303c1317
+<                     Toggle("", isOn: $appState.enableAppleNotes)
+---
+>                     Toggle("", isOn: $appState.appleNotesIntegrationEnabled)
+1307,1315d1320
+<                 
+<                 if appState.enableAppleNotes {
+<                     HStack {
+<                         Text("Target Note:")
+<                         TextField("e.g. Scribe Transcriptions", text: $appState.appleNotesTargetNote)
+<                             .textFieldStyle(.roundedBorder)
+<                     }
+<                     .padding(.leading, 10)
+<                 }
+1329c1334
+<                     Toggle("", isOn: $appState.enableNotion)
+---
+>                     Toggle("", isOn: $appState.notionIntegrationEnabled)
+1333,1364d1337
+<                 
+<                 if appState.enableNotion {
+<                     VStack(alignment: .leading, spacing: 8) {
+<                         HStack {
+<                             Text("API Token:")
+<                             SecureField("Secret Token", text: $appState.notionIntegrationToken)
+<                                 .textFieldStyle(.roundedBorder)
+<                         }
+<                         HStack {
+<                             Text("Page ID:")
+<                             TextField("Target Page ID", text: $appState.notionPageId)
+<                                 .textFieldStyle(.roundedBorder)
+<                         }
+<                     }
+<                     .padding(.leading, 10)
+<                 }
+<                 
+<                 Divider()
+<                 
+<                 // Common Export Settings
+<                 Text("Common Export Settings")
+<                     .font(.system(size: 13, weight: .semibold))
+<                     .padding(.top, 4)
+<                     
+<                 Toggle("Append Date to Notes", isOn: $appState.appendDateToNotes)
+<                 Toggle("Attach Audio to Notes", isOn: $appState.attachAudioToNotes)
+<                 
+<                 HStack {
+<                     Text("Tags:")
+<                     TextField("e.g. #transcription #meeting", text: $appState.defaultNoteTags)
+<                         .textFieldStyle(.roundedBorder)
+<                 }

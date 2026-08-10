@@ -23,6 +23,9 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
     private var audioFile: AVAudioFile?
     private var recordingURL: URL?
     private var currentFormat: AVAudioFormat?
+    
+    /// Optional callback to receive live audio buffers (useful for real-time speech recognition).
+    var onBufferTap: ((AVAudioPCMBuffer) -> Void)?
 
     /// In-memory buffer of recorded samples for live preview.
     @Published private(set) var recordedSamples: [Float] = []
@@ -37,9 +40,15 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
     // MARK: - Init
 
     init() {
-        // Subscribe to level updates, throttle and deliver on main thread
+        setupThrottling()
+    }
+    
+    /// Sets up the throttling to a fixed 24 FPS to prevent UI lag
+    func setupThrottling() {
+        let interval = 1.0 / 24.0
+        
         levelCancellable = audioLevelSubject
-            .receive(on: DispatchQueue.main)
+            .throttle(for: .seconds(interval), scheduler: DispatchQueue.main, latest: true)
             .assign(to: \.audioLevel, on: self)
     }
 
@@ -82,6 +91,9 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
                     self?.recordedSamples.append(contentsOf: samples)
                 }
             }
+
+            // Stream buffer to any real-time consumers (like Apple Speech)
+            self?.onBufferTap?(buffer)
 
             // Compute RMS level and send to subject (no actor isolation needed)
             let level = AudioRecorder.computeLevel(buffer)

@@ -2,6 +2,7 @@ import AVFoundation
 import AppKit
 import Combine
 import os.log
+import Speech
 
 private let logger = Logger(subsystem: "com.aleksei.scribe", category: "PermissionManager")
 
@@ -12,6 +13,7 @@ final class PermissionManager: ObservableObject {
 
     @Published var isMicrophoneGranted: Bool = false
     @Published var isAccessibilityGranted: Bool = false
+    @Published var isSpeechRecognitionGranted: Bool = false
 
     private var timer: Timer?
 
@@ -27,6 +29,10 @@ final class PermissionManager: ObservableObject {
 
         // Accessibility status
         isAccessibilityGranted = PasteService.isAccessibilityGranted()
+
+        // Speech Recognition status
+        let speechStatus = SFSpeechRecognizer.authorizationStatus()
+        isSpeechRecognitionGranted = (speechStatus == .authorized)
     }
 
     func startPolling() {
@@ -45,10 +51,10 @@ final class PermissionManager: ObservableObject {
                 NSWorkspace.shared.open(url)
             }
         } else {
-            AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
+            AVCaptureDevice.requestAccess(for: .audio) { @Sendable granted in
                 Task { @MainActor in
-                    self?.isMicrophoneGranted = granted
-                    self?.checkPermissions()
+                    PermissionManager.shared.isMicrophoneGranted = granted
+                    PermissionManager.shared.checkPermissions()
                 }
             }
         }
@@ -57,5 +63,14 @@ final class PermissionManager: ObservableObject {
     func requestAccessibility() {
         PasteService.requestAccessibilityPermission()
         checkPermissions()
+    }
+
+    func requestSpeechRecognition() {
+        SFSpeechRecognizer.requestAuthorization { @Sendable status in
+            Task { @MainActor in
+                PermissionManager.shared.isSpeechRecognitionGranted = (status == .authorized)
+                PermissionManager.shared.checkPermissions()
+            }
+        }
     }
 }

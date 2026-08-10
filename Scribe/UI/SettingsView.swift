@@ -1,9 +1,21 @@
 import SwiftUI
 import KeyboardShortcuts
 
+enum SettingsTab: String, CaseIterable {
+    case general = "General"
+    case appearance = "Appearance"
+    case recognition = "Recognition"
+    case statistics = "Statistics"
+    case replacements = "Replacements"
+    case integrations = "Integrations"
+    case system = "System"
+}
+
+
 /// Custom designed "Liquid Glass" settings view.
 struct SettingsView: View {
 
+    @State private var selectedTab: SettingsTab = .general
     @EnvironmentObject var appState: AppState
     @State private var showingSupportModal = false
 
@@ -16,9 +28,41 @@ struct SettingsView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            // Scrollable Content
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 20) {
+            HStack(alignment: .top, spacing: 0) {
+                // Sidebar
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(SettingsTab.allCases, id: \.self) { tab in
+                        Button(action: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                selectedTab = tab
+                            }
+                        }) {
+                            HStack {
+                                Text(appState.l(tab.rawValue))
+                                    .font(.system(size: 13, weight: selectedTab == tab ? .bold : .medium, design: .rounded))
+                                Spacer()
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(selectedTab == tab ? Color.primary.opacity(0.1) : Color.clear)
+                            .cornerRadius(8)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    Spacer()
+                }
+                .frame(width: 150)
+                .padding(.top, 116)
+                .padding(.horizontal, 12)
+                .background(Color.primary.opacity(0.02))
+
+                Divider()
+
+                // Main Content
+                ScrollView(.vertical, showsIndicators: true) {
+                    VStack(spacing: 20) {
+                        switch selectedTab {
+                        case .general:
                     // SECTION: Shortcut & Paste Mode
                     GlassSection(title: appState.l("Recording"), icon: "keyboard") {
                         VStack(spacing: 16) {
@@ -105,6 +149,7 @@ struct SettingsView: View {
                                             Text(appState.l("Display Mode"))
                                                 .font(.system(size: 14, weight: .medium, design: .rounded))
                                                 .foregroundStyle(.primary)
+                                                .fixedSize(horizontal: true, vertical: false)
                                             Spacer()
                                             LiquidGlassSegmentedPicker(
                                                 items: LivePreviewMode.allCases,
@@ -146,6 +191,7 @@ struct SettingsView: View {
                         }
                     }
 
+                        case .appearance:
                     // SECTION: Theme & Style
                     GlassSection(title: appState.l("Appearance"), icon: "paintbrush.fill") {
                         VStack(spacing: 16) {
@@ -232,6 +278,7 @@ struct SettingsView: View {
                         }
                     }
 
+                        case .recognition:
                     // SECTION: Language & Model
                     GlassSection(title: appState.l("Recognition"), icon: "waveform.and.mic") {
                         VStack(spacing: 16) {
@@ -304,9 +351,13 @@ struct SettingsView: View {
                         }
                     }
 
-                    // SECTION: Statistics
-                    StatisticsSectionView()
-
+                        case .statistics:
+                            StatisticsSectionView()
+                        case .replacements:
+                            ReplacementsSettingsView()
+                        case .integrations:
+                            IntegrationsSettingsView()
+                        case .system:
                     // SECTION: System
                     GlassSection(title: appState.l("System"), icon: "lock.shield") {
                         VStack(alignment: .leading, spacing: 16) {
@@ -339,7 +390,7 @@ struct SettingsView: View {
 
                             // History Button
                             Button(action: {
-                                HistoryWindowManager.shared.showWindow()
+                                HistoryWindowManager.shared.showWindow(appState: appState)
                             }) {
                                 HStack {
                                     Image(systemName: "clock.arrow.circlepath")
@@ -392,10 +443,12 @@ struct SettingsView: View {
                         SupportDeveloperModal()
                             .environmentObject(appState)
                     }
+                        }
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.top, 116)
+                    .padding(.bottom, 24)
                 }
-                .padding(.horizontal, 24)
-                .padding(.top, 116)
-                .padding(.bottom, 24)
             }
             .mask(
                 VStack(spacing: 0) {
@@ -437,7 +490,15 @@ struct SettingsView: View {
             }
         }
         .ignoresSafeArea(.container, edges: .top)
-        .frame(width: 440, height: 620)
+                .frame(height: 620)
+        .onAppear {
+            let newWidth: CGFloat = (selectedTab == .statistics || selectedTab == .replacements || selectedTab == .integrations) ? 620 : 440
+            SettingsWindowManager.shared.resizeWindow(to: newWidth)
+        }
+        .onChange(of: selectedTab) { newValue in
+            let newWidth: CGFloat = (newValue == .statistics || newValue == .replacements || newValue == .integrations) ? 620 : 440
+            SettingsWindowManager.shared.resizeWindow(to: newWidth)
+        }
         .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
         .onDisappear {
             appState.hideSettingsPreviewPanel()
@@ -512,6 +573,43 @@ struct StatisticsSectionView: View {
                         color: .green
                     )
                 }
+
+                // Level and XP
+                VStack(spacing: 8) {
+                    HStack {
+                        Text("\(history.currentLevelName) - Level \(history.currentLevel)")
+                            .font(.system(size: 16, weight: .bold))
+                            .shadow(color: history.currentLevelColor.opacity(0.8), radius: 8, x: 0, y: 0)
+                        Spacer()
+                        Text("\(history.totalWords) / \(history.totalWords + history.wordsToNextLevel) Words")
+                            .font(.system(size: 13, weight: .medium))
+                            .shadow(color: history.currentLevelColor.opacity(0.8), radius: 8, x: 0, y: 0)
+                    }
+                    
+                    // Smooth glow progress bar
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.primary.opacity(0.1))
+                            
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(
+                                    LinearGradient(colors: [history.currentLevelColor, history.currentLevelColor.opacity(0.5)], startPoint: .leading, endPoint: .trailing)
+                                )
+                                .frame(width: max(0, geo.size.width * CGFloat(history.currentLevelProgress)))
+                                .shadow(color: history.currentLevelColor.opacity(0.6), radius: 6, x: 0, y: 0)
+                        }
+                    }
+                    .frame(height: 12)
+                }
+                .padding()
+                .background(Color.primary.opacity(0.05))
+                .cornerRadius(12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(history.currentLevelColor.opacity(0.3), lineWidth: 1)
+                        .shadow(color: history.currentLevelColor.opacity(0.3), radius: 10, x: 0, y: 0)
+                )
             }
         }
     }
@@ -1164,5 +1262,138 @@ private class WindowDragNSView: NSView {
 
     override func mouseDown(with event: NSEvent) {
         window?.performDrag(with: event)
+    }
+}
+
+// MARK: - Integrations Settings View
+struct IntegrationsSettingsView: View {
+    @EnvironmentObject var appState: AppState
+    
+    var body: some View {
+        GlassSection(title: appState.l("Integrations"), icon: "link") {
+            VStack(alignment: .leading, spacing: 16) {
+                // Obsidian Integration
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Obsidian")
+                            .font(.system(size: 14, weight: .bold))
+                        Text(appState.obsidianVaultURL.isEmpty ? "Not configured" : appState.obsidianVaultURL)
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    Toggle("", isOn: $appState.enableObsidian)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                }
+                
+                if appState.enableObsidian {
+                    Button("Select Vault Folder") {
+                        let panel = NSOpenPanel()
+                        panel.canChooseFiles = false
+                        panel.canChooseDirectories = true
+                        panel.allowsMultipleSelection = false
+                        panel.message = appState.l("Select your Obsidian Vault folder")
+                        
+                        if panel.runModal() == .OK, let url = panel.url {
+                            appState.obsidianVaultURL = url.absoluteString
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+
+                Divider()
+
+                // Apple Notes Integration
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Apple Notes")
+                            .font(.system(size: 14, weight: .bold))
+                        Text("Send transcripts directly to Apple Notes")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    Toggle("", isOn: $appState.enableAppleNotes)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                }
+
+                Divider()
+
+                // Notion Integration
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Notion")
+                            .font(.system(size: 14, weight: .bold))
+                        Text("Send transcripts directly to Notion")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    Toggle("", isOn: $appState.enableNotion)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                }
+            }
+            .padding(14)
+        }
+    }
+}
+// MARK: - Replacements Settings View
+struct ReplacementsSettingsView: View {
+    @EnvironmentObject var appState: AppState
+    @State private var newPhrase: String = ""
+    @State private var newReplacement: String = ""
+    
+    var body: some View {
+        GlassSection(title: appState.l("Replacements"), icon: "text.badge.plus") {
+            VStack(spacing: 16) {
+                // Add new replacement at the TOP ("upper everything")
+                HStack {
+                    TextField("Original phrase", text: $newPhrase)
+                        .textFieldStyle(.roundedBorder)
+                    Image(systemName: "arrow.right")
+                        .foregroundColor(.secondary)
+                    TextField("Replacement", text: $newReplacement)
+                        .textFieldStyle(.roundedBorder)
+                    Button(action: {
+                        if !newPhrase.isEmpty && !newReplacement.isEmpty {
+                            appState.textReplacements.append(Replacement(id: UUID(), phrase: newPhrase, replacement: newReplacement))
+                            newPhrase = ""
+                            newReplacement = ""
+                        }
+                    }) {
+                        Image(systemName: "plus.circle.fill")
+                            .foregroundColor(.blue)
+                            .font(.system(size: 20))
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.bottom, 8)
+                
+                Divider()
+                
+                // Existing replacements below
+                VStack(spacing: 12) {
+                    ForEach(appState.textReplacements) { r in
+                        HStack {
+                            Text(r.phrase).font(.system(size: 13, weight: .bold)).frame(maxWidth: .infinity, alignment: .leading)
+                            Image(systemName: "arrow.right").foregroundColor(.secondary)
+                            Text(r.replacement).font(.system(size: 13)).frame(maxWidth: .infinity, alignment: .leading)
+                            Spacer()
+                            Button(action: {
+                                appState.textReplacements.removeAll { $0.id == r.id }
+                            }) {
+                                Image(systemName: "trash")
+                                    .foregroundColor(.red)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+            .padding(14)
+        }
     }
 }

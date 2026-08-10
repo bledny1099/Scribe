@@ -4,20 +4,21 @@ import SwiftUI
 struct RecordingOverlayView: View {
 
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var audioRecorder: AudioRecorder
 
     var body: some View {
         Group {
             switch appState.selectedOverlayStyle {
             case .classic:
-                ClassicOverlay().environmentObject(appState)
+                ClassicOverlay().environmentObject(appState).environmentObject(audioRecorder)
             case .waveform:
-                WaveformOverlay().environmentObject(appState)
+                WaveformOverlay().environmentObject(appState).environmentObject(audioRecorder)
             case .minimal:
-                MinimalOverlay().environmentObject(appState)
+                MinimalOverlay().environmentObject(appState).environmentObject(audioRecorder)
             case .ecg:
-                ECGOverlay().environmentObject(appState)
+                ECGOverlay().environmentObject(appState).environmentObject(audioRecorder)
             case .orb:
-                OrbOverlay().environmentObject(appState)
+                OrbOverlay().environmentObject(appState).environmentObject(audioRecorder)
             }
         }
         .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 6)
@@ -31,6 +32,7 @@ struct RecordingOverlayView: View {
 struct ClassicOverlay: View {
 
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var audioRecorder: AudioRecorder
     @State private var spinAngle: Double = 0
     @State private var orbitAngle: Double = 0
 
@@ -48,7 +50,7 @@ struct ClassicOverlay: View {
                     .fill(
                         RadialGradient(
                             colors: [
-                                glow.opacity(0.35 * Double(appState.audioLevel)),
+                                glow.opacity(0.15),
                                 Color.clear,
                             ],
                             center: .center,
@@ -63,22 +65,22 @@ struct ClassicOverlay: View {
                 Circle()
                     .stroke(gradient, lineWidth: 1.5)
                     .frame(width: 100, height: 100)
-                    .scaleEffect(1 + CGFloat(appState.audioLevel) * 0.25)
-                    .opacity(0.25 + Double(appState.audioLevel) * 0.55)
+                    .scaleEffect(1 + CGFloat(audioRecorder.audioLevel) * 0.25)
+                    .opacity(0.25 + Double(audioRecorder.audioLevel) * 0.55)
 
                 // Middle ring
                 Circle()
                     .stroke(gradient, lineWidth: 2)
                     .frame(width: 72, height: 72)
-                    .scaleEffect(1 + CGFloat(appState.audioLevel) * 0.18)
-                    .opacity(0.35 + Double(appState.audioLevel) * 0.45)
+                    .scaleEffect(1 + CGFloat(audioRecorder.audioLevel) * 0.18)
+                    .opacity(0.35 + Double(audioRecorder.audioLevel) * 0.45)
 
                 // Inner ring
                 Circle()
                     .stroke(gradient, lineWidth: 2.5)
                     .frame(width: 50, height: 50)
-                    .scaleEffect(1 + CGFloat(appState.audioLevel) * 0.1)
-                    .opacity(0.45 + Double(appState.audioLevel) * 0.35)
+                    .scaleEffect(1 + CGFloat(audioRecorder.audioLevel) * 0.1)
+                    .opacity(0.45 + Double(audioRecorder.audioLevel) * 0.35)
 
                 // Centre disc
                 Circle()
@@ -88,13 +90,13 @@ struct ClassicOverlay: View {
                 // Status icon
                 classicStatusIcon
             }
-            .animation(.spring(response: 0.18, dampingFraction: 0.65), value: appState.audioLevel)
+            .animation(.linear(duration: 0.04), value: audioRecorder.audioLevel)
 
             HStack(spacing: 6) {
-                if appState.recordingStatus == .recording || appState.isShowingPreview {
+                if appState.durationVisible && (appState.recordingStatus == .recording || appState.isShowingPreview) {
                     Text(appState.isShowingPreview ? "0:05" : appState.formattedDuration)
                         .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(.primary.opacity(0.9))
+                        .foregroundStyle(.secondary)
                         .contentTransition(.numericText())
                         .animation(.default, value: appState.recordingDuration)
                 }
@@ -191,6 +193,7 @@ struct ClassicOverlay: View {
 struct WaveformOverlay: View {
 
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var audioRecorder: AudioRecorder
 
     private let barCount = 48
     @State private var levels: [Float] = Array(repeating: 0, count: 48)
@@ -208,22 +211,22 @@ struct WaveformOverlay: View {
         ).height / appState.selectedOverlaySize.scale
 
         return VStack(spacing: 8) {
-            HStack(spacing: 0) {
+            HStack(alignment: .center, spacing: 0) {
                 // Left: status indicator
                 statusIndicator
-                    .frame(width: 48)
+                    .frame(width: 48, height: RecordingPanel.waveformSize.height)
 
                 // Center: waveform bars
                 waveformBars
-                    .frame(maxWidth: .infinity)
+                    .frame(maxWidth: .infinity, maxHeight: RecordingPanel.waveformSize.height)
 
                 // Right: status label + stop button
                 HStack(spacing: 8) {
-                    if appState.recordingStatus == .recording || appState.isShowingPreview {
+                    if appState.durationVisible && (appState.recordingStatus == .recording || appState.isShowingPreview) {
                         Text(appState.isShowingPreview ? "0:05" : appState.formattedDuration)
-                            .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .monospaced))
-                            .foregroundStyle(.primary.opacity(0.8))
-                            .contentTransition(.numericText())
+                            .font(.system(size: 14, weight: .medium, design: .rounded).monospacedDigit())
+                            .foregroundStyle(.secondary)
+                            .frame(width: 42, alignment: .leading)
                             .animation(.default, value: appState.recordingDuration)
                     }
 
@@ -246,7 +249,7 @@ struct WaveformOverlay: View {
                         .transition(.scale.combined(with: .opacity))
                     }
                 }
-                .frame(width: 120)
+                .frame(width: 120, height: RecordingPanel.waveformSize.height)
                 .animation(.easeInOut(duration: 0.2), value: appState.recordingStatus == .recording)
             }
             .frame(height: RecordingPanel.waveformSize.height)
@@ -271,7 +274,7 @@ struct WaveformOverlay: View {
             width: RecordingPanel.waveformSize.width,
             height: cardHeight
         )
-        .onChange(of: appState.audioLevel) { _, newLevel in
+        .onChange(of: audioRecorder.audioLevel) { _, newLevel in
             levels.removeFirst()
             levels.append(newLevel)
         }
@@ -366,6 +369,7 @@ struct WaveformOverlay: View {
 
 struct MinimalOverlay: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var audioRecorder: AudioRecorder
     private var theme: AppTheme { appState.selectedTheme }
     
     var body: some View {
@@ -373,14 +377,20 @@ struct MinimalOverlay: View {
             Circle()
                 .fill(theme.glowColor)
                 .frame(width: 10, height: 10)
-                .scaleEffect((appState.recordingStatus == .recording || appState.isShowingPreview) ? (1 + CGFloat(appState.audioLevel) * 0.4) : 1.0)
-                .opacity((appState.recordingStatus == .recording || appState.isShowingPreview) ? (0.6 + Double(appState.audioLevel) * 0.4) : 0.3)
-                .animation(.spring(response: 0.2, dampingFraction: 0.7), value: appState.audioLevel)
+                .scaleEffect((appState.recordingStatus == .recording || appState.isShowingPreview) ? (1 + CGFloat(audioRecorder.audioLevel) * 0.4) : 1.0)
+                .opacity((appState.recordingStatus == .recording || appState.isShowingPreview) ? (0.6 + Double(audioRecorder.audioLevel) * 0.4) : 0.3)
+                .animation(.linear(duration: 0.04), value: audioRecorder.audioLevel)
                 
             if appState.recordingStatus == .recording || appState.isShowingPreview {
-                Text(appState.isShowingPreview ? "0:05" : appState.formattedDuration)
-                    .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(.primary)
+                if appState.durationVisible {
+                    Text(appState.isShowingPreview ? "0:05" : appState.formattedDuration)
+                        .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text(appState.isShowingPreview ? appState.l("Recording…") : statusLabel)
+                        .font(.system(size: 11 * appState.overlayTextCompensation, weight: .medium, design: .rounded))
+                        .foregroundStyle(.primary.opacity(0.7))
+                }
             } else {
                 Text(statusLabel)
                     .font(.system(size: 11 * appState.overlayTextCompensation, weight: .medium, design: .rounded))
@@ -415,6 +425,7 @@ struct MinimalOverlay: View {
 
 struct ECGOverlay: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var audioRecorder: AudioRecorder
     private var theme: AppTheme { appState.selectedTheme }
     
     var body: some View {
@@ -444,13 +455,13 @@ struct ECGOverlay: View {
                         for i in 1...segments {
                             let x = CGFloat(i) * step
                             let isCenter = (i > 10 && i < 30)
-                            let amplitude = isCenter ? (CGFloat(appState.audioLevel) * midY) : (CGFloat.random(in: 0...2))
+                            let amplitude = isCenter ? (CGFloat(audioRecorder.audioLevel) * midY) : (CGFloat.random(in: 0...2))
                             let y = midY + (i % 2 == 0 ? amplitude : -amplitude)
                             path.addLine(to: CGPoint(x: x, y: y))
                         }
                     }
                     .stroke(theme.accentGradient, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
-                    .animation(.linear(duration: 0.1), value: appState.audioLevel)
+                    .animation(.linear(duration: 0.1), value: audioRecorder.audioLevel)
                 }
                 .frame(height: 30)
                 
@@ -493,53 +504,56 @@ struct ECGOverlay: View {
 
 struct OrbOverlay: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var audioRecorder: AudioRecorder
     @State private var rotationAngle: Double = 0
 
     private var theme: AppTheme { appState.selectedTheme }
     private var gradient: LinearGradient { theme.accentGradient }
 
     var body: some View {
-        VStack(spacing: 8) {
-            Spacer(minLength: 4)
+        VStack(spacing: 0) {
+            Spacer()
 
             // Bouncy Fluid Liquid Orb Sphere
             ZStack {
                 // Outer fluid aura glow
                 Circle()
-                    .fill(theme.glowColor.opacity(0.3 + Double(appState.audioLevel) * 0.45))
+                    .fill(theme.glowColor.opacity(0.3 + Double(audioRecorder.audioLevel) * 0.45))
                     .blur(radius: 16)
-                    .scaleEffect(1.0 + CGFloat(appState.audioLevel) * 0.35)
+                    .scaleEffect(1.0 + CGFloat(audioRecorder.audioLevel) * 0.35)
 
                 // Layer 1: Rotating Gradient Ring
                 Circle()
                     .stroke(gradient, lineWidth: 5)
                     .frame(width: 80, height: 80)
                     .rotationEffect(.degrees(rotationAngle))
-                    .scaleEffect(1.0 + CGFloat(appState.audioLevel) * 0.2)
+                    .scaleEffect(1.0 + CGFloat(audioRecorder.audioLevel) * 0.2)
                     .opacity(0.85)
 
                 // Layer 2: Inner Fluid Blob Sphere
                 Circle()
                     .fill(gradient.opacity(0.75))
                     .frame(width: 64, height: 64)
-                    .scaleEffect(1.0 + CGFloat(appState.audioLevel) * 0.25)
+                    .scaleEffect(1.0 + CGFloat(audioRecorder.audioLevel) * 0.25)
 
                 // Center Mic Icon
                 Image(systemName: "mic.fill")
                     .font(.system(size: 20, weight: .bold))
                     .foregroundStyle(.white)
                     .shadow(color: .black.opacity(0.3), radius: 4)
-                    .scaleEffect(1.0 + CGFloat(appState.audioLevel) * 0.15)
+                    .scaleEffect(1.0 + CGFloat(audioRecorder.audioLevel) * 0.15)
             }
-            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: appState.audioLevel)
+            .animation(.linear(duration: 0.04), value: audioRecorder.audioLevel)
             .frame(width: 96, height: 96)
 
+            Spacer()
+            
             // Timer & Status Text
             HStack(spacing: 6) {
-                if appState.recordingStatus == .recording || appState.isShowingPreview {
+                if appState.durationVisible && (appState.recordingStatus == .recording || appState.isShowingPreview) {
                     Text(appState.isShowingPreview ? "0:05" : appState.formattedDuration)
                         .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(.primary.opacity(0.9))
+                        .foregroundStyle(.secondary)
                         .contentTransition(.numericText())
                         .animation(.default, value: appState.recordingDuration)
                 }
@@ -548,8 +562,7 @@ struct OrbOverlay: View {
                     .font(.system(size: 11 * appState.overlayTextCompensation, weight: .medium, design: .rounded))
                     .foregroundStyle(.primary.opacity(0.7))
             }
-
-            Spacer(minLength: 4)
+            .padding(.bottom, 12)
         }
         .frame(width: RecordingPanel.orbSize.width, height: RecordingPanel.orbSize.height)
         .overlay(alignment: .topTrailing) {

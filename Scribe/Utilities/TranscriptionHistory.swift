@@ -1,5 +1,6 @@
 import Foundation
 import os.log
+import SwiftUI
 
 private let logger = Logger(subsystem: "com.aleksei.scribe", category: "TranscriptionHistory")
 
@@ -56,6 +57,83 @@ final class TranscriptionHistory: ObservableObject {
     static let shared = TranscriptionHistory()
 
     @Published var records: [TranscriptionRecord] = []
+    
+    // MARK: - Stats
+    
+    var totalWords: Int {
+        records.reduce(0) { $0 + $1.text.split(separator: " ").count }
+    }
+    
+    var totalDuration: TimeInterval {
+        records.reduce(0) { $0 + $1.duration }
+    }
+    
+    /// Estimated time saved in seconds assuming 40 words per minute typing speed
+    var timeSaved: TimeInterval {
+        let typingTimeMinutes = Double(totalWords) / 40.0
+        let typingTimeSeconds = typingTimeMinutes * 60.0
+        return max(0, typingTimeSeconds - totalDuration)
+    }
+    
+    private let levelNames = [
+        "Drip", "Trickle", "Puddle", "Drinking Fountain", "Leaky Faucet",
+        "Garden Hose", "Sprinkler", "Kitchen Tap", "Rain Shower", "Spring",
+        "Brook", "Creek", "Rivulet", "Stream", "Runoff",
+        "Storm Drain", "Fountain", "Mill Race", "Cascade", "Rapids",
+        "Tributary", "River", "Delta", "Estuary", "Reservoir",
+        "Lake", "Bay", "Sound", "Gulf", "Inland Sea",
+        "Sea", "Open Ocean", "Deep Current", "Geyser", "Waterfall",
+        "Niagara Falls", "Broken Dam", "Storm Surge", "Whirlpool", "Maelstrom",
+        "Rogue Wave", "Monsoon", "Flash Flood", "Deluge", "Hurricane",
+        "Typhoon", "Tidal Wave", "Tsunami", "Category 5", "Force of Nature"
+    ]
+    
+    /// Words required for a specific level using an arithmetic progression
+    func requiredWords(for level: Int) -> Int {
+        if level <= 1 { return 0 }
+        let n = level - 1
+        return (n * (200 + (n - 1) * 50)) / 2
+    }
+    
+    var currentLevel: Int {
+        for level in (1...50).reversed() {
+            if totalWords >= requiredWords(for: level) {
+                return level
+            }
+        }
+        return 1
+    }
+    
+    var currentLevelName: String {
+        let index = max(0, min(currentLevel - 1, levelNames.count - 1))
+        return levelNames[index]
+    }
+    
+    var currentLevelColor: Color {
+        switch currentLevel {
+        case 1...5: return .cyan
+        case 6...10: return .blue.opacity(0.8) // Soft blue for rain shower, etc
+        case 11...20: return .blue
+        case 21...30: return .indigo
+        case 31...40: return .purple
+        case 41...49: return .pink
+        default: return .red
+        }
+    }
+    
+    var wordsToNextLevel: Int {
+        if currentLevel >= 50 { return 0 }
+        return requiredWords(for: currentLevel + 1) - totalWords
+    }
+    
+    var currentLevelProgress: Double {
+        if currentLevel >= 50 { return 1.0 }
+        let currentLevelWords = requiredWords(for: currentLevel)
+        let nextLevelWords = requiredWords(for: currentLevel + 1)
+        let wordsInThisLevel = nextLevelWords - currentLevelWords
+        let wordsEarned = totalWords - currentLevelWords
+        return Double(wordsEarned) / Double(wordsInThisLevel)
+    }
 
     private let fileURL: URL
 
@@ -107,8 +185,12 @@ final class TranscriptionHistory: ObservableObject {
             case .today:
                 return calendar.isDateInToday(record.date)
             case .week:
-                return calendar.isDate(record.date, equalTo: now, toGranularity: .weekOfYear) &&
-                       calendar.isDate(record.date, equalTo: now, toGranularity: .yearForWeekOfYear)
+                // Use a rolling 7-day window instead of calendar week to prevent boundary issues
+                if let startOfToday = calendar.startOfDay(for: now) as Date?,
+                   let weekAgo = calendar.date(byAdding: .day, value: -6, to: startOfToday) {
+                    return record.date >= weekAgo
+                }
+                return false
             case .allTime:
                 return true
             }

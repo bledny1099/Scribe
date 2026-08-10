@@ -1,7 +1,22 @@
 import Combine
 import KeyboardShortcuts
 import SwiftUI
-import os.log
+import OSLog
+
+extension Array: RawRepresentable where Element: Codable {
+    public init?(rawValue: String) {
+        guard let data = rawValue.data(using: .utf8),
+              let result = try? JSONDecoder().decode([Element].self, from: data)
+        else { return nil }
+        self = result
+    }
+    public var rawValue: String {
+        guard let data = try? JSONEncoder().encode(self),
+              let result = String(data: data, encoding: .utf8)
+        else { return "[]" }
+        return result
+    }
+}
 
 private let logger = Logger(subsystem: "com.aleksei.scribe", category: "AppState")
 
@@ -313,7 +328,21 @@ final class AppState: ObservableObject {
     @AppStorage("soundFeedbackEnabled") var soundFeedbackEnabled: Bool = true
     @AppStorage("livePreviewEnabled") var livePreviewEnabled: Bool = false
     @AppStorage("livePreviewBackground") var livePreviewBackgroundRaw: String = SubtitleBackground.glass.rawValue
+    @AppStorage("durationVisible") public var durationVisible: Bool = true
     @AppStorage("autoTranslate") var autoTranslate: Bool = false
+    @AppStorage("noteExportMode") public var noteExportMode: ExportMode = .append
+    @AppStorage("enableAppleNotes") public var enableAppleNotes: Bool = false
+    @AppStorage("attachAudioToNotes") public var attachAudioToNotes: Bool = false
+    @AppStorage("textReplacements") public var textReplacements: [Replacement] = []
+    @AppStorage("enableObsidian") public var enableObsidian: Bool = false
+    @AppStorage("appleNotesTargetNote") public var appleNotesTargetNote: String = "Scribe Notes"
+    @AppStorage("obsidianVaultURL") public var obsidianVaultURL: String = ""
+    @AppStorage("obsidianTargetNote") public var obsidianTargetNote: String = "Scribe Notes"
+    @AppStorage("enableNotion") public var enableNotion: Bool = false
+    @AppStorage("notionIntegrationToken") public var notionIntegrationToken: String = ""
+    @AppStorage("notionPageId") public var notionPageId: String = ""
+    @AppStorage("defaultNoteTags") public var defaultNoteTags: String = ""
+    @AppStorage("appendDateToNotes") public var appendDateToNotes: Bool = true
 
     /// Computed property for type-safe theme access.
     var selectedTheme: AppTheme {
@@ -760,27 +789,18 @@ final class AppState: ObservableObject {
         }
     }
 
-    private func targetPreviewOrigin(for style: OverlayStyle, size: NSSize) -> NSPoint {
+    private func targetPreviewOrigin(for style: OverlayStyle, size: NSSize, isDragging: Bool = false) -> NSPoint {
         guard let screen = NSScreen.main else { return .zero }
         let screenFrame = screen.visibleFrame
 
-        if let settingsFrame = SettingsWindowManager.shared.windowFrame {
-            if style == .classic || style == .orb {
-                let preferredX = settingsFrame.maxX + 20
-                let maxAllowedX = screenFrame.maxX - size.width - 20
-                let x = min(preferredX, maxAllowedX)
-                let preferredY = settingsFrame.midY - size.height / 2
-                let y = max(screenFrame.minY + 20, min(preferredY, screenFrame.maxY - size.height - 20))
-                return NSPoint(x: x, y: y)
-            } else {
-                let requiredMinY = screenFrame.minY + 20 + size.height + 14
-                SettingsWindowManager.shared.ensureMinimumY(requiredMinY)
-
-                let currentSettingsFrame = SettingsWindowManager.shared.windowFrame ?? settingsFrame
-                let x = max(screenFrame.minX + 20, min(currentSettingsFrame.midX - size.width / 2, screenFrame.maxX - size.width - 20))
-                let y = max(screenFrame.minY + 20, currentSettingsFrame.minY - size.height - 12)
-                return NSPoint(x: x, y: y)
-            }
+        if let settingsFrame = SettingsWindowManager.shared.windowFrame ?? PermissionWindowManager.shared.windowFrame {
+            // ALWAYS put on the right side of the window
+            let preferredX = settingsFrame.maxX + 20
+            let maxAllowedX = screenFrame.maxX - size.width - 20
+            let x = min(preferredX, maxAllowedX)
+            let preferredY = settingsFrame.midY - size.height / 2
+            let y = max(screenFrame.minY + 20, min(preferredY, screenFrame.maxY - size.height - 20))
+            return NSPoint(x: x, y: y)
         } else {
             let x = screenFrame.midX - size.width / 2
             let y = screenFrame.minY + 60
@@ -788,7 +808,7 @@ final class AppState: ObservableObject {
         }
     }
 
-    func updateSettingsPreviewPanel() {
+    func updateSettingsPreviewPanel(isDragging: Bool = false) {
         guard !isRecording && !isTranscribing else { return }
 
         let overlay = RecordingOverlayView()
@@ -802,7 +822,7 @@ final class AppState: ObservableObject {
             previewTextLength: livePreviewText.count
         )
         let targetRadius = RecordingPanel.radius(for: selectedOverlayStyle, overlaySize: selectedOverlaySize, isEmbeddedPreviewActive: isEmbeddedActive)
-        let targetOrigin = targetPreviewOrigin(for: selectedOverlayStyle, size: targetSize)
+        let targetOrigin = targetPreviewOrigin(for: selectedOverlayStyle, size: targetSize, isDragging: isDragging)
         let targetFrame = NSRect(origin: targetOrigin, size: targetSize)
 
         if let existingPanel = settingsPreviewPanel {
@@ -965,7 +985,7 @@ final class AppState: ObservableObject {
 
     private func startLivePreviewTimer() {
         livePreviewTimer?.invalidate()
-        livePreviewTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
+        livePreviewTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 await self?.runLivePreview()
             }

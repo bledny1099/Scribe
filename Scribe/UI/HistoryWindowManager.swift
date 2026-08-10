@@ -7,10 +7,13 @@ final class HistoryWindowManager {
     static let shared = HistoryWindowManager()
 
     private var window: NSWindow?
+    private var blurView: NSVisualEffectView?
+    private weak var currentAppState: AppState?
 
     private init() {}
 
-    func showWindow() {
+    func showWindow(appState: AppState) {
+        self.currentAppState = appState
         if let existing = window {
             if existing.alphaValue == 0 {
                 existing.makeKeyAndOrderFront(nil)
@@ -48,7 +51,11 @@ final class HistoryWindowManager {
 
         // Blur background
         let blurView = NSVisualEffectView()
-        blurView.material = .hudWindow
+        self.blurView = blurView
+        
+        blurView.material = appState.selectedPanelAppearance.material
+        newWindow.appearance = appState.selectedPanelAppearance.nsAppearance
+        
         blurView.blendingMode = .behindWindow
         blurView.state = .active
 
@@ -80,6 +87,11 @@ final class HistoryWindowManager {
         }
     }
 
+    func updateAppearance(_ appearance: PanelAppearance) {
+        window?.appearance = appearance.nsAppearance
+        blurView?.material = appearance.material
+    }
+
     func closeWindow() {
         guard let win = window else { return }
         NSAnimationContext.runAnimationGroup({ ctx in
@@ -92,6 +104,8 @@ final class HistoryWindowManager {
 
     func windowClosed() {
         window = nil
+        blurView = nil
+        currentAppState = nil
     }
 }
 

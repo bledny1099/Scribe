@@ -22,8 +22,13 @@
     <string>$(MACOSX_DEPLOYMENT_TARGET)</string>
     <key>LSUIElement</key>
     <true/>
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>Scribe uses Apple Speech Recognition to provide fast, on-device dictation.</string>
+
     <key>NSMicrophoneUsageDescription</key>
     <string>Scribe needs microphone access to record audio for speech-to-text transcription.</string>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>Scribe needs automation access to create and append transcriptions to Apple Notes.</string>
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
 </dict>

@@ -115,6 +115,10 @@ final class RecordingPanel: NSPanel {
 
     // MARK: - Corner Masking (Prevents Grey Square Artifacts)
 
+    private var cachedMaskSize: NSSize?
+    private var cachedMaskRadius: CGFloat?
+    private var cachedMaskImage: NSImage?
+
     /// Masks blurView and all layers with a pixel-perfect rounded mask image.
     func updateCornerRadius(_ radius: CGFloat, targetSize: NSSize? = nil) {
         self.cornerRadiusValue = radius
@@ -122,15 +126,21 @@ final class RecordingPanel: NSPanel {
         guard size.width > 0 && size.height > 0 else { return }
         guard blurView.superview != nil else { return }
 
-        // Create an exact NSImage mask matching the rounded shape
-        let maskImage = NSImage(size: size, flipped: false) { rect in
-            let path = NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)
-            NSColor.black.set()
-            path.fill()
-            return true
+        if cachedMaskSize == size && cachedMaskRadius == radius, let img = cachedMaskImage {
+            blurView.maskImage = img
+        } else {
+            // Create an exact NSImage mask matching the rounded shape
+            let maskImage = NSImage(size: size, flipped: false) { rect in
+                let path = NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)
+                NSColor.black.set()
+                path.fill()
+                return true
+            }
+            cachedMaskSize = size
+            cachedMaskRadius = radius
+            cachedMaskImage = maskImage
+            blurView.maskImage = maskImage
         }
-
-        blurView.maskImage = maskImage
 
         blurView.wantsLayer = true
         blurView.layer?.cornerRadius = radius
@@ -206,11 +216,11 @@ final class RecordingPanel: NSPanel {
     }
 
     /// Positions the panel near the bottom-center of the main screen.
-    func positionAtBottom() {
+    func positionAtBottom(yOffset: CGFloat = 0) {
         guard let screen = NSScreen.main else { center(); return }
         let screenFrame = screen.visibleFrame
         let x = screenFrame.midX - frame.width / 2
-        let y = screenFrame.minY + 60
+        let y = screenFrame.minY + 60 + yOffset
         setFrameOrigin(NSPoint(x: x, y: y))
     }
 
@@ -255,6 +265,7 @@ final class RecordingPanel: NSPanel {
         hasShadow                 = false // Prevents rectangular window shadow artifacts
         animationBehavior         = .utilityWindow
         collectionBehavior        = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
+        isReleasedWhenClosed      = false
     }
 
     private func configureBlur() {

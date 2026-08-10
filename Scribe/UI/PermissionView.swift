@@ -1,5 +1,7 @@
 import AppKit
 import SwiftUI
+import Speech
+import AVFoundation
 
 // MARK: - Reusable Permissions Card (Matching Liquid Glass Design)
 
@@ -34,6 +36,17 @@ struct PermissionsCard: View {
                     isGranted: permissionManager.isAccessibilityGranted,
                     action: { permissionManager.requestAccessibility() }
                 )
+
+                Divider()
+                    .padding(.horizontal, 16)
+
+                // Speech Recognition row
+                PermissionRow(
+                    title: appState.l("Speech Recognition"),
+                    icon: "waveform",
+                    isGranted: permissionManager.isSpeechRecognitionGranted,
+                    action: { permissionManager.requestSpeechRecognition() }
+                )
             }
             .background(
                 RoundedRectangle(cornerRadius: 16)
@@ -50,6 +63,7 @@ struct PermissionsCard: View {
 struct PermissionRow: View {
     @EnvironmentObject var appState: AppState
     let title: String
+    var description: String? = nil
     let icon: String
     let isGranted: Bool
     let action: () -> Void
@@ -70,9 +84,16 @@ struct PermissionRow: View {
                     .foregroundStyle(isGranted ? .green : .secondary)
             }
 
-            Text(title)
-                .font(.system(size: 14, weight: .medium, design: .rounded))
-                .foregroundStyle(.primary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(appState.l(title))
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .foregroundStyle(.primary)
+                if let desc = description {
+                    Text(appState.l(desc))
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+            }
 
             Spacer()
 
@@ -100,17 +121,45 @@ struct PermissionRow: View {
     }
 }
 
+struct PermissionWindowSizePreferenceKey: PreferenceKey {
+    static let defaultValue: CGSize = .zero
+    static func reduce(value: inout CGSize, nextValue: () -> CGSize) {
+        value = nextValue()
+    }
+}
+
 // MARK: - Onboarding Permission Window Content
 
 struct PermissionWelcomeView: View {
+    enum OnboardingStep {
+        case permissions
+        case customization
+        case voiceTest
+    }
+
+    @EnvironmentObject var appState: AppState
     @ObservedObject var permissionManager = PermissionManager.shared
     @State private var showingSupportModal = false
+    @State private var currentStep: OnboardingStep = .permissions
+    
+    // Voice Test State
+    @State private var isTestingVoice = false
+    @State private var voiceTestText = "Click 'Start Test' and say \"Testing microphone for Scribe\""
+    @State private var voiceTestSuccess = false
+    
+    @State private var engine = AVAudioEngine()
+    @State private var request = SFSpeechAudioBufferRecognitionRequest()
+    @State private var task: SFSpeechRecognitionTask?
+    @StateObject private var previewRecorder = AudioRecorder()
+
     var onComplete: (() -> Void)? = nil
+
+    private var windowWidth: CGFloat {
+        return 460
+    }
 
     var body: some View {
         VStack(spacing: 0) {
-            Spacer(minLength: 24)
-
             // Header
             HStack {
                 Text("Welcome")
@@ -119,12 +168,13 @@ struct PermissionWelcomeView: View {
                 Spacer()
             }
             .padding(.horizontal, 24)
-            .padding(.top, 24)
-            .padding(.bottom, 16)
+            .padding(.top, 56)
+            .padding(.bottom, 8)
 
             // Scrollable Content
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 20) {
+                    if currentStep == .permissions {
                     // App Introduction Section
                     GlassSection(title: "About Scribe", icon: "waveform") {
                         VStack(spacing: 12) {
@@ -159,6 +209,7 @@ struct PermissionWelcomeView: View {
                         VStack(spacing: 0) {
                             PermissionRow(
                                 title: "Microphone",
+                                description: "Required to record your speech for transcription.",
                                 icon: "mic.fill",
                                 isGranted: permissionManager.isMicrophoneGranted,
                                 action: { permissionManager.requestMicrophone() }
@@ -169,9 +220,21 @@ struct PermissionWelcomeView: View {
 
                             PermissionRow(
                                 title: "Accessibility",
+                                description: "Needed to simulate ⌘V and paste text into other apps.",
                                 icon: "hand.raised.fill",
                                 isGranted: permissionManager.isAccessibilityGranted,
                                 action: { permissionManager.requestAccessibility() }
+                            )
+                            
+                            Divider()
+                                .padding(.horizontal, 16)
+
+                            PermissionRow(
+                                title: "Speech Recognition",
+                                description: "Used by the native Apple engine for fast offline dictation.",
+                                icon: "waveform",
+                                isGranted: permissionManager.isSpeechRecognitionGranted,
+                                action: { permissionManager.requestSpeechRecognition() }
                             )
                         }
                         .background(
@@ -215,17 +278,16 @@ struct PermissionWelcomeView: View {
                         SupportDeveloperModal()
                     }
 
-                    // Get Started Button
-                    let allGranted = permissionManager.isMicrophoneGranted && permissionManager.isAccessibilityGranted
+                    let allGranted = permissionManager.isMicrophoneGranted && permissionManager.isAccessibilityGranted && permissionManager.isSpeechRecognitionGranted
                     Button(action: {
-                        if let onComplete = onComplete {
-                            onComplete()
-                        } else {
-                            PermissionWindowManager.shared.closeWindow()
+                        if allGranted {
+                            withAnimation {
+                                currentStep = .customization
+                            }
                         }
                     }) {
                         HStack(spacing: 8) {
-                            Text(allGranted ? "Get Started" : "Continue")
+                            Text("Continue")
                                 .font(.system(size: 14, weight: .semibold, design: .rounded))
 
                             if allGranted {
@@ -271,18 +333,338 @@ struct PermissionWelcomeView: View {
                     }
                     .buttonStyle(.plain)
                     .animation(.spring(response: 0.3, dampingFraction: 0.7), value: allGranted)
+                    } // end permissions section
+                    
+                    if currentStep == .customization {
+                        GlassSection(title: "Customize Look", icon: "paintbrush.fill") {
+                            VStack(spacing: 16) {
+                                Text("Choose how you want Scribe to look when recording.")
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(.secondary)
+                                    .multilineTextAlignment(.center)
+                                
+                                // Theme picker
+                                HStack(alignment: .top, spacing: 14) {
+                                    ForEach(AppTheme.allCases) { theme in
+                                        ThemeSwatchButton(
+                                            theme: theme,
+                                            isSelected: appState.selectedTheme == theme
+                                        ) {
+                                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                                appState.selectedTheme = theme
+                                                appState.onThemeChangedPreview()
+                                            }
+                                        }
+                                    }
+                                }
+                                .frame(maxWidth: .infinity)
+                                
+                                // Overlay style picker
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text(appState.l("Overlay Style"))
+                                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                                        .foregroundStyle(.primary)
+                                    LiquidGlassSegmentedPicker(
+                                        items: OverlayStyle.allCases,
+                                        selection: Binding(
+                                            get: { appState.selectedOverlayStyle },
+                                            set: { appState.selectedOverlayStyle = $0; appState.showSettingsPreviewFor5Seconds() }
+                                        ),
+                                        label: { ("", $0.icon) }
+                                    )
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                
+                                // Panel appearance picker
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text(appState.l("Panel Appearance"))
+                                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                                        .foregroundStyle(.primary)
+                                    LiquidGlassSegmentedPicker(
+                                        items: PanelAppearance.allCases,
+                                        selection: Binding(
+                                            get: { appState.selectedPanelAppearance },
+                                            set: { appState.selectedPanelAppearance = $0; appState.showSettingsPreviewFor5Seconds() }
+                                        ),
+                                        label: { (appState.l($0.displayName), $0.icon) }
+                                    )
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                
+                                // Live Preview
+                                VStack(alignment: .leading, spacing: 8) {
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(appState.l("Live Preview"))
+                                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                                .foregroundStyle(.primary)
+                                            Text(appState.l("Shows intermediate text while recording"))
+                                                .font(.system(size: 11))
+                                                .foregroundStyle(.secondary)
+                                        }
+                                        Spacer()
+                                        let supportsLivePreview = appState.selectedOverlayStyle.supportsEmbeddedPreview
+                                        Toggle("", isOn: Binding(
+                                            get: { supportsLivePreview ? appState.livePreviewEnabled : false },
+                                            set: { newValue in
+                                                guard supportsLivePreview else { return }
+                                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                                    appState.livePreviewEnabled = newValue
+                                                }
+                                                DispatchQueue.main.async {
+                                                    if newValue {
+                                                        appState.showSettingsPreviewFor5Seconds()
+                                                    } else {
+                                                        appState.hideSettingsPreviewPanel()
+                                                    }
+                                                }
+                                            }
+                                        ))
+                                        .toggleStyle(.switch)
+                                        .labelsHidden()
+                                        .allowsHitTesting(supportsLivePreview)
+                                        .opacity(supportsLivePreview ? 1.0 : 0.5)
+                                    }
+                                    
+                                    if !appState.selectedOverlayStyle.supportsEmbeddedPreview {
+                                        HStack(spacing: 6) {
+                                            Image(systemName: "info.circle")
+                                                .font(.system(size: 11, weight: .medium))
+                                                .foregroundStyle(.secondary)
+                                            Text(appState.l("Live Preview is only available for Waveform and Pulse"))
+                                                .font(.system(size: 11, weight: .medium, design: .rounded))
+                                                .foregroundStyle(.secondary)
+                                        }
+                                        .padding(.top, 4)
+                                    }
+                                    
+                                    if appState.livePreviewEnabled && appState.selectedOverlayStyle.supportsEmbeddedPreview {
+                                        VStack(spacing: 8) {
+                                            HStack {
+                                                Text(appState.l("Display Mode"))
+                                                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                                                    .foregroundStyle(.primary)
+                                                Spacer()
+                                                LiquidGlassSegmentedPicker(
+                                                    items: LivePreviewMode.allCases,
+                                                    selection: Binding(
+                                                        get: { appState.livePreviewMode },
+                                                        set: {
+                                                            appState.livePreviewMode = $0
+                                                            appState.showSettingsPreviewFor5Seconds()
+                                                        }
+                                                    ),
+                                                    label: { (appState.l($0.displayName), $0.icon) }
+                                                )
+                                            }
+                                        }
+                                        .padding(.top, 4)
+                                    }
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                
+                            }
+                        }
+                        
+                        Button(action: {
+                            withAnimation {
+                                currentStep = .voiceTest
+                            }
+                        }) {
+                            HStack(spacing: 8) {
+                                Text("Continue")
+                                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                                Image(systemName: "arrow.right")
+                                    .font(.system(size: 12, weight: .bold))
+                            }
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 11)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(LinearGradient(colors: [Color.blue, Color.purple], startPoint: .leading, endPoint: .trailing))
+                            )
+                            .shadow(color: .blue.opacity(0.3), radius: 8, y: 4)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    
+                    if currentStep == .voiceTest {
+                        GlassSection(title: "Voice Test", icon: "mic.fill") {
+                            VStack(spacing: 20) {
+                                ZStack {
+                                    Circle()
+                                        .fill(isTestingVoice ? Color.blue.opacity(0.15) : Color.primary.opacity(0.05))
+                                        .frame(width: 80, height: 80)
+                                    
+                                    if voiceTestSuccess {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .font(.system(size: 40))
+                                            .foregroundStyle(.green)
+                                    } else {
+                                        Image(systemName: isTestingVoice ? "waveform" : "mic.fill")
+                                            .font(.system(size: 30))
+                                            .foregroundStyle(isTestingVoice ? .blue : .secondary)
+                                            
+                                    }
+                                }
+                                
+                                Text(voiceTestText)
+                                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                    .multilineTextAlignment(.center)
+                                    .frame(minHeight: 40)
+                                
+                                if !voiceTestSuccess {
+                                    Button(action: {
+                                        if isTestingVoice {
+                                            stopVoiceTest()
+                                            isTestingVoice = false
+                                        } else {
+                                            startVoiceTest()
+                                        }
+                                    }) {
+                                        Text(isTestingVoice ? "Stop Test" : "Start Test")
+                                            .font(.system(size: 13, weight: .semibold))
+                                            .foregroundStyle(.white)
+                                            .padding(.horizontal, 20)
+                                            .padding(.vertical, 8)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 8)
+                                                    .fill(isTestingVoice ? Color.red : Color.blue)
+                                            )
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                        }
+                        
+                        Button(action: {
+                            if isTestingVoice {
+                                stopVoiceTest()
+                            }
+                            if let onComplete = onComplete {
+                                onComplete()
+                            } else {
+                                PermissionWindowManager.shared.closeWindow()
+                            }
+                        }) {
+                            HStack(spacing: 8) {
+                                Text("Get Started")
+                                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                            }
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 11)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(LinearGradient(colors: [Color.blue, Color.purple], startPoint: .leading, endPoint: .trailing))
+                            )
+                            .shadow(color: .blue.opacity(0.3), radius: 8, y: 4)
+                            .opacity(voiceTestSuccess ? 1.0 : 0.5)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(!voiceTestSuccess)
+                    }
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 24)
+                .background(
+                    GeometryReader { geo in
+                        Color.clear.preference(key: PermissionWindowSizePreferenceKey.self, value: CGSize(width: windowWidth, height: geo.size.height))
+                    }
+                )
             }
         }
+        .onPreferenceChange(PermissionWindowSizePreferenceKey.self) { size in
+            // The total height is the scrollview content height (size.height) + header height (108) + bottom padding (24) + safe area.
+            let totalHeight = size.height + 140
+            PermissionWindowManager.shared.animateToSize(CGSize(width: size.width, height: totalHeight))
+        }
         .ignoresSafeArea(.container, edges: .top)
-        .frame(width: 400, height: 550)
+        .frame(width: windowWidth)
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: windowWidth)
         .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
         .onAppear {
             // Force a fresh permission check when the view appears
             permissionManager.checkPermissions()
         }
+    }
+    
+    private func startVoiceTest() {
+        isTestingVoice = true
+        voiceTestText = "Listening..."
+        
+        let recognizer = SFSpeechRecognizer()
+        let req = SFSpeechAudioBufferRecognitionRequest()
+        self.request = req
+        
+        if engine.isRunning {
+            engine.stop()
+        }
+        
+        let node = engine.inputNode
+        node.removeTap(onBus: 0)
+        
+        let recordingFormat = node.outputFormat(forBus: 0)
+        
+        guard recordingFormat.channelCount > 0 else {
+            isTestingVoice = false
+            voiceTestText = "Microphone format unsupported."
+            return
+        }
+        
+        node.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { @Sendable buffer, _ in
+            req.append(buffer)
+        }
+        
+        engine.prepare()
+        do {
+            try engine.start()
+            task = recognizer?.recognitionTask(with: request) { result, error in
+                if let result = result {
+                    let text = result.bestTranscription.formattedString
+                    DispatchQueue.main.async {
+                        if !text.isEmpty {
+                            self.voiceTestText = text
+                        }
+                        if text.count > 10 {
+                            if !self.voiceTestSuccess {
+                                self.voiceTestSuccess = true
+                                self.isTestingVoice = false
+                                self.voiceTestText = "Perfect! Your mic is working."
+                                self.stopVoiceTest()
+                            }
+                        }
+                    }
+                }
+                
+                if let error = error {
+                    DispatchQueue.main.async {
+                        if !self.voiceTestSuccess {
+                            self.isTestingVoice = false
+                            self.voiceTestText = "Testing failed: \(error.localizedDescription)"
+                            self.stopVoiceTest()
+                        }
+                    }
+                }
+            }
+        } catch {
+            isTestingVoice = false
+            voiceTestText = "Failed to start audio engine."
+        }
+    }
+    
+    private func stopVoiceTest() {
+        if engine.isRunning {
+            engine.stop()
+            engine.inputNode.removeTap(onBus: 0)
+            request.endAudio()
+        }
+        task?.cancel()
+        task = nil
     }
 }
 
@@ -294,6 +676,40 @@ final class PermissionWindowManager {
 
     private var window: NSWindow?
     private var appState: AppState?
+    
+    var windowFrame: NSRect? { window?.frame }
+
+    func ensureMinimumY(_ minY: CGFloat) {
+        guard let win = window else { return }
+        let currentFrame = win.frame
+        if currentFrame.minY < minY {
+            var newFrame = currentFrame
+            newFrame.origin.y = minY
+            win.setFrame(newFrame, display: true, animate: true)
+        }
+    }
+
+    func animateToSize(_ size: CGSize) {
+        guard let window = window else { return }
+        
+        let screenMaxY = window.screen?.visibleFrame.maxY ?? NSScreen.main?.visibleFrame.maxY ?? 1000
+        // Constrain height
+        let newHeight = min(size.height, 800)
+        
+        let currentFrame = window.frame
+        let newX = currentFrame.midX - (size.width / 2)
+        // Keep the top edge anchored if possible, or center it
+        let newY = currentFrame.maxY - newHeight
+        
+        let newFrame = NSRect(x: newX, y: newY, width: size.width, height: newHeight)
+        
+        // Always apply the frame so it's guaranteed to be correct
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.35
+            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            window.animator().setFrame(newFrame, display: true)
+        }
+    }
 
     func showWindow(appState: AppState? = nil) {
         if let appState = appState {
@@ -307,7 +723,7 @@ final class PermissionWindowManager {
         }
 
         let newWindow = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 400, height: 550),
+            contentRect: NSRect(x: 0, y: 0, width: 460, height: 660),
             styleMask: [.titled, .fullSizeContentView, .closable],
             backing: .buffered,
             defer: false
@@ -342,8 +758,8 @@ final class PermissionWindowManager {
                 SettingsWindowManager.shared.showSettings(appState: state)
             }
         })
-
-        let hostingView = NSHostingView(rootView: welcomeView)
+        
+        let hostingView = appState != nil ? NSHostingView(rootView: welcomeView.environmentObject(appState!)) : NSHostingView(rootView: welcomeView.environmentObject(AppState()))
         hostingView.translatesAutoresizingMaskIntoConstraints = false
         hostingView.wantsLayer = true
         hostingView.layer?.backgroundColor = NSColor.clear.cgColor

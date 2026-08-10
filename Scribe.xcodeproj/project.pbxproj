@@ -18,8 +18,10 @@
 		4A513B3CD77DC2BE2DE38D53 /* AudioRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5D0155AE02279EAD3E31A5E /* AudioRecorder.swift */; };
 		57DD6CADB825E8F4A0C233E4 /* HistoryWindowManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16634D397D859653CF42C43B /* HistoryWindowManager.swift */; };
 		654788EAF4DDE1E76909FD20 /* SoundFeedback.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CBC037D320FA9FA6D66EBD7 /* SoundFeedback.swift */; };
+		74F7E12716D64CCFA449EDF8 /* NotePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92BFCE91C2AFC558D1E53CFE /* NotePickerView.swift */; };
 		7B374F86DA4A0185D8AF567E /* TranscriptionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03E3F01E9E6835C4E2BA39DD /* TranscriptionService.swift */; };
 		8580267BDF5EBAA8994647DD /* LaunchAtLoginHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = A33DFF31D403EFBFA043388C /* LaunchAtLoginHelper.swift */; };
+		94E79D85DBC1F87C1915FE93 /* NoteExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21275C02C08F216BDCACFB8D /* NoteExporter.swift */; };
 		964CE5E111F740301E77DAB5 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 42BA0A3DE7484100CC7A997F /* AppIcon.icns */; };
 		A598B6DF353C2F3AB1A1BD89 /* PermissionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12FECAADAC70A1B20BDAB73F /* PermissionManager.swift */; };
 		B223389DD6B7D6F3AF1292C6 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = 56166BA038B43345787116D6 /* WhisperKit */; };
@@ -37,6 +39,7 @@
 		12FECAADAC70A1B20BDAB73F /* PermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionManager.swift; sourceTree = "<group>"; };
 		15E2FB5F2EDF5D0662F04228 /* PermissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionView.swift; sourceTree = "<group>"; };
 		16634D397D859653CF42C43B /* HistoryWindowManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryWindowManager.swift; sourceTree = "<group>"; };
+		21275C02C08F216BDCACFB8D /* NoteExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteExporter.swift; sourceTree = "<group>"; };
 		296BEB4DD4C8D78B9941E8AE /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		379EC03AAF3EE4D9943BADF6 /* Shortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shortcuts.swift; sourceTree = "<group>"; };
 		3CBC037D320FA9FA6D66EBD7 /* SoundFeedback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundFeedback.swift; sourceTree = "<group>"; };
@@ -44,6 +47,7 @@
 		572ACD849DC28AE0C35FCA9B /* ScribeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScribeApp.swift; sourceTree = "<group>"; };
 		57EAB6F0DCC91FC7E7CD8CC2 /* Localization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Localization.swift; sourceTree = "<group>"; };
 		83B4865575EEDC52C327959E /* PasteService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteService.swift; sourceTree = "<group>"; };
+		92BFCE91C2AFC558D1E53CFE /* NotePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotePickerView.swift; sourceTree = "<group>"; };
 		9A23B5CC789E8DE4D6091ED9 /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
 		A33DFF31D403EFBFA043388C /* LaunchAtLoginHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginHelper.swift; sourceTree = "<group>"; };
 		B5D0155AE02279EAD3E31A5E /* AudioRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioRecorder.swift; sourceTree = "<group>"; };
@@ -96,6 +100,7 @@
 			isa = PBXGroup;
 			children = (
 				57EAB6F0DCC91FC7E7CD8CC2 /* Localization.swift */,
+				21275C02C08F216BDCACFB8D /* NoteExporter.swift */,
 				83B4865575EEDC52C327959E /* PasteService.swift */,
 				12FECAADAC70A1B20BDAB73F /* PermissionManager.swift */,
 				3CBC037D320FA9FA6D66EBD7 /* SoundFeedback.swift */,
@@ -110,6 +115,7 @@
 				9A23B5CC789E8DE4D6091ED9 /* AppTheme.swift */,
 				F51F6181FFB91102C35B51B3 /* HistoryView.swift */,
 				16634D397D859653CF42C43B /* HistoryWindowManager.swift */,
+				92BFCE91C2AFC558D1E53CFE /* NotePickerView.swift */,
 				15E2FB5F2EDF5D0662F04228 /* PermissionView.swift */,
 				E7F6E688C5ECB98B51153FD8 /* RecordingOverlayView.swift */,
 				FDBC9A85A8E71D647F586CE8 /* RecordingPanel.swift */,
@@ -222,6 +228,8 @@
 				57DD6CADB825E8F4A0C233E4 /* HistoryWindowManager.swift in Sources */,
 				8580267BDF5EBAA8994647DD /* LaunchAtLoginHelper.swift in Sources */,
 				0DF6FA39C13FAA664C2B1BCF /* Localization.swift in Sources */,
+				94E79D85DBC1F87C1915FE93 /* NoteExporter.swift in Sources */,
+				74F7E12716D64CCFA449EDF8 /* NotePickerView.swift in Sources */,
 				16496219C494A82E4F8E12A0 /* PasteService.swift in Sources */,
 				A598B6DF353C2F3AB1A1BD89 /* PermissionManager.swift in Sources */,
 				B5AAB7E45702E001D978DFE3 /* PermissionView.swift in Sources */,

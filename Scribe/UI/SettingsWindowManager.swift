@@ -7,6 +7,7 @@ final class SettingsWindowManager {
     static let shared = SettingsWindowManager()
 
     private var window: NSWindow?
+    private var blurView: NSVisualEffectView?
     private weak var currentAppState: AppState?
 
     private init() {}
@@ -20,8 +21,8 @@ final class SettingsWindowManager {
         }
 
         let newWindow = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 440, height: 620),
-            styleMask: [.titled, .fullSizeContentView, .closable],
+            contentRect: NSRect(x: 0, y: 0, width: 650, height: 620),
+            styleMask: [.titled, .fullSizeContentView, .closable, .resizable],
             backing: .buffered,
             defer: false
         )
@@ -36,11 +37,19 @@ final class SettingsWindowManager {
         newWindow.isOpaque = false
         newWindow.backgroundColor = .clear 
         newWindow.hasShadow = true
-        newWindow.level = .normal
+        newWindow.level = .floating
         newWindow.hidesOnDeactivate = false
 
         let blurView = NSVisualEffectView()
-        blurView.material = .popover
+        self.blurView = blurView
+        
+        if let appState = self.currentAppState {
+            newWindow.appearance = appState.selectedPanelAppearance.nsAppearance
+            blurView.material = appState.selectedPanelAppearance.material
+        } else {
+            blurView.material = .popover
+        }
+        
         blurView.blendingMode = .behindWindow
         blurView.state = .active
         // Removed custom layer corner radius to let the native window handle it perfectly without artifacts
@@ -76,8 +85,22 @@ final class SettingsWindowManager {
         window != nil
     }
 
+    func updateAppearance(_ appearance: PanelAppearance) {
+        window?.appearance = appearance.nsAppearance
+        blurView?.material = appearance.material
+    }
+
     var windowFrame: NSRect? {
         window?.frame
+    }
+
+    func resizeWindow(to width: CGFloat) {
+        guard let window = window else { return }
+        var frame = window.frame
+        let diff = width - frame.size.width
+        frame.size.width = width
+        frame.origin.x -= diff / 2 // Keep it centered
+        window.setFrame(frame, display: true, animate: true)
     }
 
     func ensureMinimumY(_ minY: CGFloat) {
@@ -93,20 +116,40 @@ final class SettingsWindowManager {
             }
         }
     }
+    
+    func animateToSize(_ size: CGSize) {
+        guard let window = window else { return }
+        let currentFrame = window.frame
+        let newX = currentFrame.midX - (size.width / 2)
+        let newY = currentFrame.maxY - size.height // Anchor top edge
+        let newFrame = NSRect(x: newX, y: newY, width: size.width, height: size.height)
+        
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.35
+            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            window.animator().setFrame(newFrame, display: true)
+        }
+    }
 
     func makeKeyIfNeeded() {
         window?.makeKeyAndOrderFront(nil)
+    }
+
+    func windowDidMove() {
+        currentAppState?.updateSettingsPreviewPanel(isDragging: true)
     }
 
     func closeWindow() {
         currentAppState?.hideSettingsPreviewPanel()
         window?.close()
         window = nil
+        blurView = nil
     }
 
     func windowClosed() {
         currentAppState?.hideSettingsPreviewPanel()
         window = nil
+        blurView = nil
         currentAppState = nil
     }
 }
@@ -117,5 +160,9 @@ private class WindowDelegate: NSObject, NSWindowDelegate, @unchecked Sendable {
 
     func windowWillClose(_ notification: Notification) {
         SettingsWindowManager.shared.windowClosed()
+    }
+    
+    func windowDidMove(_ notification: Notification) {
+        SettingsWindowManager.shared.windowDidMove()
     }
 }

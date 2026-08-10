@@ -5,6 +5,8 @@ struct HistoryView: View {
     @ObservedObject var history = TranscriptionHistory.shared
     @State private var searchText = ""
     @State private var copiedId: UUID?
+    
+    var inSettings: Bool = false
 
     private var filteredRecords: [TranscriptionRecord] {
         if searchText.isEmpty {
@@ -20,6 +22,7 @@ struct HistoryView: View {
             Spacer(minLength: 24)
 
             // Header
+            if !inSettings {
             HStack {
                 Text("History")
                     .font(.system(size: 20, weight: .bold, design: .rounded))
@@ -46,6 +49,7 @@ struct HistoryView: View {
             .padding(.horizontal, 24)
             .padding(.top, 24)
             .padding(.bottom, 12)
+            }
 
             // Search bar
             HStack(spacing: 8) {
@@ -116,8 +120,8 @@ struct HistoryView: View {
             }
         }
         .ignoresSafeArea(.container, edges: .top)
-        .frame(width: 440, height: 560)
-        .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
+        .frame(maxWidth: inSettings ? .infinity : 440, maxHeight: inSettings ? .infinity : 560)
+        .shadow(color: .black.opacity(0.3), radius: inSettings ? 0 : 20, x: 0, y: inSettings ? 0 : 10)
     }
 
     private func copyRecord(_ record: TranscriptionRecord) {
