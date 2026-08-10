@@ -168,6 +168,18 @@ struct SettingsView: View {
                     GlassSection(title: appState.l("Recognition"), icon: "waveform.and.mic") {
                         VStack(spacing: 16) {
                             HStack {
+                                Text(appState.l("Recognition Engine"))
+                                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                LiquidGlassMenu(
+                                    items: ["Apple Speech", "Whisper", "Both"],
+                                    selection: $appState.recognitionEngine,
+                                    title: { id in appState.l(id) }
+                                )
+                            }
+                            
+                            HStack {
                                 Text(appState.l("Dictation Language"))
                                     .font(.system(size: 14, weight: .medium, design: .rounded))
                                     .foregroundStyle(.primary)
@@ -473,6 +485,43 @@ struct StatisticsSectionView: View {
                         StatCard(title: appState.l("Time Dictated"), value: formatDuration(stats.duration), icon: "timer", color: .orange)
                         StatCard(title: appState.l("Sessions"), value: formatNumber(stats.sessionCount), icon: "mic.fill", color: .green)
                     }
+                    
+                    // Level and XP
+                    VStack(spacing: 8) {
+                        HStack {
+                            Text("\(history.currentLevelName) - Level \(history.currentLevel)")
+                                .font(.system(size: 16, weight: .bold))
+                                .shadow(color: history.currentLevelColor.opacity(0.8), radius: 8, x: 0, y: 0)
+                            Spacer()
+                            Text("\(history.totalWords) / \(history.totalWords + history.wordsToNextLevel) Words")
+                                .font(.system(size: 13, weight: .medium))
+                                .shadow(color: history.currentLevelColor.opacity(0.8), radius: 8, x: 0, y: 0)
+                        }
+                        
+                        // Smooth glow progress bar
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color.primary.opacity(0.1))
+                                
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(
+                                        LinearGradient(colors: [history.currentLevelColor, history.currentLevelColor.opacity(0.5)], startPoint: .leading, endPoint: .trailing)
+                                    )
+                                    .frame(width: max(0, geo.size.width * CGFloat(history.currentLevelProgress)))
+                                    .shadow(color: history.currentLevelColor.opacity(0.6), radius: 6, x: 0, y: 0)
+                            }
+                        }
+                        .frame(height: 12)
+                    }
+                    .padding()
+                    .background(Color.primary.opacity(0.05))
+                    .cornerRadius(12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(history.currentLevelColor.opacity(0.3), lineWidth: 1)
+                            .shadow(color: history.currentLevelColor.opacity(0.3), radius: 10, x: 0, y: 0)
+                    )
                 }
                 .padding(14)
             }
@@ -1306,10 +1355,7 @@ struct VocabularySettingsView: View {
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                 
-                TextEditor(text: Binding(
-                    get: { appState.vocabulary },
-                    set: { appState.vocabulary = $0 }
-                ))
+                TextEditor(text: $appState.vocabulary)
                     .font(.system(size: 14))
                     .frame(height: 120)
                     .padding(8)

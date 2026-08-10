@@ -342,6 +342,7 @@ final class AppState: ObservableObject {
     @AppStorage("notionIntegrationToken") public var notionIntegrationToken: String = ""
     @AppStorage("notionPageId") public var notionPageId: String = ""
     @AppStorage("vocabulary") public var vocabulary: String = ""
+    @AppStorage("recognitionEngine") public var recognitionEngine: String = "Both"
     @AppStorage("pushToTalk") public var pushToTalk: Bool = false
     @AppStorage("defaultNoteTags") public var defaultNoteTags: String = ""
     @AppStorage("appendDateToNotes") public var appendDateToNotes: Bool = true
