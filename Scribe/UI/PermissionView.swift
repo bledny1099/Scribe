@@ -723,7 +723,7 @@ final class PermissionWindowManager {
         }
 
         let newWindow = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 460, height: 660),
+            contentRect: NSRect(x: 0, y: 0, width: 600, height: 660),
             styleMask: [.titled, .fullSizeContentView, .closable],
             backing: .buffered,
             defer: false

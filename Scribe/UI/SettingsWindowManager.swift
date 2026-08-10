@@ -21,7 +21,7 @@ final class SettingsWindowManager {
         }
 
         let newWindow = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 650, height: 620),
+            contentRect: NSRect(x: 0, y: 0, width: 750, height: 620),
             styleMask: [.titled, .fullSizeContentView, .closable, .resizable],
             backing: .buffered,
             defer: false

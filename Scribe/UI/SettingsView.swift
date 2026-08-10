@@ -6,9 +6,10 @@ enum SettingsTab: String, CaseIterable {
     case appearance = "Appearance"
     case recognition = "Recognition"
     case statistics = "Statistics"
+    case vocabulary = "Vocabulary"
+    case system = "System"
     case replacements = "Replacements"
     case integrations = "Integrations"
-    case system = "System"
 }
 
 
@@ -44,7 +45,7 @@ struct SettingsView: View {
                             }
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
-                            .background(selectedTab == tab ? Color.primary.opacity(0.1) : Color.clear)
+                            .background(selectedTab == tab ? appState.selectedTheme.gradientColors.first!.opacity(0.2) : Color.clear)
                             .cornerRadius(8)
                         }
                         .buttonStyle(.plain)
@@ -63,138 +64,22 @@ struct SettingsView: View {
                     VStack(spacing: 20) {
                         switch selectedTab {
                         case .general:
-                    // SECTION: Shortcut & Paste Mode
-                    GlassSection(title: appState.l("Recording"), icon: "keyboard") {
-                        VStack(spacing: 16) {
-                            HStack {
-                                Text(appState.l("Global Hotkey"))
-                                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.primary)
-                                Spacer()
-                                KeyboardShortcuts.Recorder(for: .toggleRecording)
-                            }
-
-                            HStack {
-                                Text(appState.l("Paste Mode"))
-                                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.primary)
-                                Spacer()
-                                LiquidGlassSegmentedPicker(
-                                    items: PasteMode.allCases,
-                                    selection: Binding(
-                                        get: { appState.selectedPasteMode },
-                                        set: { appState.selectedPasteMode = $0 }
-                                    ),
-                                    label: { (appState.l($0.displayName), $0.icon) }
-                                )
-                            }
-
-                            Text(appState.selectedPasteMode == .paste
-                                ? appState.l("Replaces clipboard content with transcribed text.")
-                                : appState.l("Appends transcribed text to current clipboard content.")
-                            )
-                            .font(.system(size: 11, weight: .regular))
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.top, -8)
-
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(appState.l("Live Preview"))
-                                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                                        .foregroundStyle(.primary)
-                                    Text(appState.l("Shows intermediate text while recording"))
-                                        .font(.system(size: 11))
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                let supportsLivePreview = appState.selectedOverlayStyle.supportsEmbeddedPreview
-                                Toggle("", isOn: Binding(
-                                    get: { supportsLivePreview ? appState.livePreviewEnabled : false },
-                                    set: { newValue in
-                                        guard supportsLivePreview else { return }
-                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                            appState.livePreviewEnabled = newValue
-                                        }
-                                        DispatchQueue.main.async {
-                                            if newValue {
-                                                appState.showSettingsPreviewFor5Seconds()
-                                            } else {
-                                                appState.hideSettingsPreviewPanel()
-                                            }
-                                        }
-                                    }
-                                ))
-                                    .toggleStyle(.switch)
-                                    .labelsHidden()
-                                    .allowsHitTesting(supportsLivePreview)
-                                    .opacity(supportsLivePreview ? 1.0 : 0.5)
-                            }
-
-                            if !appState.selectedOverlayStyle.supportsEmbeddedPreview {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "info.circle")
-                                        .font(.system(size: 11, weight: .medium))
-                                        .foregroundStyle(.secondary)
-                                    Text(appState.l("Live Preview is only available for Waveform and Pulse"))
-                                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-
-                            if appState.livePreviewEnabled && appState.selectedOverlayStyle.supportsEmbeddedPreview {
-                                VStack(spacing: 10) {
-                                    if appState.selectedOverlayStyle.supportsEmbeddedPreview {
-                                        HStack {
-                                            Text(appState.l("Display Mode"))
-                                                .font(.system(size: 14, weight: .medium, design: .rounded))
-                                                .foregroundStyle(.primary)
-                                                .fixedSize(horizontal: true, vertical: false)
-                                            Spacer()
-                                            LiquidGlassSegmentedPicker(
-                                                items: LivePreviewMode.allCases,
-                                                selection: Binding(
-                                                    get: { appState.livePreviewMode },
-                                                    set: {
-                                                        appState.livePreviewMode = $0
-                                                        appState.showSettingsPreviewFor5Seconds()
-                                                    }
-                                                ),
-                                                label: { (appState.l($0.displayName), $0.icon) }
-                                            )
-                                        }
-                                    }
-
-                                    if appState.livePreviewMode == .external || !appState.selectedOverlayStyle.supportsEmbeddedPreview {
-                                        HStack {
-                                            Text(appState.l("Preview Background"))
-                                                .font(.system(size: 14, weight: .medium, design: .rounded))
-                                                .foregroundStyle(.primary)
-                                            Spacer()
-                                            LiquidGlassSegmentedPicker(
-                                                items: SubtitleBackground.allCases,
-                                                selection: Binding(
-                                                    get: { appState.livePreviewBackground },
-                                                    set: {
-                                                        appState.livePreviewBackground = $0
-                                                        appState.showSettingsPreviewFor5Seconds()
-                                                    }
-                                                ),
-                                                label: { (appState.l($0.displayName), $0.icon) }
-                                            )
-                                        }
-                                    }
-                                }
-                                .padding(.top, 4)
-                                .transition(.opacity.combined(with: .move(edge: .top)))
-                            }
-                        }
-                    }
-
+                            GeneralSettingsView()
                         case .appearance:
                     // SECTION: Theme & Style
                     GlassSection(title: appState.l("Appearance"), icon: "paintbrush.fill") {
                         VStack(spacing: 16) {
+                            // Sound feedback
+                            HStack {
+                                Text(appState.l("Sound Feedback"))
+                                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                Toggle("", isOn: $appState.soundFeedbackEnabled)
+                                    .toggleStyle(.switch)
+                                    .labelsHidden()
+                            }
+
                             // Theme picker
                             HStack(alignment: .top, spacing: 14) {
                                 ForEach(AppTheme.allCases) { theme in
@@ -357,6 +242,8 @@ struct SettingsView: View {
                             ReplacementsSettingsView()
                         case .integrations:
                             IntegrationsSettingsView()
+                                                case .vocabulary:
+                            VocabularySettingsView()
                         case .system:
                     // SECTION: System
                     GlassSection(title: appState.l("System"), icon: "lock.shield") {
@@ -375,16 +262,7 @@ struct SettingsView: View {
                                 .labelsHidden()
                             }
 
-                            // Sound feedback
-                            HStack {
-                                Text(appState.l("Sound Feedback"))
-                                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.primary)
-                                Spacer()
-                                Toggle("", isOn: $appState.soundFeedbackEnabled)
-                                    .toggleStyle(.switch)
-                                    .labelsHidden()
-                            }
+
 
                             PermissionsCard()
 
@@ -492,12 +370,8 @@ struct SettingsView: View {
         .ignoresSafeArea(.container, edges: .top)
                 .frame(height: 620)
         .onAppear {
-            let newWidth: CGFloat = (selectedTab == .statistics || selectedTab == .replacements || selectedTab == .integrations) ? 620 : 440
-            SettingsWindowManager.shared.resizeWindow(to: newWidth)
         }
         .onChange(of: selectedTab) { newValue in
-            let newWidth: CGFloat = (newValue == .statistics || newValue == .replacements || newValue == .integrations) ? 620 : 440
-            SettingsWindowManager.shared.resizeWindow(to: newWidth)
         }
         .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
         .onDisappear {
@@ -524,92 +398,83 @@ struct SettingsView: View {
 
 // MARK: - Statistics Section Component
 
+
 struct StatisticsSectionView: View {
     @EnvironmentObject var appState: AppState
     @ObservedObject var history = TranscriptionHistory.shared
-    @AppStorage("isStatisticsExpanded") private var isExpanded: Bool = true
     @State private var timeFrame: StatsTimeFrame = .today
 
     var body: some View {
-        GlassCollapsibleSection(
-            title: appState.l("Statistics"),
-            icon: "chart.bar.fill",
-            isExpanded: $isExpanded
-        ) {
-            VStack(spacing: 14) {
-                // Segmented Time Frame Picker
-                LiquidGlassSegmentedPicker(
-                    items: StatsTimeFrame.allCases,
-                    selection: $timeFrame,
-                    label: { (appState.l($0.rawValue), "") }
-                )
-
-                let stats = history.stats(for: timeFrame)
-
-                // 2x2 Grid of Stat Cards
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
-                    StatCard(
-                        title: appState.l("Words Spoken"),
-                        value: formatNumber(stats.wordCount),
-                        icon: "text.quote",
-                        color: .blue
-                    )
-                    StatCard(
-                        title: appState.l("Characters"),
-                        value: formatNumber(stats.charCount),
-                        icon: "textformat",
-                        color: .purple
-                    )
-                    StatCard(
-                        title: appState.l("Time Dictated"),
-                        value: formatDuration(stats.duration),
-                        icon: "timer",
-                        color: .orange
-                    )
-                    StatCard(
-                        title: appState.l("Sessions"),
-                        value: formatNumber(stats.sessionCount),
-                        icon: "mic.fill",
-                        color: .green
-                    )
-                }
-
-                // Level and XP
-                VStack(spacing: 8) {
-                    HStack {
+        VStack(spacing: 20) {
+            // Gamification Header with Blue Gradient
+            VStack(spacing: 12) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text("\(history.currentLevelName) - Level \(history.currentLevel)")
-                            .font(.system(size: 16, weight: .bold))
-                            .shadow(color: history.currentLevelColor.opacity(0.8), radius: 8, x: 0, y: 0)
-                        Spacer()
-                        Text("\(history.totalWords) / \(history.totalWords + history.wordsToNextLevel) Words")
+                            .font(.system(size: 22, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                            .shadow(color: history.currentLevelColor.opacity(0.5), radius: 10, x: 0, y: 5)
+                        
+                        Text("\(history.totalWords) / \(history.totalWords + history.wordsToNextLevel) Words to next level")
                             .font(.system(size: 13, weight: .medium))
-                            .shadow(color: history.currentLevelColor.opacity(0.8), radius: 8, x: 0, y: 0)
+                            .foregroundStyle(.white.opacity(0.8))
                     }
+                    Spacer()
                     
-                    // Smooth glow progress bar
-                    GeometryReader { geo in
-                        ZStack(alignment: .leading) {
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color.primary.opacity(0.1))
-                            
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(
-                                    LinearGradient(colors: [history.currentLevelColor, history.currentLevelColor.opacity(0.5)], startPoint: .leading, endPoint: .trailing)
-                                )
-                                .frame(width: max(0, geo.size.width * CGFloat(history.currentLevelProgress)))
-                                .shadow(color: history.currentLevelColor.opacity(0.6), radius: 6, x: 0, y: 0)
-                        }
-                    }
-                    .frame(height: 12)
+                    Image(systemName: "star.circle.fill")
+                        .font(.system(size: 40))
+                        .foregroundStyle(.white)
+                        .shadow(color: history.currentLevelColor.opacity(0.8), radius: 15, x: 0, y: 0)
                 }
-                .padding()
-                .background(Color.primary.opacity(0.05))
-                .cornerRadius(12)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(history.currentLevelColor.opacity(0.3), lineWidth: 1)
-                        .shadow(color: history.currentLevelColor.opacity(0.3), radius: 10, x: 0, y: 0)
+                
+                // Smooth glow progress bar
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.black.opacity(0.2))
+                        
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(LinearGradient(colors: [.white.opacity(0.8), .white], startPoint: .leading, endPoint: .trailing))
+                            .frame(width: max(0, geo.size.width * CGFloat(history.currentLevelProgress)))
+                            .shadow(color: .white.opacity(0.8), radius: 8, x: 0, y: 0)
+                    }
+                }
+                .frame(height: 14)
+            }
+            .padding(20)
+            .background(
+                LinearGradient(
+                    colors: [Color.blue.opacity(0.6), Color.purple.opacity(0.6)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
                 )
+            )
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+            )
+            .shadow(color: Color.blue.opacity(0.3), radius: 15, x: 0, y: 10)
+
+            // Regular Stats Grid
+            GlassSection(title: appState.l("Statistics"), icon: "chart.bar.fill") {
+                VStack(spacing: 14) {
+                    LiquidGlassSegmentedPicker(
+                        items: StatsTimeFrame.allCases,
+                        selection: $timeFrame,
+                        label: { (appState.l($0.rawValue), "") }
+                    )
+
+                    let stats = history.stats(for: timeFrame)
+
+                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                        StatCard(title: appState.l("Words Spoken"), value: formatNumber(stats.wordCount), icon: "text.quote", color: .blue)
+                        StatCard(title: appState.l("Characters"), value: formatNumber(stats.charCount), icon: "textformat", color: .purple)
+                        StatCard(title: appState.l("Time Dictated"), value: formatDuration(stats.duration), icon: "timer", color: .orange)
+                        StatCard(title: appState.l("Sessions"), value: formatNumber(stats.sessionCount), icon: "mic.fill", color: .green)
+                    }
+                }
+                .padding(14)
             }
         }
     }
@@ -625,17 +490,11 @@ struct StatisticsSectionView: View {
         let hours = totalSecs / 3600
         let mins = (totalSecs % 3600) / 60
         let secs = totalSecs % 60
-
-        if hours > 0 {
-            return "\(hours)h \(mins)m"
-        } else if mins > 0 {
-            return "\(mins)m \(secs)s"
-        } else {
-            return "\(secs)s"
-        }
+        if hours > 0 { return "\(hours)h \(mins)m" }
+        else if mins > 0 { return "\(mins)m \(secs)s" }
+        else { return "\(secs)s" }
     }
 }
-
 struct StatCard: View {
     let title: String
     let value: String
@@ -1277,7 +1136,7 @@ struct IntegrationsSettingsView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Obsidian")
                             .font(.system(size: 14, weight: .bold))
-                        Text(appState.obsidianVaultURL.isEmpty ? "Not configured" : appState.obsidianVaultURL)
+                        Text("Send transcripts directly to Obsidian")
                             .font(.system(size: 12))
                             .foregroundColor(.secondary)
                     }
@@ -1288,18 +1147,31 @@ struct IntegrationsSettingsView: View {
                 }
                 
                 if appState.enableObsidian {
-                    Button("Select Vault Folder") {
-                        let panel = NSOpenPanel()
-                        panel.canChooseFiles = false
-                        panel.canChooseDirectories = true
-                        panel.allowsMultipleSelection = false
-                        panel.message = appState.l("Select your Obsidian Vault folder")
+                    VStack(alignment: .leading, spacing: 8) {
+                        Button("Select Vault Folder") {
+                            let panel = NSOpenPanel()
+                            panel.canChooseFiles = false
+                            panel.canChooseDirectories = true
+                            panel.allowsMultipleSelection = false
+                            panel.message = appState.l("Select your Obsidian Vault folder")
+                            
+                            if panel.runModal() == .OK, let url = panel.url {
+                                appState.obsidianVaultURL = url.absoluteString
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
                         
-                        if panel.runModal() == .OK, let url = panel.url {
-                            appState.obsidianVaultURL = url.absoluteString
+                        Text(appState.obsidianVaultURL.isEmpty ? "No vault selected" : appState.obsidianVaultURL)
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                            
+                        HStack {
+                            Text("Target Note:")
+                            TextField("e.g. Scribe Transcriptions", text: $appState.obsidianTargetNote)
+                                .textFieldStyle(.roundedBorder)
                         }
                     }
-                    .buttonStyle(.borderedProminent)
+                    .padding(.leading, 10)
                 }
 
                 Divider()
@@ -1318,6 +1190,15 @@ struct IntegrationsSettingsView: View {
                         .toggleStyle(.switch)
                         .labelsHidden()
                 }
+                
+                if appState.enableAppleNotes {
+                    HStack {
+                        Text("Target Note:")
+                        TextField("e.g. Scribe Transcriptions", text: $appState.appleNotesTargetNote)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                    .padding(.leading, 10)
+                }
 
                 Divider()
 
@@ -1335,6 +1216,23 @@ struct IntegrationsSettingsView: View {
                         .toggleStyle(.switch)
                         .labelsHidden()
                 }
+                
+                if appState.enableNotion {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("API Token:")
+                            SecureField("Secret Token", text: $appState.notionIntegrationToken)
+                                .textFieldStyle(.roundedBorder)
+                        }
+                        HStack {
+                            Text("Page ID:")
+                            TextField("Target Page ID", text: $appState.notionPageId)
+                                .textFieldStyle(.roundedBorder)
+                        }
+                    }
+                    .padding(.leading, 10)
+                }
+                
             }
             .padding(14)
         }
@@ -1395,5 +1293,189 @@ struct ReplacementsSettingsView: View {
             }
             .padding(14)
         }
+    }
+}
+
+// MARK: - Vocabulary Settings View
+struct VocabularySettingsView: View {
+    @EnvironmentObject var appState: AppState
+    var body: some View {
+        GlassSection(title: appState.l("Vocabulary"), icon: "text.book.closed.fill") {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(appState.l("Add custom words, names, or acronyms to help Scribe recognize them correctly. Separate words with commas."))
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                
+                TextEditor(text: Binding(
+                    get: { appState.vocabulary },
+                    set: { appState.vocabulary = $0 }
+                ))
+                    .font(.system(size: 14))
+                    .frame(height: 120)
+                    .padding(8)
+                    .background(Color.primary.opacity(0.04))
+                    .cornerRadius(8)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .strokeBorder(Color.primary.opacity(0.1), lineWidth: 1)
+                    )
+            }
+            .padding(14)
+        }
+    }
+}
+
+// MARK: - General Settings View
+struct GeneralSettingsView: View {
+    @EnvironmentObject var appState: AppState
+    var body: some View {
+
+                    // SECTION: Shortcut & Paste Mode
+                    GlassSection(title: appState.l("Recording"), icon: "keyboard") {
+                        VStack(spacing: 16) {
+                            HStack {
+                                Text(appState.l("Global Hotkey"))
+                                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                KeyboardShortcuts.Recorder(for: .toggleRecording)
+                            }
+
+                            HStack {
+                                Text(appState.l("Paste Mode"))
+                                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                LiquidGlassSegmentedPicker(
+                                    items: PasteMode.allCases,
+                                    selection: Binding(
+                                        get: { appState.selectedPasteMode },
+                                        set: { appState.selectedPasteMode = $0 }
+                                    ),
+                                    label: { (appState.l($0.displayName), $0.icon) }
+                                )
+                            }
+
+                            Text(appState.selectedPasteMode == .paste
+                                ? appState.l("Replaces clipboard content with transcribed text.")
+                                : appState.l("Appends transcribed text to current clipboard content.")
+                            )
+                            .font(.system(size: 11, weight: .regular))
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.top, -8)
+
+                            Divider()
+                            
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(appState.l("Push-to-Talk (Hold to record)"))
+                                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                                        .foregroundStyle(.primary)
+                                    Text(appState.l("Hold Option+S to record, release to stop"))
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Toggle("", isOn: $appState.pushToTalk)
+                                    .toggleStyle(.switch)
+                                    .labelsHidden()
+                            }
+
+
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(appState.l("Live Preview"))
+                                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                                        .foregroundStyle(.primary)
+                                    Text(appState.l("Shows intermediate text while recording"))
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                let supportsLivePreview = appState.selectedOverlayStyle.supportsEmbeddedPreview
+                                Toggle("", isOn: Binding(
+                                    get: { supportsLivePreview ? appState.livePreviewEnabled : false },
+                                    set: { newValue in
+                                        guard supportsLivePreview else { return }
+                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                            appState.livePreviewEnabled = newValue
+                                        }
+                                        DispatchQueue.main.async {
+                                            if newValue {
+                                                appState.showSettingsPreviewFor5Seconds()
+                                            } else {
+                                                appState.hideSettingsPreviewPanel()
+                                            }
+                                        }
+                                    }
+                                ))
+                                    .toggleStyle(.switch)
+                                    .labelsHidden()
+                                    .allowsHitTesting(supportsLivePreview)
+                                    .opacity(supportsLivePreview ? 1.0 : 0.5)
+                            }
+
+                            if !appState.selectedOverlayStyle.supportsEmbeddedPreview {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "info.circle")
+                                        .font(.system(size: 11, weight: .medium))
+                                        .foregroundStyle(.secondary)
+                                    Text(appState.l("Live Preview is only available for Waveform and Pulse"))
+                                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+
+                            if appState.livePreviewEnabled && appState.selectedOverlayStyle.supportsEmbeddedPreview {
+                                VStack(spacing: 10) {
+                                    if appState.selectedOverlayStyle.supportsEmbeddedPreview {
+                                        HStack {
+                                            Text(appState.l("Display Mode"))
+                                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                                .foregroundStyle(.primary)
+                                                .fixedSize(horizontal: true, vertical: false)
+                                            Spacer()
+                                            LiquidGlassSegmentedPicker(
+                                                items: LivePreviewMode.allCases,
+                                                selection: Binding(
+                                                    get: { appState.livePreviewMode },
+                                                    set: {
+                                                        appState.livePreviewMode = $0
+                                                        appState.showSettingsPreviewFor5Seconds()
+                                                    }
+                                                ),
+                                                label: { (appState.l($0.displayName), $0.icon) }
+                                            )
+                                        }
+                                    }
+
+                                    if appState.livePreviewMode == .external || !appState.selectedOverlayStyle.supportsEmbeddedPreview {
+                                        HStack {
+                                            Text(appState.l("Preview Background"))
+                                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                                .foregroundStyle(.primary)
+                                            Spacer()
+                                            LiquidGlassSegmentedPicker(
+                                                items: SubtitleBackground.allCases,
+                                                selection: Binding(
+                                                    get: { appState.livePreviewBackground },
+                                                    set: {
+                                                        appState.livePreviewBackground = $0
+                                                        appState.showSettingsPreviewFor5Seconds()
+                                                    }
+                                                ),
+                                                label: { (appState.l($0.displayName), $0.icon) }
+                                            )
+                                        }
+                                    }
+                                }
+                                .padding(.top, 4)
+                                .transition(.opacity.combined(with: .move(edge: .top)))
+                            }
+                        }
+                    }
+
+                        
     }
 }

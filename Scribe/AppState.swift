@@ -341,6 +341,8 @@ final class AppState: ObservableObject {
     @AppStorage("enableNotion") public var enableNotion: Bool = false
     @AppStorage("notionIntegrationToken") public var notionIntegrationToken: String = ""
     @AppStorage("notionPageId") public var notionPageId: String = ""
+    @AppStorage("vocabulary") public var vocabulary: String = ""
+    @AppStorage("pushToTalk") public var pushToTalk: Bool = false
     @AppStorage("defaultNoteTags") public var defaultNoteTags: String = ""
     @AppStorage("appendDateToNotes") public var appendDateToNotes: Bool = true
 
@@ -794,12 +796,12 @@ final class AppState: ObservableObject {
         let screenFrame = screen.visibleFrame
 
         if let settingsFrame = SettingsWindowManager.shared.windowFrame ?? PermissionWindowManager.shared.windowFrame {
-            // ALWAYS put on the right side of the window
-            let preferredX = settingsFrame.maxX + 20
+            // Put below the window, centered
+            let preferredX = settingsFrame.midX - size.width / 2
             let maxAllowedX = screenFrame.maxX - size.width - 20
-            let x = min(preferredX, maxAllowedX)
-            let preferredY = settingsFrame.midY - size.height / 2
-            let y = max(screenFrame.minY + 20, min(preferredY, screenFrame.maxY - size.height - 20))
+            let x = max(screenFrame.minX + 20, min(preferredX, maxAllowedX))
+            let preferredY = settingsFrame.minY - size.height - 20
+            let y = max(screenFrame.minY + 20, preferredY)
             return NSPoint(x: x, y: y)
         } else {
             let x = screenFrame.midX - size.width / 2
@@ -813,6 +815,7 @@ final class AppState: ObservableObject {
 
         let overlay = RecordingOverlayView()
             .environmentObject(self)
+            .environmentObject(audioRecorder)
 
         let isEmbeddedActive = livePreviewEnabled && livePreviewMode == .embedded && selectedOverlayStyle.supportsEmbeddedPreview && !livePreviewText.isEmpty
         let targetSize = RecordingPanel.size(
@@ -915,9 +918,25 @@ final class AppState: ObservableObject {
     // MARK: - Setup Helpers
 
     private func setupHotkeyHandler() {
+        KeyboardShortcuts.onKeyDown(for: .toggleRecording) { [weak self] in
+            Task { @MainActor in
+                guard let self = self else { return }
+                if self.pushToTalk && !self.isRecording {
+                    self.toggleRecording()
+                }
+            }
+        }
+        
         KeyboardShortcuts.onKeyUp(for: .toggleRecording) { [weak self] in
             Task { @MainActor in
-                self?.toggleRecording()
+                guard let self = self else { return }
+                if self.pushToTalk {
+                    if self.isRecording {
+                        self.toggleRecording()
+                    }
+                } else {
+                    self.toggleRecording()
+                }
             }
         }
     }
