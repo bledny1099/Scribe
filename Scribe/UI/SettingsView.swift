@@ -473,8 +473,7 @@ struct SettingsView: View {
                         }
                     }
 
-                    // Cloud AI & Pro Edition Options (Grouped under Recognition & Model Downloads)
-                    CloudAISettingsView()
+
 
                         case .statistics:
                             StatisticsSectionView()
