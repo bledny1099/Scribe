@@ -271,6 +271,7 @@ enum Localization {
             "Preset Name": "Название пресета",
             "Description (Optional)": "Описание (необязательно)",
             "Words & Acronyms": "Слова и аббревиатуры",
+            "Min 2 characters": "От 2 символов",
             "Generated Share Code": "Код для шеринга",
             "Save Preset": "Сохранить пресет",
             "words": "слов",

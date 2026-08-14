@@ -2232,12 +2232,18 @@ struct CreatePresetModalView: View {
     @State private var shareCode: String = VocabularyPreset.generateShareCode()
     @State private var copiedCode: Bool = false
 
+    private func isValidItem(_ text: String) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 2 else { return false }
+        return trimmed.rangeOfCharacter(from: .alphanumerics) != nil
+    }
+
     private func addWord() {
         let trimmed = wordInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         let items = trimmed.components(separatedBy: CharacterSet(charactersIn: ",\n"))
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
+            .filter { isValidItem($0) }
         for w in items {
             if !words.contains(w) {
                 words.append(w)
@@ -2257,6 +2263,10 @@ struct CreatePresetModalView: View {
         )
         appState.customVocabularyPresets.append(preset)
         dismiss()
+    }
+
+    private var canSave: Bool {
+        !presetName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !words.isEmpty
     }
 
     var body: some View {
@@ -2312,9 +2322,15 @@ struct CreatePresetModalView: View {
 
                     // Words Input
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(appState.l("Words & Acronyms"))
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(.secondary)
+                        HStack {
+                            Text(appState.l("Words & Acronyms"))
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Text(appState.l("Min 2 characters"))
+                                .font(.system(size: 10))
+                                .foregroundStyle(.tertiary)
+                        }
 
                         HStack(spacing: 8) {
                             TextField(appState.l("Add word or comma-separated list..."), text: $wordInput, onCommit: addWord)
@@ -2331,12 +2347,12 @@ struct CreatePresetModalView: View {
                                 }
                                 .padding(.horizontal, 14)
                                 .padding(.vertical, 10)
-                                .background(appState.selectedTheme.gradientColors.first!.opacity(0.15))
-                                .foregroundStyle(appState.selectedTheme.gradientColors.first!)
+                                .background(isValidItem(wordInput) ? appState.selectedTheme.gradientColors.first!.opacity(0.15) : Color.primary.opacity(0.05))
+                                .foregroundStyle(isValidItem(wordInput) ? appState.selectedTheme.gradientColors.first! : Color.secondary)
                                 .cornerRadius(8)
                             }
                             .buttonStyle(.plain)
-                            .disabled(wordInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                            .disabled(!isValidItem(wordInput))
                         }
 
                         if !words.isEmpty {
@@ -2422,12 +2438,20 @@ struct CreatePresetModalView: View {
                     .font(.system(size: 13, weight: .bold, design: .rounded))
                     .padding(.horizontal, 20)
                     .padding(.vertical, 8)
-                    .background(appState.selectedTheme.gradientColors.first!)
-                    .foregroundStyle(.white)
+                    .background(
+                        canSave 
+                            ? appState.selectedTheme.gradientColors.first! 
+                            : Color.primary.opacity(0.1)
+                    )
+                    .foregroundStyle(
+                        canSave 
+                            ? Color.white 
+                            : Color.secondary.opacity(0.7)
+                    )
                     .cornerRadius(8)
                 }
                 .buttonStyle(.plain)
-                .disabled(presetName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || words.isEmpty)
+                .disabled(!canSave)
             }
             .padding(16)
         }
@@ -2620,8 +2644,16 @@ struct ImportPresetModalView: View {
                     .font(.system(size: 13, weight: .bold, design: .rounded))
                     .padding(.horizontal, 20)
                     .padding(.vertical, 8)
-                    .background(appState.selectedTheme.gradientColors.first!)
-                    .foregroundStyle(.white)
+                    .background(
+                        parsedPreset != nil 
+                            ? appState.selectedTheme.gradientColors.first! 
+                            : Color.primary.opacity(0.1)
+                    )
+                    .foregroundStyle(
+                        parsedPreset != nil 
+                            ? Color.white 
+                            : Color.secondary.opacity(0.7)
+                    )
                     .cornerRadius(8)
                 }
                 .buttonStyle(.plain)
@@ -2650,14 +2682,25 @@ struct VocabularySettingsView: View {
             .filter { !$0.isEmpty }
     }
 
+    private func isValidItem(_ text: String) -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 2 else { return false }
+        return trimmed.rangeOfCharacter(from: .alphanumerics) != nil
+    }
+
     private func addWord() {
         let trimmed = newWord.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
+        guard isValidItem(trimmed) else { return }
+        let items = trimmed.components(separatedBy: CharacterSet(charactersIn: ",\n"))
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { isValidItem($0) }
         var current = wordsList
-        if !current.contains(trimmed) {
-            current.append(trimmed)
-            appState.vocabulary = current.joined(separator: ", ")
+        for w in items {
+            if !current.contains(w) {
+                current.append(w)
+            }
         }
+        appState.vocabulary = current.joined(separator: ", ")
         newWord = ""
     }
 
@@ -2696,7 +2739,90 @@ struct VocabularySettingsView: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            // SECTION: Custom Presets & Community Share
+            // SECTION 1: Active Custom Words (On Top)
+            GlassSection(title: appState.l("Active Custom Vocabulary"), icon: "text.book.closed.fill") {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack {
+                        Text(appState.l("All words below will be prioritized and automatically capitalized by Whisper."))
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                    }
+
+                    HStack(spacing: 8) {
+                        TextField(appState.l("Enter word or acronym..."), text: $newWord, onCommit: addWord)
+                            .textFieldStyle(.plain)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 7)
+                            .background(Color.primary.opacity(0.04))
+                            .cornerRadius(8)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .strokeBorder(Color.primary.opacity(0.1), lineWidth: 1)
+                            )
+
+                        Button(action: addWord) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "plus")
+                                    .font(.system(size: 12, weight: .bold))
+                                Text(appState.l("Add"))
+                                    .font(.system(size: 12, weight: .semibold))
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 7)
+                            .background(isValidItem(newWord) ? appState.selectedTheme.gradientColors[0].opacity(0.2) : Color.primary.opacity(0.05))
+                            .foregroundStyle(isValidItem(newWord) ? appState.selectedTheme.gradientColors[0] : Color.secondary)
+                            .cornerRadius(8)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .strokeBorder(isValidItem(newWord) ? appState.selectedTheme.gradientColors[0].opacity(0.3) : Color.clear, lineWidth: 1)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(!isValidItem(newWord))
+                    }
+
+                    if wordsList.isEmpty {
+                        Text(appState.l("No custom words added yet."))
+                            .font(.system(size: 12))
+                            .foregroundStyle(.tertiary)
+                            .padding(.vertical, 6)
+                    } else {
+                        ScrollView(.vertical, showsIndicators: true) {
+                            FlowLayout(spacing: 6) {
+                                ForEach(wordsList, id: \.self) { word in
+                                    HStack(spacing: 6) {
+                                        Text(word)
+                                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                                            .foregroundStyle(.primary)
+
+                                        Button(action: { removeWord(word) }) {
+                                            Image(systemName: "xmark.circle.fill")
+                                                .font(.system(size: 11))
+                                                .foregroundStyle(.secondary)
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 5)
+                                    .background(Color.primary.opacity(0.06))
+                                    .cornerRadius(12)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
+                                    )
+                                }
+                            }
+                            .padding(.vertical, 4)
+                            .padding(.trailing, 4)
+                        }
+                        .frame(minHeight: 60, maxHeight: 220)
+                    }
+                }
+                .padding(14)
+            }
+
+            // SECTION 2: Custom Presets & Community Share (Below)
             GlassSection(title: appState.l("Vocabulary Presets"), icon: "square.grid.2x2.fill") {
                 VStack(alignment: .leading, spacing: 14) {
                     HStack {
@@ -2841,88 +2967,6 @@ struct VocabularySettingsView: View {
                                 )
                             }
                         }
-                    }
-                }
-                .padding(14)
-            }
-
-            // SECTION: Active Custom Words
-            GlassSection(title: appState.l("Active Custom Vocabulary"), icon: "text.book.closed.fill") {
-                VStack(alignment: .leading, spacing: 14) {
-                    HStack {
-                        Text(appState.l("All words below will be prioritized and automatically capitalized by Whisper."))
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                    }
-
-                    HStack(spacing: 8) {
-                        TextField(appState.l("Enter word or acronym..."), text: $newWord, onCommit: addWord)
-                            .textFieldStyle(.plain)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 7)
-                            .background(Color.primary.opacity(0.04))
-                            .cornerRadius(8)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .strokeBorder(Color.primary.opacity(0.1), lineWidth: 1)
-                            )
-
-                        Button(action: addWord) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "plus")
-                                    .font(.system(size: 12, weight: .bold))
-                                Text(appState.l("Add"))
-                                    .font(.system(size: 12, weight: .semibold))
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 7)
-                            .background(appState.selectedTheme.gradientColors[0].opacity(0.2))
-                            .foregroundStyle(appState.selectedTheme.gradientColors[0])
-                            .cornerRadius(8)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .strokeBorder(appState.selectedTheme.gradientColors[0].opacity(0.3), lineWidth: 1)
-                            )
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(newWord.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    }
-
-                    if wordsList.isEmpty {
-                        Text(appState.l("No custom words added yet."))
-                            .font(.system(size: 12))
-                            .foregroundStyle(.tertiary)
-                            .padding(.vertical, 6)
-                    } else {
-                        ScrollView(.vertical) {
-                            FlowLayout(spacing: 6) {
-                                ForEach(wordsList, id: \.self) { word in
-                                    HStack(spacing: 6) {
-                                        Text(word)
-                                            .font(.system(size: 12, weight: .medium, design: .rounded))
-                                            .foregroundStyle(.primary)
-
-                                        Button(action: { removeWord(word) }) {
-                                            Image(systemName: "xmark.circle.fill")
-                                                .font(.system(size: 11))
-                                                .foregroundStyle(.secondary)
-                                        }
-                                        .buttonStyle(.plain)
-                                    }
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 5)
-                                    .background(Color.primary.opacity(0.06))
-                                    .cornerRadius(12)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
-                                    )
-                                }
-                            }
-                            .padding(.vertical, 2)
-                        }
-                        .frame(maxHeight: 140)
                     }
                 }
                 .padding(14)
