@@ -28,7 +28,8 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
     var onBufferTap: ((AVAudioPCMBuffer) -> Void)?
 
     /// In-memory buffer of recorded samples for live preview.
-    @Published private(set) var recordedSamples: [Float] = []
+    private var recordedSamples: [Float] = []
+    private let samplesLock = NSLock()
 
     /// Current recording file URL (nil if not recording).
     var currentRecordingURL: URL? { recordingURL }
@@ -57,7 +58,9 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
     /// Starts recording and returns the URL of the output WAV file.
     @discardableResult
     func startRecording() throws -> URL {
+        samplesLock.lock()
         recordedSamples.removeAll()
+        samplesLock.unlock()
 
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("scribe_\(UUID().uuidString).wav")
@@ -83,13 +86,13 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
                 logger.error("Failed to write audio buffer: \(error.localizedDescription)")
             }
 
-            // Save samples in memory for live preview
+            // Save samples in memory for live preview safely on background thread
             if let floatData = buffer.floatChannelData?[0] {
                 let frameLength = Int(buffer.frameLength)
                 let samples = Array(UnsafeBufferPointer(start: floatData, count: frameLength))
-                Task { @MainActor in
-                    self?.recordedSamples.append(contentsOf: samples)
-                }
+                self?.samplesLock.lock()
+                self?.recordedSamples.append(contentsOf: samples)
+                self?.samplesLock.unlock()
             }
 
             // Stream buffer to any real-time consumers (like Apple Speech)
@@ -121,21 +124,25 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
     }
 
     /// Creates a valid WAV file from the currently recorded samples.
-    @MainActor
     func createSnapshot() -> URL? {
-        guard !recordedSamples.isEmpty, let format = currentFormat else { return nil }
-        
+        samplesLock.lock()
+        let samplesCopy = recordedSamples
+        let format = currentFormat
+        samplesLock.unlock()
+
+        guard !samplesCopy.isEmpty, let format = format else { return nil }
+
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("scribe_snapshot_\(UUID().uuidString).wav")
             
-        guard let pcmBuffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(recordedSamples.count)) else {
+        guard let pcmBuffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(samplesCopy.count)) else {
             return nil
         }
         
         pcmBuffer.frameLength = pcmBuffer.frameCapacity
         if let floatData = pcmBuffer.floatChannelData?[0] {
-            recordedSamples.withUnsafeBufferPointer { ptr in
-                floatData.assign(from: ptr.baseAddress!, count: recordedSamples.count)
+            samplesCopy.withUnsafeBufferPointer { ptr in
+                floatData.assign(from: ptr.baseAddress!, count: samplesCopy.count)
             }
         }
         

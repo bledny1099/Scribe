@@ -11,30 +11,41 @@
 		0DF6FA39C13FAA664C2B1BCF /* Localization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57EAB6F0DCC91FC7E7CD8CC2 /* Localization.swift */; };
 		106D104DA22F96D067B6AFAE /* RecordingPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDBC9A85A8E71D647F586CE8 /* RecordingPanel.swift */; };
 		16496219C494A82E4F8E12A0 /* PasteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83B4865575EEDC52C327959E /* PasteService.swift */; };
+		24625C66C056DA51236D47BB /* FirebaseSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8292B0055A0E08315F0E6894 /* FirebaseSyncService.swift */; };
+		3362D9645EC24874B59A8BDF /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = DD7B4611D68C13775268CE9F /* GoogleService-Info.plist */; };
 		3D0F8BC643B9E29439CB9A26 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 296BEB4DD4C8D78B9941E8AE /* SettingsView.swift */; };
 		3D4CEB771322E81FADBEFEF5 /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A23B5CC789E8DE4D6091ED9 /* AppTheme.swift */; };
 		42C06B77BF2D05A2B88BB73E /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD97DFDE70CA4008F57BF861 /* AppState.swift */; };
 		439CFE4FCD6BC182E6326810 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F51F6181FFB91102C35B51B3 /* HistoryView.swift */; };
+		45327FC491943C693F6912E3 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 14047F7F954970563D345122 /* FirebaseFirestore */; };
 		4A513B3CD77DC2BE2DE38D53 /* AudioRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5D0155AE02279EAD3E31A5E /* AudioRecorder.swift */; };
+		4E411B668B91066AC7889F39 /* SettingsView.swift.rej in Resources */ = {isa = PBXBuildFile; fileRef = 7BE33F0D25D076E5F4FF407F /* SettingsView.swift.rej */; };
 		57DD6CADB825E8F4A0C233E4 /* HistoryWindowManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16634D397D859653CF42C43B /* HistoryWindowManager.swift */; };
 		654788EAF4DDE1E76909FD20 /* SoundFeedback.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CBC037D320FA9FA6D66EBD7 /* SoundFeedback.swift */; };
 		74F7E12716D64CCFA449EDF8 /* NotePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92BFCE91C2AFC558D1E53CFE /* NotePickerView.swift */; };
 		7B374F86DA4A0185D8AF567E /* TranscriptionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03E3F01E9E6835C4E2BA39DD /* TranscriptionService.swift */; };
+		81075CAE965473FE90FB1E6F /* SettingsWindowManager.swift.bak in Resources */ = {isa = PBXBuildFile; fileRef = 0560E483B71809A7389B4CFC /* SettingsWindowManager.swift.bak */; };
 		8580267BDF5EBAA8994647DD /* LaunchAtLoginHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = A33DFF31D403EFBFA043388C /* LaunchAtLoginHelper.swift */; };
 		94E79D85DBC1F87C1915FE93 /* NoteExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21275C02C08F216BDCACFB8D /* NoteExporter.swift */; };
 		964CE5E111F740301E77DAB5 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 42BA0A3DE7484100CC7A997F /* AppIcon.icns */; };
+		A1D740A1FA748F2727660A1A /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = AAB19E91900D4083BC190BB7 /* FirebaseAuth */; };
 		A598B6DF353C2F3AB1A1BD89 /* PermissionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12FECAADAC70A1B20BDAB73F /* PermissionManager.swift */; };
 		B223389DD6B7D6F3AF1292C6 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = 56166BA038B43345787116D6 /* WhisperKit */; };
 		B5AAB7E45702E001D978DFE3 /* PermissionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15E2FB5F2EDF5D0662F04228 /* PermissionView.swift */; };
 		B5F183CCF688DA45CB85B5CD /* SettingsWindowManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E12FF7D7CD8AD8DB3095BDFF /* SettingsWindowManager.swift */; };
 		C4457AFB46EBCC8F7A30D469 /* ScribeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 572ACD849DC28AE0C35FCA9B /* ScribeApp.swift */; };
+		DA4CB4D935798B9AA0B282B9 /* check_braces.py in Resources */ = {isa = PBXBuildFile; fileRef = 81B038A3F5D1F61EC78284A5 /* check_braces.py */; };
+		DF55C717F04623E43AD14D2B /* SettingsView.swift.backup in Resources */ = {isa = PBXBuildFile; fileRef = 75F59F5D7EA50D31839E5F1C /* SettingsView.swift.backup */; };
 		E5DF0D3449E90A1A38B20F13 /* RecordingOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7F6E688C5ECB98B51153FD8 /* RecordingOverlayView.swift */; };
 		EAE5D4E4120F7F855B7ADB6D /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 2BBCEC781472965572C3D80F /* KeyboardShortcuts */; };
+		EB0FA60A0BD3F50F9FACC252 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 151B62BEBCC325AC8223A277 /* FirebaseCore */; };
 		F884AE0AF8654BE0E2DEC1DE /* TranscriptionHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = F913E4E26022CB6DD4F3A975 /* TranscriptionHistory.swift */; };
+		FF3A8B1B5F602F4138499565 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 9CCAD3105A335A2E5DDA45A9 /* GoogleSignIn */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		03E3F01E9E6835C4E2BA39DD /* TranscriptionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionService.swift; sourceTree = "<group>"; };
+		0560E483B71809A7389B4CFC /* SettingsWindowManager.swift.bak */ = {isa = PBXFileReference; path = SettingsWindowManager.swift.bak; sourceTree = "<group>"; };
 		11345C81116DC36BA7419B25 /* Scribe.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Scribe.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		12FECAADAC70A1B20BDAB73F /* PermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionManager.swift; sourceTree = "<group>"; };
 		15E2FB5F2EDF5D0662F04228 /* PermissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionView.swift; sourceTree = "<group>"; };
@@ -46,12 +57,17 @@
 		42BA0A3DE7484100CC7A997F /* AppIcon.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = AppIcon.icns; sourceTree = "<group>"; };
 		572ACD849DC28AE0C35FCA9B /* ScribeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScribeApp.swift; sourceTree = "<group>"; };
 		57EAB6F0DCC91FC7E7CD8CC2 /* Localization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Localization.swift; sourceTree = "<group>"; };
+		75F59F5D7EA50D31839E5F1C /* SettingsView.swift.backup */ = {isa = PBXFileReference; path = SettingsView.swift.backup; sourceTree = "<group>"; };
+		7BE33F0D25D076E5F4FF407F /* SettingsView.swift.rej */ = {isa = PBXFileReference; path = SettingsView.swift.rej; sourceTree = "<group>"; };
+		81B038A3F5D1F61EC78284A5 /* check_braces.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = check_braces.py; sourceTree = "<group>"; };
+		8292B0055A0E08315F0E6894 /* FirebaseSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseSyncService.swift; sourceTree = "<group>"; };
 		83B4865575EEDC52C327959E /* PasteService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteService.swift; sourceTree = "<group>"; };
 		92BFCE91C2AFC558D1E53CFE /* NotePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotePickerView.swift; sourceTree = "<group>"; };
 		9A23B5CC789E8DE4D6091ED9 /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
 		A33DFF31D403EFBFA043388C /* LaunchAtLoginHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginHelper.swift; sourceTree = "<group>"; };
 		B5D0155AE02279EAD3E31A5E /* AudioRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioRecorder.swift; sourceTree = "<group>"; };
 		BD97DFDE70CA4008F57BF861 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		DD7B4611D68C13775268CE9F /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		E12FF7D7CD8AD8DB3095BDFF /* SettingsWindowManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowManager.swift; sourceTree = "<group>"; };
 		E7F6E688C5ECB98B51153FD8 /* RecordingOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingOverlayView.swift; sourceTree = "<group>"; };
 		F51F6181FFB91102C35B51B3 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
@@ -66,6 +82,10 @@
 			files = (
 				B223389DD6B7D6F3AF1292C6 /* WhisperKit in Frameworks */,
 				EAE5D4E4120F7F855B7ADB6D /* KeyboardShortcuts in Frameworks */,
+				EB0FA60A0BD3F50F9FACC252 /* FirebaseCore in Frameworks */,
+				A1D740A1FA748F2727660A1A /* FirebaseAuth in Frameworks */,
+				45327FC491943C693F6912E3 /* FirebaseFirestore in Frameworks */,
+				FF3A8B1B5F602F4138499565 /* GoogleSignIn in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -99,6 +119,7 @@
 		9DCDD5E28C79618D3D7CE0FA /* Utilities */ = {
 			isa = PBXGroup;
 			children = (
+				8292B0055A0E08315F0E6894 /* FirebaseSyncService.swift */,
 				57EAB6F0DCC91FC7E7CD8CC2 /* Localization.swift */,
 				21275C02C08F216BDCACFB8D /* NoteExporter.swift */,
 				83B4865575EEDC52C327959E /* PasteService.swift */,
@@ -120,7 +141,10 @@
 				E7F6E688C5ECB98B51153FD8 /* RecordingOverlayView.swift */,
 				FDBC9A85A8E71D647F586CE8 /* RecordingPanel.swift */,
 				296BEB4DD4C8D78B9941E8AE /* SettingsView.swift */,
+				75F59F5D7EA50D31839E5F1C /* SettingsView.swift.backup */,
+				7BE33F0D25D076E5F4FF407F /* SettingsView.swift.rej */,
 				E12FF7D7CD8AD8DB3095BDFF /* SettingsWindowManager.swift */,
+				0560E483B71809A7389B4CFC /* SettingsWindowManager.swift.bak */,
 			);
 			path = UI;
 			sourceTree = "<group>";
@@ -130,6 +154,8 @@
 			children = (
 				42BA0A3DE7484100CC7A997F /* AppIcon.icns */,
 				BD97DFDE70CA4008F57BF861 /* AppState.swift */,
+				81B038A3F5D1F61EC78284A5 /* check_braces.py */,
+				DD7B4611D68C13775268CE9F /* GoogleService-Info.plist */,
 				A33DFF31D403EFBFA043388C /* LaunchAtLoginHelper.swift */,
 				572ACD849DC28AE0C35FCA9B /* ScribeApp.swift */,
 				379EC03AAF3EE4D9943BADF6 /* Shortcuts.swift */,
@@ -168,6 +194,10 @@
 			packageProductDependencies = (
 				56166BA038B43345787116D6 /* WhisperKit */,
 				2BBCEC781472965572C3D80F /* KeyboardShortcuts */,
+				151B62BEBCC325AC8223A277 /* FirebaseCore */,
+				AAB19E91900D4083BC190BB7 /* FirebaseAuth */,
+				14047F7F954970563D345122 /* FirebaseFirestore */,
+				9CCAD3105A335A2E5DDA45A9 /* GoogleSignIn */,
 			);
 			productName = Scribe;
 			productReference = 11345C81116DC36BA7419B25 /* Scribe.app */;
@@ -181,6 +211,8 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+				};
 			};
 			buildConfigurationList = 9E4712121E5F29BBE87574A2 /* Build configuration list for PBXProject "Scribe" */;
 			developmentRegion = en;
@@ -192,6 +224,8 @@
 			mainGroup = CF1A6569B97AB964E08BAAEC;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				3673031430673EC5A3BD0A49 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				7EA3A1CBA43F53E1B94CE204 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
 				5B077F580E67245F3CFD203C /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
 				C0BF801CA08972DF3CD817FC /* XCRemoteSwiftPackageReference "WhisperKit" */,
 			);
@@ -211,6 +245,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				964CE5E111F740301E77DAB5 /* AppIcon.icns in Resources */,
+				3362D9645EC24874B59A8BDF /* GoogleService-Info.plist in Resources */,
+				DF55C717F04623E43AD14D2B /* SettingsView.swift.backup in Resources */,
+				4E411B668B91066AC7889F39 /* SettingsView.swift.rej in Resources */,
+				81075CAE965473FE90FB1E6F /* SettingsWindowManager.swift.bak in Resources */,
+				DA4CB4D935798B9AA0B282B9 /* check_braces.py in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -224,6 +263,7 @@
 				42C06B77BF2D05A2B88BB73E /* AppState.swift in Sources */,
 				3D4CEB771322E81FADBEFEF5 /* AppTheme.swift in Sources */,
 				4A513B3CD77DC2BE2DE38D53 /* AudioRecorder.swift in Sources */,
+				24625C66C056DA51236D47BB /* FirebaseSyncService.swift in Sources */,
 				439CFE4FCD6BC182E6326810 /* HistoryView.swift in Sources */,
 				57DD6CADB825E8F4A0C233E4 /* HistoryWindowManager.swift in Sources */,
 				8580267BDF5EBAA8994647DD /* LaunchAtLoginHelper.swift in Sources */,
@@ -252,10 +292,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "-";
 				COMBINE_HIDPI_IMAGES = YES;
-				DEVELOPMENT_TEAM = Q228V98KD8;
 				INFOPLIST_FILE = Scribe/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -264,7 +302,6 @@
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.aleksei.scribe;
 				PRODUCT_NAME = Scribe;
-				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = macosx;
 				SWIFT_VERSION = 6.0;
 			};
@@ -393,10 +430,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "-";
 				COMBINE_HIDPI_IMAGES = YES;
-				DEVELOPMENT_TEAM = Q228V98KD8;
 				INFOPLIST_FILE = Scribe/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -405,7 +440,6 @@
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.aleksei.scribe;
 				PRODUCT_NAME = Scribe;
-				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = macosx;
 				SWIFT_VERSION = 6.0;
 			};
@@ -435,12 +469,28 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		3673031430673EC5A3BD0A49 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 11.0.0;
+			};
+		};
 		5B077F580E67245F3CFD203C /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/sindresorhus/KeyboardShortcuts";
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 2.0.0;
+			};
+		};
+		7EA3A1CBA43F53E1B94CE204 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/GoogleSignIn-iOS.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 7.0.0;
 			};
 		};
 		C0BF801CA08972DF3CD817FC /* XCRemoteSwiftPackageReference "WhisperKit" */ = {
@@ -454,6 +504,16 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		14047F7F954970563D345122 /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3673031430673EC5A3BD0A49 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
+		};
+		151B62BEBCC325AC8223A277 /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3673031430673EC5A3BD0A49 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
 		2BBCEC781472965572C3D80F /* KeyboardShortcuts */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 5B077F580E67245F3CFD203C /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */;
@@ -463,6 +523,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = C0BF801CA08972DF3CD817FC /* XCRemoteSwiftPackageReference "WhisperKit" */;
 			productName = WhisperKit;
+		};
+		9CCAD3105A335A2E5DDA45A9 /* GoogleSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7EA3A1CBA43F53E1B94CE204 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignIn;
+		};
+		AAB19E91900D4083BC190BB7 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3673031430673EC5A3BD0A49 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

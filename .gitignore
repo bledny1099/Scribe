@@ -22,5 +22,9 @@ DerivedData/
 
 # Logs & scratch files
 *.log
+*.py
+*Backup*.swift
+*_AnimatedStats.swift
+*_BeforeStatsRedesign.swift
 test_gradient.swift
 rules.md

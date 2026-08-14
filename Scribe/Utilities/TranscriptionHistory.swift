@@ -58,23 +58,135 @@ final class TranscriptionHistory: ObservableObject {
 
     @Published var records: [TranscriptionRecord] = []
     
-    // MARK: - Stats
-    
-    var totalWords: Int {
-        records.reduce(0) { $0 + $1.text.split(separator: " ").count }
-    }
-    
-    var totalDuration: TimeInterval {
-        records.reduce(0) { $0 + $1.duration }
-    }
-    
+    // MARK: - Precomputed Cached Stats
+    @Published private(set) var totalWords: Int = 0
+    @Published private(set) var totalDuration: TimeInterval = 0
+    @Published private(set) var dayStreak: Int = 0
+    @Published private(set) var cachedTodayStats = StatsSummary(wordCount: 0, charCount: 0, duration: 0, sessionCount: 0)
+    @Published private(set) var cachedWeekStats = StatsSummary(wordCount: 0, charCount: 0, duration: 0, sessionCount: 0)
+    @Published private(set) var cachedAllTimeStats = StatsSummary(wordCount: 0, charCount: 0, duration: 0, sessionCount: 0)
+    @Published private(set) var topSpokenWords: [(word: String, count: Int)] = []
+
     /// Estimated time saved in seconds assuming 40 words per minute typing speed
     var timeSaved: TimeInterval {
         let typingTimeMinutes = Double(totalWords) / 40.0
         let typingTimeSeconds = typingTimeMinutes * 60.0
         return max(0, typingTimeSeconds - totalDuration)
     }
-    
+
+    /// Calculate statistics summary for a given time frame (instant cached lookup).
+    func stats(for timeFrame: StatsTimeFrame) -> StatsSummary {
+        switch timeFrame {
+        case .today:   return cachedTodayStats
+        case .week:    return cachedWeekStats
+        case .allTime: return cachedAllTimeStats
+        }
+    }
+
+    /// Recomputes all stats and caches them in memory ONCE when records change.
+    private func recomputeAllStatsCache() {
+        let calendar = Calendar.current
+        let now = Date()
+
+        // 1. Total Words & Total Duration
+        var totalW = 0
+        var totalD: TimeInterval = 0
+        for rec in records {
+            let wordsCount = rec.text.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.count
+            totalW += wordsCount
+            totalD += rec.duration
+        }
+        self.totalWords = totalW
+        self.totalDuration = totalD
+
+        // 2. Day Streak
+        if records.isEmpty {
+            self.dayStreak = 0
+        } else {
+            let today = calendar.startOfDay(for: now)
+            let uniqueDates = Set(records.map { calendar.startOfDay(for: $0.date) })
+            var sortedDates = Array(uniqueDates).sorted(by: >)
+            var streak = 0
+            var dateToCheck = today
+            if sortedDates.first == today {
+                streak = 1
+                sortedDates.removeFirst()
+                dateToCheck = calendar.date(byAdding: .day, value: -1, to: today)!
+            } else if sortedDates.first == calendar.date(byAdding: .day, value: -1, to: today)! {
+                dateToCheck = sortedDates.first!
+            }
+            if streak > 0 || sortedDates.first == dateToCheck {
+                for date in sortedDates {
+                    if date == dateToCheck {
+                        streak += 1
+                        dateToCheck = calendar.date(byAdding: .day, value: -1, to: dateToCheck)!
+                    } else {
+                        break
+                    }
+                }
+            }
+            self.dayStreak = streak
+        }
+
+        // 3. TimeFrame Summaries
+        let startOfToday = calendar.startOfDay(for: now)
+        let weekAgo = calendar.date(byAdding: .day, value: -6, to: startOfToday) ?? now
+
+        var todayW = 0, todayC = 0, todayS = 0; var todayDur: TimeInterval = 0
+        var weekW = 0, weekC = 0, weekS = 0; var weekDur: TimeInterval = 0
+        var allC = 0
+
+        for rec in records {
+            let w = rec.text.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.count
+            let c = rec.text.count
+            let dur = rec.duration
+
+            allC += c
+
+            if calendar.isDateInToday(rec.date) {
+                todayW += w
+                todayC += c
+                todayDur += dur
+                todayS += 1
+            }
+
+            if rec.date >= weekAgo {
+                weekW += w
+                weekC += c
+                weekDur += dur
+                weekS += 1
+            }
+        }
+
+        self.cachedTodayStats = StatsSummary(wordCount: todayW, charCount: todayC, duration: todayDur, sessionCount: todayS)
+        self.cachedWeekStats = StatsSummary(wordCount: weekW, charCount: weekC, duration: weekDur, sessionCount: weekS)
+        self.cachedAllTimeStats = StatsSummary(wordCount: totalW, charCount: allC, duration: totalD, sessionCount: records.count)
+
+        // 4. Top Spoken Words
+        let stopWords: Set<String> = [
+            "the", "be", "to", "of", "and", "a", "in", "that", "have", "i", "it", "for", "not", "on", "with", "he", "as", "you", "do", "at",
+            "this", "but", "his", "by", "from", "they", "we", "say", "her", "she", "or", "an", "will", "my", "one", "all", "would", "there",
+            "their", "what", "so", "up", "out", "if", "about", "who", "get", "which", "go", "me", "is", "are", "was", "were", "been",
+            "и", "в", "во", "не", "что", "он", "на", "я", "с", "со", "как", "а", "то", "все", "она", "так", "его", "но", "да", "ты", "к",
+            "у", "же", "вы", "за", "бы", "по", "только", "ее", "мне", "было", "вот", "от", "меня", "еще", "нет", "о", "из", "ему", "теперь",
+            "когда", "даже", "ну", "вдруг", "ли", "если", "уже", "или", "ни", "быть", "был", "него", "до", "вас", "нибудь", "опять", "уж"
+        ]
+
+        var wordCounts: [String: Int] = [:]
+        for record in records {
+            let words = record.text
+                .lowercased()
+                .components(separatedBy: CharacterSet.alphanumerics.inverted)
+                .filter { $0.count > 2 && !stopWords.contains($0) }
+
+            for word in words {
+                wordCounts[word, default: 0] += 1
+            }
+        }
+
+        self.topSpokenWords = wordCounts.sorted { $0.value > $1.value }.prefix(12).map { (word: $0.key, count: $0.value) }
+    }
+
     private let levelNames = [
         "Drip", "Trickle", "Puddle", "Drinking Fountain", "Leaky Faucet",
         "Garden Hose", "Sprinkler", "Kitchen Tap", "Rain Shower", "Spring",
@@ -111,13 +223,14 @@ final class TranscriptionHistory: ObservableObject {
     
     var currentLevelColor: Color {
         switch currentLevel {
-        case 1...5: return .cyan
-        case 6...10: return .blue.opacity(0.8) // Soft blue for rain shower, etc
-        case 11...20: return .blue
-        case 21...30: return .indigo
-        case 31...40: return .purple
-        case 41...49: return .pink
-        default: return .red
+        case 1...5: return Color(red: 0.0, green: 0.85, blue: 0.95) // Neon Cyan
+        case 6...10: return Color(red: 0.1, green: 0.70, blue: 1.0) // Vibrant Sky Blue
+        case 11...15: return Color(red: 0.25, green: 0.5, blue: 1.0) // Deep Electric Blue
+        case 16...20: return Color(red: 0.55, green: 0.35, blue: 1.0) // Electric Purple
+        case 21...30: return Color(red: 0.85, green: 0.3, blue: 1.0) // Neon Magenta
+        case 31...40: return Color(red: 1.0, green: 0.3, blue: 0.65) // Hot Pink
+        case 41...49: return Color(red: 1.0, green: 0.55, blue: 0.1) // Amber Gold
+        default: return Color(red: 1.0, green: 0.25, blue: 0.25) // Crimson Flame
         }
     }
     
@@ -153,6 +266,7 @@ final class TranscriptionHistory: ObservableObject {
     /// Add a new transcription record and persist.
     func add(_ record: TranscriptionRecord) {
         records.insert(record, at: 0) // newest first
+        recomputeAllStatsCache()
         saveToDisk()
         logger.info("Saved transcription (\(record.text.prefix(50))…), total: \(self.records.count)")
     }
@@ -160,58 +274,22 @@ final class TranscriptionHistory: ObservableObject {
     /// Delete a record by ID.
     func delete(id: UUID) {
         records.removeAll { $0.id == id }
+        recomputeAllStatsCache()
         saveToDisk()
     }
 
     /// Delete records at given offsets (for SwiftUI onDelete).
     func delete(at offsets: IndexSet) {
         records.remove(atOffsets: offsets)
+        recomputeAllStatsCache()
         saveToDisk()
     }
 
     /// Clear all history.
     func clearAll() {
         records.removeAll()
+        recomputeAllStatsCache()
         saveToDisk()
-    }
-
-    /// Calculate statistics summary for a given time frame.
-    func stats(for timeFrame: StatsTimeFrame) -> StatsSummary {
-        let calendar = Calendar.current
-        let now = Date()
-
-        let filtered = records.filter { record in
-            switch timeFrame {
-            case .today:
-                return calendar.isDateInToday(record.date)
-            case .week:
-                // Use a rolling 7-day window instead of calendar week to prevent boundary issues
-                if let startOfToday = calendar.startOfDay(for: now) as Date?,
-                   let weekAgo = calendar.date(byAdding: .day, value: -6, to: startOfToday) {
-                    return record.date >= weekAgo
-                }
-                return false
-            case .allTime:
-                return true
-            }
-        }
-
-        let words = filtered.reduce(0) { total, rec in
-            total + rec.text.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.count
-        }
-        let chars = filtered.reduce(0) { total, rec in
-            total + rec.text.count
-        }
-        let totalDuration = filtered.reduce(0.0) { total, rec in
-            total + rec.duration
-        }
-
-        return StatsSummary(
-            wordCount: words,
-            charCount: chars,
-            duration: totalDuration,
-            sessionCount: filtered.count
-        )
     }
 
     // MARK: - Persistence
@@ -219,15 +297,18 @@ final class TranscriptionHistory: ObservableObject {
     private func loadFromDisk() {
         guard FileManager.default.fileExists(atPath: fileURL.path) else {
             logger.info("No history file found, starting fresh")
+            recomputeAllStatsCache()
             return
         }
 
         do {
             let data = try Data(contentsOf: fileURL)
             records = try JSONDecoder().decode([TranscriptionRecord].self, from: data)
+            recomputeAllStatsCache()
             logger.info("Loaded \(self.records.count) history records")
         } catch {
             logger.error("Failed to load history: \(error.localizedDescription)")
+            recomputeAllStatsCache()
         }
     }
 

@@ -120,34 +120,55 @@ enum OverlaySize: String, CaseIterable, Identifiable {
 enum PanelAppearance: String, CaseIterable, Identifiable {
     case dark
     case light
+    case liquidGlass
 
     var id: String { rawValue }
 
     var displayName: String {
         switch self {
-        case .dark:  "Dark"
-        case .light: "Light"
+        case .dark:        "Dark"
+        case .light:       "Light"
+        case .liquidGlass: "Liquid Glass"
+        }
+    }
+
+    var shortName: String {
+        switch self {
+        case .dark:        "Dark"
+        case .light:       "Light"
+        case .liquidGlass: "Liquid Glass"
         }
     }
 
     var icon: String {
         switch self {
-        case .dark:  "moon.fill"
-        case .light: "sun.max"
+        case .dark:        "moon.fill"
+        case .light:       "sun.max"
+        case .liquidGlass: "drop.fill"
         }
     }
 
     var nsAppearance: NSAppearance {
         switch self {
-        case .dark:  NSAppearance(named: .darkAqua)!
-        case .light: NSAppearance(named: .aqua)!
+        case .dark:        NSAppearance(named: .darkAqua)!
+        case .light:       NSAppearance(named: .aqua)!
+        case .liquidGlass: NSAppearance(named: .vibrantDark)!
         }
     }
 
     var material: NSVisualEffectView.Material {
         switch self {
-        case .dark:  .hudWindow
-        case .light: .sheet
+        case .dark:        .underWindowBackground
+        case .light:       .sheet
+        case .liquidGlass: .hudWindow
+        }
+    }
+
+    var backgroundColor: NSColor {
+        switch self {
+        case .dark:        NSColor(red: 0.05, green: 0.05, blue: 0.07, alpha: 0.88)
+        case .light:       NSColor(white: 0.95, alpha: 0.85)
+        case .liquidGlass: NSColor.clear
         }
     }
 }
@@ -156,22 +177,25 @@ enum PanelAppearance: String, CaseIterable, Identifiable {
 
 /// How transcribed text is inserted.
 enum PasteMode: String, CaseIterable, Identifiable {
-    case paste   // Replace clipboard and paste
-    case append  // Append to current clipboard text and paste
+    case paste             // Replace clipboard and paste
+    case append            // Append to current clipboard text and paste
+    case integrationsOnly  // Export to notes/integrations only (no active window paste)
 
     var id: String { rawValue }
 
     var displayName: String {
         switch self {
-        case .paste:  "Replace"
-        case .append: "Append"
+        case .paste:            return "Replace"
+        case .append:           return "Append"
+        case .integrationsOnly: return "Integrations Only"
         }
     }
 
     var icon: String {
         switch self {
-        case .paste:  "doc.on.clipboard"
-        case .append: "text.append"
+        case .paste:            return "doc.on.clipboard"
+        case .append:           return "text.append"
+        case .integrationsOnly: return "link"
         }
     }
 }
@@ -208,21 +232,18 @@ enum SubtitleBackground: String, CaseIterable, Identifiable {
 /// Placement mode for Live Preview text (Floating Pill vs Inside Card).
 enum LivePreviewMode: String, CaseIterable, Identifiable {
     case external = "external"
-    case embedded = "embedded"
 
     var id: String { rawValue }
 
     var displayName: String {
         switch self {
         case .external: "Floating Pill"
-        case .embedded: "Inside Card"
         }
     }
 
     var icon: String {
         switch self {
         case .external: "capsule"
-        case .embedded: "rectangle.inset.filled"
         }
     }
 }
@@ -307,15 +328,73 @@ final class AppState: ObservableObject {
     @Published var isRecording    = false
     @Published var isTranscribing = false
     @Published var audioLevel: Float = 0
-    @Published var recordingStatus: RecordingStatus = .idle
+    @Published var recordingStatus: RecordingStatus = .idle {
+        didSet {
+            if recordingStatus == .transcribing {
+                startTranscribingDotTimer()
+            } else {
+                stopTranscribingDotTimer()
+            }
+        }
+    }
+    @AppStorage("cleanFillerWords") var cleanFillerWords: Bool = true
+    @Published var targetAppName: String = ""
+    @Published var targetAppIcon: NSImage? = nil
+
+    public func captureTargetApplication() {
+        let scribeID = Bundle.main.bundleIdentifier
+        if let app = NSWorkspace.shared.runningApplications.first(where: { $0.isActive && $0.bundleIdentifier != scribeID }) {
+            targetAppName = app.localizedName ?? ""
+            targetAppIcon = app.icon
+        } else if let app = NSWorkspace.shared.menuBarOwningApplication, app.bundleIdentifier != scribeID {
+            targetAppName = app.localizedName ?? ""
+            targetAppIcon = app.icon
+        } else {
+            targetAppName = ""
+            targetAppIcon = nil
+        }
+    }
+
     @Published var recordingDuration: TimeInterval = 0
     @Published var livePreviewText: String = ""
+
+    @Published public var transcribingDotCount: Int = 3
+    private var transcribingDotTimer: Timer?
+
+    public func startTranscribingDotTimer() {
+        stopTranscribingDotTimer()
+        transcribingDotCount = 1
+        transcribingDotTimer = Timer.scheduledTimer(withTimeInterval: 0.35, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self = self else { return }
+                self.transcribingDotCount = (self.transcribingDotCount % 3) + 1
+            }
+        }
+    }
+
+    public func stopTranscribingDotTimer() {
+        transcribingDotTimer?.invalidate()
+        transcribingDotTimer = nil
+        transcribingDotCount = 3
+    }
+
+    public var transcribingStatusText: String {
+        let base = l("Transcribing")
+        let dots = String(repeating: ".", count: transcribingDotCount)
+        return "\(base)\(dots)"
+    }
 
     // MARK: App Storage Preferences
 
     @AppStorage("selectedLanguage") var selectedLanguage: String = "auto"
     @AppStorage("selectedUILanguage") var selectedUILanguage: String = "auto"
-    @AppStorage("selectedModel") var selectedModel: String = "openai_whisper-small"
+    @AppStorage("selectedModel") var selectedModel: String = "openai_whisper-small" {
+        didSet {
+            if oldValue != selectedModel {
+                preloadModel()
+            }
+        }
+    }
 
     /// Helper for string localization using current selected UI language.
     func l(_ key: String) -> String {
@@ -341,11 +420,46 @@ final class AppState: ObservableObject {
     @AppStorage("enableNotion") public var enableNotion: Bool = false
     @AppStorage("notionIntegrationToken") public var notionIntegrationToken: String = ""
     @AppStorage("notionPageId") public var notionPageId: String = ""
+    @AppStorage("integrationExportMode") public var integrationExportMode: String = "both" // "both", "notesOnly", "windowOnly"
     @AppStorage("vocabulary") public var vocabulary: String = ""
     @AppStorage("recognitionEngine") public var recognitionEngine: String = "Both"
+    @AppStorage("recognitionMode") public var recognitionMode: String = "multilingual"
+    @AppStorage("singleDictationLanguage") public var singleDictationLanguage: String = "ru"
     @AppStorage("pushToTalk") public var pushToTalk: Bool = false
+    @AppStorage("enableCloudAI") public var enableCloudAI: Bool = false
+    @AppStorage("cloudAIProvider") public var cloudAIProviderRaw: String = CloudAIProvider.groq.rawValue
+    @AppStorage("groqAPIKey") public var groqAPIKey: String = ""
+    @AppStorage("openAIAPIKey") public var openAIAPIKey: String = ""
+    @AppStorage("selectedAIRefinementMode") public var selectedAIRefinementModeRaw: String = AIRefinementMode.raw.rawValue
+
+    public var cloudAIProvider: CloudAIProvider {
+        get { CloudAIProvider(rawValue: cloudAIProviderRaw) ?? .groq }
+        set { cloudAIProviderRaw = newValue.rawValue }
+    }
+
+    public var selectedAIRefinementMode: AIRefinementMode {
+        get { AIRefinementMode(rawValue: selectedAIRefinementModeRaw) ?? .raw }
+        set { selectedAIRefinementModeRaw = newValue.rawValue }
+    }
+
+    public var activeCloudAPIKey: String {
+        switch cloudAIProvider {
+        case .groq:                 return groqAPIKey
+        case .openAI, .scribeCloud: return openAIAPIKey
+        }
+    }
+
     @AppStorage("defaultNoteTags") public var defaultNoteTags: String = ""
     @AppStorage("appendDateToNotes") public var appendDateToNotes: Bool = true
+    @AppStorage("enableDirectNote") public var enableDirectNote: Bool = true
+    @AppStorage("directNoteTargetApp") var directNoteTargetAppRaw: String = NoteApp.appleNotes.rawValue
+    @Published public var isDirectNoteRecording: Bool = false
+
+    /// Computed property for type-safe direct note target app access.
+    var directNoteTargetApp: NoteApp {
+        get { NoteApp(rawValue: directNoteTargetAppRaw) ?? .appleNotes }
+        set { directNoteTargetAppRaw = newValue.rawValue }
+    }
 
     /// Computed property for type-safe theme access.
     var selectedTheme: AppTheme {
@@ -358,9 +472,6 @@ final class AppState: ObservableObject {
         get { OverlayStyle(rawValue: selectedOverlayStyleRaw) ?? .waveform }
         set {
             selectedOverlayStyleRaw = newValue.rawValue
-            if !newValue.supportsEmbeddedPreview && livePreviewMode == .embedded {
-                livePreviewMode = .external
-            }
         }
     }
 
@@ -379,7 +490,10 @@ final class AppState: ObservableObject {
     /// Computed property for type-safe panel appearance access.
     var selectedPanelAppearance: PanelAppearance {
         get { PanelAppearance(rawValue: selectedPanelAppearanceRaw) ?? .dark }
-        set { selectedPanelAppearanceRaw = newValue.rawValue }
+        set {
+            selectedPanelAppearanceRaw = newValue.rawValue
+            SettingsWindowManager.shared.updateAppearance(newValue)
+        }
     }
 
     /// Computed property for type-safe subtitle background access.
@@ -393,17 +507,10 @@ final class AppState: ObservableObject {
     /// Computed property for type-safe live preview mode access.
     var livePreviewMode: LivePreviewMode {
         get {
-            if !selectedOverlayStyle.supportsEmbeddedPreview {
-                return .external
-            }
             return LivePreviewMode(rawValue: livePreviewModeRaw) ?? .external
         }
         set {
-            if !selectedOverlayStyle.supportsEmbeddedPreview {
-                livePreviewModeRaw = LivePreviewMode.external.rawValue
-            } else {
-                livePreviewModeRaw = newValue.rawValue
-            }
+            livePreviewModeRaw = newValue.rawValue
         }
     }
 
@@ -455,7 +562,9 @@ final class AppState: ObservableObject {
         }
     }
 
+    // MARK: - Onboarding
     @AppStorage("hasCompletedFirstLaunchSetup") private var hasCompletedFirstLaunchSetup: Bool = false
+    @AppStorage("userName") public var userName: String = ""
 
     private func checkFirstLaunchPermissions() {
         if !hasCompletedFirstLaunchSetup {
@@ -513,6 +622,7 @@ final class AppState: ObservableObject {
 
     private func startRecording() {
         hideSettingsPreviewPanel()
+        captureTargetApplication()
         do {
             try audioRecorder.startRecording()
             isRecording     = true
@@ -558,16 +668,60 @@ final class AppState: ObservableObject {
         isTranscribing = true
         recordingStatus = .transcribing
 
+        let localProvider = self.cloudAIProvider
+        let localMode = self.selectedAIRefinementMode
+        let localAPIKey = self.activeCloudAPIKey
+        let localEnableCloud = self.enableCloudAI
+
         Task {
             do {
                 logger.info("Starting transcription with model=\(self.selectedModel), lang=\(self.selectedLanguage)…")
                 let langParam = self.selectedLanguage == "auto" ? nil : self.selectedLanguage
-                let text = try await transcriptionService.transcribe(
-                    audioURL: audioURL,
-                    modelName: self.selectedModel,
-                    language: langParam,
-                    autoTranslate: self.autoTranslate
-                )
+                var text = ""
+
+                if localEnableCloud && !localAPIKey.isEmpty {
+                    logger.info("Using Cloud AI transcription via \(localProvider.displayName)…")
+                    do {
+                        text = try await CloudAIService.shared.transcribeAudio(
+                            audioURL: audioURL,
+                            provider: localProvider,
+                            apiKey: localAPIKey,
+                            language: langParam
+                        )
+                    } catch {
+                        logger.warning("Cloud transcription failed (\(error.localizedDescription)), falling back to local WhisperKit…")
+                        text = try await transcriptionService.transcribe(
+                            audioURL: audioURL,
+                            modelName: self.selectedModel,
+                            language: langParam,
+                            autoTranslate: self.autoTranslate
+                        )
+                    }
+                } else {
+                    text = try await transcriptionService.transcribe(
+                        audioURL: audioURL,
+                        modelName: self.selectedModel,
+                        language: langParam,
+                        autoTranslate: self.autoTranslate
+                    )
+                }
+
+                if self.cleanFillerWords {
+                    text = TranscriptionService.removeFillerWordsAndDuplicates(text)
+                }
+                text = TextReplacer.apply(replacements: self.textReplacements, vocabulary: self.vocabulary, to: text)
+
+                // LLM Refinement if Cloud AI is active and an AI mode is selected
+                if localEnableCloud && !localAPIKey.isEmpty && localMode != .raw {
+                    logger.info("Refining text with LLM (\(localMode.displayName))…")
+                    text = try await CloudAIService.shared.refineText(
+                        text: text,
+                        mode: localMode,
+                        provider: localProvider,
+                        apiKey: localAPIKey
+                    )
+                }
+
                 logger.info("Transcription result: '\(text)'")
 
                 if text.isEmpty {
@@ -575,11 +729,18 @@ final class AppState: ObservableObject {
                     recordingStatus = .error("No speech")
                     try? await Task.sleep(for: .seconds(1.5))
                     hidePanel()
+                } else if TranscriptionService.isVoiceCancelCommand(text) {
+                    logger.info("Voice cancel command detected: '\(text)'")
+                    recordingStatus = .error("Cancelled")
+                    if self.soundFeedbackEnabled { SoundFeedback.play(.error) }
+                    try? await Task.sleep(for: .seconds(1.2))
+                    hidePanel()
                 } else {
                     // Use selected paste mode
                     switch self.selectedPasteMode {
                     case .paste:  PasteService.copyToClipboard(text)
                     case .append: PasteService.appendToClipboard(text)
+                    case .integrationsOnly: break
                     }
                     recordingStatus = .done
                     if self.soundFeedbackEnabled { SoundFeedback.play(.transcriptionDone) }
@@ -593,11 +754,21 @@ final class AppState: ObservableObject {
                     )
                     TranscriptionHistory.shared.add(record)
 
-                    logger.info("Text copied to clipboard, simulating paste…")
+                    // Export to notes (Apple Notes, Obsidian, Notion)
+                    NoteExporter.export(text: text, state: self)
 
-                    // Brief delay so the user sees the checkmark, then paste
-                    try? await Task.sleep(for: .milliseconds(400))
-                    PasteService.simulatePaste()
+                    let isNotesOnly = self.isDirectNoteRecording ||
+                                      self.selectedPasteMode == .integrationsOnly ||
+                                      self.integrationExportMode == "notesOnly"
+
+                    if isNotesOnly {
+                        logger.info("Integrations-only mode active: Skipping active window paste.")
+                    } else {
+                        logger.info("Text copied to clipboard, simulating paste…")
+                        // Brief delay so the user sees the checkmark, then paste
+                        try? await Task.sleep(for: .milliseconds(400))
+                        PasteService.simulatePaste()
+                    }
 
                     try? await Task.sleep(for: .seconds(0.8))
                     hidePanel()
@@ -622,8 +793,9 @@ final class AppState: ObservableObject {
     private func showPanel() {
         let overlay = RecordingOverlayView()
             .environmentObject(self)
+            .environmentObject(audioRecorder)
 
-        let isEmbedded = livePreviewEnabled && livePreviewMode == .embedded && selectedOverlayStyle.supportsEmbeddedPreview && !livePreviewText.isEmpty
+        let isEmbedded = false
         let panel = RecordingPanel.make(
             style: selectedOverlayStyle,
             appearance: selectedPanelAppearance,
@@ -707,7 +879,7 @@ final class AppState: ObservableObject {
     /// Resize the live recording panel's NSWindow when embedded preview text changes.
     private func resizeRecordingPanelForEmbeddedPreview() {
         guard let panel = recordingPanel, (isRecording || isTranscribing) else { return }
-        guard livePreviewEnabled, livePreviewMode == .embedded, selectedOverlayStyle.supportsEmbeddedPreview else { return }
+        return // Embedded preview removed
 
         let isEmbedded = !livePreviewText.isEmpty
         let newSize = RecordingPanel.size(
@@ -717,7 +889,9 @@ final class AppState: ObservableObject {
             previewTextLength: livePreviewText.count
         )
 
-        let overlay = RecordingOverlayView().environmentObject(self)
+        let overlay = RecordingOverlayView()
+            .environmentObject(self)
+            .environmentObject(audioRecorder)
         panel.setContent(
             overlay,
             style: selectedOverlayStyle,
@@ -743,6 +917,7 @@ final class AppState: ObservableObject {
     // MARK: - Floating Preview Panel for Settings (5-second auto-dismiss)
 
     private var settingsPreviewPanel: RecordingPanel?
+    private var settingsSubtitlePanel: NSPanel?
     var isShowingPreview: Bool { settingsPreviewPanel != nil }
     private var settingsPreviewAnimTimer: Timer?
     private var previewDismissTimer: Timer?
@@ -760,10 +935,12 @@ final class AppState: ObservableObject {
 
         if settingsPreviewAnimTimer == nil {
             settingsPreviewAnimTimer = Timer.scheduledTimer(withTimeInterval: 0.08, repeats: true) { [weak self] _ in
-                guard let self = self, !self.isRecording && !self.isTranscribing else { return }
-                let level = Float.random(in: 0.25...0.65)
-                withAnimation(.linear(duration: 0.08)) {
-                    self.audioLevel = level
+                DispatchQueue.main.async {
+                    guard let self = self, !self.isRecording && !self.isTranscribing else { return }
+                    let level = Float.random(in: 0.25...0.65)
+                    withAnimation(.linear(duration: 0.08)) {
+                        self.audioLevel = level
+                    }
                 }
             }
         }
@@ -796,36 +973,94 @@ final class AppState: ObservableObject {
         guard let screen = NSScreen.main else { return .zero }
         let screenFrame = screen.visibleFrame
 
-        if let settingsFrame = SettingsWindowManager.shared.windowFrame ?? PermissionWindowManager.shared.windowFrame {
-            // Put below the window, centered
-            let preferredX = settingsFrame.midX - size.width / 2
-            let maxAllowedX = screenFrame.maxX - size.width - 20
-            let x = max(screenFrame.minX + 20, min(preferredX, maxAllowedX))
-            let preferredY = settingsFrame.minY - size.height - 20
-            let y = max(screenFrame.minY + 20, preferredY)
-            return NSPoint(x: x, y: y)
+        var activeFrame: NSRect? = nil
+        if let permFrame = PermissionWindowManager.shared.windowFrame, NSApp.keyWindow == PermissionWindowManager.shared.window {
+            activeFrame = permFrame
+        } else if let setFrame = SettingsWindowManager.shared.windowFrame, NSApp.keyWindow == SettingsWindowManager.shared.window {
+            activeFrame = setFrame
         } else {
+            activeFrame = SettingsWindowManager.shared.windowFrame ?? PermissionWindowManager.shared.windowFrame
+        }
+
+        guard let settingsFrame = activeFrame else {
             let x = screenFrame.midX - size.width / 2
-            let y = screenFrame.minY + 60
+            let y = screenFrame.minY + 160
             return NSPoint(x: x, y: y)
+        }
+
+        let spaceRight = screenFrame.maxX - settingsFrame.maxX
+        let spaceLeft = settingsFrame.minX - screenFrame.minX
+        let spaceBelow = settingsFrame.minY - screenFrame.minY
+        let spaceAbove = screenFrame.maxY - settingsFrame.maxY
+
+        let padding: CGFloat = 16
+
+        // 1. If enough space on the right, place on the right
+        if spaceRight >= size.width + padding {
+            let x = settingsFrame.maxX + padding
+            let preferredY = settingsFrame.midY - size.height / 2
+            let y = max(screenFrame.minY + padding, min(preferredY, screenFrame.maxY - size.height - padding))
+            return NSPoint(x: x, y: y)
+        }
+
+        // 2. If enough space on the left, place on the left
+        if spaceLeft >= size.width + padding {
+            let x = settingsFrame.minX - size.width - padding
+            let preferredY = settingsFrame.midY - size.height / 2
+            let y = max(screenFrame.minY + padding, min(preferredY, screenFrame.maxY - size.height - padding))
+            return NSPoint(x: x, y: y)
+        }
+
+        // 3. If neither side fits fully, check if bottom or top has enough space
+        if spaceBelow >= size.height + padding {
+            let x = max(screenFrame.minX + padding, min(settingsFrame.midX - size.width / 2, screenFrame.maxX - size.width - padding))
+            let y = settingsFrame.minY - size.height - padding
+            return NSPoint(x: x, y: y)
+        }
+
+        if spaceAbove >= size.height + padding {
+            let x = max(screenFrame.minX + padding, min(settingsFrame.midX - size.width / 2, screenFrame.maxX - size.width - padding))
+            let y = settingsFrame.maxY + padding
+            return NSPoint(x: x, y: y)
+        }
+
+        // 4. Fallback: place on the side (right vs left) that has MORE available space
+        if spaceRight >= spaceLeft {
+            let x = min(settingsFrame.maxX + padding, screenFrame.maxX - size.width - padding)
+            let preferredY = settingsFrame.midY - size.height / 2
+            let y = max(screenFrame.minY + padding, min(preferredY, screenFrame.maxY - size.height - padding))
+            return NSPoint(x: max(screenFrame.minX + padding, x), y: y)
+        } else {
+            let x = max(screenFrame.minX + padding, settingsFrame.minX - size.width - padding)
+            let preferredY = settingsFrame.midY - size.height / 2
+            let y = max(screenFrame.minY + padding, min(preferredY, screenFrame.maxY - size.height - padding))
+            return NSPoint(x: min(screenFrame.maxX - size.width - padding, x), y: y)
         }
     }
 
     func updateSettingsPreviewPanel(isDragging: Bool = false) {
         guard !isRecording && !isTranscribing else { return }
+        if isDragging && (settingsPreviewPanel == nil || settingsPreviewPanel?.isVisible == false) {
+            return
+        }
 
         let overlay = RecordingOverlayView()
             .environmentObject(self)
             .environmentObject(audioRecorder)
 
-        let isEmbeddedActive = livePreviewEnabled && livePreviewMode == .embedded && selectedOverlayStyle.supportsEmbeddedPreview && !livePreviewText.isEmpty
+        let isEmbeddedActive = false
         let targetSize = RecordingPanel.size(
             for: selectedOverlayStyle,
             overlaySize: selectedOverlaySize,
             isEmbeddedPreviewActive: isEmbeddedActive,
             previewTextLength: livePreviewText.count
         )
-        let targetRadius = RecordingPanel.radius(for: selectedOverlayStyle, overlaySize: selectedOverlaySize, isEmbeddedPreviewActive: isEmbeddedActive)
+        let targetRadius = RecordingPanel.radius(
+            for: selectedOverlayStyle, 
+            overlaySize: selectedOverlaySize, 
+            isEmbeddedPreviewActive: isEmbeddedActive,
+            previewTextLength: livePreviewText.count
+        )
         let targetOrigin = targetPreviewOrigin(for: selectedOverlayStyle, size: targetSize, isDragging: isDragging)
         let targetFrame = NSRect(origin: targetOrigin, size: targetSize)
 
@@ -876,6 +1111,57 @@ final class AppState: ObservableObject {
                 ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
                 panel.animator().alphaValue = 1
                 panel.animator().setFrameOrigin(targetOrigin)
+            }
+        }
+        
+        // Handle Subtitle Panel for external mode
+        if livePreviewEnabled && !livePreviewText.isEmpty {
+            if settingsSubtitlePanel == nil {
+                let subPanel = NSPanel(
+                    contentRect: NSRect(x: 0, y: 0, width: 800, height: 100),
+                    styleMask: [.borderless, .nonactivatingPanel],
+                    backing: .buffered,
+                    defer: false
+                )
+                subPanel.isFloatingPanel = true
+                subPanel.level = .floating
+                subPanel.backgroundColor = .clear
+                subPanel.isOpaque = false
+                subPanel.hasShadow = false
+                subPanel.ignoresMouseEvents = true
+
+                let subView = SubtitleOverlayView().environmentObject(self)
+                let host = NSHostingView(rootView: subView)
+                host.layer?.backgroundColor = .clear
+                subPanel.contentView = host
+                
+                settingsSubtitlePanel = subPanel
+                
+                // Animate entrance
+                subPanel.alphaValue = 0
+                settingsPreviewPanel?.addChildWindow(subPanel, ordered: .below)
+                
+                NSAnimationContext.runAnimationGroup { ctx in
+                    ctx.duration = 0.35
+                    ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                    subPanel.animator().alphaValue = 1
+                }
+            }
+            
+            // Position
+            if let subPanel = settingsSubtitlePanel, let panel = settingsPreviewPanel {
+                let frame = panel.frame
+                let subY = frame.minY - 110
+                let subX = frame.midX - 400
+                subPanel.setFrameOrigin(NSPoint(x: subX, y: subY))
+            }
+            
+        } else {
+            // Remove subtitle panel if no longer needed
+            if let subPanel = settingsSubtitlePanel {
+                subPanel.orderOut(nil)
+                subPanel.close()
+                settingsSubtitlePanel = nil
             }
         }
     }
@@ -936,6 +1222,30 @@ final class AppState: ObservableObject {
                         self.toggleRecording()
                     }
                 } else {
+                    self.toggleRecording()
+                }
+            }
+        }
+
+        KeyboardShortcuts.onKeyDown(for: .directNoteRecording) { [weak self] in
+            Task { @MainActor in
+                guard let self = self, self.enableDirectNote else { return }
+                if self.pushToTalk && !self.isRecording {
+                    self.isDirectNoteRecording = true
+                    self.toggleRecording()
+                }
+            }
+        }
+
+        KeyboardShortcuts.onKeyUp(for: .directNoteRecording) { [weak self] in
+            Task { @MainActor in
+                guard let self = self, self.enableDirectNote else { return }
+                if self.pushToTalk {
+                    if self.isRecording {
+                        self.toggleRecording()
+                    }
+                } else {
+                    self.isDirectNoteRecording = true
                     self.toggleRecording()
                 }
             }
@@ -1005,7 +1315,7 @@ final class AppState: ObservableObject {
 
     private func startLivePreviewTimer() {
         livePreviewTimer?.invalidate()
-        livePreviewTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+        livePreviewTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 await self?.runLivePreview()
             }

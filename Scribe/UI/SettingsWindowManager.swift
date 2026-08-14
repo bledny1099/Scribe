@@ -6,7 +6,7 @@ import SwiftUI
 final class SettingsWindowManager {
     static let shared = SettingsWindowManager()
 
-    private var window: NSWindow?
+    var window: NSWindow?
     private var blurView: NSVisualEffectView?
     private weak var currentAppState: AppState?
 
@@ -32,6 +32,7 @@ final class SettingsWindowManager {
         newWindow.standardWindowButton(.closeButton)?.isHidden = true
         newWindow.standardWindowButton(.miniaturizeButton)?.isHidden = true
         newWindow.standardWindowButton(.zoomButton)?.isHidden = true
+        newWindow.minSize = NSSize(width: 750, height: 500)
 
         newWindow.isMovableByWindowBackground = false
         newWindow.isOpaque = false
@@ -88,6 +89,8 @@ final class SettingsWindowManager {
     func updateAppearance(_ appearance: PanelAppearance) {
         window?.appearance = appearance.nsAppearance
         blurView?.material = appearance.material
+        blurView?.wantsLayer = true
+        blurView?.layer?.backgroundColor = appearance.backgroundColor.cgColor
     }
 
     var windowFrame: NSRect? {

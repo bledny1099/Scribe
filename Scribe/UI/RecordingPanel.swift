@@ -50,16 +50,25 @@ final class RecordingPanel: NSPanel {
         return NSSize(width: round(base.width * scale), height: round(base.height * scale))
     }
 
-    static func radius(for style: OverlayStyle, overlaySize: OverlaySize = .s100, isEmbeddedPreviewActive: Bool = false) -> CGFloat {
-        let baseRadius: CGFloat
+    static func radius(
+        for style: OverlayStyle, 
+        overlaySize: OverlaySize = .s100, 
+        isEmbeddedPreviewActive: Bool = false,
+        previewTextLength: Int = 0
+    ) -> CGFloat {
+        let currentSize = self.size(
+            for: style, 
+            overlaySize: overlaySize, 
+            isEmbeddedPreviewActive: isEmbeddedPreviewActive, 
+            previewTextLength: previewTextLength
+        )
         switch style {
-        case .classic:  baseRadius = 24
-        case .waveform: baseRadius = waveformSize.height / 2
-        case .minimal:  baseRadius = minimalSize.height / 2
-        case .ecg:      baseRadius = 24
-        case .orb:      baseRadius = 28
+        case .classic:  return round(24 * overlaySize.scale)
+        case .ecg:      return round(24 * overlaySize.scale)
+        case .orb:      return round(28 * overlaySize.scale)
+        case .waveform, .minimal:
+            return currentSize.height / 2
         }
-        return round(baseRadius * overlaySize.scale)
     }
 
     private var cornerRadiusValue: CGFloat = 24
@@ -91,7 +100,12 @@ final class RecordingPanel: NSPanel {
             isEmbeddedPreviewActive: isEmbeddedPreviewActive,
             previewTextLength: previewTextLength
         )
-        let radius: CGFloat = Self.radius(for: style, overlaySize: overlaySize)
+        let radius: CGFloat = Self.radius(
+            for: style, 
+            overlaySize: overlaySize,
+            isEmbeddedPreviewActive: isEmbeddedPreviewActive,
+            previewTextLength: previewTextLength
+        )
 
         let panel = RecordingPanel(
             contentRect: NSRect(origin: .zero, size: size),
@@ -111,6 +125,8 @@ final class RecordingPanel: NSPanel {
     func updateAppearance(_ appearance: PanelAppearance) {
         self.appearance = appearance.nsAppearance
         blurView.material = appearance.material
+        blurView.wantsLayer = true
+        blurView.layer?.backgroundColor = appearance.backgroundColor.cgColor
     }
 
     // MARK: - Corner Masking (Prevents Grey Square Artifacts)
@@ -129,13 +145,13 @@ final class RecordingPanel: NSPanel {
         if cachedMaskSize == size && cachedMaskRadius == radius, let img = cachedMaskImage {
             blurView.maskImage = img
         } else {
-            // Create an exact NSImage mask matching the rounded shape
-            let maskImage = NSImage(size: size, flipped: false) { rect in
-                let path = NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)
-                NSColor.black.set()
-                path.fill()
-                return true
-            }
+            let maskImage = NSImage(size: size)
+            maskImage.lockFocus()
+            let path = NSBezierPath(roundedRect: NSRect(origin: .zero, size: size), xRadius: radius, yRadius: radius)
+            NSColor.black.set()
+            path.fill()
+            maskImage.unlockFocus()
+            
             cachedMaskSize = size
             cachedMaskRadius = radius
             cachedMaskImage = maskImage
@@ -210,7 +226,12 @@ final class RecordingPanel: NSPanel {
             ])
         }
 
-        let targetRadius = Self.radius(for: style, overlaySize: overlaySize, isEmbeddedPreviewActive: isEmbeddedPreviewActive)
+        let targetRadius = Self.radius(
+            for: style, 
+            overlaySize: overlaySize, 
+            isEmbeddedPreviewActive: isEmbeddedPreviewActive,
+            previewTextLength: previewTextLength
+        )
         updateCornerRadius(targetRadius, targetSize: targetSize)
         invalidateShadow()
     }
@@ -220,7 +241,7 @@ final class RecordingPanel: NSPanel {
         guard let screen = NSScreen.main else { center(); return }
         let screenFrame = screen.visibleFrame
         let x = screenFrame.midX - frame.width / 2
-        let y = screenFrame.minY + 60 + yOffset
+        let y = screenFrame.minY + 160 + yOffset
         setFrameOrigin(NSPoint(x: x, y: y))
     }
 
@@ -229,7 +250,7 @@ final class RecordingPanel: NSPanel {
         guard let screen = NSScreen.main else { center(); return }
         let screenFrame = screen.visibleFrame
         let x = screenFrame.maxX - frame.width - 60
-        let y = screenFrame.minY + 60
+        let y = screenFrame.minY + 160
         setFrameOrigin(NSPoint(x: x, y: y))
     }
 

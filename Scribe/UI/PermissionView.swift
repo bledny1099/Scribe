@@ -135,6 +135,7 @@ struct PermissionWelcomeView: View {
         case permissions
         case customization
         case voiceTest
+        case profile
     }
 
     @EnvironmentObject var appState: AppState
@@ -438,28 +439,7 @@ struct PermissionWelcomeView: View {
                                         .padding(.top, 4)
                                     }
                                     
-                                    if appState.livePreviewEnabled && appState.selectedOverlayStyle.supportsEmbeddedPreview {
-                                        VStack(spacing: 8) {
-                                            HStack {
-                                                Text(appState.l("Display Mode"))
-                                                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                                                    .foregroundStyle(.primary)
-                                                Spacer()
-                                                LiquidGlassSegmentedPicker(
-                                                    items: LivePreviewMode.allCases,
-                                                    selection: Binding(
-                                                        get: { appState.livePreviewMode },
-                                                        set: {
-                                                            appState.livePreviewMode = $0
-                                                            appState.showSettingsPreviewFor5Seconds()
-                                                        }
-                                                    ),
-                                                    label: { (appState.l($0.displayName), $0.icon) }
-                                                )
-                                            }
-                                        }
-                                        .padding(.top, 4)
-                                    }
+
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 
@@ -545,6 +525,45 @@ struct PermissionWelcomeView: View {
                             if isTestingVoice {
                                 stopVoiceTest()
                             }
+                            withAnimation {
+                                currentStep = .profile
+                            }
+                        }) {
+                            HStack(spacing: 8) {
+                                Text("Continue")
+                                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                                Image(systemName: "arrow.right")
+                                    .font(.system(size: 12, weight: .bold))
+                            }
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 11)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(LinearGradient(colors: [Color.blue, Color.purple], startPoint: .leading, endPoint: .trailing))
+                            )
+                            .shadow(color: .blue.opacity(0.3), radius: 8, y: 4)
+                            .opacity(voiceTestSuccess ? 1.0 : 0.5)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(!voiceTestSuccess)
+                    }
+                    
+                    if currentStep == .profile {
+                        GlassSection(title: "Profile", icon: "person.circle.fill") {
+                            VStack(spacing: 16) {
+                                Text("What should we call you?")
+                                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                
+                                TextField("Your Name or Nickname", text: $appState.userName)
+                                    .textFieldStyle(.roundedBorder)
+                                    .font(.system(size: 14, design: .rounded))
+                            }
+                            .padding(.vertical, 10)
+                        }
+                        
+                        Button(action: {
                             if let onComplete = onComplete {
                                 onComplete()
                             } else {
@@ -563,10 +582,10 @@ struct PermissionWelcomeView: View {
                                     .fill(LinearGradient(colors: [Color.blue, Color.purple], startPoint: .leading, endPoint: .trailing))
                             )
                             .shadow(color: .blue.opacity(0.3), radius: 8, y: 4)
-                            .opacity(voiceTestSuccess ? 1.0 : 0.5)
+                            .opacity(appState.userName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.5 : 1.0)
                         }
                         .buttonStyle(.plain)
-                        .disabled(!voiceTestSuccess)
+                        .disabled(appState.userName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
                 }
                 .padding(.horizontal, 24)
@@ -580,7 +599,7 @@ struct PermissionWelcomeView: View {
         }
         .onPreferenceChange(PermissionWindowSizePreferenceKey.self) { size in
             // The total height is the scrollview content height (size.height) + header height (108) + bottom padding (24) + safe area.
-            let totalHeight = size.height + 140
+            let totalHeight = size.height + 180
             PermissionWindowManager.shared.animateToSize(CGSize(width: size.width, height: totalHeight))
         }
         .ignoresSafeArea(.container, edges: .top)
@@ -674,7 +693,7 @@ struct PermissionWelcomeView: View {
 final class PermissionWindowManager {
     static let shared = PermissionWindowManager()
 
-    private var window: NSWindow?
+    var window: NSWindow?
     private var appState: AppState?
     
     var windowFrame: NSRect? { window?.frame }
@@ -723,7 +742,7 @@ final class PermissionWindowManager {
         }
 
         let newWindow = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 600, height: 660),
+            contentRect: NSRect(x: 0, y: 0, width: 600, height: 720),
             styleMask: [.titled, .fullSizeContentView, .closable],
             backing: .buffered,
             defer: false
@@ -749,6 +768,8 @@ final class PermissionWindowManager {
         blurView.material = .popover
         blurView.blendingMode = .behindWindow
         blurView.state = .active
+
+        newWindow.delegate = PermissionWindowDelegate.shared
 
         let welcomeView = PermissionWelcomeView(onComplete: { [weak self] in
             guard let self = self else { return }
@@ -783,5 +804,22 @@ final class PermissionWindowManager {
     func closeWindow() {
         window?.close()
         window = nil
+    }
+
+    var currentAppState: AppState? {
+        return appState
+    }
+    
+    func windowDidMove() {
+        currentAppState?.updateSettingsPreviewPanel(isDragging: true)
+    }
+}
+
+@MainActor
+private class PermissionWindowDelegate: NSObject, NSWindowDelegate, @unchecked Sendable {
+    static let shared = PermissionWindowDelegate()
+
+    func windowDidMove(_ notification: Notification) {
+        PermissionWindowManager.shared.windowDidMove()
     }
 }

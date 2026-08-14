@@ -179,7 +179,7 @@ struct ClassicOverlay: View {
         case .idle:              ""
         case .recording:         "Recording"
         case .loadingModel:      "Loading model"
-        case .transcribing:      "Transcribing"
+        case .transcribing:      appState.transcribingStatusText
         case .done:              "Done ✓"
         case .error(let msg):    msg
         }
@@ -202,7 +202,7 @@ struct WaveformOverlay: View {
     private var theme: AppTheme { appState.selectedTheme }
 
     var body: some View {
-        let isEmbeddedActive = appState.livePreviewEnabled && appState.livePreviewMode == .embedded && appState.selectedOverlayStyle.supportsEmbeddedPreview && !appState.livePreviewText.isEmpty
+        let isEmbeddedActive = false
         let cardHeight = RecordingPanel.size(
             for: .waveform,
             overlaySize: appState.selectedOverlaySize,
@@ -220,8 +220,26 @@ struct WaveformOverlay: View {
                 waveformBars
                     .frame(maxWidth: .infinity, maxHeight: RecordingPanel.waveformSize.height)
 
-                // Right: status label + stop button
+                // Right: status label + target app badge + stop button
                 HStack(spacing: 8) {
+                    if appState.enableCloudAI && appState.selectedAIRefinementMode != .raw && (appState.recordingStatus == .recording || appState.recordingStatus == .transcribing) {
+                        HStack(spacing: 4) {
+                            Image(systemName: appState.selectedAIRefinementMode.icon)
+                                .font(.system(size: 10, weight: .bold))
+                            Text(appState.selectedAIRefinementMode.displayName)
+                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                        }
+                        .foregroundStyle(appState.selectedTheme.gradientColors.first!)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(appState.selectedTheme.gradientColors.first!.opacity(0.12))
+                        .cornerRadius(6)
+                    }
+
+                    if !appState.targetAppName.isEmpty && (appState.recordingStatus == .recording || appState.recordingStatus == .transcribing) {
+                        TargetAppBadgeView(name: appState.targetAppName, icon: appState.targetAppIcon)
+                    }
+
                     if appState.durationVisible && (appState.recordingStatus == .recording || appState.isShowingPreview) {
                         Text(appState.isShowingPreview ? "0:05" : appState.formattedDuration)
                             .font(.system(size: 14, weight: .medium, design: .rounded).monospacedDigit())
@@ -356,7 +374,7 @@ struct WaveformOverlay: View {
         case .idle:              ""
         case .recording:         "Recording…"
         case .loadingModel:      "Loading…"
-        case .transcribing:      "Transcribing…"
+        case .transcribing:      appState.transcribingStatusText
         case .done:              "Done ✓"
         case .error(let msg):    msg
         }
@@ -414,7 +432,7 @@ struct MinimalOverlay: View {
         switch appState.recordingStatus {
         case .idle: return ""
         case .loadingModel: return "Loading…"
-        case .transcribing: return "Transcribing…"
+        case .transcribing: return appState.transcribingStatusText
         case .done: return "Done ✓"
         case .error(let msg): return msg
         default: return ""
@@ -429,7 +447,7 @@ struct ECGOverlay: View {
     private var theme: AppTheme { appState.selectedTheme }
     
     var body: some View {
-        let isEmbeddedActive = appState.livePreviewEnabled && appState.livePreviewMode == .embedded && appState.selectedOverlayStyle.supportsEmbeddedPreview && !appState.livePreviewText.isEmpty
+        let isEmbeddedActive = false
         let cardHeight = RecordingPanel.size(
             for: .ecg,
             overlaySize: appState.selectedOverlaySize,
@@ -590,7 +608,7 @@ struct OrbOverlay: View {
         case .idle:              ""
         case .recording:         "Recording"
         case .loadingModel:      "Loading model"
-        case .transcribing:      "Transcribing"
+        case .transcribing:      appState.transcribingStatusText
         case .done:              "Done ✓"
         case .error(let msg):    msg
         }
@@ -603,10 +621,12 @@ struct SubtitleOverlayView: View {
 
     var body: some View {
         VStack {
-            if !appState.livePreviewText.isEmpty && appState.livePreviewMode == .external && (appState.recordingStatus == .recording || appState.isShowingPreview) {
+            if !appState.livePreviewText.isEmpty && (appState.recordingStatus == .recording || appState.isShowingPreview) {
                 Text(appState.livePreviewText)
                     .font(.system(size: 14, weight: .medium, design: .rounded))
                     .foregroundStyle(.white)
+                    .lineLimit(4)
+                    .minimumScaleFactor(0.7)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
                     .background(
@@ -629,5 +649,37 @@ struct SubtitleOverlayView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+}
+
+// MARK: - Target App Badge (Displays icon and name of application receiving transcription)
+struct TargetAppBadgeView: View {
+    let name: String
+    let icon: NSImage?
+
+    var body: some View {
+        HStack(spacing: 5) {
+            if let icon = icon {
+                Image(nsImage: icon)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 14, height: 14)
+                    .cornerRadius(3)
+            }
+            Text(name)
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(.primary.opacity(0.85))
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(
+            Capsule()
+                .fill(Color.primary.opacity(0.08))
+        )
+        .overlay(
+            Capsule()
+                .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5)
+        )
     }
 }

@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scribe Pro - V4 Native Elevated</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-theme="lumina">
+
+  <!-- Ambient Dynamic Background -->
+  <div class="bg-orb orb-1"></div>
+  <div class="bg-orb orb-2"></div>
+
+  <nav class="nav">
+    <div class="nav-content">
+      <span class="logo">Scribe</span>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#customization">Design</a>
+        <a href="#demo">Demo</a>
+        <a href="#pricing">Pricing</a>
+      </div>
+      <a href="#pricing" class="btn btn-primary">Get Scribe</a>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <div class="badge">New: Scribe 3.4</div>
+    <h1 class="hero-title">Your voice.<br>Instantly written.</h1>
+    <p class="hero-subtitle">Lightning-fast, private speech-to-text for macOS. Powered by local Neural Engine and fast cloud LLMs for perfect dictation everywhere you type.</p>
+    <div class="hero-actions">
+      <a href="#pricing" class="btn btn-primary btn-large">Download for Mac</a>
+      <a href="#demo" class="btn btn-secondary btn-large">Try Demo</a>
+    </div>
+  </header>
+
+  <!-- Customization Section -->
+  <section id="customization" class="customization-section">
+    <div class="section-header">
+      <h2>Personalize your flow.</h2>
+      <p>Switch themes to instantly adapt Scribe to your mood.</p>
+    </div>
+
+    <!-- Replica of the App Settings -->
+    <div class="settings-app-container">
+      <div class="settings-header">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12.5 4.5L14 6l-7 7H5.5v-1.5l7-7zm-9 10H5v2H3.5v-2zm15-4.5c.3-.3.3-.8 0-1.1L16 6.4c-.3-.3-.8-.3-1.1 0l-1.5 1.5 2.5 2.5 1.6-1.4z"/>
+        </svg>
+        APPEARANCE
+      </div>
+
+      <div class="settings-panel">
+        <!-- Themes -->
+        <div class="theme-row">
+          <div class="theme-option" data-target="aurora">
+            <div class="theme-circle aurora"></div>
+            <span>Aurora</span>
+          </div>
+          <div class="theme-option" data-target="ember">
+            <div class="theme-circle ember"></div>
+            <span>Ember</span>
+          </div>
+          <div class="theme-option" data-target="ocean">
+            <div class="theme-circle ocean"></div>
+            <span>Ocean</span>
+          </div>
+          <div class="theme-option active" data-target="lumina">
+            <div class="theme-circle lumina">
+              <svg class="check-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            </div>
+            <span>Lumina</span>
+          </div>
+          <div class="theme-option" data-target="midnight">
+            <div class="theme-circle midnight"></div>
+            <span>Midnight</span>
+          </div>
+          <div class="theme-option" data-target="emerald">
+            <div class="theme-circle emerald"></div>
+            <span>Emerald</span>
+          </div>
+        </div>
+
+        <!-- Toggles -->
+        <div class="settings-row">
+          <span class="setting-label">Sound Feedback</span>
+          <div class="toggle"><div class="knob"></div></div>
+        </div>
+
+        <div class="settings-row">
+          <span class="setting-label">Show Recording Timer</span>
+          <div class="toggle"><div class="knob"></div></div>
+        </div>
+
+        <!-- Overlay Style -->
+        <div class="settings-row">
+          <span class="setting-label">Overlay Style</span>
+          <div class="segmented-control icons-control" id="overlayStyleControl">
+            <div class="segment" data-style="dot">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="3" fill="currentColor"></circle></svg>
+            </div>
+            <div class="segment active" data-style="waveform">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M8 9v6M16 9v6M4 12v1M20 12v1"></path></svg>
+            </div>
+            <div class="segment" data-style="pill">
+              <svg width="22" height="14" viewBox="0 0 24 16" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="1" width="22" height="14" rx="7"></rect></svg>
+            </div>
+            <div class="segment" data-style="pulse">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l3-8 4 16 3-8h4"></path></svg>
+            </div>
+            <div class="segment" data-style="magic">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"></path></svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Overlay Size -->
+        <div class="settings-row">
+          <span class="setting-label">Overlay Size</span>
+          <div class="segmented-control text-control">
+            <div class="segment">100%</div>
+            <div class="segment active">90%</div>
+            <div class="segment">80%</div>
+            <div class="segment">70%</div>
+          </div>
+        </div>
+
+        <!-- Panel Appearance -->
+        <div class="settings-row last">
+          <span class="setting-label">Panel Appearance</span>
+          <div class="segmented-control text-control appearance-control">
+            <div class="segment">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+              Dark
+            </div>
+            <div class="segment">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path></svg>
+              Light
+            </div>
+            <div class="segment active glass-active">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path></svg>
+              Liquid Glass
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Overlay Visual Preview -->
+    <div class="overlay-preview-container">
+      <div class="preview-title">Live Overlay Preview</div>
+      <div class="preview-desktop">
+        
+        <!-- 1. Dot Overlay -->
+        <div class="preview-overlay overlay-dot">
+          <div class="red-dot"></div>
+        </div>
+        
+        <!-- 2. Waveform Overlay (Active by default) -->
+        <div class="preview-overlay overlay-waveform active">
+          <div class="bar bar-1"></div>
+          <div class="bar bar-2"></div>
+          <div class="bar bar-3"></div>
+          <div class="bar bar-4"></div>
+          <div class="bar bar-5"></div>
+        </div>
+
+        <!-- 3. Pill Overlay -->
+        <div class="preview-overlay overlay-pill">
+          <div class="red-dot"></div>
+          <span>00:12</span>
+        </div>
+
+        <!-- 4. Pulse Overlay -->
+        <div class="preview-overlay overlay-pulse">
+          <svg class="pulse-line" width="60" height="20" viewBox="0 0 60 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M0 10h15l5-8 10 16 5-8h25"></path>
+          </svg>
+        </div>
+
+        <!-- 5. Magic Sparkles Overlay -->
+        <div class="preview-overlay overlay-magic">
+          <span class="magic-icon">✨</span>
+          <span class="magic-text">Refining...</span>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <section class="demo-section" id="demo">
+    <div class="mac-window mac-card">
+      <div class="mac-titlebar">
+        <div class="mac-controls"><span></span><span></span><span></span></div>
+        <div class="mac-title">Scribe Refinement</div>
+      </div>
+      <div class="mac-body">
+        <div class="sidebar">
+          <button class="mode-btn active" data-mode="raw">Raw Stream</button>
+          <button class="mode-btn" data-mode="executive">Executive Tone</button>
+        </div>
+        <div class="main-content">
+          <button id="micBtn" class="mic-btn">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path></svg>
+            <span>Simulate Voice</span>
+          </button>
+          <div class="output-box">
+            <div id="output" class="output">"So, uh, эээ we should update the Scribe Pro API response models..."</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="features" id="features">
+    <div class="feature-card mac-card">
+      <div class="icon blue">✨</div>
+      <h3>Smart Refinement</h3>
+      <p>Converts casual voice streams into professional prose instantly.</p>
+    </div>
+    <div class="feature-card mac-card">
+      <div class="icon green">⌨️</div>
+      <h3>Universal Injection</h3>
+      <p>Types directly into Xcode, Slack, Notion, and Terminal.</p>
+    </div>
+    <div class="feature-card mac-card">
+      <div class="icon orange">🔒</div>
+      <h3>Absolute Privacy</h3>
+      <p>100% local processing. Your voice never leaves your Mac.</p>
+    </div>
+  </section>
+
+  <section class="pricing" id="pricing">
+    <div class="price-card mac-card">
+      <h3>Local Tier</h3>
+      <div class="price">$0</div>
+      <p>100% offline transcription via WhisperKit.</p>
+      <button class="btn btn-secondary">Download Free</button>
+    </div>
+    <div class="price-card pro mac-card">
+      <div class="popular">Most Popular</div>
+      <h3>Pro Tier</h3>
+      <div class="price">$3.99<span>/mo</span></div>
+      <p>Ultra-fast Groq Cloud AI + LLM Voice Refinement.</p>
+      <button class="btn btn-primary">Subscribe to Pro</button>
+    </div>
+  </section>
+
+  <footer>
+    <p>&copy; 2026 Scribe Technologies.</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

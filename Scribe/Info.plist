@@ -31,5 +31,17 @@
     <string>Scribe needs automation access to create and append transcriptions to Apple Notes.</string>
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>com.googleusercontent.apps.321189764918-vobhrcjfdjivobepej0fo6gblklldf3l</string>
+                <string>com.aleksei.scribe</string>
+            </array>
+        </dict>
+    </array>
 </dict>
 </plist>

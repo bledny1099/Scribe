@@ -50,18 +50,18 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
     /// Initial prompt that conditions Whisper to produce punctuation and recognise common brand names.
     /// Whisper uses this as "previous context" so it learns the expected output style.
     private let initialPrompt: [String: String] = [
-        "en": "Terms: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai.",
-        "ru": "Термины: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai. Я зашел в dashboard и там нету API-ключей.",
-        "es": "Términos: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai.",
-        "de": "Begriffe: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai.",
-        "fr": "Termes: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai.",
-        "it": "Termini: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai.",
-        "zh": "术语：Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai.",
-        "ja": "用語：Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai.",
-        "pt": "Termos: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai.",
-        "tr": "Terimler: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai.",
-        "uk": "Терміни: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai. Я зашел в dashboard и там нету API-ключей.",
-        "auto": "Terms: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai. Я зашел в dashboard и там нету API-ключей."
+        "en": "Use proper punctuation and capitalization. Terms: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, транскрибатор.",
+        "ru": "Используйте правильную пунктуацию, запятые и заглавные буквы. Термины: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, транскрибатор, Хабр, Айти. Я зашел в dashboard, и там нету API-ключей.",
+        "es": "Términos: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, транскрибатор.",
+        "de": "Begriffe: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, транскрибатор.",
+        "fr": "Termes: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, транскрибатор.",
+        "it": "Termini: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, транскрибатор.",
+        "zh": "术语：Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, транскрибатор.",
+        "ja": "用語：Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, транскрибатор.",
+        "pt": "Termos: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, транскрибатор.",
+        "tr": "Terimler: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, транскрибатор.",
+        "uk": "Терміни: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, транскрибатор. Я зашел в dashboard и там нету API-ключей.",
+        "auto": "Terms: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, транскрибатор. Я зашел в dashboard и там нету API-ключей."
     ]
 
     // MARK: - Model Lifecycle
@@ -106,6 +106,11 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         speechRecognizer = recognizer
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
+        request.taskHint = .dictation
+        if #available(macOS 13, *) {
+            request.addsPunctuation = true
+        }
+        
         // Try to enable on-device recognition for privacy/speed, if available
         if #available(macOS 13.0, *) {
             if recognizer.supportsOnDeviceRecognition {
@@ -116,7 +121,11 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             "ChatGPT", "Claude", "paperclip-ai", "dashboard", "API-ключей",
             "Bybit", "Binance", "MetaMask", "Solana", "TikTok", "Instagram",
             "YouTube", "Snapchat", "Telegram", "Viber", "Gemini", "Kimi",
-            "Perplexity", "Midjourney", "OpenAI"
+            "Perplexity", "Midjourney", "OpenAI", "Claude Code", "Ollama",
+            "PyTorch", "Supabase", "SwiftData", "Docker", "Kubernetes",
+            "Next.js", "Rust", "WhisperKit", "HuggingFace", "Vercel",
+            "TailwindCSS", "PostgreSQL", "GraphQL", "TypeScript", "LLM", "Llama", "LangChain",
+            "Google", "Antigravity", "IDE", "транскрибатор", "Хабр", "айти", "Скрайб"
         ]
         
         let customVocabItems = customVocabulary.components(separatedBy: ",")
@@ -289,6 +298,11 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             options: .regularExpression
         )
 
+        // Remove repetitive noise hallucinations like ǎr ǎr ǎr
+        if cleaned.contains("ǎr") {
+            cleaned = cleaned.replacingOccurrences(of: "ǎr", with: "")
+        }
+
         // Collapse multiple spaces into one and trim
         cleaned = cleaned.replacingOccurrences(
             of: "\\s{2,}",
@@ -298,6 +312,53 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         .trimmingCharacters(in: .whitespacesAndNewlines)
 
         return cleaned
+    }
+
+    /// Removes filler words (эээ, ну, типа, uh, um, etc.) and duplicate adjacent words.
+    public static func removeFillerWordsAndDuplicates(_ text: String) -> String {
+        guard !text.isEmpty else { return text }
+        
+        var result = text
+
+        // 1. Remove interjection filler patterns (standalone or surrounded by punctuation/spaces)
+        let fillerRegexes = [
+            "\\b(?i)(эээ+|ээ+|э-э|гмм+|ммм+|э-мм+|uh+|um+|err+|ahh+)\\b",
+            "(?<=^|\\s)(?i)(ну|типа|как бы|короче)(?=\\s|\\,|\\.|\\!|\\?|$)"
+        ]
+
+        for pattern in fillerRegexes {
+            result = result.replacingOccurrences(
+                of: pattern,
+                with: "",
+                options: .regularExpression
+            )
+        }
+
+        // 2. Remove duplicate consecutive words (e.g. "мы мы пошли" -> "мы пошли", "I I think" -> "I think")
+        let duplicateWordRegex = "\\b(\\w+)\\s+\\1\\b"
+        result = result.replacingOccurrences(
+            of: duplicateWordRegex,
+            with: "$1",
+            options: [.regularExpression, .caseInsensitive]
+        )
+
+        // 3. Clean up leading/trailing punctuation artifacts
+        result = result.replacingOccurrences(of: "\\s+,", with: ",", options: .regularExpression)
+        result = result.replacingOccurrences(of: "\\s+\\.", with: ".", options: .regularExpression)
+        result = result.replacingOccurrences(of: ",,", with: ",")
+        result = result.replacingOccurrences(of: "\\s{2,}", with: " ", options: .regularExpression)
+
+        return result.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Checks if the transcribed text is a voice cancellation command.
+    public static func isVoiceCancelCommand(_ text: String) -> Bool {
+        let cleaned = text.trimmingCharacters(in: CharacterSet.alphanumerics.inverted).lowercased()
+        let cancelKeywords = [
+            "отмена", "отмени", "стереть", "сброс", "не надо", "удали", "забудь",
+            "cancel", "nevermind", "erase", "scratch that", "abort", "reset"
+        ]
+        return cancelKeywords.contains(cleaned)
     }
 }
 
@@ -316,34 +377,312 @@ struct Replacement: Identifiable, Codable, Equatable {
 }
 
 final class TextReplacer {
-    /// Applies an array of replacements to a string.
-    /// It performs case-insensitive word-boundary matching.
-    static func apply(replacements: [Replacement], to text: String) -> String {
+    static let defaultPhoneticReplacements: [Replacement] = [
+        Replacement(phrase: "аджанскребатор", replacement: "транскрибатор"),
+        Replacement(phrase: "транскребатор", replacement: "транскрибатор"),
+        Replacement(phrase: "транскребация", replacement: "транскрибация"),
+        Replacement(phrase: "скребация", replacement: "транскрибация"),
+        Replacement(phrase: "трескребация", replacement: "транскрибация"),
+        Replacement(phrase: "раскребация", replacement: "транскрибация"),
+        Replacement(phrase: "трескребаться", replacement: "транскрибировать"),
+        Replacement(phrase: "тридцать кибаксов", replacement: "транскрибатор"),
+        Replacement(phrase: "ликвит глаз", replacement: "Liquid Glass"),
+        Replacement(phrase: "ликвид глаз", replacement: "Liquid Glass"),
+        Replacement(phrase: "лайф привью", replacement: "Live Preview"),
+        Replacement(phrase: "лайфпривью", replacement: "Live Preview"),
+        Replacement(phrase: "антиградик", replacement: "Antigravity"),
+        Replacement(phrase: "анти гравити", replacement: "Antigravity"),
+        Replacement(phrase: "антигравити", replacement: "Antigravity"),
+        Replacement(phrase: "anti gravity", replacement: "Antigravity"),
+        Replacement(phrase: "antigravity", replacement: "Antigravity"),
+        Replacement(phrase: "google antigravity", replacement: "Google Antigravity"),
+        Replacement(phrase: "google anti-gravity", replacement: "Google Antigravity"),
+        Replacement(phrase: "пейпер клип", replacement: "Paperclip"),
+        Replacement(phrase: "пейперклип", replacement: "Paperclip"),
+        Replacement(phrase: "уфлотинг пил", replacement: "Floating Pill"),
+        Replacement(phrase: "флотинг пил", replacement: "Floating Pill"),
+        
+        // Slang & Music & Community terms
+        Replacement(phrase: "top chick", replacement: "топчик"),
+        Replacement(phrase: "top chic", replacement: "топчик"),
+        Replacement(phrase: "топ чик", replacement: "топчик"),
+        Replacement(phrase: "topchik", replacement: "топчик"),
+        Replacement(phrase: "топчик", replacement: "топчик"),
+        Replacement(phrase: "свэг", replacement: "swag"),
+        Replacement(phrase: "свэгг", replacement: "swag"),
+        Replacement(phrase: "swagg", replacement: "swag"),
+        Replacement(phrase: "ан скилл", replacement: "анскилл"),
+        Replacement(phrase: "ан скил", replacement: "анскилл"),
+        Replacement(phrase: "анскил", replacement: "анскилл"),
+        Replacement(phrase: "unskill", replacement: "анскилл"),
+        Replacement(phrase: "эм си пи", replacement: "MCP"),
+        Replacement(phrase: "эмсипи", replacement: "MCP"),
+        Replacement(phrase: "вайпер", replacement: "viperr"),
+        Replacement(phrase: "вайперр", replacement: "viperr"),
+        Replacement(phrase: "viper", replacement: "viperr"),
+        Replacement(phrase: "Viperr", replacement: "viperr"),
+        Replacement(phrase: "кай энджел", replacement: "Kai Angel"),
+        Replacement(phrase: "кай ангел", replacement: "Kai Angel"),
+        Replacement(phrase: "кайэнджел", replacement: "Kai Angel"),
+        Replacement(phrase: "kai angel", replacement: "Kai Angel"),
+        Replacement(phrase: "девять майс", replacement: "9mice"),
+        Replacement(phrase: "9 майс", replacement: "9mice"),
+        Replacement(phrase: "nine mice", replacement: "9mice"),
+        Replacement(phrase: "9mice", replacement: "9mice")
+    ]
+
+    /// Applies default phonetic replacements, custom replacements, and vocabulary auto-casing to a string.
+    static func apply(replacements: [Replacement], vocabulary: String = "", to text: String) -> String {
+        let allReplacements = defaultPhoneticReplacements + replacements
         var result = text
-        for r in replacements {
+
+        // 1. Phonetic & Custom replacements
+        for r in allReplacements {
             guard !r.phrase.isEmpty else { continue }
-            
-            // We use regex for word boundaries to avoid replacing parts of words.
-            let escapedPhrase = NSRegularExpression.escapedPattern(for: r.phrase)
-            
-            // \b doesn't always work perfectly for all languages, but for simple snippet phrases it's usually fine.
-            let pattern = "(?i)\\b\(escapedPhrase)\\b"
-            
-            do {
-                let regex = try NSRegularExpression(pattern: pattern, options: [])
-                let range = NSRange(location: 0, length: result.utf16.count)
-                
-                result = regex.stringByReplacingMatches(
-                    in: result,
-                    options: [],
-                    range: range,
-                    withTemplate: NSRegularExpression.escapedTemplate(for: r.replacement)
-                )
-            } catch {
-                // Fallback to simple replace if regex fails
-                result = result.replacingOccurrences(of: r.phrase, with: r.replacement, options: .caseInsensitive)
-            }
+            result = result.replacingOccurrences(of: r.phrase, with: r.replacement, options: .caseInsensitive)
         }
+
+        // 2. Vocabulary Auto-Casing (e.g. if vocabulary has "Antigravity", replace lowercase "antigravity" with "Antigravity")
+        let vocabItems = vocabulary.components(separatedBy: CharacterSet(charactersIn: ",\n"))
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        for item in vocabItems {
+            let escaped = NSRegularExpression.escapedPattern(for: item)
+            let regexPattern = "\\b(?i)\(escaped)\\b"
+            result = result.replacingOccurrences(of: regexPattern, with: item, options: .regularExpression)
+        }
+
         return result
     }
 }
+
+// MARK: - Cloud AI Service & Types
+
+public enum CloudAIProvider: String, CaseIterable, Identifiable, Sendable {
+    case groq = "groq"
+    case openAI = "openai"
+    case scribeCloud = "scribe_cloud"
+
+    public var id: String { rawValue }
+
+    public var displayName: String {
+        switch self {
+        case .groq:        return "Groq AI (Ultra Fast)"
+        case .openAI:      return "OpenAI (Whisper & GPT-4o)"
+        case .scribeCloud: return "Scribe Pro Cloud"
+        }
+    }
+}
+
+public enum AIRefinementMode: String, CaseIterable, Identifiable, Sendable {
+    case raw = "raw"
+    case summary = "summary"
+    case executive = "executive"
+    case actionItems = "action_items"
+    case translation = "translation"
+
+    public var id: String { rawValue }
+
+    public var displayName: String {
+        switch self {
+        case .raw:         return "Raw Text"
+        case .summary:     return "Key Summary"
+        case .executive:   return "Executive Tone"
+        case .actionItems: return "Action Items"
+        case .translation: return "English Translation"
+        }
+    }
+
+    public var icon: String {
+        switch self {
+        case .raw:         return "text.quote"
+        case .summary:     return "sparkles"
+        case .executive:   return "briefcase.fill"
+        case .actionItems: return "checkmark.square.fill"
+        case .translation: return "globe"
+        }
+    }
+
+    public var promptInstruction: String? {
+        let strictRule = " CRITICAL REQUIREMENT: Output ONLY the final result text directly. Never include preambles, intros (e.g. 'Here is...'), conversational filler, explanations, greetings, or multiple options. Output exactly ONE single final refined text."
+        switch self {
+        case .raw:
+            return nil
+        case .summary:
+            return "Summarize the following speech into a clean, well-formatted bullet list of key takeaways. Retain important names, facts, and numbers." + strictRule
+        case .executive:
+            return "Rephrase the following speech into a single professional, polished executive business text. Fix grammatical errors and remove filler expressions." + strictRule
+        case .actionItems:
+            return "Extract clear, actionable tasks and TODOs from the following speech into a structured list of action items with checkboxes." + strictRule
+        case .translation:
+            return "Translate the following speech into fluent, accurate English while maintaining its original meaning and context." + strictRule
+        }
+    }
+}
+
+public final class CloudAIService: @unchecked Sendable {
+    public static let shared = CloudAIService()
+    private init() {}
+
+    /// Performs Cloud Transcription using Groq API or OpenAI API
+    public func transcribeAudio(
+        audioURL: URL,
+        provider: CloudAIProvider,
+        apiKey: String,
+        language: String? = nil
+    ) async throws -> String {
+        let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedKey.isEmpty else {
+            throw NSError(domain: "CloudAIService", code: 401, userInfo: [NSLocalizedDescriptionKey: "API key is missing"])
+        }
+
+        let endpoint: URL
+        switch provider {
+        case .groq:
+            endpoint = URL(string: "https://api.groq.com/openai/v1/audio/transcriptions")!
+        case .openAI, .scribeCloud:
+            endpoint = URL(string: "https://api.openai.com/v1/audio/transcriptions")!
+        }
+
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(trimmedKey)", forHTTPHeaderField: "Authorization")
+
+        let boundary = "Boundary-\(UUID().uuidString)"
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+
+        var data = Data()
+        let audioData = try Data(contentsOf: audioURL)
+
+        // File field
+        data.append("--\(boundary)\r\n".data(using: .utf8)!)
+        data.append("Content-Disposition: form-data; name=\"file\"; filename=\"audio.m4a\"\r\n".data(using: .utf8)!)
+        data.append("Content-Type: audio/m4a\r\n\r\n".data(using: .utf8)!)
+        data.append(audioData)
+        data.append("\r\n".data(using: .utf8)!)
+
+        // Model field
+        let modelName = provider == .groq ? "whisper-large-v3-turbo" : "whisper-1"
+        data.append("--\(boundary)\r\n".data(using: .utf8)!)
+        data.append("Content-Disposition: form-data; name=\"model\"\r\n\r\n".data(using: .utf8)!)
+        data.append("\(modelName)\r\n".data(using: .utf8)!)
+
+        if let lang = language, lang != "auto" {
+            data.append("--\(boundary)\r\n".data(using: .utf8)!)
+            data.append("Content-Disposition: form-data; name=\"language\"\r\n\r\n".data(using: .utf8)!)
+            data.append("\(lang)\r\n".data(using: .utf8)!)
+        }
+
+        data.append("--\(boundary)--\r\n".data(using: .utf8)!)
+        request.httpBody = data
+
+        let (responseData, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            let errorMsg = String(data: responseData, encoding: .utf8) ?? "HTTP Error"
+            throw NSError(domain: "CloudAIService", code: 500, userInfo: [NSLocalizedDescriptionKey: "Cloud API Error: \(errorMsg)"])
+        }
+
+        if let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
+           let text = json["text"] as? String {
+            return text.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        throw NSError(domain: "CloudAIService", code: 500, userInfo: [NSLocalizedDescriptionKey: "Failed to parse response"])
+    }
+
+    /// Performs LLM Voice Refinement (Auto-Summary, Executive Tone, Action Items)
+    public func refineText(
+        text: String,
+        mode: AIRefinementMode,
+        provider: CloudAIProvider,
+        apiKey: String
+    ) async throws -> String {
+        guard let instruction = mode.promptInstruction else { return text }
+        let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedKey.isEmpty else { return text }
+
+        let endpoint: URL
+        let modelName: String
+
+        switch provider {
+        case .groq:
+            endpoint = URL(string: "https://api.groq.com/openai/v1/chat/completions")!
+            modelName = "llama-3.3-70b-versatile"
+        case .openAI, .scribeCloud:
+            endpoint = URL(string: "https://api.openai.com/v1/chat/completions")!
+            modelName = "gpt-4o-mini"
+        }
+
+        var request = URLRequest(url: endpoint)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(trimmedKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let body: [String: Any] = [
+            "model": modelName,
+            "messages": [
+                ["role": "system", "content": instruction],
+                ["role": "user", "content": text]
+            ],
+            "temperature": 0.3
+        ]
+
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        let (responseData, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            _ = String(data: responseData, encoding: .utf8) ?? "LLM Error"
+            return text
+        }
+
+        if let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
+           let choices = json["choices"] as? [[String: Any]],
+           let firstChoice = choices.first,
+           let message = firstChoice["message"] as? [String: Any],
+           let content = message["content"] as? String {
+            return content.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return text
+    }
+}
+
+// MARK: - Auth & Subscription System
+
+public enum SubscriptionTier: String, Codable, Sendable, CaseIterable {
+    case base = "base"
+    case pro = "pro"
+
+    public var displayName: String {
+        switch self {
+        case .base: return "Scribe Base"
+        case .pro:  return "Scribe Pro + Cloud AI ✨"
+        }
+    }
+
+    public var description: String {
+        switch self {
+        case .base: return "Local Whisper dictation, text replacements, notes integrations, offline privacy."
+        case .pro:  return "All Base features + Ultra-fast Cloud AI, LLM text refinement (summaries, executive tone, TODOs) & Cloud Sync."
+        }
+    }
+}
+
+public struct AuthUser: Codable, Identifiable, Sendable {
+    public let id: String
+    public let email: String
+    public let name: String
+    public let avatarURL: String?
+    public var subscriptionTier: SubscriptionTier
+    public var subscriptionExpiresAt: Date?
+
+    public var initials: String {
+        let components = name.components(separatedBy: " ")
+        if components.count >= 2, let first = components.first?.first, let last = components.last?.first {
+            return "\(first)\(last)".uppercased()
+        } else if let first = name.first {
+            return String(first).uppercased()
+        }
+        return "S"
+    }
+}
+

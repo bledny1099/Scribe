@@ -1,5 +1,8 @@
 import Foundation
 import Cocoa
+import OSLog
+
+private let logger = Logger(subsystem: "com.scribe.app", category: "NoteExporter")
 
 enum NoteApp: String, CaseIterable, Identifiable {
     case none = "none"
@@ -39,15 +42,21 @@ class NoteExporter {
     static func export(text: String, state: AppState) {
         guard !text.isEmpty else { return }
         
-        if state.enableAppleNotes {
+        let directApp = state.directNoteTargetApp
+        let isDirect = state.isDirectNoteRecording
+        
+        // Export to Apple Notes if explicitly enabled OR if triggered via Direct Note Hotkey with target Apple Notes
+        if state.enableAppleNotes || (isDirect && directApp == .appleNotes) {
             exportToAppleNotes(text: text, mode: state.noteExportMode, targetNote: state.appleNotesTargetNote, state: state)
         }
         
-        if state.enableObsidian {
+        // Export to Obsidian if explicitly enabled OR if triggered via Direct Note Hotkey with target Obsidian
+        if state.enableObsidian || (isDirect && directApp == .obsidian) {
             exportToObsidian(text: text, mode: state.noteExportMode, vaultURLString: state.obsidianVaultURL, targetNote: state.obsidianTargetNote, state: state)
         }
         
-        if state.enableNotion {
+        // Export to Notion if explicitly enabled OR if triggered via Direct Note Hotkey with target Notion
+        if state.enableNotion || (isDirect && directApp == .notion) {
             exportToNotion(text: text, mode: state.noteExportMode, integrationToken: state.notionIntegrationToken, pageId: state.notionPageId, state: state)
         }
     }
@@ -56,57 +65,40 @@ class NoteExporter {
     
     @MainActor
     private static func exportToAppleNotes(text: String, mode: ExportMode, targetNote: String, state: AppState) {
-        // AppleScript to interact with Notes app
-        let scriptSource: String
-        
-        // Escape text for AppleScript string
-        let escapedText = text.replacingOccurrences(of: "\"", with: "\\\"").replacingOccurrences(of: "\n", with: "<br>")
+        let escapedText = text
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+            .replacingOccurrences(of: "\n", with: "<br>")
+
         let dateString = DateFormatter.localizedString(from: Date(), dateStyle: .medium, timeStyle: .short)
         
-        let smartTitle: String
         let words = text.split { $0.isWhitespace || $0.isNewline }
-        if words.count <= 6 {
-            smartTitle = text
-        } else {
-            smartTitle = words.prefix(6).joined(separator: " ") + "..."
-        }
+        let smartTitle = words.count <= 6 ? text : words.prefix(6).joined(separator: " ") + "..."
+        let escapedTitle = smartTitle
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
         
-        let tagsText = state.defaultNoteTags.isEmpty ? "" : "<br><br>\\(state.defaultNoteTags)"
+        let tagsText = state.defaultNoteTags.isEmpty ? "" : "<br><br>\(state.defaultNoteTags)"
+        let dateHeader = state.appendDateToNotes ? "<p><b>\(dateString):</b></p>" : ""
         
+        let scriptSource: String
         if mode == .newNote {
             scriptSource = """
             tell application "Notes"
-                tell account "iCloud"
-                    make new note with properties {name:"\\(smartTitle)", body:"<h1>\\(smartTitle)</h1><p>\\(escapedText)\\(tagsText)</p>"}
-                end tell
+                make new note with properties {name:"\(escapedTitle)", body:"<h1>\(escapedTitle)</h1>\(dateHeader)<p>\(escapedText)\(tagsText)</p>"}
             end tell
             """
         } else {
-            let fullPath = targetNote.isEmpty ? "Scribe Transcriptions" : targetNote
-            let parts = fullPath.components(separatedBy: "/")
-            let noteName: String
-            let accountTarget: String
-            
-            if parts.count >= 2 {
-                accountTarget = "tell account \"\(parts[0])\""
-                noteName = parts.last!
-            } else {
-                accountTarget = "tell account \"iCloud\""
-                noteName = fullPath
-            }
-            
-            let datePrefix = state.appendDateToNotes ? "<p><b>\\(dateString):</b><br>" : "<p>"
-            let dateSuffix = "</p>"
-            
+            let noteName = targetNote.isEmpty ? "Scribe Transcriptions" : targetNote
+            let escapedNoteName = noteName
+                .replacingOccurrences(of: "\\", with: "\\\\")
+                .replacingOccurrences(of: "\"", with: "\\\"")
             scriptSource = """
             tell application "Notes"
-                \\(accountTarget)
-                    if not (exists note "\\(noteName)") then
-                        make new note with properties {name:"\\(noteName)", body:"<h1>\\(noteName)</h1>"}
-                    end if
-                    set currentBody to body of note "\\(noteName)"
-                    set body of note "\\(noteName)" to currentBody & "\\(datePrefix)\\(escapedText)\\(tagsText)\\(dateSuffix)"
-                end tell
+                if not (exists note "\(escapedNoteName)") then
+                    make new note with properties {name:"\(escapedNoteName)", body:"<h1>\(escapedNoteName)</h1>"}
+                end if
+                make new paragraph at end of text of note "\(escapedNoteName)" with data "\(dateHeader)<p>\(escapedText)\(tagsText)</p>"
             end tell
             """
         }
@@ -115,7 +107,9 @@ class NoteExporter {
         if let scriptObject = NSAppleScript(source: scriptSource) {
             scriptObject.executeAndReturnError(&error)
             if let error = error {
-                print("AppleScript Error: \(error)")
+                logger.error("Apple Notes Export AppleScript Error: \(error)")
+            } else {
+                logger.info("Successfully exported transcript to Apple Notes")
             }
         }
     }
@@ -125,7 +119,7 @@ class NoteExporter {
     @MainActor
     private static func exportToObsidian(text: String, mode: ExportMode, vaultURLString: String, targetNote: String, state: AppState) {
         guard !vaultURLString.isEmpty, let vaultURL = URL(string: vaultURLString) else {
-            print("Obsidian Export Error: No vault URL selected.")
+            logger.error("Obsidian Export Error: No vault URL selected.")
             return
         }
         
@@ -150,9 +144,9 @@ class NoteExporter {
             smartTitle = words.prefix(6).joined(separator: " ") + "..."
         }
         
-        let tagsText = state.defaultNoteTags.isEmpty ? "" : "\n\n\\(state.defaultNoteTags)"
+        let tagsText = state.defaultNoteTags.isEmpty ? "" : "\n\n\(state.defaultNoteTags)"
         
-        let contentToAppend = (state.appendDateToNotes ? "\n\n### \\(dateString)\n\\(text)" : "\n\n\\(text)") + tagsText
+        let contentToAppend = (state.appendDateToNotes ? "\n\n### \(dateString)\n\(text)" : "\n\n\(text)") + tagsText
         
         do {
             if FileManager.default.fileExists(atPath: fileURL.path) {
@@ -163,11 +157,12 @@ class NoteExporter {
                 }
                 fileHandle.closeFile()
             } else {
-                let initialContent = "# \\(smartTitle)\n" + contentToAppend
+                let initialContent = "# \(smartTitle)\n" + contentToAppend
                 try initialContent.write(to: fileURL, atomically: true, encoding: .utf8)
             }
+            logger.info("Successfully exported transcript to Obsidian (\(fileURL.lastPathComponent))")
         } catch {
-            print("Obsidian Export Error: \(error)")
+            logger.error("Obsidian Export Error: \(error.localizedDescription)")
         }
     }
     
@@ -176,11 +171,13 @@ class NoteExporter {
     @MainActor
     private static func exportToNotion(text: String, mode: ExportMode, integrationToken: String, pageId: String, state: AppState) {
         guard !integrationToken.isEmpty, !pageId.isEmpty else {
-            print("Notion Export Error: Missing token or page ID")
+            logger.error("Notion Export Error: Missing token or page ID")
             return
         }
         
-        let url = URL(string: "https://api.notion.com/v1/blocks/\(pageId)/children")!
+        let cleanPageId = pageId.replacingOccurrences(of: "-", with: "")
+        guard let url = URL(string: "https://api.notion.com/v1/blocks/\(cleanPageId)/children") else { return }
+        
         var request = URLRequest(url: url)
         request.httpMethod = "PATCH"
         request.addValue("Bearer \(integrationToken)", forHTTPHeaderField: "Authorization")
@@ -188,8 +185,7 @@ class NoteExporter {
         request.addValue("2022-06-28", forHTTPHeaderField: "Notion-Version")
         
         let dateString = DateFormatter.localizedString(from: Date(), dateStyle: .medium, timeStyle: .short)
-        
-        let tagsText = state.defaultNoteTags.isEmpty ? "" : "\n\n\\(state.defaultNoteTags)"
+        let tagsText = state.defaultNoteTags.isEmpty ? "" : "\n\n\(state.defaultNoteTags)"
         let finalOutputText = text + tagsText
         
         let textBlock: [String: Any]
@@ -201,7 +197,7 @@ class NoteExporter {
                     "rich_text": [
                         [
                             "type": "text",
-                            "text": ["content": "\\(dateString):\n"],
+                            "text": ["content": "\(dateString):\n"],
                             "annotations": ["bold": true]
                         ],
                         [
@@ -227,19 +223,17 @@ class NoteExporter {
         }
         
         let body: [String: Any] = ["children": [textBlock]]
-        
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         
         let task = URLSession.shared.dataTask(with: request) { data, response, error in
             if let error = error {
-                print("Notion Export Error: \(error)")
+                logger.error("Notion Export Error: \(error.localizedDescription)")
                 return
             }
             if let httpResponse = response as? HTTPURLResponse, !(200...299).contains(httpResponse.statusCode) {
-                print("Notion Export HTTP Error: \(httpResponse.statusCode)")
-                if let data = data, let responseString = String(data: data, encoding: .utf8) {
-                    print("Notion Response: \(responseString)")
-                }
+                logger.error("Notion Export HTTP Error: \(httpResponse.statusCode)")
+            } else {
+                logger.info("Successfully exported transcript to Notion")
             }
         }
         task.resume()
