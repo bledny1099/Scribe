@@ -2698,24 +2698,12 @@ struct VocabularyContributionPromptModalView: View {
             VStack(spacing: 12) {
                 ZStack {
                     Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [Color(red: 0.1, green: 0.5, blue: 1.0).opacity(0.2), Color(red: 0.4, green: 0.25, blue: 0.95).opacity(0.2)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 60, height: 60)
+                        .fill(Color.primary.opacity(0.08))
+                        .frame(width: 58, height: 58)
                     
                     Image(systemName: "sparkles.rectangle.stack.fill")
-                        .font(.system(size: 26))
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [Color(red: 0.2, green: 0.6, blue: 1.0), Color(red: 0.5, green: 0.35, blue: 1.0)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
+                        .font(.system(size: 24))
+                        .foregroundStyle(.primary)
                 }
                 .padding(.top, 22)
 
@@ -2768,7 +2756,7 @@ struct VocabularyContributionPromptModalView: View {
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
                         .background(Color.primary.opacity(0.06))
-                        .foregroundStyle(Color.primary.opacity(0.85))
+                        .foregroundStyle(.secondary)
                         .cornerRadius(8)
                         .overlay(
                             RoundedRectangle(cornerRadius: 8)
@@ -2788,19 +2776,13 @@ struct VocabularyContributionPromptModalView: View {
                         Image(systemName: "checkmark.circle.fill")
                         Text(appState.l("Allow & Improve"))
                     }
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .padding(.horizontal, 18)
                     .padding(.vertical, 8)
-                    .background(
-                        LinearGradient(
-                            colors: [Color(red: 0.1, green: 0.5, blue: 1.0), Color(red: 0.35, green: 0.25, blue: 0.95)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .foregroundStyle(.white)
+                    .background(Color.white)
+                    .foregroundStyle(Color(red: 0.12, green: 0.12, blue: 0.14))
                     .cornerRadius(8)
-                    .shadow(color: Color.blue.opacity(0.35), radius: 4, y: 2)
+                    .shadow(color: Color.black.opacity(0.2), radius: 3, y: 1)
                 }
                 .buttonStyle(.plain)
             }
