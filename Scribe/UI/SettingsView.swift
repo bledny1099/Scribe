@@ -2698,12 +2698,24 @@ struct VocabularyContributionPromptModalView: View {
             VStack(spacing: 12) {
                 ZStack {
                     Circle()
-                        .fill(appState.selectedTheme.gradientColors.first!.opacity(0.15))
+                        .fill(
+                            LinearGradient(
+                                colors: [Color(red: 0.1, green: 0.5, blue: 1.0).opacity(0.2), Color(red: 0.4, green: 0.25, blue: 0.95).opacity(0.2)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
                         .frame(width: 60, height: 60)
                     
                     Image(systemName: "sparkles.rectangle.stack.fill")
                         .font(.system(size: 26))
-                        .foregroundStyle(appState.selectedTheme.gradientColors.first!)
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [Color(red: 0.2, green: 0.6, blue: 1.0), Color(red: 0.5, green: 0.35, blue: 1.0)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
                 }
                 .padding(.top, 22)
 
@@ -2755,7 +2767,13 @@ struct VocabularyContributionPromptModalView: View {
                         .font(.system(size: 13, weight: .medium))
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
-                        .foregroundStyle(.secondary)
+                        .background(Color.primary.opacity(0.06))
+                        .foregroundStyle(Color.primary.opacity(0.85))
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
+                        )
                 }
                 .buttonStyle(.plain)
 
@@ -2773,9 +2791,16 @@ struct VocabularyContributionPromptModalView: View {
                     .font(.system(size: 13, weight: .bold, design: .rounded))
                     .padding(.horizontal, 18)
                     .padding(.vertical, 8)
-                    .background(appState.selectedTheme.gradientColors.first!)
+                    .background(
+                        LinearGradient(
+                            colors: [Color(red: 0.1, green: 0.5, blue: 1.0), Color(red: 0.35, green: 0.25, blue: 0.95)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
                     .foregroundStyle(.white)
                     .cornerRadius(8)
+                    .shadow(color: Color.blue.opacity(0.35), radius: 4, y: 2)
                 }
                 .buttonStyle(.plain)
             }
