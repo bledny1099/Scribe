@@ -291,6 +291,7 @@ enum Localization {
             "Original phrase": "Исходная фраза",
             "Replacement": "Замена",
             "Integrations": "Интеграции",
+            "Supported Note Apps": "Приложения для заметок",
             "Send transcripts directly to Obsidian": "Отправлять транскрипции прямо в Obsidian",
             "Select Vault Folder": "Выбрать папку хранилища",
             "No vault selected": "Папка не выбрана",

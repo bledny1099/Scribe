@@ -1978,140 +1978,161 @@ struct IntegrationsSettingsView: View {
                 }
             }
             
-            // Apple Notes Integration Card
-            GlassSection(title: "Apple Notes", icon: "apple.logo") {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Apple Notes")
-                                .font(.system(size: 14, weight: .bold))
-                            Text("Send transcripts directly to Apple Notes")
-                                .font(.system(size: 12))
-                                .foregroundStyle(Color.primary.opacity(0.70))
-                        }
-                        Spacer()
-                        Toggle("", isOn: Binding(
-                            get: { appState.enableAppleNotes },
-                            set: { val in
-                                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                                    appState.enableAppleNotes = val
-                                }
-                            }
-                        ))
-                        .toggleStyle(.switch)
-                        .labelsHidden()
-                    }
-                    
-                    if appState.enableAppleNotes {
+            // Unified Note Apps Card (All apps together)
+            GlassSection(title: appState.l("Supported Note Apps"), icon: "arrow.triangle.branch") {
+                VStack(alignment: .leading, spacing: 16) {
+                    // Apple Notes Row
+                    VStack(alignment: .leading, spacing: 12) {
                         HStack {
-                            Text("Target Note:")
-                                .font(.system(size: 13, weight: .medium))
-                            NotePickerView(
-                                targetNote: $appState.appleNotesTargetNote,
-                                appType: .appleNotes,
-                                vaultURL: ""
-                            )
+                            HStack(spacing: 8) {
+                                Image(systemName: "apple.logo")
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(.primary)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Apple Notes")
+                                        .font(.system(size: 14, weight: .bold))
+                                    Text(appState.l("Send transcripts directly to Apple Notes"))
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(Color.primary.opacity(0.70))
+                                }
+                            }
+                            Spacer()
+                            Toggle("", isOn: Binding(
+                                get: { appState.enableAppleNotes },
+                                set: { val in
+                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                        appState.enableAppleNotes = val
+                                    }
+                                }
+                            ))
+                            .toggleStyle(.switch)
+                            .labelsHidden()
                         }
-                        .padding(.top, 4)
-                        .transition(.opacity.combined(with: .move(edge: .top)).combined(with: .scale(scale: 0.98, anchor: .top)))
+                        
+                        if appState.enableAppleNotes {
+                            HStack {
+                                Text(appState.l("Target Note:"))
+                                    .font(.system(size: 12, weight: .medium))
+                                NotePickerView(
+                                    targetNote: $appState.appleNotesTargetNote,
+                                    appType: .appleNotes,
+                                    vaultURL: ""
+                                )
+                            }
+                            .padding(.leading, 22)
+                            .transition(.opacity.combined(with: .move(edge: .top)).combined(with: .scale(scale: 0.98, anchor: .top)))
+                        }
                     }
-                }
-            }
 
-            // Obsidian Integration Card
-            GlassSection(title: "Obsidian", icon: "doc.text.fill") {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Obsidian")
-                                .font(.system(size: 14, weight: .bold))
-                            Text("Send transcripts directly to Obsidian")
-                                .font(.system(size: 12))
-                                .foregroundStyle(Color.primary.opacity(0.70))
-                        }
-                        Spacer()
-                        Toggle("", isOn: Binding(
-                            get: { appState.enableObsidian },
-                            set: { val in
-                                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                                    appState.enableObsidian = val
-                                }
-                            }
-                        ))
-                        .toggleStyle(.switch)
-                        .labelsHidden()
-                    }
-                    
-                    if appState.enableObsidian {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Button("Select Vault Folder") {
-                                let panel = NSOpenPanel()
-                                panel.canChooseFiles = false
-                                panel.canChooseDirectories = true
-                                panel.allowsMultipleSelection = false
-                                panel.message = appState.l("Select your Obsidian Vault folder")
-                                
-                                if panel.runModal() == .OK, let url = panel.url {
-                                    appState.obsidianVaultURL = url.absoluteString
-                                }
-                            }
-                            .buttonStyle(.borderedProminent)
-                            
-                            Text(appState.obsidianVaultURL.isEmpty ? "No vault selected" : appState.obsidianVaultURL)
-                                .font(.system(size: 11))
-                                .foregroundStyle(Color.primary.opacity(0.70))
-                                
-                            HStack {
-                                Text("Target Note:")
-                                TextField("e.g. Scribe Transcriptions", text: $appState.obsidianTargetNote)
-                                    .textFieldStyle(.roundedBorder)
-                            }
-                        }
-                        .padding(.top, 4)
-                        .transition(.opacity.combined(with: .move(edge: .top)).combined(with: .scale(scale: 0.98, anchor: .top)))
-                    }
-                }
-            }
+                    Divider().opacity(0.2)
 
-            // Notion Integration Card
-            GlassSection(title: "Notion", icon: "square.grid.2x2.fill") {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Notion")
-                                .font(.system(size: 14, weight: .bold))
-                            Text("Send transcripts directly to Notion")
-                                .font(.system(size: 12))
-                                .foregroundStyle(Color.primary.opacity(0.70))
-                        }
-                        Spacer()
-                        Toggle("", isOn: Binding(
-                            get: { appState.enableNotion },
-                            set: { val in
-                                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                                    appState.enableNotion = val
+                    // Obsidian Row
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            HStack(spacing: 8) {
+                                Image(systemName: "doc.text.fill")
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(.purple)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Obsidian")
+                                        .font(.system(size: 14, weight: .bold))
+                                    Text(appState.l("Send transcripts directly to Obsidian"))
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(Color.primary.opacity(0.70))
                                 }
                             }
-                        ))
-                        .toggleStyle(.switch)
-                        .labelsHidden()
-                    }
-                    
-                    if appState.enableNotion {
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack {
-                                Text("API Token:")
-                                SecureField("Secret Token", text: $appState.notionIntegrationToken)
-                                    .textFieldStyle(.roundedBorder)
-                            }
-                            HStack {
-                                Text("Page ID:")
-                                TextField("Target Page ID", text: $appState.notionPageId)
-                                    .textFieldStyle(.roundedBorder)
-                            }
+                            Spacer()
+                            Toggle("", isOn: Binding(
+                                get: { appState.enableObsidian },
+                                set: { val in
+                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                        appState.enableObsidian = val
+                                    }
+                                }
+                            ))
+                            .toggleStyle(.switch)
+                            .labelsHidden()
                         }
-                        .padding(.top, 4)
-                        .transition(.opacity.combined(with: .move(edge: .top)).combined(with: .scale(scale: 0.98, anchor: .top)))
+                        
+                        if appState.enableObsidian {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Button(appState.l("Select Vault Folder")) {
+                                    let panel = NSOpenPanel()
+                                    panel.canChooseFiles = false
+                                    panel.canChooseDirectories = true
+                                    panel.allowsMultipleSelection = false
+                                    panel.message = appState.l("Select your Obsidian Vault folder")
+                                    
+                                    if panel.runModal() == .OK, let url = panel.url {
+                                        appState.obsidianVaultURL = url.absoluteString
+                                    }
+                                }
+                                .buttonStyle(.borderedProminent)
+                                
+                                Text(appState.obsidianVaultURL.isEmpty ? appState.l("No vault selected") : appState.obsidianVaultURL)
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(Color.primary.opacity(0.70))
+                                    
+                                HStack {
+                                    Text(appState.l("Target Note:"))
+                                        .font(.system(size: 12, weight: .medium))
+                                    TextField(appState.l("e.g. Scribe Transcriptions"), text: $appState.obsidianTargetNote)
+                                        .textFieldStyle(.roundedBorder)
+                                }
+                            }
+                            .padding(.leading, 22)
+                            .transition(.opacity.combined(with: .move(edge: .top)).combined(with: .scale(scale: 0.98, anchor: .top)))
+                        }
+                    }
+
+                    Divider().opacity(0.2)
+
+                    // Notion Row
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            HStack(spacing: 8) {
+                                Image(systemName: "square.grid.2x2.fill")
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(.blue)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Notion")
+                                        .font(.system(size: 14, weight: .bold))
+                                    Text(appState.l("Send transcripts directly to Notion"))
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(Color.primary.opacity(0.70))
+                                }
+                            }
+                            Spacer()
+                            Toggle("", isOn: Binding(
+                                get: { appState.enableNotion },
+                                set: { val in
+                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                        appState.enableNotion = val
+                                    }
+                                }
+                            ))
+                            .toggleStyle(.switch)
+                            .labelsHidden()
+                        }
+                        
+                        if appState.enableNotion {
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Text(appState.l("API Token:"))
+                                        .font(.system(size: 12, weight: .medium))
+                                    SecureField(appState.l("Secret Token"), text: $appState.notionIntegrationToken)
+                                        .textFieldStyle(.roundedBorder)
+                                }
+                                HStack {
+                                    Text(appState.l("Page ID:"))
+                                        .font(.system(size: 12, weight: .medium))
+                                    TextField(appState.l("Target Page ID"), text: $appState.notionPageId)
+                                        .textFieldStyle(.roundedBorder)
+                                }
+                            }
+                            .padding(.leading, 22)
+                            .transition(.opacity.combined(with: .move(edge: .top)).combined(with: .scale(scale: 0.98, anchor: .top)))
+                        }
                     }
                 }
             }
@@ -2825,25 +2846,23 @@ struct VocabularySettingsView: View {
             // SECTION 2: Custom Presets & Community Share (Below)
             GlassSection(title: appState.l("Vocabulary Presets"), icon: "square.grid.2x2.fill") {
                 VStack(alignment: .leading, spacing: 14) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(appState.l("Create custom word packs and share them instantly with 20-character codes."))
-                                .font(.system(size: 12))
-                                .foregroundStyle(.secondary)
-                        }
-
-                        Spacer()
+                    HStack(alignment: .center, spacing: 12) {
+                        Text(appState.l("Create custom word packs and share them instantly with 20-character codes."))
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
 
                         HStack(spacing: 8) {
                             Button(action: { showingCreatePresetModal = true }) {
-                                HStack(spacing: 4) {
+                                HStack(spacing: 5) {
                                     Image(systemName: "plus.circle.fill")
                                         .font(.system(size: 11, weight: .bold))
                                     Text(appState.l("Create Preset"))
                                         .font(.system(size: 11, weight: .bold, design: .rounded))
+                                        .lineLimit(1)
                                 }
                                 .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
+                                .padding(.vertical, 7)
                                 .background(appState.selectedTheme.gradientColors.first!.opacity(0.15))
                                 .foregroundStyle(appState.selectedTheme.gradientColors.first!)
                                 .cornerRadius(8)
@@ -2853,16 +2872,18 @@ struct VocabularySettingsView: View {
                                 )
                             }
                             .buttonStyle(.plain)
+                            .fixedSize()
 
                             Button(action: { showingImportPresetModal = true }) {
-                                HStack(spacing: 4) {
+                                HStack(spacing: 5) {
                                     Image(systemName: "square.and.arrow.down.fill")
                                         .font(.system(size: 11, weight: .bold))
                                     Text(appState.l("Import Preset"))
                                         .font(.system(size: 11, weight: .bold, design: .rounded))
+                                        .lineLimit(1)
                                 }
                                 .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
+                                .padding(.vertical, 7)
                                 .background(Color.primary.opacity(0.06))
                                 .foregroundStyle(.primary)
                                 .cornerRadius(8)
@@ -2872,19 +2893,24 @@ struct VocabularySettingsView: View {
                                 )
                             }
                             .buttonStyle(.plain)
+                            .fixedSize()
                         }
                     }
 
                     if appState.customVocabularyPresets.isEmpty {
-                        HStack {
+                        HStack(spacing: 8) {
                             Image(systemName: "sparkles")
-                                .font(.system(size: 14))
-                                .foregroundStyle(.secondary)
+                                .font(.system(size: 13))
+                                .foregroundStyle(appState.selectedTheme.gradientColors.first!)
                             Text(appState.l("No custom presets yet. Create one or import a share code to get started."))
                                 .font(.system(size: 12))
-                                .foregroundStyle(.tertiary)
+                                .foregroundStyle(.secondary)
                         }
-                        .padding(.vertical, 4)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.primary.opacity(0.025))
+                        .cornerRadius(8)
                     } else {
                         VStack(spacing: 8) {
                             ForEach(appState.customVocabularyPresets) { preset in
