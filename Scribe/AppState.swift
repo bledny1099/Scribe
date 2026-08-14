@@ -423,6 +423,8 @@ final class AppState: ObservableObject {
     @AppStorage("integrationExportMode") public var integrationExportMode: String = "both" // "both", "notesOnly", "windowOnly"
     @AppStorage("vocabulary") public var vocabulary: String = ""
     @AppStorage("customVocabularyPresets") public var customVocabularyPresets: [VocabularyPreset] = []
+    @AppStorage("allowAnonymousVocabularyContribution") public var allowAnonymousVocabularyContribution: Bool = false
+    @AppStorage("hasPromptedVocabularyDataSharing") public var hasPromptedVocabularyDataSharing: Bool = false
     @AppStorage("recognitionEngine") public var recognitionEngine: String = "Both"
     @AppStorage("recognitionMode") public var recognitionMode: String = "multilingual"
     @AppStorage("singleDictationLanguage") public var singleDictationLanguage: String = "ru"

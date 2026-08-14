@@ -2687,12 +2687,112 @@ struct ImportPresetModalView: View {
     }
 }
 
+// MARK: - Vocabulary Contribution Prompt Modal View
+struct VocabularyContributionPromptModalView: View {
+    @Environment(\.dismiss) var dismiss
+    @EnvironmentObject var appState: AppState
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header Image / Icon
+            VStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(appState.selectedTheme.gradientColors.first!.opacity(0.15))
+                        .frame(width: 60, height: 60)
+                    
+                    Image(systemName: "sparkles.rectangle.stack.fill")
+                        .font(.system(size: 26))
+                        .foregroundStyle(appState.selectedTheme.gradientColors.first!)
+                }
+                .padding(.top, 22)
+
+                Text(appState.l("Improve Scribe Dictionary"))
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .foregroundStyle(.primary)
+
+                Text(appState.l("Can Scribe anonymously use your added custom words and presets to train better recognition models and expand the built-in vocabulary for everyone?"))
+                    .font(.system(size: 12))
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 20)
+            }
+
+            // Privacy Assurance Card
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 6) {
+                    Image(systemName: "lock.shield.fill")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.green)
+                    Text(appState.l("100% Anonymous & Secure"))
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.green)
+                }
+
+                Text(appState.l("No voice audio, full transcripts, notes, or personal identifiers are ever collected. Only isolated vocabulary terms and acronyms."))
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(12)
+            .background(Color.green.opacity(0.08))
+            .cornerRadius(10)
+            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.green.opacity(0.2), lineWidth: 1))
+            .padding(.horizontal, 20)
+            .padding(.top, 14)
+
+            Spacer()
+
+            Divider().opacity(0.3)
+
+            // Actions
+            HStack(spacing: 12) {
+                Button(action: {
+                    appState.allowAnonymousVocabularyContribution = false
+                    appState.hasPromptedVocabularyDataSharing = true
+                    dismiss()
+                }) {
+                    Text(appState.l("No, Thanks"))
+                        .font(.system(size: 13, weight: .medium))
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+
+                Spacer()
+
+                Button(action: {
+                    appState.allowAnonymousVocabularyContribution = true
+                    appState.hasPromptedVocabularyDataSharing = true
+                    dismiss()
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.circle.fill")
+                        Text(appState.l("Allow & Improve"))
+                    }
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 8)
+                    .background(appState.selectedTheme.gradientColors.first!)
+                    .foregroundStyle(.white)
+                    .cornerRadius(8)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(16)
+        }
+        .frame(width: 440, height: 350)
+        .background(.ultraThinMaterial)
+    }
+}
+
 // MARK: - Vocabulary Settings View
 struct VocabularySettingsView: View {
     @EnvironmentObject var appState: AppState
     @State private var newWord: String = ""
     @State private var showingCreatePresetModal: Bool = false
     @State private var showingImportPresetModal: Bool = false
+    @State private var showingContributionPromptModal: Bool = false
     @State private var copiedPresetId: UUID? = nil
     @State private var appliedPresetId: UUID? = nil
 
@@ -2997,12 +3097,43 @@ struct VocabularySettingsView: View {
                 }
                 .padding(14)
             }
+
+            // SECTION 3: Community & Model Improvement
+            GlassSection(title: appState.l("Community Improvement"), icon: "network") {
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(appState.l("Contribute to Public Dictionary"))
+                            .font(.system(size: 13, weight: .semibold))
+                        Text(appState.l("Anonymously share added vocabulary terms to expand the built-in library for everyone."))
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Toggle("", isOn: $appState.allowAnonymousVocabularyContribution)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                }
+                .padding(14)
+            }
+        }
+        .onAppear {
+            if !appState.hasPromptedVocabularyDataSharing {
+                // Slight delay so the view transitions in smoothly before sheet appears
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    if !appState.hasPromptedVocabularyDataSharing {
+                        showingContributionPromptModal = true
+                    }
+                }
+            }
         }
         .sheet(isPresented: $showingCreatePresetModal) {
             CreatePresetModalView()
         }
         .sheet(isPresented: $showingImportPresetModal) {
             ImportPresetModalView()
+        }
+        .sheet(isPresented: $showingContributionPromptModal) {
+            VocabularyContributionPromptModalView()
         }
     }
 }
