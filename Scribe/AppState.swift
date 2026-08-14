@@ -422,6 +422,7 @@ final class AppState: ObservableObject {
     @AppStorage("notionPageId") public var notionPageId: String = ""
     @AppStorage("integrationExportMode") public var integrationExportMode: String = "both" // "both", "notesOnly", "windowOnly"
     @AppStorage("vocabulary") public var vocabulary: String = ""
+    @AppStorage("customVocabularyPresets") public var customVocabularyPresets: [VocabularyPreset] = []
     @AppStorage("recognitionEngine") public var recognitionEngine: String = "Both"
     @AppStorage("recognitionMode") public var recognitionMode: String = "multilingual"
     @AppStorage("singleDictationLanguage") public var singleDictationLanguage: String = "ru"

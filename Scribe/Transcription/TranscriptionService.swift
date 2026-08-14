@@ -362,6 +362,80 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
     }
 }
 
+// MARK: - Vocabulary Preset
+
+public struct VocabularyPreset: Identifiable, Codable, Equatable, Hashable, Sendable {
+    public var id: UUID
+    public var name: String
+    public var description: String
+    public var words: [String]
+    public var shareCode: String
+    public var createdAt: Date
+    
+    public init(id: UUID = UUID(), name: String, description: String = "", words: [String], shareCode: String? = nil, createdAt: Date = Date()) {
+        self.id = id
+        self.name = name
+        self.description = description
+        self.words = words
+        self.shareCode = shareCode ?? Self.generateShareCode()
+        self.createdAt = createdAt
+    }
+    
+    public static func generateShareCode() -> String {
+        let chars = "abcdefghijklmnopqrstuvwxyz0123456789"
+        let randomChars = String((0..<20).compactMap { _ in chars.randomElement() })
+        return "scr_\(randomChars)"
+    }
+    
+    /// Encodes preset to a full standalone share string that can be shared across any machine
+    public func toExportCode() -> String {
+        struct Payload: Codable {
+            let n: String
+            let d: String
+            let w: [String]
+            let c: String
+        }
+        let payload = Payload(n: name, d: description, w: words, c: shareCode)
+        if let data = try? JSONEncoder().encode(payload) {
+            let base64 = data.base64EncodedString()
+                .replacingOccurrences(of: "+", with: "-")
+                .replacingOccurrences(of: "/", with: "_")
+                .trimmingCharacters(in: CharacterSet(charactersIn: "="))
+            return "scr_\(base64)"
+        }
+        return shareCode
+    }
+    
+    /// Decodes a share code (either short 20-char or base64 packed payload)
+    public static func fromExportCode(_ rawCode: String) -> VocabularyPreset? {
+        let trimmed = rawCode.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.hasPrefix("scr_") else { return nil }
+        let payloadString = String(trimmed.dropFirst(4))
+        
+        // Try decoding as packed base64 payload
+        var base64 = payloadString
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        while base64.count % 4 != 0 {
+            base64.append("=")
+        }
+        
+        if let data = Data(base64Encoded: base64) {
+            struct Payload: Codable {
+                let n: String
+                let d: String
+                let w: [String]
+                let c: String
+            }
+            if let decoded = try? JSONDecoder().decode(Payload.self, from: data) {
+                return VocabularyPreset(name: decoded.n, description: decoded.d, words: decoded.w, shareCode: decoded.c)
+            }
+        }
+        
+        return nil
+    }
+}
+
 // MARK: - Text Replacer
 
 struct Replacement: Identifiable, Codable, Equatable {
@@ -377,6 +451,15 @@ struct Replacement: Identifiable, Codable, Equatable {
 }
 
 final class TextReplacer {
+    /// Built-in vocabulary terms auto-cased & recognized natively
+    public static let builtInVocabulary: [String] = [
+        "swag", "топчик", "анскилл", "skill", "MCP", "viperr", "Kai Angel", "9mice",
+        "Claude Code", "Antigravity", "Ollama", "PyTorch", "Supabase", "SwiftData",
+        "Docker", "Kubernetes", "Next.js", "Rust", "WhisperKit",
+        "HuggingFace", "Vercel", "TailwindCSS", "PostgreSQL", "GraphQL",
+        "TypeScript", "LLM", "Llama", "LangChain", "OpenAI"
+    ]
+
     static let defaultPhoneticReplacements: [Replacement] = [
         Replacement(phrase: "аджанскребатор", replacement: "транскрибатор"),
         Replacement(phrase: "транскребатор", replacement: "транскрибатор"),
@@ -442,12 +525,13 @@ final class TextReplacer {
             result = result.replacingOccurrences(of: r.phrase, with: r.replacement, options: .caseInsensitive)
         }
 
-        // 2. Vocabulary Auto-Casing (e.g. if vocabulary has "Antigravity", replace lowercase "antigravity" with "Antigravity")
-        let vocabItems = vocabulary.components(separatedBy: CharacterSet(charactersIn: ",\n"))
+        // 2. Vocabulary Auto-Casing (built-in terms + user custom vocabulary)
+        let userVocabItems = vocabulary.components(separatedBy: CharacterSet(charactersIn: ",\n"))
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
 
-        for item in vocabItems {
+        let allVocabItems = builtInVocabulary + userVocabItems
+        for item in allVocabItems {
             let escaped = NSRegularExpression.escapedPattern(for: item)
             let regexPattern = "\\b(?i)\(escaped)\\b"
             result = result.replacingOccurrences(of: regexPattern, with: item, options: .regularExpression)
