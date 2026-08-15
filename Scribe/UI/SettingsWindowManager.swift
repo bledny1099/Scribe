@@ -38,7 +38,7 @@ final class SettingsWindowManager {
         newWindow.isOpaque = false
         newWindow.backgroundColor = .clear 
         newWindow.hasShadow = true
-        newWindow.level = .floating
+        newWindow.level = .normal
         newWindow.hidesOnDeactivate = false
 
         let blurView = NSVisualEffectView()

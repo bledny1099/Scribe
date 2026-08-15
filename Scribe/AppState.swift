@@ -350,8 +350,9 @@ final class AppState: ObservableObject {
             targetAppName = app.localizedName ?? ""
             targetAppIcon = app.icon
         } else {
-            targetAppName = ""
-            targetAppIcon = nil
+            // Scribe is active or Settings window is in focus
+            targetAppName = "Scribe"
+            targetAppIcon = NSApp.applicationIconImage ?? NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath)
         }
     }
 

@@ -46,7 +46,7 @@ final class HistoryWindowManager {
         newWindow.isOpaque = false
         newWindow.backgroundColor = .clear
         newWindow.hasShadow = true
-        newWindow.level = .floating
+        newWindow.level = .normal
         newWindow.isReleasedWhenClosed = false
 
         // Blur background
