@@ -3011,6 +3011,292 @@ struct VocabularyContributionPromptModalView: View {
     }
 }
 
+// MARK: - Share Active Words Modal View (with Word Selection)
+struct ShareActiveWordsModalView: View {
+    var category: String = "vocabulary"
+    var allWords: [String] = []
+
+    @Environment(\.dismiss) var dismiss
+    @EnvironmentObject var appState: AppState
+
+    @State private var presetName: String = ""
+    @State private var presetDescription: String = ""
+    @State private var selectedWords: Set<String> = []
+    @State private var searchText: String = ""
+    @State private var copiedCode: Bool = false
+
+    private var isBlocked: Bool { category == "blocked" }
+
+    private var filteredWords: [String] {
+        if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return allWords
+        }
+        return allWords.filter { $0.localizedCaseInsensitiveContains(searchText) }
+    }
+
+    private var selectedWordsList: [String] {
+        allWords.filter { selectedWords.contains($0) }
+    }
+
+    private func toggleWord(_ word: String) {
+        if selectedWords.contains(word) {
+            selectedWords.remove(word)
+        } else {
+            selectedWords.insert(word)
+        }
+    }
+
+    private func selectAll() {
+        selectedWords = Set(allWords)
+    }
+
+    private func deselectAll() {
+        selectedWords.removeAll()
+    }
+
+    private func copyShareCode() {
+        guard !selectedWordsList.isEmpty else { return }
+        let trimmedName = presetName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let finalName = trimmedName.isEmpty ? (isBlocked ? "Active Blocked Words" : "Active Vocabulary") : trimmedName
+        let trimmedDesc = presetDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        let finalDesc = trimmedDesc.isEmpty ? "Exported from Scribe" : trimmedDesc
+
+        let preset = VocabularyPreset(
+            name: finalName,
+            description: finalDesc,
+            words: selectedWordsList,
+            shareCode: VocabularyPreset.generateShareCode(category: category),
+            category: category
+        )
+
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(preset.toExportCode(), forType: .string)
+        copiedCode = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            copiedCode = false
+            dismiss()
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                HStack(spacing: 8) {
+                    Image(systemName: isBlocked ? "nosign" : "square.and.arrow.up.fill")
+                        .font(.system(size: 16))
+                        .foregroundStyle(isBlocked ? Color.red : appState.selectedTheme.gradientColors.first!)
+                    Text(isBlocked ? appState.l("Share Active Blocked Words") : appState.l("Share Active Words"))
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                }
+                Spacer()
+                Button(action: { dismiss() }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(18)
+
+            Divider().opacity(0.3)
+
+            ScrollView(.vertical, showsIndicators: true) {
+                VStack(alignment: .leading, spacing: 16) {
+                    // Preset details
+                    VStack(alignment: .leading, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(appState.l("Preset Name"))
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                            TextField(isBlocked ? "Active Blocked Words" : "Active Vocabulary", text: $presetName)
+                                .textFieldStyle(.plain)
+                                .padding(10)
+                                .background(Color.primary.opacity(0.04))
+                                .cornerRadius(8)
+                                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.primary.opacity(0.1), lineWidth: 1))
+                        }
+
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(appState.l("Description (Optional)"))
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                            TextField(appState.l("Short description for your preset..."), text: $presetDescription)
+                                .textFieldStyle(.plain)
+                                .padding(10)
+                                .background(Color.primary.opacity(0.04))
+                                .cornerRadius(8)
+                                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.primary.opacity(0.1), lineWidth: 1))
+                        }
+                    }
+
+                    // Word Selector Section
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text(appState.l("Select Words to Share"))
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.secondary)
+
+                            Spacer()
+
+                            Text("\(selectedWords.count) / \(allWords.count) " + appState.l("selected"))
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(selectedWords.isEmpty ? Color.secondary : (isBlocked ? Color.red : appState.selectedTheme.gradientColors.first!))
+
+                            HStack(spacing: 8) {
+                                Button(action: selectAll) {
+                                    Text(appState.l("Select All"))
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .foregroundStyle(.primary.opacity(0.8))
+                                }
+                                .buttonStyle(.plain)
+
+                                Text("•")
+                                    .foregroundStyle(.tertiary)
+
+                                Button(action: deselectAll) {
+                                    Text(appState.l("Deselect All"))
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .foregroundStyle(.secondary)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            .padding(.leading, 6)
+                        }
+
+                        if allWords.count > 12 {
+                            HStack(spacing: 6) {
+                                Image(systemName: "magnifyingglass")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.secondary)
+                                TextField(appState.l("Filter words..."), text: $searchText)
+                                    .textFieldStyle(.plain)
+                                    .font(.system(size: 12))
+                                if !searchText.isEmpty {
+                                    Button(action: { searchText = "" }) {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .font(.system(size: 11))
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 6)
+                            .background(Color.primary.opacity(0.03))
+                            .cornerRadius(6)
+                            .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color.primary.opacity(0.08), lineWidth: 1))
+                        }
+
+                        // Word Chips (Toggleable)
+                        ScrollView(.vertical, showsIndicators: true) {
+                            if filteredWords.isEmpty {
+                                Text(appState.l("No words match your search."))
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(.tertiary)
+                                    .padding(.vertical, 20)
+                                    .frame(maxWidth: .infinity, alignment: .center)
+                            } else {
+                                FlowLayout(spacing: 6) {
+                                    ForEach(filteredWords, id: \.self) { word in
+                                        let isSelected = selectedWords.contains(word)
+                                        Button(action: { toggleWord(word) }) {
+                                            HStack(spacing: 5) {
+                                                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                                                    .font(.system(size: 10, weight: .semibold))
+                                                    .foregroundStyle(
+                                                        isSelected 
+                                                            ? (isBlocked ? Color.red : appState.selectedTheme.gradientColors.first!) 
+                                                            : Color.secondary.opacity(0.6)
+                                                    )
+                                                Text(word)
+                                                    .font(.system(size: 12, weight: isSelected ? .semibold : .medium, design: .rounded))
+                                                    .foregroundStyle(isSelected ? Color.primary : Color.secondary)
+                                            }
+                                            .padding(.horizontal, 9)
+                                            .padding(.vertical, 5)
+                                            .background(
+                                                isSelected 
+                                                    ? (isBlocked ? Color.red.opacity(0.12) : appState.selectedTheme.gradientColors.first!.opacity(0.12))
+                                                    : Color.primary.opacity(0.04)
+                                            )
+                                            .cornerRadius(8)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 8)
+                                                    .strokeBorder(
+                                                        isSelected 
+                                                            ? (isBlocked ? Color.red.opacity(0.3) : appState.selectedTheme.gradientColors.first!.opacity(0.3))
+                                                            : Color.primary.opacity(0.06),
+                                                        lineWidth: 1
+                                                    )
+                                            )
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
+                                .padding(.vertical, 4)
+                            }
+                        }
+                        .frame(maxHeight: 170)
+                        .padding(10)
+                        .background(Color.primary.opacity(0.02))
+                        .cornerRadius(10)
+                        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.primary.opacity(0.06), lineWidth: 1))
+                    }
+                }
+                .padding(18)
+            }
+
+            Divider().opacity(0.3)
+
+            // Footer
+            HStack(spacing: 12) {
+                Button(action: { dismiss() }) {
+                    Text(appState.l("Cancel"))
+                        .font(.system(size: 13, weight: .medium))
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                }
+                .buttonStyle(.plain)
+
+                Spacer()
+
+                Button(action: copyShareCode) {
+                    HStack(spacing: 6) {
+                        Image(systemName: copiedCode ? "checkmark" : "doc.on.doc")
+                        Text(copiedCode ? appState.l("Copied!") : appState.l("Copy Share Code"))
+                    }
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 8)
+                    .background(
+                        !selectedWords.isEmpty 
+                            ? (isBlocked ? Color.red : appState.selectedTheme.gradientColors.first!) 
+                            : Color.primary.opacity(0.1)
+                    )
+                    .foregroundStyle(
+                        !selectedWords.isEmpty 
+                            ? Color.white 
+                            : Color.secondary.opacity(0.7)
+                    )
+                    .cornerRadius(8)
+                }
+                .buttonStyle(.plain)
+                .disabled(selectedWords.isEmpty)
+            }
+            .padding(16)
+        }
+        .frame(width: 500, height: 500)
+        .background(.ultraThinMaterial)
+        .onAppear {
+            selectedWords = Set(allWords)
+            if presetName.isEmpty {
+                presetName = isBlocked ? "Active Blocked Words" : "Active Vocabulary"
+            }
+        }
+    }
+}
+
 // MARK: - Vocabulary Settings View
 enum VocabularyTab: String, CaseIterable, Identifiable {
     case vocabulary = "vocabulary"
@@ -3026,6 +3312,7 @@ struct VocabularySettingsView: View {
     @State private var newBlockedWord: String = ""
     @State private var showingCreatePresetModal: Bool = false
     @State private var showingImportPresetModal: Bool = false
+    @State private var showingShareActiveModal: Bool = false
     @State private var showingContributionPromptModal: Bool = false
     @State private var copiedPresetId: UUID? = nil
     @State private var appliedPresetId: UUID? = nil
@@ -3104,36 +3391,12 @@ struct VocabularySettingsView: View {
 
     private func shareActiveVocabulary() {
         guard !wordsList.isEmpty else { return }
-        let preset = VocabularyPreset(
-            name: "Active Vocabulary",
-            description: "Exported from Scribe",
-            words: wordsList,
-            shareCode: VocabularyPreset.generateShareCode(category: "vocabulary"),
-            category: "vocabulary"
-        )
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(preset.toExportCode(), forType: .string)
-        copiedActiveVocabularyFeedback = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            copiedActiveVocabularyFeedback = false
-        }
+        showingShareActiveModal = true
     }
 
     private func shareActiveBlockedWords() {
         guard !blockedWordsList.isEmpty else { return }
-        let preset = VocabularyPreset(
-            name: "Blocked Words",
-            description: "Exported from Scribe",
-            words: blockedWordsList,
-            shareCode: VocabularyPreset.generateShareCode(category: "blocked"),
-            category: "blocked"
-        )
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(preset.toExportCode(), forType: .string)
-        copiedActiveBlockedWordsFeedback = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            copiedActiveBlockedWordsFeedback = false
-        }
+        showingShareActiveModal = true
     }
 
     private func applyPreset(_ preset: VocabularyPreset) {
@@ -3870,6 +4133,12 @@ struct VocabularySettingsView: View {
         }
         .sheet(isPresented: $showingImportPresetModal) {
             ImportPresetModalView(category: selectedTab == .blockedWords ? "blocked" : "vocabulary")
+        }
+        .sheet(isPresented: $showingShareActiveModal) {
+            ShareActiveWordsModalView(
+                category: selectedTab == .blockedWords ? "blocked" : "vocabulary",
+                allWords: selectedTab == .blockedWords ? blockedWordsList : wordsList
+            )
         }
         .sheet(isPresented: $showingContributionPromptModal) {
             VocabularyContributionPromptModalView()
