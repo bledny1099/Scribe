@@ -3282,28 +3282,6 @@ struct VocabularySettingsView: View {
                                 .foregroundStyle(.tertiary)
                                 .padding(.vertical, 2)
                         } else {
-                            HStack {
-                                Button(action: shareActiveVocabulary) {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: copiedActiveVocabularyFeedback ? "checkmark" : "square.and.arrow.up")
-                                        Text(copiedActiveVocabularyFeedback ? appState.l("Copied!") : appState.l("Share Active Words"))
-                                    }
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(copiedActiveVocabularyFeedback ? Color.green.opacity(0.15) : Color.primary.opacity(0.06))
-                                    .foregroundStyle(copiedActiveVocabularyFeedback ? .green : .secondary)
-                                    .cornerRadius(6)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 6)
-                                            .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
-                                    )
-                                }
-                                .buttonStyle(.plain)
-
-                                Spacer()
-                            }
-
                             ScrollView(.vertical, showsIndicators: true) {
                                 FlowLayout(spacing: 6) {
                                     ForEach(wordsList, id: \.self) { word in
@@ -3333,6 +3311,29 @@ struct VocabularySettingsView: View {
                                 .padding(.trailing, 4)
                             }
                             .frame(maxHeight: 180)
+
+                            HStack {
+                                Button(action: shareActiveVocabulary) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: copiedActiveVocabularyFeedback ? "checkmark" : "square.and.arrow.up")
+                                        Text(copiedActiveVocabularyFeedback ? appState.l("Copied!") : appState.l("Share Active Words"))
+                                    }
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(copiedActiveVocabularyFeedback ? Color.green.opacity(0.15) : Color.primary.opacity(0.06))
+                                    .foregroundStyle(copiedActiveVocabularyFeedback ? .green : .secondary)
+                                    .cornerRadius(6)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 6)
+                                            .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+                                    )
+                                }
+                                .buttonStyle(.plain)
+
+                                Spacer()
+                            }
+                            .padding(.top, 2)
                         }
                     } else {
                         // Blocked Words Controls
@@ -3414,6 +3415,36 @@ struct VocabularySettingsView: View {
                                 .foregroundStyle(.tertiary)
                                 .padding(.vertical, 2)
                         } else {
+                            ScrollView(.vertical, showsIndicators: true) {
+                                FlowLayout(spacing: 6) {
+                                    ForEach(blockedWordsList, id: \.self) { word in
+                                        HStack(spacing: 6) {
+                                            Text(word)
+                                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                                                .foregroundStyle(.primary)
+
+                                            Button(action: { removeBlockedWord(word) }) {
+                                                Image(systemName: "xmark.circle.fill")
+                                                    .font(.system(size: 11))
+                                                    .foregroundStyle(.red.opacity(0.7))
+                                            }
+                                            .buttonStyle(.plain)
+                                        }
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 5)
+                                        .background(Color.red.opacity(0.08))
+                                        .cornerRadius(12)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .strokeBorder(Color.red.opacity(0.2), lineWidth: 1)
+                                        )
+                                    }
+                                }
+                                .padding(.vertical, 4)
+                                .padding(.trailing, 4)
+                            }
+                            .frame(maxHeight: 180)
+
                             HStack {
                                 Button(action: shareActiveBlockedWords) {
                                     HStack(spacing: 4) {
@@ -3447,36 +3478,7 @@ struct VocabularySettingsView: View {
                                 }
                                 .buttonStyle(.plain)
                             }
-
-                            ScrollView(.vertical, showsIndicators: true) {
-                                FlowLayout(spacing: 6) {
-                                    ForEach(blockedWordsList, id: \.self) { word in
-                                        HStack(spacing: 6) {
-                                            Text(word)
-                                                .font(.system(size: 12, weight: .medium, design: .rounded))
-                                                .foregroundStyle(.primary)
-
-                                            Button(action: { removeBlockedWord(word) }) {
-                                                Image(systemName: "xmark.circle.fill")
-                                                    .font(.system(size: 11))
-                                                    .foregroundStyle(.red.opacity(0.7))
-                                            }
-                                            .buttonStyle(.plain)
-                                        }
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 5)
-                                        .background(Color.red.opacity(0.08))
-                                        .cornerRadius(12)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 12)
-                                                .strokeBorder(Color.red.opacity(0.2), lineWidth: 1)
-                                        )
-                                    }
-                                }
-                                .padding(.vertical, 4)
-                                .padding(.trailing, 4)
-                            }
-                            .frame(maxHeight: 180)
+                            .padding(.top, 2)
                         }
                     }
                 }
