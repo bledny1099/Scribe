@@ -267,7 +267,9 @@ struct WaveformOverlay: View {
                         .transition(.scale.combined(with: .opacity))
                     }
                 }
-                .frame(width: 120, height: RecordingPanel.waveformSize.height)
+                .frame(minWidth: 80, maxWidth: 220, alignment: .trailing)
+                .frame(height: RecordingPanel.waveformSize.height)
+                .padding(.trailing, 10)
                 .animation(.easeInOut(duration: 0.2), value: appState.recordingStatus == .recording)
             }
             .frame(height: RecordingPanel.waveformSize.height)
@@ -670,6 +672,8 @@ struct TargetAppBadgeView: View {
                 .font(.system(size: 11, weight: .semibold, design: .rounded))
                 .foregroundStyle(.primary.opacity(0.85))
                 .lineLimit(1)
+                .minimumScaleFactor(0.70)
+                .allowsTightening(true)
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 4)
@@ -681,5 +685,6 @@ struct TargetAppBadgeView: View {
             Capsule()
                 .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5)
         )
+        .fixedSize(horizontal: true, vertical: false)
     }
 }

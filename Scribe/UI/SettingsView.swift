@@ -2144,17 +2144,26 @@ struct IntegrationsSettingsView: View {
                         if appState.enableAppleNotes {
                             VStack(alignment: .leading, spacing: 10) {
                                 // Mode Selector: New note vs Single note
-                                HStack(spacing: 12) {
+                                VStack(alignment: .leading, spacing: 6) {
                                     Text(appState.l("Save Destination:"))
-                                        .font(.system(size: 12, weight: .medium))
+                                        .font(.system(size: 11, weight: .medium))
                                         .foregroundStyle(.secondary)
                                     
-                                    Picker("", selection: $appState.appleNotesExportModeRaw) {
-                                        Text(appState.l("Single Note (Append)")).tag(ExportMode.append.rawValue)
-                                        Text(appState.l("New Note per Speech")).tag(ExportMode.newNote.rawValue)
-                                    }
-                                    .pickerStyle(.segmented)
-                                    .frame(maxWidth: 320)
+                                    LiquidGlassSegmentedPicker(
+                                        items: [ExportMode.append, ExportMode.newNote],
+                                        selection: Binding(
+                                            get: { appState.appleNotesExportMode },
+                                            set: { appState.appleNotesExportMode = $0 }
+                                        ),
+                                        label: { mode in
+                                            switch mode {
+                                            case .append:
+                                                return (name: appState.l("Single Note (Append)"), icon: "note.text")
+                                            case .newNote:
+                                                return (name: appState.l("New Note per Speech"), icon: "doc.badge.plus")
+                                            }
+                                        }
+                                    )
                                 }
                                 
                                 if appState.appleNotesExportMode == .append {
