@@ -267,9 +267,9 @@ struct WaveformOverlay: View {
                         .transition(.scale.combined(with: .opacity))
                     }
                 }
-                .frame(minWidth: 80, maxWidth: 220, alignment: .trailing)
+                .fixedSize(horizontal: true, vertical: false)
                 .frame(height: RecordingPanel.waveformSize.height)
-                .padding(.trailing, 10)
+                .padding(.trailing, 14)
                 .animation(.easeInOut(duration: 0.2), value: appState.recordingStatus == .recording)
             }
             .frame(height: RecordingPanel.waveformSize.height)
