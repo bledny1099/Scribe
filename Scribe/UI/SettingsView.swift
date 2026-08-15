@@ -1955,12 +1955,24 @@ private class WindowDragNSView: NSView {
 
 // MARK: - App Icon Helpers & Renderers
 struct AppIconHelper {
-    static func icon(for bundleId: String, fallbackPath: String? = nil) -> NSImage? {
+    static func icon(for bundleId: String, fallbackPath: String? = nil, resourceName: String? = nil) -> NSImage? {
         if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) {
             return NSWorkspace.shared.icon(forFile: url.path)
         }
         if let path = fallbackPath, FileManager.default.fileExists(atPath: path) {
             return NSWorkspace.shared.icon(forFile: path)
+        }
+        if let res = resourceName {
+            if let img = NSImage(named: res) {
+                return img
+            }
+            if let path = Bundle.main.path(forResource: res, ofType: "png"), let img = NSImage(contentsOfFile: path) {
+                return img
+            }
+            let devPath = "/Users/aleksei/Documents/Scribe/Scribe/\(res).png"
+            if FileManager.default.fileExists(atPath: devPath), let img = NSImage(contentsOfFile: devPath) {
+                return img
+            }
         }
         return nil
     }
@@ -1970,7 +1982,7 @@ struct AppleNotesAppIconView: View {
     var size: CGFloat = 26
 
     var body: some View {
-        if let nsImage = AppIconHelper.icon(for: "com.apple.Notes", fallbackPath: "/System/Applications/Notes.app") {
+        if let nsImage = AppIconHelper.icon(for: "com.apple.Notes", fallbackPath: "/System/Applications/Notes.app", resourceName: "AppleNotesIcon") {
             Image(nsImage: nsImage)
                 .resizable()
                 .scaledToFit()
@@ -1978,21 +1990,9 @@ struct AppleNotesAppIconView: View {
                 .clipShape(RoundedRectangle(cornerRadius: size * 0.22, style: .continuous))
                 .shadow(color: Color.black.opacity(0.15), radius: 1, y: 0.5)
         } else {
-            ZStack {
-                RoundedRectangle(cornerRadius: size * 0.22, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [Color(red: 0.98, green: 0.85, blue: 0.28), Color(red: 0.95, green: 0.72, blue: 0.15)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                Image(systemName: "note.text")
-                    .font(.system(size: size * 0.52, weight: .bold))
-                    .foregroundStyle(.white)
-            }
-            .frame(width: size, height: size)
-            .shadow(color: Color.black.opacity(0.15), radius: 1, y: 0.5)
+            Image(systemName: "note.text")
+                .font(.system(size: size * 0.6))
+                .frame(width: size, height: size)
         }
     }
 }
@@ -2001,7 +2001,7 @@ struct ObsidianAppIconView: View {
     var size: CGFloat = 26
 
     var body: some View {
-        if let nsImage = AppIconHelper.icon(for: "md.obsidian", fallbackPath: "/Applications/Obsidian.app") {
+        if let nsImage = AppIconHelper.icon(for: "md.obsidian", fallbackPath: "/Applications/Obsidian.app", resourceName: "ObsidianIcon") {
             Image(nsImage: nsImage)
                 .resizable()
                 .scaledToFit()
@@ -2009,49 +2009,10 @@ struct ObsidianAppIconView: View {
                 .clipShape(RoundedRectangle(cornerRadius: size * 0.22, style: .continuous))
                 .shadow(color: Color.black.opacity(0.15), radius: 1, y: 0.5)
         } else {
-            // Official Obsidian Crystal Logo
-            ZStack {
-                RoundedRectangle(cornerRadius: size * 0.22, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [Color(red: 0.24, green: 0.11, blue: 0.40), Color(red: 0.10, green: 0.06, blue: 0.20)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                
-                ObsidianCrystalShape()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color(red: 0.68, green: 0.38, blue: 0.98), Color(red: 0.45, green: 0.22, blue: 0.85)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                    .padding(size * 0.18)
-            }
-            .frame(width: size, height: size)
-            .overlay(
-                RoundedRectangle(cornerRadius: size * 0.22, style: .continuous)
-                    .strokeBorder(Color.purple.opacity(0.3), lineWidth: 0.5)
-            )
-            .shadow(color: Color.purple.opacity(0.2), radius: 2, y: 1)
+            Image(systemName: "doc.text.fill")
+                .font(.system(size: size * 0.6))
+                .frame(width: size, height: size)
         }
-    }
-}
-
-struct ObsidianCrystalShape: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let w = rect.width
-        let h = rect.height
-        path.move(to: CGPoint(x: w * 0.50, y: 0))
-        path.addLine(to: CGPoint(x: w * 0.88, y: h * 0.32))
-        path.addLine(to: CGPoint(x: w * 0.66, y: h))
-        path.addLine(to: CGPoint(x: w * 0.34, y: h * 0.94))
-        path.addLine(to: CGPoint(x: w * 0.12, y: h * 0.38))
-        path.closeSubpath()
-        return path
     }
 }
 
@@ -2059,7 +2020,7 @@ struct NotionAppIconView: View {
     var size: CGFloat = 26
 
     var body: some View {
-        if let nsImage = AppIconHelper.icon(for: "notion.id", fallbackPath: "/Applications/Notion.app") {
+        if let nsImage = AppIconHelper.icon(for: "notion.id", fallbackPath: "/Applications/Notion.app", resourceName: "NotionIcon") {
             Image(nsImage: nsImage)
                 .resizable()
                 .scaledToFit()
@@ -2067,22 +2028,9 @@ struct NotionAppIconView: View {
                 .clipShape(RoundedRectangle(cornerRadius: size * 0.22, style: .continuous))
                 .shadow(color: Color.black.opacity(0.15), radius: 1, y: 0.5)
         } else {
-            // Official Notion Icon
-            ZStack {
-                RoundedRectangle(cornerRadius: size * 0.22, style: .continuous)
-                    .fill(Color.white)
-                
-                Text("N")
-                    .font(.system(size: size * 0.62, weight: .black, design: .serif))
-                    .foregroundStyle(Color(red: 0.08, green: 0.08, blue: 0.08))
-                    .offset(x: -0.3, y: -0.3)
-            }
-            .frame(width: size, height: size)
-            .overlay(
-                RoundedRectangle(cornerRadius: size * 0.22, style: .continuous)
-                    .strokeBorder(Color.black.opacity(0.15), lineWidth: 0.5)
-            )
-            .shadow(color: Color.black.opacity(0.15), radius: 1, y: 0.5)
+            Image(systemName: "square.text.square.fill")
+                .font(.system(size: size * 0.6))
+                .frame(width: size, height: size)
         }
     }
 }

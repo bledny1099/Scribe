@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A1010001 /* AppleNotesIcon.png in Resources */ = {isa = PBXBuildFile; fileRef = B1010001 /* AppleNotesIcon.png */; };
+		A1010002 /* ObsidianIcon.png in Resources */ = {isa = PBXBuildFile; fileRef = B1010002 /* ObsidianIcon.png */; };
+		A1010003 /* NotionIcon.png in Resources */ = {isa = PBXBuildFile; fileRef = B1010003 /* NotionIcon.png */; };
 		05B5CCC8C438499B2371B988 /* Shortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 379EC03AAF3EE4D9943BADF6 /* Shortcuts.swift */; };
 		0DF6FA39C13FAA664C2B1BCF /* Localization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57EAB6F0DCC91FC7E7CD8CC2 /* Localization.swift */; };
 		106D104DA22F96D067B6AFAE /* RecordingPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDBC9A85A8E71D647F586CE8 /* RecordingPanel.swift */; };
@@ -44,6 +47,9 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		B1010001 /* AppleNotesIcon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = AppleNotesIcon.png; sourceTree = "<group>"; };
+		B1010002 /* ObsidianIcon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = ObsidianIcon.png; sourceTree = "<group>"; };
+		B1010003 /* NotionIcon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = NotionIcon.png; sourceTree = "<group>"; };
 		03E3F01E9E6835C4E2BA39DD /* TranscriptionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionService.swift; sourceTree = "<group>"; };
 		0560E483B71809A7389B4CFC /* SettingsWindowManager.swift.bak */ = {isa = PBXFileReference; path = SettingsWindowManager.swift.bak; sourceTree = "<group>"; };
 		11345C81116DC36BA7419B25 /* Scribe.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Scribe.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -153,6 +159,9 @@
 			isa = PBXGroup;
 			children = (
 				42BA0A3DE7484100CC7A997F /* AppIcon.icns */,
+				B1010001 /* AppleNotesIcon.png */,
+				B1010002 /* ObsidianIcon.png */,
+				B1010003 /* NotionIcon.png */,
 				BD97DFDE70CA4008F57BF861 /* AppState.swift */,
 				81B038A3F5D1F61EC78284A5 /* check_braces.py */,
 				DD7B4611D68C13775268CE9F /* GoogleService-Info.plist */,
@@ -245,6 +254,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				964CE5E111F740301E77DAB5 /* AppIcon.icns in Resources */,
+				A1010001 /* AppleNotesIcon.png in Resources */,
+				A1010002 /* ObsidianIcon.png in Resources */,
+				A1010003 /* NotionIcon.png in Resources */,
 				3362D9645EC24874B59A8BDF /* GoogleService-Info.plist in Resources */,
 				DF55C717F04623E43AD14D2B /* SettingsView.swift.backup in Resources */,
 				4E411B668B91066AC7889F39 /* SettingsView.swift.rej in Resources */,
