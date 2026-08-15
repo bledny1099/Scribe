@@ -402,8 +402,8 @@ struct SettingsView: View {
                                     LiquidGlassMenu(
                                         items: [
                                             "Aether Hybrid (Recommended)",
-                                            "Aether Turbo (Whisper)",
-                                            "Aether Instant (Apple Speech)"
+                                            "Aether Turbo",
+                                            "Aether Instant"
                                         ],
                                         selection: $appState.recognitionEngine,
                                         title: { id in appState.l(id) }
@@ -468,42 +468,6 @@ struct SettingsView: View {
                                     .toggleStyle(.switch)
                                     .labelsHidden()
                             }
-
-
-                            HStack {
-                                Text(appState.l("Model Quality"))
-                                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.primary)
-                                Spacer()
-                                LiquidGlassMenu(
-                                    items: models.map { $0.id },
-                                    selection: $appState.selectedModel,
-                                    title: { id in appState.l(models.first(where: { $0.id == id })?.name ?? id) }
-                                )
-                            }
-                            
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(appState.l(modelDescription))
-                                    .font(.system(size: 11, weight: .regular))
-                                    .foregroundStyle(.secondary)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                                if appState.selectedLanguage == "auto" {
-                                    HStack(alignment: .top, spacing: 6) {
-                                        Image(systemName: "lightbulb.fill")
-                                            .foregroundStyle(.yellow.opacity(0.8))
-                                            .font(.system(size: 11))
-                                            .padding(.top, 1)
-                                        Text(appState.l("Setting a specific language improves accuracy on short phrases."))
-                                            .lineLimit(2)
-                                            .fixedSize(horizontal: false, vertical: true)
-                                    }
-                                    .font(.system(size: 11, weight: .medium))
-                                    .foregroundStyle(.secondary)
-                                    .padding(.top, 4)
-                                }
-                            }
-                            .padding(.top, -4)
                         }
                     }
 
@@ -611,10 +575,6 @@ struct SettingsView: View {
         .preferredColorScheme(
             appState.selectedPanelAppearance == .dark ? .dark : (appState.selectedPanelAppearance == .light ? .light : nil)
         )
-    }
-
-    private var modelDescription: String {
-        appState.l(models.first(where: { $0.id == appState.selectedModel })?.desc ?? "")
     }
 }
 
@@ -1636,6 +1596,19 @@ struct LiquidGlassMenu<T: Hashable>: View {
     let items: [T]
     @Binding var selection: T
     let title: (T) -> String
+    var displayTitle: ((T) -> String)? = nil
+
+    private func cleanDisplayTitle(_ raw: String) -> String {
+        if let custom = displayTitle {
+            return custom(selection)
+        }
+        // Remove anything in parentheses (e.g. " (Recommended)", " (2-3 Languages)", " (Рекомендуется)")
+        if let regex = try? NSRegularExpression(pattern: "\\s*\\([^)]*\\)") {
+            let range = NSRange(raw.startIndex..<raw.endIndex, in: raw)
+            return regex.stringByReplacingMatches(in: raw, options: [], range: range, withTemplate: "").trimmingCharacters(in: .whitespaces)
+        }
+        return raw
+    }
 
     var body: some View {
         Menu {
@@ -1654,7 +1627,7 @@ struct LiquidGlassMenu<T: Hashable>: View {
             }
         } label: {
             HStack(spacing: 6) {
-                Text(title(selection))
+                Text(cleanDisplayTitle(title(selection)))
                     .font(.system(size: 12, weight: .medium, design: .rounded))
                     .foregroundStyle(.primary)
                     .lineLimit(1)

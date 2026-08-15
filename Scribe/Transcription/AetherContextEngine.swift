@@ -64,7 +64,7 @@ public final class AetherContextEngine: @unchecked Sendable {
 
     /// Constructs domain-specific contextual priming hints
     public func domainContextPrompt(for domain: AppDomain, language: String?) -> String {
-        let isRussian = (language ?? "auto").lowercased().starts(with: "ru")
+        let isRussian = (language ?? "").lowercased().starts(with: "ru")
 
         switch domain {
         case .development:
