@@ -44,6 +44,9 @@
 		EB0FA60A0BD3F50F9FACC252 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 151B62BEBCC325AC8223A277 /* FirebaseCore */; };
 		F884AE0AF8654BE0E2DEC1DE /* TranscriptionHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = F913E4E26022CB6DD4F3A975 /* TranscriptionHistory.swift */; };
 		FF3A8B1B5F602F4138499565 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 9CCAD3105A335A2E5DDA45A9 /* GoogleSignIn */; };
+		A0010001 /* AetherAudioConditioner.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010001 /* AetherAudioConditioner.swift */; };
+		A0010002 /* AetherContextEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010002 /* AetherContextEngine.swift */; };
+		A0010003 /* AetherFuzzyMatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010003 /* AetherFuzzyMatcher.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -51,6 +54,9 @@
 		B1010002 /* ObsidianIcon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = ObsidianIcon.png; sourceTree = "<group>"; };
 		B1010003 /* NotionIcon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = NotionIcon.png; sourceTree = "<group>"; };
 		03E3F01E9E6835C4E2BA39DD /* TranscriptionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionService.swift; sourceTree = "<group>"; };
+		F0010001 /* AetherAudioConditioner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AetherAudioConditioner.swift; sourceTree = "<group>"; };
+		F0010002 /* AetherContextEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AetherContextEngine.swift; sourceTree = "<group>"; };
+		F0010003 /* AetherFuzzyMatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AetherFuzzyMatcher.swift; sourceTree = "<group>"; };
 		0560E483B71809A7389B4CFC /* SettingsWindowManager.swift.bak */ = {isa = PBXFileReference; path = SettingsWindowManager.swift.bak; sourceTree = "<group>"; };
 		11345C81116DC36BA7419B25 /* Scribe.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Scribe.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		12FECAADAC70A1B20BDAB73F /* PermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionManager.swift; sourceTree = "<group>"; };
@@ -101,6 +107,7 @@
 		530DE06F0C9CE76DF25095EA /* Audio */ = {
 			isa = PBXGroup;
 			children = (
+				F0010001 /* AetherAudioConditioner.swift */,
 				B5D0155AE02279EAD3E31A5E /* AudioRecorder.swift */,
 			);
 			path = Audio;
@@ -117,6 +124,7 @@
 		727413048200327DC4D484D3 /* Transcription */ = {
 			isa = PBXGroup;
 			children = (
+				F0010002 /* AetherContextEngine.swift */,
 				03E3F01E9E6835C4E2BA39DD /* TranscriptionService.swift */,
 			);
 			path = Transcription;
@@ -125,6 +133,7 @@
 		9DCDD5E28C79618D3D7CE0FA /* Utilities */ = {
 			isa = PBXGroup;
 			children = (
+				F0010003 /* AetherFuzzyMatcher.swift */,
 				8292B0055A0E08315F0E6894 /* FirebaseSyncService.swift */,
 				57EAB6F0DCC91FC7E7CD8CC2 /* Localization.swift */,
 				21275C02C08F216BDCACFB8D /* NoteExporter.swift */,
@@ -294,6 +303,9 @@
 				654788EAF4DDE1E76909FD20 /* SoundFeedback.swift in Sources */,
 				F884AE0AF8654BE0E2DEC1DE /* TranscriptionHistory.swift in Sources */,
 				7B374F86DA4A0185D8AF567E /* TranscriptionService.swift in Sources */,
+				A0010001 /* AetherAudioConditioner.swift in Sources */,
+				A0010002 /* AetherContextEngine.swift in Sources */,
+				A0010003 /* AetherFuzzyMatcher.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

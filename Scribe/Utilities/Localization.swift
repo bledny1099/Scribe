@@ -127,7 +127,13 @@ enum Localization {
         
             "Scribe is an independent project supported entirely by user donations. If you find it useful, consider supporting its development. Donations are completely optional. Thank you!": "Scribe is an independent project supported entirely by user donations. If you find it useful, consider supporting its development. Donations are completely optional. Thank you!",
             "Buy Me a Coffee on Ko-fi": "Buy Me a Coffee on Ko-fi",
-            "or Crypto": "or Crypto"
+            "or Crypto": "or Crypto",
+            "Aether": "Aether",
+            "Aether Hybrid (Recommended)": "Aether Hybrid (Recommended)",
+            "Aether Turbo (Whisper)": "Aether Turbo (Whisper)",
+            "Aether Instant (Apple Speech)": "Aether Instant (Apple Speech)",
+            "3-Stage Pipeline Active": "3-Stage Pipeline Active",
+            "Aether combines Audio VAD, dynamic app context conditioning, and lexical fuzzy matching for zero-hallucination, studio-grade speech transcription.": "Aether combines Audio VAD, dynamic app context conditioning, and lexical fuzzy matching for zero-hallucination, studio-grade speech transcription."
         ],
         "ru": [
             "Sign In": "Войти",
@@ -258,6 +264,12 @@ enum Localization {
             "Continue with GitHub Profile": "Продолжить с профилем GitHub",
 
             "Recognition Engine": "Движок распознавания",
+            "Aether": "Aether",
+            "Aether Hybrid (Recommended)": "Aether Hybrid (Рекомендуется)",
+            "Aether Turbo (Whisper)": "Aether Turbo (Whisper)",
+            "Aether Instant (Apple Speech)": "Aether Instant (Apple Speech)",
+            "3-Stage Pipeline Active": "3-этапный пайплайн активен",
+            "Aether combines Audio VAD, dynamic app context conditioning, and lexical fuzzy matching for zero-hallucination, studio-grade speech transcription.": "Aether объединяет VAD-фильтрацию тишины, контекст активного приложения и нечеткий словарный матчер для точной диктовки без галлюцинаций.",
             "Dictation Language(s)": "Язык(и) диктовки",
             "Select up to 3 languages": "Выберите до 3 языков",
             "Selected (%d)": "Выбрано (%d)",

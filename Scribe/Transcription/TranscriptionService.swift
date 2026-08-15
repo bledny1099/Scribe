@@ -117,22 +117,10 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
                 request.requiresOnDeviceRecognition = true
             }
         }
-        var strings = [
-            "ChatGPT", "Claude", "paperclip-ai", "dashboard", "API-ключей",
-            "Bybit", "Binance", "MetaMask", "Solana", "TikTok", "Instagram",
-            "YouTube", "Snapchat", "Telegram", "Viber", "Gemini", "Kimi",
-            "Perplexity", "Midjourney", "OpenAI", "Claude Code", "Ollama",
-            "PyTorch", "Supabase", "SwiftData", "Docker", "Kubernetes",
-            "Next.js", "Rust", "WhisperKit", "HuggingFace", "Vercel",
-            "TailwindCSS", "PostgreSQL", "GraphQL", "TypeScript", "LLM", "Llama", "LangChain",
-            "Google", "Antigravity", "IDE", "транскрибатор", "Хабр", "айти", "Скрайб"
-        ]
         
-        let customVocabItems = customVocabulary.components(separatedBy: ",")
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-        
-        strings.append(contentsOf: customVocabItems)
+        let strings = AetherContextEngine.shared.buildContextualStrings(
+            customVocabulary: customVocabulary
+        )
         request.contextualStrings = strings
         
         speechRequest = request
@@ -190,7 +178,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         try await ensureModelLoaded(modelName: modelName)
 
         state = .transcribing
-        logger.info("Transcribing: \(audioURL.lastPathComponent), model: \(modelName), language: \(language ?? "auto-detect"), translate: \(autoTranslate)")
+        logger.info("Aether Transcribing: \(audioURL.lastPathComponent), model: \(modelName), language: \(language ?? "auto-detect"), translate: \(autoTranslate)")
 
         guard let kit = whisperKit else {
             let err = TranscriptionError.modelNotLoaded
@@ -198,7 +186,11 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             throw err
         }
 
-        // Configure DecodingOptions for multi-language transcription or translation to English
+        // 1. Stage B: Audio Conditioning (VAD, high-pass filter, loudness normalization)
+        let conditionedURL = AetherAudioConditioner.shared.condition(audioURL: audioURL)
+        let path = conditionedURL.path
+
+        // 2. Configure DecodingOptions
         let baseLang = language != nil ? baseLanguageCode(for: language!) : "auto"
         let langKey = baseLang
         var options = DecodingOptions(task: autoTranslate ? .translate : .transcribe)
@@ -210,24 +202,22 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             options.detectLanguage = true
         }
 
-        // Encode the initial prompt as tokens — this conditions Whisper to:
-        // 1. Use proper punctuation (commas, periods, exclamation marks)
-        // 2. Correctly spell known brand names (Bybit, Binance, etc.)
-        var promptText = initialPrompt[langKey] ?? initialPrompt["auto"]!
-        if !customVocabulary.isEmpty {
-            promptText += " \(customVocabulary)."
-        }
+        // 3. Stage A: Context Biasing & Dynamic Vocabulary Injection
+        let basePrompt = initialPrompt[langKey] ?? initialPrompt["auto"]!
+        let promptText = AetherContextEngine.shared.buildConditioningPrompt(
+            basePrompt: basePrompt,
+            customVocabulary: customVocabulary,
+            language: language
+        )
+
         if let tokenizer = kit.tokenizer {
             let tokens = tokenizer.encode(text: promptText)
             // WhisperKit prompt tokens must be less than 224 to avoid crashing
             options.promptTokens = Array(tokens.suffix(min(tokens.count, 200)))
             // Must disable prefill cache when using promptTokens (WhisperKit limitation)
             options.usePrefillCache = false
-            logger.debug("Set initial prompt (\(tokens.count) tokens) for language '\(langKey)'")
+            logger.debug("Aether set initial prompt (\(tokens.count) tokens) for language '\(langKey)'")
         }
-
-        // Capture the kit reference and path before crossing isolation boundary
-        let path = audioURL.path
         
         // Custom Language Detection with Preferred Languages
         if options.detectLanguage, !preferredLanguages.isEmpty {
@@ -622,17 +612,13 @@ final class TextReplacer {
             result = result.replacingOccurrences(of: r.phrase, with: r.replacement, options: .caseInsensitive)
         }
 
-        // 2. Vocabulary Auto-Casing (built-in terms + user custom vocabulary)
+        // 2. Vocabulary Auto-Casing & Aether Fuzzy Alignment (Stage C)
         let userVocabItems = vocabulary.components(separatedBy: CharacterSet(charactersIn: ",\n"))
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
 
         let allVocabItems = builtInVocabulary + userVocabItems
-        for item in allVocabItems {
-            let escaped = NSRegularExpression.escapedPattern(for: item)
-            let regexPattern = "\\b(?i)\(escaped)\\b"
-            result = result.replacingOccurrences(of: regexPattern, with: item, options: .regularExpression)
-        }
+        result = AetherFuzzyMatcher.shared.realign(text: result, vocabulary: allVocabItems)
 
         // 3. Blocked / Excluded Words filtering
         let blockedItems = blockedWords.components(separatedBy: CharacterSet(charactersIn: ",\n"))

@@ -370,16 +370,50 @@ struct SettingsView: View {
                     // SECTION: Language & Model
                     GlassSection(title: appState.l("Recognition"), icon: "waveform.and.mic") {
                         VStack(spacing: 16) {
-                            HStack {
-                                Text(appState.l("Recognition Engine"))
-                                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.primary)
-                                Spacer()
-                                LiquidGlassMenu(
-                                    items: ["Apple Speech", "Whisper", "Both"],
-                                    selection: $appState.recognitionEngine,
-                                    title: { id in appState.l(id) }
-                                )
+                            // Aether Presentation
+                            VStack(alignment: .leading, spacing: 10) {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        HStack(spacing: 6) {
+                                            Text("Aether")
+                                                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                                .foregroundStyle(.primary)
+                                            
+                                            HStack(spacing: 4) {
+                                                Circle()
+                                                    .fill(Color.green)
+                                                    .frame(width: 6, height: 6)
+                                                Text(appState.l("3-Stage Pipeline Active"))
+                                                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                                                    .foregroundStyle(.primary.opacity(0.85))
+                                            }
+                                            .padding(.horizontal, 7)
+                                            .padding(.vertical, 2.5)
+                                            .background(
+                                                Capsule()
+                                                    .fill(Color.primary.opacity(0.08))
+                                                    .overlay(
+                                                        Capsule().stroke(Color.primary.opacity(0.12), lineWidth: 0.5)
+                                                    )
+                                            )
+                                        }
+                                    }
+                                    Spacer()
+                                    LiquidGlassMenu(
+                                        items: [
+                                            "Aether Hybrid (Recommended)",
+                                            "Aether Turbo (Whisper)",
+                                            "Aether Instant (Apple Speech)"
+                                        ],
+                                        selection: $appState.recognitionEngine,
+                                        title: { id in appState.l(id) }
+                                    )
+                                }
+                                
+                                Text(appState.l("Aether combines Audio VAD, dynamic app context conditioning, and lexical fuzzy matching for zero-hallucination, studio-grade speech transcription."))
+                                    .font(.system(size: 11, weight: .regular))
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(3)
                             }
 
                             HStack {

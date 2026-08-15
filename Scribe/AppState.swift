@@ -444,7 +444,7 @@ final class AppState: ObservableObject {
     @AppStorage("customBlockedWordsPresets") public var customBlockedWordsPresets: [VocabularyPreset] = []
     @AppStorage("allowAnonymousVocabularyContribution") public var allowAnonymousVocabularyContribution: Bool = false
     @AppStorage("hasPromptedVocabularyDataSharing") public var hasPromptedVocabularyDataSharing: Bool = false
-    @AppStorage("recognitionEngine") public var recognitionEngine: String = "Both"
+    @AppStorage("recognitionEngine") public var recognitionEngine: String = "Aether Hybrid (Recommended)"
     @AppStorage("recognitionMode") public var recognitionMode: String = "multilingual"
     @AppStorage("singleDictationLanguage") public var singleDictationLanguage: String = "ru"
     @AppStorage("pushToTalk") public var pushToTalk: Bool = false
@@ -716,7 +716,8 @@ final class AppState: ObservableObject {
                             audioURL: audioURL,
                             modelName: self.selectedModel,
                             language: langParam,
-                            autoTranslate: self.autoTranslate
+                            autoTranslate: self.autoTranslate,
+                            customVocabulary: self.vocabulary
                         )
                     }
                 } else {
@@ -724,7 +725,8 @@ final class AppState: ObservableObject {
                         audioURL: audioURL,
                         modelName: self.selectedModel,
                         language: langParam,
-                        autoTranslate: self.autoTranslate
+                        autoTranslate: self.autoTranslate,
+                        customVocabulary: self.vocabulary
                     )
                 }
 
@@ -1372,7 +1374,8 @@ final class AppState: ObservableObject {
                 audioURL: snapshotURL,
                 modelName: selectedModel,
                 language: langParam,
-                autoTranslate: autoTranslate
+                autoTranslate: autoTranslate,
+                customVocabulary: vocabulary
             )
             // Only update if we're still recording
             if isRecording {
