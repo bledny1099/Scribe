@@ -2424,8 +2424,28 @@ struct CreatePresetModalView: View {
         )
         if isBlocked {
             appState.customBlockedWordsPresets.append(preset)
+            var current = appState.blockedWords
+                .components(separatedBy: CharacterSet(charactersIn: ",\n"))
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+            for w in words {
+                if !current.contains(where: { $0.caseInsensitiveCompare(w) == .orderedSame }) {
+                    current.append(w)
+                }
+            }
+            appState.blockedWords = current.joined(separator: ", ")
         } else {
             appState.customVocabularyPresets.append(preset)
+            var current = appState.vocabulary
+                .components(separatedBy: CharacterSet(charactersIn: ",\n"))
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+            for w in words {
+                if !current.contains(where: { $0.caseInsensitiveCompare(w) == .orderedSame }) {
+                    current.append(w)
+                }
+            }
+            appState.vocabulary = current.joined(separator: ", ")
         }
         dismiss()
     }
@@ -2999,6 +3019,9 @@ struct VocabularySettingsView: View {
     @State private var showingContributionPromptModal: Bool = false
     @State private var copiedPresetId: UUID? = nil
     @State private var appliedPresetId: UUID? = nil
+    @State private var copiedActiveVocabularyFeedback: Bool = false
+    @State private var copiedActiveBlockedWordsFeedback: Bool = false
+    @State private var presetToDelete: VocabularyPreset? = nil
     @State private var addedHallucinationsFeedback: Bool = false
 
     private var wordsList: [String] {
@@ -3065,22 +3088,42 @@ struct VocabularySettingsView: View {
         appState.blockedWords = current.joined(separator: ", ")
     }
 
-    private func addWhisperHallucinationsPreset() {
-        var current = blockedWordsList
-        for h in TextReplacer.defaultWhisperHallucinations {
-            if !current.contains(where: { $0.caseInsensitiveCompare(h) == .orderedSame }) {
-                current.append(h)
-            }
-        }
-        appState.blockedWords = current.joined(separator: ", ")
-        addedHallucinationsFeedback = true
+    private func clearAllBlockedWords() {
+        appState.blockedWords = ""
+    }
+
+    private func shareActiveVocabulary() {
+        guard !wordsList.isEmpty else { return }
+        let preset = VocabularyPreset(
+            name: "Active Vocabulary",
+            description: "Exported from Scribe",
+            words: wordsList,
+            shareCode: VocabularyPreset.generateShareCode(category: "vocabulary"),
+            category: "vocabulary"
+        )
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(preset.toExportCode(), forType: .string)
+        copiedActiveVocabularyFeedback = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            addedHallucinationsFeedback = false
+            copiedActiveVocabularyFeedback = false
         }
     }
 
-    private func clearAllBlockedWords() {
-        appState.blockedWords = ""
+    private func shareActiveBlockedWords() {
+        guard !blockedWordsList.isEmpty else { return }
+        let preset = VocabularyPreset(
+            name: "Blocked Words",
+            description: "Exported from Scribe",
+            words: blockedWordsList,
+            shareCode: VocabularyPreset.generateShareCode(category: "blocked"),
+            category: "blocked"
+        )
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(preset.toExportCode(), forType: .string)
+        copiedActiveBlockedWordsFeedback = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            copiedActiveBlockedWordsFeedback = false
+        }
     }
 
     private func applyPreset(_ preset: VocabularyPreset) {
@@ -3106,8 +3149,15 @@ struct VocabularySettingsView: View {
         }
     }
 
-    private func deletePreset(_ preset: VocabularyPreset) {
+    private func deletePreset(_ preset: VocabularyPreset, removeWordsFromActive: Bool) {
         appState.customVocabularyPresets.removeAll { $0.id == preset.id }
+        if removeWordsFromActive {
+            var current = wordsList
+            let presetWordsLower = Set(preset.words.map { $0.lowercased() })
+            current.removeAll { presetWordsLower.contains($0.lowercased()) }
+            appState.vocabulary = current.joined(separator: ", ")
+        }
+        presetToDelete = nil
     }
 
     private func applyBlockedPreset(_ preset: VocabularyPreset) {
@@ -3133,8 +3183,15 @@ struct VocabularySettingsView: View {
         }
     }
 
-    private func deleteBlockedPreset(_ preset: VocabularyPreset) {
+    private func deleteBlockedPreset(_ preset: VocabularyPreset, removeWordsFromActive: Bool) {
         appState.customBlockedWordsPresets.removeAll { $0.id == preset.id }
+        if removeWordsFromActive {
+            var current = blockedWordsList
+            let presetWordsLower = Set(preset.words.map { $0.lowercased() })
+            current.removeAll { presetWordsLower.contains($0.lowercased()) }
+            appState.blockedWords = current.joined(separator: ", ")
+        }
+        presetToDelete = nil
     }
 
     var body: some View {
@@ -3215,6 +3272,28 @@ struct VocabularySettingsView: View {
                                 .foregroundStyle(.tertiary)
                                 .padding(.vertical, 2)
                         } else {
+                            HStack {
+                                Button(action: shareActiveVocabulary) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: copiedActiveVocabularyFeedback ? "checkmark" : "square.and.arrow.up")
+                                        Text(copiedActiveVocabularyFeedback ? appState.l("Copied!") : appState.l("Share Active Words"))
+                                    }
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(copiedActiveVocabularyFeedback ? Color.green.opacity(0.15) : Color.primary.opacity(0.06))
+                                    .foregroundStyle(copiedActiveVocabularyFeedback ? .green : .secondary)
+                                    .cornerRadius(6)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 6)
+                                            .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+                                    )
+                                }
+                                .buttonStyle(.plain)
+
+                                Spacer()
+                            }
+
                             ScrollView(.vertical, showsIndicators: true) {
                                 FlowLayout(spacing: 6) {
                                     ForEach(wordsList, id: \.self) { word in
@@ -3326,7 +3405,26 @@ struct VocabularySettingsView: View {
                                 .padding(.vertical, 2)
                         } else {
                             HStack {
+                                Button(action: shareActiveBlockedWords) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: copiedActiveBlockedWordsFeedback ? "checkmark" : "square.and.arrow.up")
+                                        Text(copiedActiveBlockedWordsFeedback ? appState.l("Copied!") : appState.l("Share Active Blocked Words"))
+                                    }
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(copiedActiveBlockedWordsFeedback ? Color.green.opacity(0.15) : Color.primary.opacity(0.06))
+                                    .foregroundStyle(copiedActiveBlockedWordsFeedback ? .green : .secondary)
+                                    .cornerRadius(6)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 6)
+                                            .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+                                    )
+                                }
+                                .buttonStyle(.plain)
+
                                 Spacer()
+
                                 Button(action: clearAllBlockedWords) {
                                     HStack(spacing: 4) {
                                         Image(systemName: "trash")
@@ -3392,7 +3490,7 @@ struct VocabularySettingsView: View {
                 GlassSection(title: appState.l("Vocabulary Presets"), icon: "square.grid.2x2.fill") {
                     VStack(alignment: .leading, spacing: 14) {
                         HStack(alignment: .center, spacing: 12) {
-                            Text(appState.l("Create custom word packs and share them instantly with 20-character codes."))
+                            Text(appState.l("Create custom word packs and share them instantly."))
                                 .font(.system(size: 12))
                                 .foregroundStyle(.secondary)
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -3408,12 +3506,12 @@ struct VocabularySettingsView: View {
                                     }
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 7)
-                                    .background(appState.selectedTheme.gradientColors.first!.opacity(0.15))
-                                    .foregroundStyle(appState.selectedTheme.gradientColors.first!)
+                                    .background(Color.primary.opacity(0.06))
+                                    .foregroundStyle(.primary)
                                     .cornerRadius(8)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 8)
-                                            .strokeBorder(appState.selectedTheme.gradientColors.first!.opacity(0.3), lineWidth: 1)
+                                            .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
                                     )
                                 }
                                 .buttonStyle(.plain)
@@ -3520,7 +3618,7 @@ struct VocabularySettingsView: View {
                                             }
                                             .buttonStyle(.plain)
 
-                                            Button(action: { deletePreset(preset) }) {
+                                            Button(action: { presetToDelete = preset }) {
                                                 Image(systemName: "trash")
                                                     .font(.system(size: 11))
                                                     .foregroundStyle(.secondary)
@@ -3581,12 +3679,12 @@ struct VocabularySettingsView: View {
                                     }
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 7)
-                                    .background(Color.red.opacity(0.15))
-                                    .foregroundStyle(Color.red)
+                                    .background(Color.primary.opacity(0.06))
+                                    .foregroundStyle(.primary)
                                     .cornerRadius(8)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 8)
-                                            .strokeBorder(Color.red.opacity(0.3), lineWidth: 1)
+                                            .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
                                     )
                                 }
                                 .buttonStyle(.plain)
@@ -3693,7 +3791,7 @@ struct VocabularySettingsView: View {
                                             }
                                             .buttonStyle(.plain)
 
-                                            Button(action: { deleteBlockedPreset(preset) }) {
+                                            Button(action: { presetToDelete = preset }) {
                                                 Image(systemName: "trash")
                                                     .font(.system(size: 11))
                                                     .foregroundStyle(.secondary)
@@ -3716,6 +3814,34 @@ struct VocabularySettingsView: View {
                     .padding(14)
                 }
             }
+        }
+        .alert(
+            appState.l("Delete Preset"),
+            isPresented: Binding(
+                get: { presetToDelete != nil },
+                set: { if !$0 { presetToDelete = nil } }
+            ),
+            presenting: presetToDelete
+        ) { preset in
+            Button(appState.l("Delete Preset & Remove Words"), role: .destructive) {
+                if preset.category == "blocked" {
+                    deleteBlockedPreset(preset, removeWordsFromActive: true)
+                } else {
+                    deletePreset(preset, removeWordsFromActive: true)
+                }
+            }
+            Button(appState.l("Delete Preset & Keep Words")) {
+                if preset.category == "blocked" {
+                    deleteBlockedPreset(preset, removeWordsFromActive: false)
+                } else {
+                    deletePreset(preset, removeWordsFromActive: false)
+                }
+            }
+            Button(appState.l("Cancel"), role: .cancel) {
+                presetToDelete = nil
+            }
+        } message: { preset in
+            Text(appState.l("Do you want to keep the words from this preset in your active dictionary, or remove them as well?"))
         }
         .onAppear {
             if !appState.hasPromptedVocabularyDataSharing {
