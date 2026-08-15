@@ -2707,7 +2707,7 @@ struct VocabularyContributionPromptModalView: View {
                 }
                 .padding(.top, 22)
 
-                Text(appState.l("Improve Scribe Dictionary"))
+                Text(appState.l("Improve Scribe Vocabulary"))
                     .font(.system(size: 17, weight: .bold, design: .rounded))
                     .foregroundStyle(.primary)
 
@@ -2755,12 +2755,12 @@ struct VocabularyContributionPromptModalView: View {
                         .font(.system(size: 13, weight: .medium))
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
-                        .background(Color.primary.opacity(0.06))
+                        .background(Color.primary.opacity(0.04))
                         .foregroundStyle(.secondary)
                         .cornerRadius(8)
                         .overlay(
                             RoundedRectangle(cornerRadius: 8)
-                                .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
+                                .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
                         )
                 }
                 .buttonStyle(.plain)
@@ -2779,10 +2779,13 @@ struct VocabularyContributionPromptModalView: View {
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
                     .padding(.horizontal, 18)
                     .padding(.vertical, 8)
-                    .background(Color.white)
-                    .foregroundStyle(Color(red: 0.12, green: 0.12, blue: 0.14))
+                    .background(Color.primary.opacity(0.14))
+                    .foregroundStyle(.primary)
                     .cornerRadius(8)
-                    .shadow(color: Color.black.opacity(0.2), radius: 3, y: 1)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .strokeBorder(Color.primary.opacity(0.18), lineWidth: 1)
+                    )
                 }
                 .buttonStyle(.plain)
             }
@@ -3109,7 +3112,7 @@ struct VocabularySettingsView: View {
             GlassSection(title: appState.l("Community Improvement"), icon: "network") {
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(appState.l("Contribute to Public Dictionary"))
+                        Text(appState.l("Contribute to Scribe Vocabulary"))
                             .font(.system(size: 13, weight: .semibold))
                         Text(appState.l("Anonymously share added vocabulary terms to expand the built-in library for everyone."))
                             .font(.system(size: 11))
