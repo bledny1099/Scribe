@@ -2883,12 +2883,12 @@ struct ImportPresetModalView: View {
                     .background(
                         parsedPreset != nil 
                             ? (isBlockedContext ? Color.red : appState.selectedTheme.gradientColors.first!) 
-                            : Color.primary.opacity(0.1)
+                            : Color.primary.opacity(0.08)
                     )
                     .foregroundStyle(
                         parsedPreset != nil 
                             ? Color.white 
-                            : Color.secondary.opacity(0.7)
+                            : Color.secondary.opacity(0.6)
                     )
                     .cornerRadius(8)
                 }
@@ -2897,7 +2897,8 @@ struct ImportPresetModalView: View {
             }
             .padding(16)
         }
-        .frame(width: 500, height: 480)
+        .frame(width: 480, height: parsedPreset == nil ? 210 : 440)
+        .animation(.spring(response: 0.35, dampingFraction: 0.82), value: parsedPreset != nil)
         .background(.ultraThinMaterial)
     }
 }
