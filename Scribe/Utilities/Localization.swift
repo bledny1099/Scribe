@@ -359,7 +359,6 @@ enum Localization {
             "Enter blocked word or phrase...": "Введите запрещённое слово или фразу...",
             "No blocked words added yet.": "Запрещённые слова пока не добавлены.",
             "Custom Vocabulary": "Словарь и акронимы",
-            "Clear All": "Очистить всё",
             "Action After Transcription": "Действие после транскрибации",
 
             "Drip": "Капля",
