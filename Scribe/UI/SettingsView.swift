@@ -2142,14 +2142,65 @@ struct IntegrationsSettingsView: View {
                         }
                         
                         if appState.enableAppleNotes {
-                            HStack {
-                                Text(appState.l("Target Note:"))
-                                    .font(.system(size: 12, weight: .medium))
-                                NotePickerView(
-                                    targetNote: $appState.appleNotesTargetNote,
-                                    appType: .appleNotes,
-                                    vaultURL: ""
-                                )
+                            VStack(alignment: .leading, spacing: 10) {
+                                // Mode Selector: New note vs Single note
+                                HStack(spacing: 12) {
+                                    Text(appState.l("Save Destination:"))
+                                        .font(.system(size: 12, weight: .medium))
+                                        .foregroundStyle(.secondary)
+                                    
+                                    Picker("", selection: $appState.appleNotesExportModeRaw) {
+                                        Text(appState.l("Single Note (Append)")).tag(ExportMode.append.rawValue)
+                                        Text(appState.l("New Note per Speech")).tag(ExportMode.newNote.rawValue)
+                                    }
+                                    .pickerStyle(.segmented)
+                                    .frame(maxWidth: 320)
+                                }
+                                
+                                if appState.appleNotesExportMode == .append {
+                                    HStack(spacing: 8) {
+                                        Text(appState.l("Target Note:"))
+                                            .font(.system(size: 12, weight: .medium))
+                                        NotePickerView(
+                                            targetNote: $appState.appleNotesTargetNote,
+                                            appType: .appleNotes,
+                                            vaultURL: ""
+                                        )
+                                        
+                                        Button(action: {
+                                            appState.appleNotesTargetNote = "Scribe Notes"
+                                        }) {
+                                            HStack(spacing: 4) {
+                                                Image(systemName: "note.text.badge.plus")
+                                                    .font(.system(size: 10))
+                                                Text(appState.l("Use 'Scribe Notes'"))
+                                                    .font(.system(size: 11, weight: .medium))
+                                            }
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
+                                            .background(Color.primary.opacity(0.06))
+                                            .cornerRadius(6)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 6)
+                                                    .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
+                                            )
+                                        }
+                                        .buttonStyle(.plain)
+                                        .help(appState.l("Set destination to dedicated Scribe note"))
+                                    }
+                                    .transition(.opacity.combined(with: .move(edge: .top)))
+                                } else {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "doc.badge.plus")
+                                            .font(.system(size: 11))
+                                            .foregroundStyle(.secondary)
+                                        Text(appState.l("Each dictation will automatically create a new note in Apple Notes with title and timestamp."))
+                                            .font(.system(size: 11))
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .padding(.vertical, 2)
+                                    .transition(.opacity.combined(with: .move(edge: .top)))
+                                }
                             }
                             .padding(.leading, 36)
                             .transition(.opacity.combined(with: .move(edge: .top)).combined(with: .scale(scale: 0.98, anchor: .top)))

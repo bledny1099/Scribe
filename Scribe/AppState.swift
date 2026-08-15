@@ -410,6 +410,11 @@ final class AppState: ObservableObject {
     @AppStorage("durationVisible") public var durationVisible: Bool = true
     @AppStorage("autoTranslate") var autoTranslate: Bool = false
     @AppStorage("noteExportMode") public var noteExportMode: ExportMode = .append
+    @AppStorage("appleNotesExportMode") public var appleNotesExportModeRaw: String = ExportMode.append.rawValue
+    public var appleNotesExportMode: ExportMode {
+        get { ExportMode(rawValue: appleNotesExportModeRaw) ?? .append }
+        set { appleNotesExportModeRaw = newValue.rawValue }
+    }
     @AppStorage("enableAppleNotes") public var enableAppleNotes: Bool = false
     @AppStorage("attachAudioToNotes") public var attachAudioToNotes: Bool = false
     @AppStorage("textReplacements") public var textReplacements: [Replacement] = []

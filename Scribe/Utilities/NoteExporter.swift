@@ -47,7 +47,7 @@ class NoteExporter {
         
         // Export to Apple Notes if explicitly enabled OR if triggered via Direct Note Hotkey with target Apple Notes
         if state.enableAppleNotes || (isDirect && directApp == .appleNotes) {
-            exportToAppleNotes(text: text, mode: state.noteExportMode, targetNote: state.appleNotesTargetNote, state: state)
+            exportToAppleNotes(text: text, mode: state.appleNotesExportMode, targetNote: state.appleNotesTargetNote, state: state)
         }
         
         // Export to Obsidian if explicitly enabled OR if triggered via Direct Note Hotkey with target Obsidian
