@@ -1953,6 +1953,140 @@ private class WindowDragNSView: NSView {
     }
 }
 
+// MARK: - App Icon Helpers & Renderers
+struct AppIconHelper {
+    static func icon(for bundleId: String, fallbackPath: String? = nil) -> NSImage? {
+        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) {
+            return NSWorkspace.shared.icon(forFile: url.path)
+        }
+        if let path = fallbackPath, FileManager.default.fileExists(atPath: path) {
+            return NSWorkspace.shared.icon(forFile: path)
+        }
+        return nil
+    }
+}
+
+struct AppleNotesAppIconView: View {
+    var size: CGFloat = 26
+
+    var body: some View {
+        if let nsImage = AppIconHelper.icon(for: "com.apple.Notes", fallbackPath: "/System/Applications/Notes.app") {
+            Image(nsImage: nsImage)
+                .resizable()
+                .scaledToFit()
+                .frame(width: size, height: size)
+                .clipShape(RoundedRectangle(cornerRadius: size * 0.22, style: .continuous))
+                .shadow(color: Color.black.opacity(0.15), radius: 1, y: 0.5)
+        } else {
+            ZStack {
+                RoundedRectangle(cornerRadius: size * 0.22, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color(red: 0.98, green: 0.85, blue: 0.28), Color(red: 0.95, green: 0.72, blue: 0.15)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                Image(systemName: "note.text")
+                    .font(.system(size: size * 0.52, weight: .bold))
+                    .foregroundStyle(.white)
+            }
+            .frame(width: size, height: size)
+            .shadow(color: Color.black.opacity(0.15), radius: 1, y: 0.5)
+        }
+    }
+}
+
+struct ObsidianAppIconView: View {
+    var size: CGFloat = 26
+
+    var body: some View {
+        if let nsImage = AppIconHelper.icon(for: "md.obsidian", fallbackPath: "/Applications/Obsidian.app") {
+            Image(nsImage: nsImage)
+                .resizable()
+                .scaledToFit()
+                .frame(width: size, height: size)
+                .clipShape(RoundedRectangle(cornerRadius: size * 0.22, style: .continuous))
+                .shadow(color: Color.black.opacity(0.15), radius: 1, y: 0.5)
+        } else {
+            // Official Obsidian Crystal Logo
+            ZStack {
+                RoundedRectangle(cornerRadius: size * 0.22, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color(red: 0.24, green: 0.11, blue: 0.40), Color(red: 0.10, green: 0.06, blue: 0.20)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                
+                ObsidianCrystalShape()
+                    .fill(
+                        LinearGradient(
+                            colors: [Color(red: 0.68, green: 0.38, blue: 0.98), Color(red: 0.45, green: 0.22, blue: 0.85)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .padding(size * 0.18)
+            }
+            .frame(width: size, height: size)
+            .overlay(
+                RoundedRectangle(cornerRadius: size * 0.22, style: .continuous)
+                    .strokeBorder(Color.purple.opacity(0.3), lineWidth: 0.5)
+            )
+            .shadow(color: Color.purple.opacity(0.2), radius: 2, y: 1)
+        }
+    }
+}
+
+struct ObsidianCrystalShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let w = rect.width
+        let h = rect.height
+        path.move(to: CGPoint(x: w * 0.50, y: 0))
+        path.addLine(to: CGPoint(x: w * 0.88, y: h * 0.32))
+        path.addLine(to: CGPoint(x: w * 0.66, y: h))
+        path.addLine(to: CGPoint(x: w * 0.34, y: h * 0.94))
+        path.addLine(to: CGPoint(x: w * 0.12, y: h * 0.38))
+        path.closeSubpath()
+        return path
+    }
+}
+
+struct NotionAppIconView: View {
+    var size: CGFloat = 26
+
+    var body: some View {
+        if let nsImage = AppIconHelper.icon(for: "notion.id", fallbackPath: "/Applications/Notion.app") {
+            Image(nsImage: nsImage)
+                .resizable()
+                .scaledToFit()
+                .frame(width: size, height: size)
+                .clipShape(RoundedRectangle(cornerRadius: size * 0.22, style: .continuous))
+                .shadow(color: Color.black.opacity(0.15), radius: 1, y: 0.5)
+        } else {
+            // Official Notion Icon
+            ZStack {
+                RoundedRectangle(cornerRadius: size * 0.22, style: .continuous)
+                    .fill(Color.white)
+                
+                Text("N")
+                    .font(.system(size: size * 0.62, weight: .black, design: .serif))
+                    .foregroundStyle(Color(red: 0.08, green: 0.08, blue: 0.08))
+                    .offset(x: -0.3, y: -0.3)
+            }
+            .frame(width: size, height: size)
+            .overlay(
+                RoundedRectangle(cornerRadius: size * 0.22, style: .continuous)
+                    .strokeBorder(Color.black.opacity(0.15), lineWidth: 0.5)
+            )
+            .shadow(color: Color.black.opacity(0.15), radius: 1, y: 0.5)
+        }
+    }
+}
+
 // MARK: - Integrations Settings View
 struct IntegrationsSettingsView: View {
     @EnvironmentObject var appState: AppState
@@ -1984,10 +2118,8 @@ struct IntegrationsSettingsView: View {
                     // Apple Notes Row
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
-                            HStack(spacing: 8) {
-                                Image(systemName: "apple.logo")
-                                    .font(.system(size: 14))
-                                    .foregroundStyle(.primary)
+                            HStack(spacing: 10) {
+                                AppleNotesAppIconView(size: 26)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text("Apple Notes")
                                         .font(.system(size: 14, weight: .bold))
@@ -2019,7 +2151,7 @@ struct IntegrationsSettingsView: View {
                                     vaultURL: ""
                                 )
                             }
-                            .padding(.leading, 22)
+                            .padding(.leading, 36)
                             .transition(.opacity.combined(with: .move(edge: .top)).combined(with: .scale(scale: 0.98, anchor: .top)))
                         }
                     }
@@ -2029,10 +2161,8 @@ struct IntegrationsSettingsView: View {
                     // Obsidian Row
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
-                            HStack(spacing: 8) {
-                                Image(systemName: "doc.text.fill")
-                                    .font(.system(size: 14))
-                                    .foregroundStyle(.purple)
+                            HStack(spacing: 10) {
+                                ObsidianAppIconView(size: 26)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text("Obsidian")
                                         .font(.system(size: 14, weight: .bold))
@@ -2080,7 +2210,7 @@ struct IntegrationsSettingsView: View {
                                         .textFieldStyle(.roundedBorder)
                                 }
                             }
-                            .padding(.leading, 22)
+                            .padding(.leading, 36)
                             .transition(.opacity.combined(with: .move(edge: .top)).combined(with: .scale(scale: 0.98, anchor: .top)))
                         }
                     }
@@ -2090,10 +2220,8 @@ struct IntegrationsSettingsView: View {
                     // Notion Row
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
-                            HStack(spacing: 8) {
-                                Image(systemName: "square.grid.2x2.fill")
-                                    .font(.system(size: 14))
-                                    .foregroundStyle(.blue)
+                            HStack(spacing: 10) {
+                                NotionAppIconView(size: 26)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text("Notion")
                                         .font(.system(size: 14, weight: .bold))
@@ -2130,7 +2258,7 @@ struct IntegrationsSettingsView: View {
                                         .textFieldStyle(.roundedBorder)
                                 }
                             }
-                            .padding(.leading, 22)
+                            .padding(.leading, 36)
                             .transition(.opacity.combined(with: .move(edge: .top)).combined(with: .scale(scale: 0.98, anchor: .top)))
                         }
                     }
