@@ -386,8 +386,6 @@ enum Localization {
             "Push-to-Talk (Hold to record)": "Push-to-Talk (удерживание)",
             "Hold the hotkey to record, release to stop": "Удерживайте клавишу для записи, отпустите для остановки",
             "Recognition Mode": "Режим распознавания",
-            "Single Language Mode": "Одноязычный режим",
-            "Multilingual Mode (2-3 Languages)": "Многоязычный режим (2-3 языка)",
             "Dictation Languages": "Языки диктовки",
             "Select up to 3 languages for auto-switching": "Выберите до 3 языков для мгновенного переключения",
             "Single Language": "Единственный язык",
