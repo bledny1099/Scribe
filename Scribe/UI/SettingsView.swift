@@ -406,7 +406,10 @@ struct SettingsView: View {
                                             "Aether Instant"
                                         ],
                                         selection: $appState.recognitionEngine,
-                                        title: { id in appState.l(id) }
+                                        title: { id in appState.l(id) },
+                                        displayTitle: { id in
+                                            id.contains("Hybrid") ? appState.l("Aether Hybrid") : appState.l(id)
+                                        }
                                     )
                                 }
                                 
@@ -426,6 +429,9 @@ struct SettingsView: View {
                                     selection: $appState.recognitionMode,
                                     title: { id in
                                         id == "multilingual" ? appState.l("Multilingual Mode (2-3 Languages)") : appState.l("Single Language Mode")
+                                    },
+                                    displayTitle: { id in
+                                        id == "multilingual" ? appState.l("Multilingual Mode") : appState.l("Single Language Mode")
                                     }
                                 )
                             }
