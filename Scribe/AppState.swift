@@ -428,6 +428,8 @@ final class AppState: ObservableObject {
     @AppStorage("notionPageId") public var notionPageId: String = ""
     @AppStorage("integrationExportMode") public var integrationExportMode: String = "both" // "both", "notesOnly", "windowOnly"
     @AppStorage("vocabulary") public var vocabulary: String = ""
+    @AppStorage("blockedWords") public var blockedWords: String = ""
+    @AppStorage("blockedWordsAction") public var blockedWordsActionRaw: String = "remove" // "remove" or "mask"
     @AppStorage("customVocabularyPresets") public var customVocabularyPresets: [VocabularyPreset] = []
     @AppStorage("allowAnonymousVocabularyContribution") public var allowAnonymousVocabularyContribution: Bool = false
     @AppStorage("hasPromptedVocabularyDataSharing") public var hasPromptedVocabularyDataSharing: Bool = false
@@ -718,7 +720,13 @@ final class AppState: ObservableObject {
                 if self.cleanFillerWords {
                     text = TranscriptionService.removeFillerWordsAndDuplicates(text)
                 }
-                text = TextReplacer.apply(replacements: self.textReplacements, vocabulary: self.vocabulary, to: text)
+                text = TextReplacer.apply(
+                    replacements: self.textReplacements,
+                    vocabulary: self.vocabulary,
+                    blockedWords: self.blockedWords,
+                    blockedAction: self.blockedWordsActionRaw,
+                    to: text
+                )
 
                 // LLM Refinement if Cloud AI is active and an AI mode is selected
                 if localEnableCloud && !localAPIKey.isEmpty && localMode != .raw {

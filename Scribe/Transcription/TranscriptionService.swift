@@ -514,8 +514,25 @@ final class TextReplacer {
         Replacement(phrase: "9mice", replacement: "9mice")
     ]
 
-    /// Applies default phonetic replacements, custom replacements, and vocabulary auto-casing to a string.
-    static func apply(replacements: [Replacement], vocabulary: String = "", to text: String) -> String {
+    /// Common Whisper hallucination artifacts and subtitle credits that should never appear in transcriptions
+    public static let defaultWhisperHallucinations: [String] = [
+        "Субтитры сделал",
+        "Субтитры создавал",
+        "Субтитры добавил",
+        "Редактор субтитров",
+        "Корректор",
+        "Продолжение следует",
+        "Спасибо за просмотр",
+        "Ставьте лайки",
+        "Подписывайтесь на канал",
+        "Amara.org",
+        "Subtitles by",
+        "Thank you for watching",
+        "Translated by"
+    ]
+
+    /// Applies default phonetic replacements, custom replacements, vocabulary auto-casing, and blocked words filtering.
+    static func apply(replacements: [Replacement], vocabulary: String = "", blockedWords: String = "", blockedAction: String = "remove", to text: String) -> String {
         let allReplacements = defaultPhoneticReplacements + replacements
         var result = text
 
@@ -535,6 +552,29 @@ final class TextReplacer {
             let escaped = NSRegularExpression.escapedPattern(for: item)
             let regexPattern = "\\b(?i)\(escaped)\\b"
             result = result.replacingOccurrences(of: regexPattern, with: item, options: .regularExpression)
+        }
+
+        // 3. Blocked / Excluded Words filtering
+        let blockedItems = blockedWords.components(separatedBy: CharacterSet(charactersIn: ",\n"))
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        for blocked in blockedItems {
+            let escaped = NSRegularExpression.escapedPattern(for: blocked)
+            let regexPattern = "(?i)\\b\(escaped)\\b"
+            if blockedAction == "mask" {
+                let maskString = String(repeating: "*", count: max(3, blocked.count))
+                result = result.replacingOccurrences(of: regexPattern, with: maskString, options: .regularExpression)
+            } else {
+                result = result.replacingOccurrences(of: regexPattern, with: "", options: .regularExpression)
+            }
+        }
+
+        // Clean up any double spaces or orphan punctuation resulting from removals
+        if blockedAction == "remove" && !blockedItems.isEmpty {
+            result = result.replacingOccurrences(of: "\\s{2,}", with: " ", options: .regularExpression)
+            result = result.replacingOccurrences(of: "\\s+([.,!?:;])", with: "$1", options: .regularExpression)
+            result = result.trimmingCharacters(in: .whitespacesAndNewlines)
         }
 
         return result
