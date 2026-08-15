@@ -2461,7 +2461,7 @@ struct CreatePresetModalView: View {
                 HStack(spacing: 8) {
                     Image(systemName: isBlocked ? "nosign" : "plus.square.fill.on.square.fill")
                         .font(.system(size: 16))
-                        .foregroundStyle(isBlocked ? Color.red : appState.selectedTheme.gradientColors.first!)
+                        .foregroundStyle(isBlocked ? Color.red : Color.primary)
                     Text(isBlocked ? appState.l("Create Blocked Words Preset") : appState.l("Create Vocabulary Preset"))
                         .font(.system(size: 16, weight: .bold, design: .rounded))
                 }
@@ -2532,9 +2532,10 @@ struct CreatePresetModalView: View {
                                 }
                                 .padding(.horizontal, 14)
                                 .padding(.vertical, 10)
-                                .background(isValidItem(wordInput) ? (isBlocked ? Color.red.opacity(0.15) : appState.selectedTheme.gradientColors.first!.opacity(0.15)) : Color.primary.opacity(0.05))
-                                .foregroundStyle(isValidItem(wordInput) ? (isBlocked ? Color.red : appState.selectedTheme.gradientColors.first!) : Color.secondary)
+                                .background(isValidItem(wordInput) ? (isBlocked ? Color.red.opacity(0.18) : Color.primary.opacity(0.12)) : Color.primary.opacity(0.05))
+                                .foregroundStyle(isValidItem(wordInput) ? (isBlocked ? Color.red : Color.primary) : Color.secondary)
                                 .cornerRadius(8)
+                                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(isValidItem(wordInput) ? (isBlocked ? Color.red.opacity(0.3) : Color.primary.opacity(0.15)) : Color.clear, lineWidth: 1))
                             }
                             .buttonStyle(.plain)
                             .disabled(!isValidItem(wordInput))
@@ -2576,7 +2577,7 @@ struct CreatePresetModalView: View {
                         HStack {
                             Text(shareCode.isEmpty ? VocabularyPreset.generateShareCode(category: category) : shareCode)
                                 .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                                .foregroundStyle(isBlocked ? Color.red : appState.selectedTheme.gradientColors.first!)
+                                .foregroundStyle(isBlocked ? Color.red : Color.primary)
 
                             Spacer()
 
@@ -2738,7 +2739,7 @@ struct ImportPresetModalView: View {
                 HStack(spacing: 8) {
                     Image(systemName: isBlockedContext ? "nosign" : "square.and.arrow.down.fill")
                         .font(.system(size: 16))
-                        .foregroundStyle(isBlockedContext ? Color.red : appState.selectedTheme.gradientColors.first!)
+                        .foregroundStyle(isBlockedContext ? Color.red : Color.primary)
                     Text(isBlockedContext ? appState.l("Import Blocked Preset") : appState.l("Import Vocabulary Preset"))
                         .font(.system(size: 16, weight: .bold, design: .rounded))
                 }
@@ -2777,15 +2778,17 @@ struct ImportPresetModalView: View {
                                     parseCode()
                                 }
                             }) {
-                                HStack(spacing: 4) {
+                                HStack(spacing: 5) {
                                     Image(systemName: "doc.on.clipboard")
                                     Text(appState.l("Paste"))
                                 }
+                                .font(.system(size: 12, weight: .semibold))
                                 .padding(.horizontal, 12)
-                                .padding(.vertical, 10)
-                                .background(appState.selectedTheme.gradientColors.first!.opacity(0.12))
-                                .foregroundStyle(appState.selectedTheme.gradientColors.first!)
+                                .padding(.vertical, 8)
+                                .background(Color.primary.opacity(0.08))
+                                .foregroundStyle(Color.primary)
                                 .cornerRadius(8)
+                                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.primary.opacity(0.12), lineWidth: 1))
                             }
                             .buttonStyle(.plain)
                         }
@@ -3086,7 +3089,7 @@ struct ShareActiveWordsModalView: View {
                 HStack(spacing: 8) {
                     Image(systemName: isBlocked ? "nosign" : "square.and.arrow.up.fill")
                         .font(.system(size: 16))
-                        .foregroundStyle(isBlocked ? Color.red : appState.selectedTheme.gradientColors.first!)
+                        .foregroundStyle(isBlocked ? Color.red : Color.primary)
                     Text(isBlocked ? appState.l("Share Active Blocked Words") : appState.l("Share Active Words"))
                         .font(.system(size: 16, weight: .bold, design: .rounded))
                 }
@@ -3142,7 +3145,7 @@ struct ShareActiveWordsModalView: View {
 
                             Text("\(selectedWords.count) / \(allWords.count) " + appState.l("selected"))
                                 .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(selectedWords.isEmpty ? Color.secondary : (isBlocked ? Color.red : appState.selectedTheme.gradientColors.first!))
+                                .foregroundStyle(selectedWords.isEmpty ? Color.secondary : (isBlocked ? Color.red : Color.primary))
 
                             HStack(spacing: 8) {
                                 Button(action: selectAll) {
@@ -3207,7 +3210,7 @@ struct ShareActiveWordsModalView: View {
                                                     .font(.system(size: 10, weight: .semibold))
                                                     .foregroundStyle(
                                                         isSelected 
-                                                            ? (isBlocked ? Color.red : appState.selectedTheme.gradientColors.first!) 
+                                                            ? (isBlocked ? Color.red : Color.primary) 
                                                             : Color.secondary.opacity(0.6)
                                                     )
                                                 Text(word)
@@ -3218,7 +3221,7 @@ struct ShareActiveWordsModalView: View {
                                             .padding(.vertical, 5)
                                             .background(
                                                 isSelected 
-                                                    ? (isBlocked ? Color.red.opacity(0.12) : appState.selectedTheme.gradientColors.first!.opacity(0.12))
+                                                    ? (isBlocked ? Color.red.opacity(0.12) : Color.primary.opacity(0.12))
                                                     : Color.primary.opacity(0.04)
                                             )
                                             .cornerRadius(8)
@@ -3226,7 +3229,7 @@ struct ShareActiveWordsModalView: View {
                                                 RoundedRectangle(cornerRadius: 8)
                                                     .strokeBorder(
                                                         isSelected 
-                                                            ? (isBlocked ? Color.red.opacity(0.3) : appState.selectedTheme.gradientColors.first!.opacity(0.3))
+                                                            ? (isBlocked ? Color.red.opacity(0.3) : Color.primary.opacity(0.2))
                                                             : Color.primary.opacity(0.06),
                                                         lineWidth: 1
                                                     )
@@ -3528,12 +3531,12 @@ struct VocabularySettingsView: View {
                                 }
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 7)
-                                .background(isValidItem(newWord) ? appState.selectedTheme.gradientColors[0].opacity(0.2) : Color.primary.opacity(0.05))
-                                .foregroundStyle(isValidItem(newWord) ? appState.selectedTheme.gradientColors[0] : Color.secondary)
+                                .background(isValidItem(newWord) ? Color.primary.opacity(0.12) : Color.primary.opacity(0.05))
+                                .foregroundStyle(isValidItem(newWord) ? Color.primary : Color.secondary)
                                 .cornerRadius(8)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 8)
-                                        .strokeBorder(isValidItem(newWord) ? appState.selectedTheme.gradientColors[0].opacity(0.3) : Color.clear, lineWidth: 1)
+                                        .strokeBorder(isValidItem(newWord) ? Color.primary.opacity(0.15) : Color.clear, lineWidth: 1)
                                 )
                             }
                             .buttonStyle(.plain)
@@ -3820,7 +3823,7 @@ struct VocabularySettingsView: View {
                             HStack(spacing: 8) {
                                 Image(systemName: "sparkles")
                                     .font(.system(size: 13))
-                                    .foregroundStyle(appState.selectedTheme.gradientColors.first!)
+                                    .foregroundStyle(.secondary)
                                 Text(appState.l("No custom presets yet. Create one or import a share code to get started."))
                                     .font(.system(size: 12))
                                     .foregroundStyle(.secondary)
@@ -3844,8 +3847,8 @@ struct VocabularySettingsView: View {
                                                     .font(.system(size: 9, weight: .bold))
                                                     .padding(.horizontal, 6)
                                                     .padding(.vertical, 2)
-                                                    .background(appState.selectedTheme.gradientColors.first!.opacity(0.12))
-                                                    .foregroundStyle(appState.selectedTheme.gradientColors.first!)
+                                                    .background(Color.primary.opacity(0.08))
+                                                    .foregroundStyle(Color.primary.opacity(0.85))
                                                     .cornerRadius(4)
                                             }
 
@@ -3888,8 +3891,8 @@ struct VocabularySettingsView: View {
                                                 .font(.system(size: 11, weight: .semibold))
                                                 .padding(.horizontal, 8)
                                                 .padding(.vertical, 5)
-                                                .background(copiedPresetId == preset.id ? Color.green.opacity(0.15) : appState.selectedTheme.gradientColors.first!.opacity(0.1))
-                                                .foregroundStyle(copiedPresetId == preset.id ? .green : appState.selectedTheme.gradientColors.first!)
+                                                .background(copiedPresetId == preset.id ? Color.green.opacity(0.15) : Color.primary.opacity(0.08))
+                                                .foregroundStyle(copiedPresetId == preset.id ? .green : .primary)
                                                 .cornerRadius(6)
                                             }
                                             .buttonStyle(.plain)
