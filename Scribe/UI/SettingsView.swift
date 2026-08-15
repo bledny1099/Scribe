@@ -2541,24 +2541,28 @@ struct CreatePresetModalView: View {
                         }
 
                         if !words.isEmpty {
-                            FlowLayout(spacing: 6) {
-                                ForEach(words, id: \.self) { word in
-                                    HStack(spacing: 4) {
-                                        Text(word)
-                                            .font(.system(size: 12, weight: .medium, design: .rounded))
-                                        Button(action: { words.removeAll { $0 == word } }) {
-                                            Image(systemName: "xmark.circle.fill")
-                                                .font(.system(size: 10))
-                                                .foregroundStyle(isBlocked ? Color.red.opacity(0.7) : .secondary)
+                            ScrollView(.vertical, showsIndicators: true) {
+                                FlowLayout(spacing: 6) {
+                                    ForEach(words, id: \.self) { word in
+                                        HStack(spacing: 4) {
+                                            Text(word)
+                                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                                            Button(action: { words.removeAll { $0 == word } }) {
+                                                Image(systemName: "xmark.circle.fill")
+                                                    .font(.system(size: 10))
+                                                    .foregroundStyle(isBlocked ? Color.red.opacity(0.7) : .secondary)
+                                            }
+                                            .buttonStyle(.plain)
                                         }
-                                        .buttonStyle(.plain)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(isBlocked ? Color.red.opacity(0.08) : Color.primary.opacity(0.06))
+                                        .cornerRadius(8)
                                     }
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(isBlocked ? Color.red.opacity(0.08) : Color.primary.opacity(0.06))
-                                    .cornerRadius(8)
                                 }
+                                .padding(.vertical, 2)
                             }
+                            .frame(maxHeight: 130)
                             .padding(.top, 4)
                         }
                     }
@@ -2746,107 +2750,113 @@ struct ImportPresetModalView: View {
                 }
                 .buttonStyle(.plain)
             }
-            .padding(20)
+            .padding(18)
 
             Divider().opacity(0.3)
 
-            VStack(alignment: .leading, spacing: 16) {
-                // Code Input
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(appState.l("Share Code (scr_...)"))
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.secondary)
+            ScrollView(.vertical, showsIndicators: true) {
+                VStack(alignment: .leading, spacing: 16) {
+                    // Code Input
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(appState.l("Share Code (scr_...)"))
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.secondary)
 
-                    HStack(spacing: 8) {
-                        TextField(appState.l("Paste scr_ code here..."), text: $codeInput)
-                            .textFieldStyle(.plain)
-                            .padding(10)
-                            .background(Color.primary.opacity(0.04))
-                            .cornerRadius(8)
-                            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.primary.opacity(0.1), lineWidth: 1))
-                            .onChange(of: codeInput) { _ in parseCode() }
+                        HStack(spacing: 8) {
+                            TextField(appState.l("Paste scr_ code here..."), text: $codeInput)
+                                .textFieldStyle(.plain)
+                                .padding(10)
+                                .background(Color.primary.opacity(0.04))
+                                .cornerRadius(8)
+                                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.primary.opacity(0.1), lineWidth: 1))
+                                .onChange(of: codeInput) { _ in parseCode() }
 
-                        Button(action: {
-                            if let clip = NSPasteboard.general.string(forType: .string) {
-                                codeInput = clip
-                                parseCode()
-                            }
-                        }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "doc.on.clipboard")
-                                Text(appState.l("Paste"))
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 10)
-                            .background(appState.selectedTheme.gradientColors.first!.opacity(0.12))
-                            .foregroundStyle(appState.selectedTheme.gradientColors.first!)
-                            .cornerRadius(8)
-                        }
-                        .buttonStyle(.plain)
-                    }
-
-                    if let err = parseError {
-                        Text(err)
-                            .font(.system(size: 11))
-                            .foregroundStyle(.red)
-                    }
-                }
-
-                // Preset Preview
-                if let preset = parsedPreset {
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                HStack(spacing: 6) {
-                                    Text(preset.name)
-                                        .font(.system(size: 14, weight: .bold, design: .rounded))
-                                    Text(preset.category == "blocked" ? appState.l("Blocked Words") : appState.l("Custom Vocabulary"))
-                                        .font(.system(size: 9, weight: .bold))
-                                        .padding(.horizontal, 6)
-                                        .padding(.vertical, 2)
-                                        .background(preset.category == "blocked" ? Color.red.opacity(0.15) : Color.blue.opacity(0.15))
-                                        .foregroundStyle(preset.category == "blocked" ? Color.red : Color.blue)
-                                        .cornerRadius(4)
+                            Button(action: {
+                                if let clip = NSPasteboard.general.string(forType: .string) {
+                                    codeInput = clip
+                                    parseCode()
                                 }
-                                if !preset.description.isEmpty {
-                                    Text(preset.description)
-                                        .font(.system(size: 11))
-                                        .foregroundStyle(.secondary)
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "doc.on.clipboard")
+                                    Text(appState.l("Paste"))
                                 }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 10)
+                                .background(appState.selectedTheme.gradientColors.first!.opacity(0.12))
+                                .foregroundStyle(appState.selectedTheme.gradientColors.first!)
+                                .cornerRadius(8)
                             }
-                            Spacer()
-                            Text("\(preset.words.count) " + appState.l("words"))
-                                .font(.system(size: 10, weight: .bold))
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 3)
-                                .background(Color.green.opacity(0.15))
-                                .foregroundStyle(.green)
-                                .cornerRadius(6)
+                            .buttonStyle(.plain)
                         }
 
-                        FlowLayout(spacing: 5) {
-                            ForEach(preset.words, id: \.self) { word in
-                                Text(word)
-                                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                                    .padding(.horizontal, 7)
+                        if let err = parseError {
+                            Text(err)
+                                .font(.system(size: 11))
+                                .foregroundStyle(.red)
+                        }
+                    }
+
+                    // Preset Preview
+                    if let preset = parsedPreset {
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    HStack(spacing: 6) {
+                                        Text(preset.name)
+                                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                                        Text(preset.category == "blocked" ? appState.l("Blocked Words") : appState.l("Custom Vocabulary"))
+                                            .font(.system(size: 9, weight: .bold))
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(preset.category == "blocked" ? Color.red.opacity(0.15) : Color.blue.opacity(0.15))
+                                            .foregroundStyle(preset.category == "blocked" ? Color.red : Color.blue)
+                                            .cornerRadius(4)
+                                    }
+                                    if !preset.description.isEmpty {
+                                        Text(preset.description)
+                                            .font(.system(size: 11))
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                                Spacer()
+                                Text("\(preset.words.count) " + appState.l("words"))
+                                    .font(.system(size: 10, weight: .bold))
+                                    .padding(.horizontal, 8)
                                     .padding(.vertical, 3)
-                                    .background(preset.category == "blocked" ? Color.red.opacity(0.08) : Color.primary.opacity(0.06))
+                                    .background(Color.green.opacity(0.15))
+                                    .foregroundStyle(.green)
                                     .cornerRadius(6)
                             }
+
+                            ScrollView(.vertical, showsIndicators: true) {
+                                FlowLayout(spacing: 5) {
+                                    ForEach(preset.words, id: \.self) { word in
+                                        Text(word)
+                                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                                            .padding(.horizontal, 7)
+                                            .padding(.vertical, 3)
+                                            .background(preset.category == "blocked" ? Color.red.opacity(0.08) : Color.primary.opacity(0.06))
+                                            .cornerRadius(6)
+                                    }
+                                }
+                                .padding(.vertical, 2)
+                            }
+                            .frame(maxHeight: 160)
+
+                            Divider().opacity(0.2)
+
+                            Toggle(isBlockedContext ? appState.l("Also add to active blocked words") : appState.l("Also add words directly into active vocabulary"), isOn: $applyDirectlyToActive)
+                                .font(.system(size: 12))
                         }
+                        .padding(12)
+                        .background(Color.primary.opacity(0.03))
+                        .cornerRadius(10)
+                        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.green.opacity(0.3), lineWidth: 1))
                     }
-                    .padding(12)
-                    .background(Color.primary.opacity(0.03))
-                    .cornerRadius(10)
-                    .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.green.opacity(0.3), lineWidth: 1))
-
-                    Toggle(isBlockedContext ? appState.l("Also add to active blocked words") : appState.l("Also add words directly into active vocabulary"), isOn: $applyDirectlyToActive)
-                        .font(.system(size: 12))
                 }
-
-                Spacer()
+                .padding(18)
             }
-            .padding(20)
 
             Divider().opacity(0.3)
 
@@ -2887,7 +2897,7 @@ struct ImportPresetModalView: View {
             }
             .padding(16)
         }
-        .frame(width: 460, height: 380)
+        .frame(width: 500, height: 480)
         .background(.ultraThinMaterial)
     }
 }
