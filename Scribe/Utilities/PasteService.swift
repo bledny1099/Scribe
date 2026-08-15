@@ -5,6 +5,7 @@ import os.log
 private let logger = Logger(subsystem: "com.aleksei.scribe", category: "PasteService")
 
 /// Handles clipboard operations and simulated keyboard events for pasting.
+@MainActor
 final class PasteService {
 
     /// Copies text to the system pasteboard.
@@ -32,6 +33,17 @@ final class PasteService {
     /// Requires Accessibility permission.
     @discardableResult
     static func simulatePaste() -> Bool {
+        // If Scribe itself is in focus / active, dispatch native paste to the focused text field
+        if NSApp.isActive || (SettingsWindowManager.shared.window?.isKeyWindow == true) {
+            if let keyWindow = NSApp.keyWindow, keyWindow.firstResponder != nil {
+                let handled = NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
+                if handled {
+                    logger.info("Successfully dispatched native paste to Scribe active text field")
+                    return true
+                }
+            }
+        }
+
         guard isAccessibilityGranted() else {
             logger.warning("Accessibility permission not granted — simulatePaste skipped. Text remains in clipboard.")
             return false

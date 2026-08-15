@@ -343,14 +343,24 @@ final class AppState: ObservableObject {
 
     public func captureTargetApplication() {
         let scribeID = Bundle.main.bundleIdentifier
-        if let app = NSWorkspace.shared.runningApplications.first(where: { $0.isActive && $0.bundleIdentifier != scribeID }) {
-            targetAppName = app.localizedName ?? ""
-            targetAppIcon = app.icon
-        } else if let app = NSWorkspace.shared.menuBarOwningApplication, app.bundleIdentifier != scribeID {
-            targetAppName = app.localizedName ?? ""
-            targetAppIcon = app.icon
+        let isScribeActive = NSApp.isActive || 
+                             (SettingsWindowManager.shared.window?.isKeyWindow == true) ||
+                             (NSApp.keyWindow != nil && NSApp.keyWindow !== recordingPanel) ||
+                             (NSWorkspace.shared.frontmostApplication?.bundleIdentifier == scribeID)
+
+        if isScribeActive {
+            targetAppName = "Scribe"
+            targetAppIcon = NSApp.applicationIconImage ?? NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath)
+        } else if let frontApp = NSWorkspace.shared.frontmostApplication, frontApp.bundleIdentifier != scribeID {
+            targetAppName = frontApp.localizedName ?? ""
+            targetAppIcon = frontApp.icon
+        } else if let menuApp = NSWorkspace.shared.menuBarOwningApplication, menuApp.bundleIdentifier != scribeID {
+            targetAppName = menuApp.localizedName ?? ""
+            targetAppIcon = menuApp.icon
+        } else if let activeApp = NSWorkspace.shared.runningApplications.first(where: { $0.isActive && $0.bundleIdentifier != scribeID }) {
+            targetAppName = activeApp.localizedName ?? ""
+            targetAppIcon = activeApp.icon
         } else {
-            // Scribe is active or Settings window is in focus
             targetAppName = "Scribe"
             targetAppIcon = NSApp.applicationIconImage ?? NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath)
         }
