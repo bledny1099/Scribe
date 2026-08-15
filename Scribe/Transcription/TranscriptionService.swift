@@ -271,9 +271,30 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
 
     // MARK: - Post-Processing
 
-    /// Removes non-speech annotations from Whisper output.
-    /// Strips patterns like [text], (text), *text* that represent sound effects,
-    /// background noise descriptions, or other non-verbal annotations.
+    /// Built-in Whisper boundary hallucination artifacts (common subtitle credits & YouTube noise).
+    public static let builtInWhisperHallucinationRoots: [String] = [
+        "субтитры сделал",
+        "субтитры создавал",
+        "субтитры добавил",
+        "редактор субтитров",
+        "корректор",
+        "продолжение следует",
+        "спасибо за просмотр",
+        "ставьте лайки",
+        "ставьте лайк",
+        "подписывайтесь на канал",
+        "подпишитесь на канал",
+        "благодарю за просмотр",
+        "до новых встреч",
+        "amara.org",
+        "subtitles by",
+        "thank you for watching",
+        "thanks for watching",
+        "translated by",
+        "please subscribe"
+    ]
+
+    /// Removes non-speech annotations and boundary hallucinations from Whisper output.
     private static func cleanTranscription(_ text: String) -> String {
         var cleaned = text
 
@@ -303,6 +324,9 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             cleaned = cleaned.replacingOccurrences(of: "ǎr", with: "")
         }
 
+        // Apply built-in boundary hallucination filter
+        cleaned = stripBuiltInHallucinations(cleaned)
+
         // Collapse multiple spaces into one and trim
         cleaned = cleaned.replacingOccurrences(
             of: "\\s{2,}",
@@ -312,6 +336,53 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         .trimmingCharacters(in: .whitespacesAndNewlines)
 
         return cleaned
+    }
+
+    /// Strips built-in boundary hallucination artifacts.
+    /// If the user's entire recording session was intentionally just that phrase alone, it is preserved.
+    public static func stripBuiltInHallucinations(_ text: String) -> String {
+        guard !text.isEmpty else { return text }
+        
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let stripped = trimmed.trimmingCharacters(in: CharacterSet.punctuationCharacters.union(.whitespacesAndNewlines))
+        let lowerStripped = stripped.lowercased()
+        
+        // 1. If the ENTIRE transcript is intentionally just that single root phrase, preserve it!
+        for root in builtInWhisperHallucinationRoots {
+            if lowerStripped == root {
+                return text
+            }
+        }
+        
+        var result = text
+        for root in builtInWhisperHallucinationRoots {
+            let escaped = NSRegularExpression.escapedPattern(for: root)
+            // Match at the END of string with preceding punctuation/whitespace and optional trailing credits/words
+            let endPattern = "(?:[,\\.\\!\\?\\s]+|^)\(escaped)[^\\n]*?$"
+            result = result.replacingOccurrences(of: endPattern, with: "", options: [.regularExpression, .caseInsensitive])
+            
+            // Match at the START of string with following punctuation/whitespace
+            let startPattern = "^\(escaped)[^\\n\\.\\!\\?]*?[,\\.\\!\\?\\s]+"
+            result = result.replacingOccurrences(of: startPattern, with: "", options: [.regularExpression, .caseInsensitive])
+        }
+        
+        // Clean up punctuation and whitespace
+        result = result.replacingOccurrences(of: "\\s{2,}", with: " ", options: .regularExpression)
+        result = result.replacingOccurrences(of: "\\s+([.,!?:;])", with: "$1", options: .regularExpression)
+        result = result.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // If stripping left only orphan punctuation (e.g. "." or "..."), but there was actual text, restore or clean
+        let alphaCheck = result.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) }
+        if alphaCheck.isEmpty && !trimmed.isEmpty {
+            let origAlpha = trimmed.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) }
+            if !origAlpha.isEmpty {
+                // If it was just one of the phrases with credits (e.g. "Субтитры сделал DimaTorzok"), and the user spoke just that, return it
+                return trimmed
+            }
+            return ""
+        }
+        
+        return result
     }
 
     /// Removes filler words (эээ, ну, типа, uh, um, etc.) and duplicate adjacent words.
@@ -371,20 +442,23 @@ public struct VocabularyPreset: Identifiable, Codable, Equatable, Hashable, Send
     public var words: [String]
     public var shareCode: String
     public var createdAt: Date
+    public var category: String // "vocabulary" or "blocked"
     
-    public init(id: UUID = UUID(), name: String, description: String = "", words: [String], shareCode: String? = nil, createdAt: Date = Date()) {
+    public init(id: UUID = UUID(), name: String, description: String = "", words: [String], shareCode: String? = nil, createdAt: Date = Date(), category: String = "vocabulary") {
         self.id = id
         self.name = name
         self.description = description
         self.words = words
-        self.shareCode = shareCode ?? Self.generateShareCode()
+        self.shareCode = shareCode ?? Self.generateShareCode(category: category)
         self.createdAt = createdAt
+        self.category = category
     }
     
-    public static func generateShareCode() -> String {
+    public static func generateShareCode(category: String = "vocabulary") -> String {
+        let prefix = category == "blocked" ? "scr_blk_" : "scr_"
         let chars = "abcdefghijklmnopqrstuvwxyz0123456789"
-        let randomChars = String((0..<20).compactMap { _ in chars.randomElement() })
-        return "scr_\(randomChars)"
+        let randomChars = String((0..<16).compactMap { _ in chars.randomElement() })
+        return "\(prefix)\(randomChars)"
     }
     
     /// Encodes preset to a full standalone share string that can be shared across any machine
@@ -394,23 +468,27 @@ public struct VocabularyPreset: Identifiable, Codable, Equatable, Hashable, Send
             let d: String
             let w: [String]
             let c: String
+            let cat: String?
         }
-        let payload = Payload(n: name, d: description, w: words, c: shareCode)
+        let payload = Payload(n: name, d: description, w: words, c: shareCode, cat: category)
         if let data = try? JSONEncoder().encode(payload) {
             let base64 = data.base64EncodedString()
                 .replacingOccurrences(of: "+", with: "-")
                 .replacingOccurrences(of: "/", with: "_")
                 .trimmingCharacters(in: CharacterSet(charactersIn: "="))
-            return "scr_\(base64)"
+            let prefix = category == "blocked" ? "scr_blk_" : "scr_"
+            return "\(prefix)\(base64)"
         }
         return shareCode
     }
     
-    /// Decodes a share code (either short 20-char or base64 packed payload)
+    /// Decodes a share code (either short share code or base64 packed payload)
     public static func fromExportCode(_ rawCode: String) -> VocabularyPreset? {
         let trimmed = rawCode.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.hasPrefix("scr_") else { return nil }
-        let payloadString = String(trimmed.dropFirst(4))
+        let isBlocked = trimmed.hasPrefix("scr_blk_")
+        let prefixLength = isBlocked ? 8 : 4
+        guard trimmed.hasPrefix("scr_") || isBlocked else { return nil }
+        let payloadString = String(trimmed.dropFirst(prefixLength))
         
         // Try decoding as packed base64 payload
         var base64 = payloadString
@@ -426,9 +504,11 @@ public struct VocabularyPreset: Identifiable, Codable, Equatable, Hashable, Send
                 let d: String
                 let w: [String]
                 let c: String
+                let cat: String?
             }
             if let decoded = try? JSONDecoder().decode(Payload.self, from: data) {
-                return VocabularyPreset(name: decoded.n, description: decoded.d, words: decoded.w, shareCode: decoded.c)
+                let detectedCategory = decoded.cat ?? (isBlocked ? "blocked" : "vocabulary")
+                return VocabularyPreset(name: decoded.n, description: decoded.d, words: decoded.w, shareCode: decoded.c, category: detectedCategory)
             }
         }
         

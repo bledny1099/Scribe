@@ -2379,6 +2379,7 @@ struct FlowLayout: Layout {
 
 // MARK: - Create Preset Modal View
 struct CreatePresetModalView: View {
+    var category: String = "vocabulary"
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var appState: AppState
 
@@ -2386,8 +2387,10 @@ struct CreatePresetModalView: View {
     @State private var presetDescription: String = ""
     @State private var wordInput: String = ""
     @State private var words: [String] = []
-    @State private var shareCode: String = VocabularyPreset.generateShareCode()
+    @State private var shareCode: String = ""
     @State private var copiedCode: Bool = false
+
+    private var isBlocked: Bool { category == "blocked" }
 
     private func isValidItem(_ text: String) -> Bool {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -2402,7 +2405,7 @@ struct CreatePresetModalView: View {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { isValidItem($0) }
         for w in items {
-            if !words.contains(w) {
+            if !words.contains(where: { $0.caseInsensitiveCompare(w) == .orderedSame }) {
                 words.append(w)
             }
         }
@@ -2416,9 +2419,14 @@ struct CreatePresetModalView: View {
             name: trimmedName,
             description: presetDescription.trimmingCharacters(in: .whitespacesAndNewlines),
             words: words,
-            shareCode: shareCode
+            shareCode: shareCode.isEmpty ? VocabularyPreset.generateShareCode(category: category) : shareCode,
+            category: category
         )
-        appState.customVocabularyPresets.append(preset)
+        if isBlocked {
+            appState.customBlockedWordsPresets.append(preset)
+        } else {
+            appState.customVocabularyPresets.append(preset)
+        }
         dismiss()
     }
 
@@ -2431,10 +2439,10 @@ struct CreatePresetModalView: View {
             // Header
             HStack {
                 HStack(spacing: 8) {
-                    Image(systemName: "plus.square.fill.on.square.fill")
+                    Image(systemName: isBlocked ? "nosign" : "plus.square.fill.on.square.fill")
                         .font(.system(size: 16))
-                        .foregroundStyle(appState.selectedTheme.gradientColors.first!)
-                    Text(appState.l("Create Vocabulary Preset"))
+                        .foregroundStyle(isBlocked ? Color.red : appState.selectedTheme.gradientColors.first!)
+                    Text(isBlocked ? appState.l("Create Blocked Words Preset") : appState.l("Create Vocabulary Preset"))
                         .font(.system(size: 16, weight: .bold, design: .rounded))
                 }
                 Spacer()
@@ -2456,7 +2464,7 @@ struct CreatePresetModalView: View {
                         Text(appState.l("Preset Name"))
                             .font(.system(size: 12, weight: .semibold))
                             .foregroundStyle(.secondary)
-                        TextField(appState.l("e.g. Gaming Slang, Medical Terms, Tech Stack..."), text: $presetName)
+                        TextField(isBlocked ? appState.l("e.g. Profanity Filter, Competitor Names, Sensitive Terms...") : appState.l("e.g. Gaming Slang, Medical Terms, Tech Stack..."), text: $presetName)
                             .textFieldStyle(.plain)
                             .padding(10)
                             .background(Color.primary.opacity(0.04))
@@ -2480,7 +2488,7 @@ struct CreatePresetModalView: View {
                     // Words Input
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
-                            Text(appState.l("Words & Acronyms"))
+                            Text(isBlocked ? appState.l("Blocked Words & Phrases") : appState.l("Words & Acronyms"))
                                 .font(.system(size: 12, weight: .semibold))
                                 .foregroundStyle(.secondary)
                             Spacer()
@@ -2490,7 +2498,7 @@ struct CreatePresetModalView: View {
                         }
 
                         HStack(spacing: 8) {
-                            TextField(appState.l("Add word or comma-separated list..."), text: $wordInput, onCommit: addWord)
+                            TextField(isBlocked ? appState.l("Add blocked word or comma-separated list...") : appState.l("Add word or comma-separated list..."), text: $wordInput, onCommit: addWord)
                                 .textFieldStyle(.plain)
                                 .padding(10)
                                 .background(Color.primary.opacity(0.04))
@@ -2504,8 +2512,8 @@ struct CreatePresetModalView: View {
                                 }
                                 .padding(.horizontal, 14)
                                 .padding(.vertical, 10)
-                                .background(isValidItem(wordInput) ? appState.selectedTheme.gradientColors.first!.opacity(0.15) : Color.primary.opacity(0.05))
-                                .foregroundStyle(isValidItem(wordInput) ? appState.selectedTheme.gradientColors.first! : Color.secondary)
+                                .background(isValidItem(wordInput) ? (isBlocked ? Color.red.opacity(0.15) : appState.selectedTheme.gradientColors.first!.opacity(0.15)) : Color.primary.opacity(0.05))
+                                .foregroundStyle(isValidItem(wordInput) ? (isBlocked ? Color.red : appState.selectedTheme.gradientColors.first!) : Color.secondary)
                                 .cornerRadius(8)
                             }
                             .buttonStyle(.plain)
@@ -2521,13 +2529,13 @@ struct CreatePresetModalView: View {
                                         Button(action: { words.removeAll { $0 == word } }) {
                                             Image(systemName: "xmark.circle.fill")
                                                 .font(.system(size: 10))
-                                                .foregroundStyle(.secondary)
+                                                .foregroundStyle(isBlocked ? Color.red.opacity(0.7) : .secondary)
                                         }
                                         .buttonStyle(.plain)
                                     }
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
-                                    .background(Color.primary.opacity(0.06))
+                                    .background(isBlocked ? Color.red.opacity(0.08) : Color.primary.opacity(0.06))
                                     .cornerRadius(8)
                                 }
                             }
@@ -2542,15 +2550,16 @@ struct CreatePresetModalView: View {
                             .foregroundStyle(.secondary)
 
                         HStack {
-                            Text(shareCode)
+                            Text(shareCode.isEmpty ? VocabularyPreset.generateShareCode(category: category) : shareCode)
                                 .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                                .foregroundStyle(appState.selectedTheme.gradientColors.first!)
+                                .foregroundStyle(isBlocked ? Color.red : appState.selectedTheme.gradientColors.first!)
 
                             Spacer()
 
                             Button(action: {
                                 NSPasteboard.general.clearContents()
-                                let preset = VocabularyPreset(name: presetName.isEmpty ? "Preset" : presetName, words: words, shareCode: shareCode)
+                                let finalCode = shareCode.isEmpty ? VocabularyPreset.generateShareCode(category: category) : shareCode
+                                let preset = VocabularyPreset(name: presetName.isEmpty ? "Preset" : presetName, words: words, shareCode: finalCode, category: category)
                                 NSPasteboard.general.setString(preset.toExportCode(), forType: .string)
                                 copiedCode = true
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 2) { copiedCode = false }
@@ -2597,7 +2606,7 @@ struct CreatePresetModalView: View {
                     .padding(.vertical, 8)
                     .background(
                         canSave 
-                            ? appState.selectedTheme.gradientColors.first! 
+                            ? (isBlocked ? Color.red : appState.selectedTheme.gradientColors.first!) 
                             : Color.primary.opacity(0.1)
                     )
                     .foregroundStyle(
@@ -2614,18 +2623,26 @@ struct CreatePresetModalView: View {
         }
         .frame(width: 460, height: 480)
         .background(.ultraThinMaterial)
+        .onAppear {
+            if shareCode.isEmpty {
+                shareCode = VocabularyPreset.generateShareCode(category: category)
+            }
+        }
     }
 }
 
 // MARK: - Import Preset Modal View
 struct ImportPresetModalView: View {
+    var category: String = "vocabulary"
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var appState: AppState
 
     @State private var codeInput: String = ""
     @State private var parsedPreset: VocabularyPreset? = nil
     @State private var parseError: String? = nil
-    @State private var applyDirectlyToActiveVocabulary: Bool = true
+    @State private var applyDirectlyToActive: Bool = true
+
+    private var isBlockedContext: Bool { category == "blocked" }
 
     private func parseCode() {
         let trimmed = codeInput.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -2641,6 +2658,9 @@ struct ImportPresetModalView: View {
         } else if let existing = appState.customVocabularyPresets.first(where: { $0.shareCode == trimmed }) {
             parsedPreset = existing
             parseError = nil
+        } else if let existing = appState.customBlockedWordsPresets.first(where: { $0.shareCode == trimmed }) {
+            parsedPreset = existing
+            parseError = nil
         } else {
             parsedPreset = nil
             parseError = "Invalid or unrecognized share code (must start with scr_)"
@@ -2649,20 +2669,40 @@ struct ImportPresetModalView: View {
 
     private func importPreset() {
         guard let preset = parsedPreset else { return }
-        if !appState.customVocabularyPresets.contains(where: { $0.shareCode == preset.shareCode || $0.name == preset.name }) {
-            appState.customVocabularyPresets.append(preset)
-        }
-        if applyDirectlyToActiveVocabulary {
-            var current = appState.vocabulary
-                .components(separatedBy: CharacterSet(charactersIn: ",\n"))
-                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                .filter { !$0.isEmpty }
-            for w in preset.words {
-                if !current.contains(w) {
-                    current.append(w)
-                }
+        let presetCategory = preset.category
+        
+        if presetCategory == "blocked" {
+            if !appState.customBlockedWordsPresets.contains(where: { $0.shareCode == preset.shareCode || $0.name == preset.name }) {
+                appState.customBlockedWordsPresets.append(preset)
             }
-            appState.vocabulary = current.joined(separator: ", ")
+            if applyDirectlyToActive {
+                var current = appState.blockedWords
+                    .components(separatedBy: CharacterSet(charactersIn: ",\n"))
+                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    .filter { !$0.isEmpty }
+                for w in preset.words {
+                    if !current.contains(where: { $0.caseInsensitiveCompare(w) == .orderedSame }) {
+                        current.append(w)
+                    }
+                }
+                appState.blockedWords = current.joined(separator: ", ")
+            }
+        } else {
+            if !appState.customVocabularyPresets.contains(where: { $0.shareCode == preset.shareCode || $0.name == preset.name }) {
+                appState.customVocabularyPresets.append(preset)
+            }
+            if applyDirectlyToActive {
+                var current = appState.vocabulary
+                    .components(separatedBy: CharacterSet(charactersIn: ",\n"))
+                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    .filter { !$0.isEmpty }
+                for w in preset.words {
+                    if !current.contains(w) {
+                        current.append(w)
+                    }
+                }
+                appState.vocabulary = current.joined(separator: ", ")
+            }
         }
         dismiss()
     }
@@ -2672,10 +2712,10 @@ struct ImportPresetModalView: View {
             // Header
             HStack {
                 HStack(spacing: 8) {
-                    Image(systemName: "square.and.arrow.down.fill")
+                    Image(systemName: isBlockedContext ? "nosign" : "square.and.arrow.down.fill")
                         .font(.system(size: 16))
-                        .foregroundStyle(appState.selectedTheme.gradientColors.first!)
-                    Text(appState.l("Import Vocabulary Preset"))
+                        .foregroundStyle(isBlockedContext ? Color.red : appState.selectedTheme.gradientColors.first!)
+                    Text(isBlockedContext ? appState.l("Import Blocked Preset") : appState.l("Import Vocabulary Preset"))
                         .font(.system(size: 16, weight: .bold, design: .rounded))
                 }
                 Spacer()
@@ -2737,8 +2777,17 @@ struct ImportPresetModalView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(preset.name)
-                                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                                HStack(spacing: 6) {
+                                    Text(preset.name)
+                                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                                    Text(preset.category == "blocked" ? appState.l("Blocked Words") : appState.l("Custom Vocabulary"))
+                                        .font(.system(size: 9, weight: .bold))
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(preset.category == "blocked" ? Color.red.opacity(0.15) : Color.blue.opacity(0.15))
+                                        .foregroundStyle(preset.category == "blocked" ? Color.red : Color.blue)
+                                        .cornerRadius(4)
+                                }
                                 if !preset.description.isEmpty {
                                     Text(preset.description)
                                         .font(.system(size: 11))
@@ -2761,7 +2810,7 @@ struct ImportPresetModalView: View {
                                     .font(.system(size: 11, weight: .medium, design: .rounded))
                                     .padding(.horizontal, 7)
                                     .padding(.vertical, 3)
-                                    .background(Color.primary.opacity(0.06))
+                                    .background(preset.category == "blocked" ? Color.red.opacity(0.08) : Color.primary.opacity(0.06))
                                     .cornerRadius(6)
                             }
                         }
@@ -2771,7 +2820,7 @@ struct ImportPresetModalView: View {
                     .cornerRadius(10)
                     .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.green.opacity(0.3), lineWidth: 1))
 
-                    Toggle(appState.l("Also add words directly into active vocabulary"), isOn: $applyDirectlyToActiveVocabulary)
+                    Toggle(isBlockedContext ? appState.l("Also add to active blocked words") : appState.l("Also add words directly into active vocabulary"), isOn: $applyDirectlyToActive)
                         .font(.system(size: 12))
                 }
 
@@ -2803,7 +2852,7 @@ struct ImportPresetModalView: View {
                     .padding(.vertical, 8)
                     .background(
                         parsedPreset != nil 
-                            ? appState.selectedTheme.gradientColors.first! 
+                            ? (isBlockedContext ? Color.red : appState.selectedTheme.gradientColors.first!) 
                             : Color.primary.opacity(0.1)
                     )
                     .foregroundStyle(
@@ -3061,26 +3110,66 @@ struct VocabularySettingsView: View {
         appState.customVocabularyPresets.removeAll { $0.id == preset.id }
     }
 
+    private func applyBlockedPreset(_ preset: VocabularyPreset) {
+        var current = blockedWordsList
+        for w in preset.words {
+            if !current.contains(where: { $0.caseInsensitiveCompare(w) == .orderedSame }) {
+                current.append(w)
+            }
+        }
+        appState.blockedWords = current.joined(separator: ", ")
+        appliedPresetId = preset.id
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            if appliedPresetId == preset.id { appliedPresetId = nil }
+        }
+    }
+
+    private func shareBlockedPreset(_ preset: VocabularyPreset) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(preset.toExportCode(), forType: .string)
+        copiedPresetId = preset.id
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            if copiedPresetId == preset.id { copiedPresetId = nil }
+        }
+    }
+
+    private func deleteBlockedPreset(_ preset: VocabularyPreset) {
+        appState.customBlockedWordsPresets.removeAll { $0.id == preset.id }
+    }
+
     var body: some View {
         VStack(spacing: 16) {
-            // Tab Switcher
-            LiquidGlassSegmentedPicker(
-                items: VocabularyTab.allCases,
-                selection: $selectedTab,
-                label: { tab in
-                    switch tab {
-                    case .vocabulary:
-                        return (appState.l("Custom Vocabulary"), "text.book.closed.fill")
-                    case .blockedWords:
-                        return (appState.l("Blocked Words"), "nosign")
+            // SECTION 1: Active Custom Words or Blocked Words (With Integrated Tab Switcher)
+            GlassSection(
+                title: selectedTab == .vocabulary ? appState.l("Active Custom Vocabulary") : appState.l("Active Blocked Words"),
+                icon: selectedTab == .vocabulary ? "text.book.closed.fill" : "nosign"
+            ) {
+                VStack(alignment: .leading, spacing: 14) {
+                    // Integrated Tab Switcher Inside Card
+                    HStack {
+                        Text(appState.l("Dictionary Mode:"))
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        LiquidGlassSegmentedPicker(
+                            items: VocabularyTab.allCases,
+                            selection: $selectedTab,
+                            label: { tab in
+                                switch tab {
+                                case .vocabulary:
+                                    return (appState.l("Custom Vocabulary"), "text.book.closed.fill")
+                                case .blockedWords:
+                                    return (appState.l("Blocked Words"), "nosign")
+                                }
+                            }
+                        )
                     }
-                }
-            )
+                    .padding(.bottom, 2)
 
-            if selectedTab == .vocabulary {
-                // SECTION 1: Active Custom Words (On Top)
-                GlassSection(title: appState.l("Active Custom Vocabulary"), icon: "text.book.closed.fill") {
-                    VStack(alignment: .leading, spacing: 14) {
+                    Divider().opacity(0.15)
+
+                    if selectedTab == .vocabulary {
+                        // Custom Vocabulary Controls
                         HStack {
                             Text(appState.l("All words below will be prioritized and automatically capitalized by Whisper."))
                                 .font(.system(size: 12))
@@ -3157,11 +3246,142 @@ struct VocabularySettingsView: View {
                             }
                             .frame(minHeight: 60, maxHeight: 220)
                         }
-                    }
-                    .padding(14)
-                }
+                    } else {
+                        // Blocked Words Controls
+                        HStack(spacing: 8) {
+                            Image(systemName: "checkmark.seal.fill")
+                                .font(.system(size: 13))
+                                .foregroundStyle(.green)
+                            Text(appState.l("Scribe automatically filters common Whisper hallucination artifacts (subtitles, credits). Add your custom blocked words and sensitive terms below."))
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(10)
+                        .background(Color.primary.opacity(0.03))
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
+                        )
 
-                // SECTION 2: Custom Presets & Community Share (Below)
+                        // Action selector (Remove or Mask)
+                        HStack {
+                            Text(appState.l("Action for blocked words:"))
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(.primary)
+
+                            Spacer()
+
+                            LiquidGlassSegmentedPicker(
+                                items: ["remove", "mask"],
+                                selection: $appState.blockedWordsActionRaw,
+                                label: { action in
+                                    if action == "remove" {
+                                        return (appState.l("Remove from text"), "xmark.circle")
+                                    } else {
+                                        return (appState.l("Mask with ***"), "eye.slash")
+                                    }
+                                }
+                            )
+                        }
+                        .padding(.vertical, 2)
+
+                        // Input field
+                        HStack(spacing: 8) {
+                            TextField(appState.l("Enter blocked word or phrase..."), text: $newBlockedWord, onCommit: addBlockedWord)
+                                .textFieldStyle(.plain)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 7)
+                                .background(Color.primary.opacity(0.04))
+                                .cornerRadius(8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .strokeBorder(Color.primary.opacity(0.1), lineWidth: 1)
+                                )
+
+                            Button(action: addBlockedWord) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "plus")
+                                        .font(.system(size: 12, weight: .bold))
+                                    Text(appState.l("Add"))
+                                        .font(.system(size: 12, weight: .semibold))
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 7)
+                                .background(isValidItem(newBlockedWord) ? Color.red.opacity(0.15) : Color.primary.opacity(0.05))
+                                .foregroundStyle(isValidItem(newBlockedWord) ? Color.red : Color.secondary)
+                                .cornerRadius(8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .strokeBorder(isValidItem(newBlockedWord) ? Color.red.opacity(0.3) : Color.clear, lineWidth: 1)
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(!isValidItem(newBlockedWord))
+                        }
+
+                        // Clear All Row
+                        if !blockedWordsList.isEmpty {
+                            HStack {
+                                Spacer()
+                                Button(action: clearAllBlockedWords) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "trash")
+                                        Text(appState.l("Clear All"))
+                                    }
+                                    .font(.system(size: 11, weight: .medium))
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 5)
+                                    .foregroundStyle(.secondary)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+
+                        // Blocked words list
+                        if blockedWordsList.isEmpty {
+                            Text(appState.l("No blocked words added yet."))
+                                .font(.system(size: 12))
+                                .foregroundStyle(.tertiary)
+                                .padding(.vertical, 6)
+                        } else {
+                            ScrollView(.vertical, showsIndicators: true) {
+                                FlowLayout(spacing: 6) {
+                                    ForEach(blockedWordsList, id: \.self) { word in
+                                        HStack(spacing: 6) {
+                                            Text(word)
+                                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                                                .foregroundStyle(.primary)
+
+                                            Button(action: { removeBlockedWord(word) }) {
+                                                Image(systemName: "xmark.circle.fill")
+                                                    .font(.system(size: 11))
+                                                    .foregroundStyle(.red.opacity(0.7))
+                                            }
+                                            .buttonStyle(.plain)
+                                        }
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 5)
+                                        .background(Color.red.opacity(0.08))
+                                        .cornerRadius(12)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .strokeBorder(Color.red.opacity(0.2), lineWidth: 1)
+                                        )
+                                    }
+                                }
+                                .padding(.vertical, 4)
+                                .padding(.trailing, 4)
+                            }
+                            .frame(minHeight: 60, maxHeight: 220)
+                        }
+                    }
+                }
+                .padding(14)
+            }
+
+            if selectedTab == .vocabulary {
+                // SECTION 2: Custom Presets & Community Share (Vocabulary)
                 GlassSection(title: appState.l("Vocabulary Presets"), icon: "square.grid.2x2.fill") {
                     VStack(alignment: .leading, spacing: 14) {
                         HStack(alignment: .center, spacing: 12) {
@@ -3334,143 +3554,156 @@ struct VocabularySettingsView: View {
                     .padding(14)
                 }
             } else {
-                // SECTION: Blocked Words
-                GlassSection(title: appState.l("Blocked Words"), icon: "nosign") {
+                // SECTION 2: Custom Presets (Blocked Words)
+                GlassSection(title: appState.l("Blocked Words Presets"), icon: "square.grid.2x2.fill") {
                     VStack(alignment: .leading, spacing: 14) {
-                        Text(appState.l("Words that will never appear in transcription"))
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
+                        HStack(alignment: .center, spacing: 12) {
+                            Text(appState.l("Create custom blocked word packs and share them instantly."))
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
 
-                        // Action selector (Remove or Mask)
-                        HStack {
-                            Text(appState.l("Action for blocked words:"))
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(.primary)
-
-                            Spacer()
-
-                            LiquidGlassSegmentedPicker(
-                                items: ["remove", "mask"],
-                                selection: $appState.blockedWordsActionRaw,
-                                label: { action in
-                                    if action == "remove" {
-                                        return (appState.l("Remove from text"), "xmark.circle")
-                                    } else {
-                                        return (appState.l("Mask with ***"), "eye.slash")
+                            HStack(spacing: 8) {
+                                Button(action: { showingCreatePresetModal = true }) {
+                                    HStack(spacing: 5) {
+                                        Image(systemName: "plus.circle.fill")
+                                            .font(.system(size: 11, weight: .bold))
+                                        Text(appState.l("Create Preset"))
+                                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                                            .lineLimit(1)
                                     }
-                                }
-                            )
-                        }
-                        .padding(.vertical, 4)
-
-                        // Input field
-                        HStack(spacing: 8) {
-                            TextField(appState.l("Enter blocked word or phrase..."), text: $newBlockedWord, onCommit: addBlockedWord)
-                                .textFieldStyle(.plain)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 7)
-                                .background(Color.primary.opacity(0.04))
-                                .cornerRadius(8)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .strokeBorder(Color.primary.opacity(0.1), lineWidth: 1)
-                                )
-
-                            Button(action: addBlockedWord) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "plus")
-                                        .font(.system(size: 12, weight: .bold))
-                                    Text(appState.l("Add"))
-                                        .font(.system(size: 12, weight: .semibold))
-                                }
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 7)
-                                .background(isValidItem(newBlockedWord) ? Color.red.opacity(0.15) : Color.primary.opacity(0.05))
-                                .foregroundStyle(isValidItem(newBlockedWord) ? Color.red : Color.secondary)
-                                .cornerRadius(8)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .strokeBorder(isValidItem(newBlockedWord) ? Color.red.opacity(0.3) : Color.clear, lineWidth: 1)
-                                )
-                            }
-                            .buttonStyle(.plain)
-                            .disabled(!isValidItem(newBlockedWord))
-                        }
-
-                        // Preset shortcuts
-                        HStack(spacing: 8) {
-                            Button(action: addWhisperHallucinationsPreset) {
-                                HStack(spacing: 5) {
-                                    Image(systemName: addedHallucinationsFeedback ? "checkmark" : "wand.and.stars")
-                                        .font(.system(size: 11, weight: .bold))
-                                    Text(addedHallucinationsFeedback ? appState.l("Added!") : appState.l("Add Whisper Hallucinations Preset"))
-                                        .font(.system(size: 11, weight: .semibold, design: .rounded))
-                                }
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .background(addedHallucinationsFeedback ? Color.green.opacity(0.15) : Color.primary.opacity(0.06))
-                                .foregroundStyle(addedHallucinationsFeedback ? .green : .primary)
-                                .cornerRadius(8)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .strokeBorder(Color.primary.opacity(0.1), lineWidth: 1)
-                                )
-                            }
-                            .buttonStyle(.plain)
-
-                            Spacer()
-
-                            if !blockedWordsList.isEmpty {
-                                Button(action: clearAllBlockedWords) {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "trash")
-                                        Text(appState.l("Clear All"))
-                                    }
-                                    .font(.system(size: 11, weight: .medium))
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 5)
-                                    .foregroundStyle(.secondary)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 7)
+                                    .background(Color.red.opacity(0.15))
+                                    .foregroundStyle(Color.red)
+                                    .cornerRadius(8)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .strokeBorder(Color.red.opacity(0.3), lineWidth: 1)
+                                    )
                                 }
                                 .buttonStyle(.plain)
+                                .fixedSize()
+
+                                Button(action: { showingImportPresetModal = true }) {
+                                    HStack(spacing: 5) {
+                                        Image(systemName: "square.and.arrow.down.fill")
+                                            .font(.system(size: 11, weight: .bold))
+                                        Text(appState.l("Import Preset"))
+                                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                                            .lineLimit(1)
+                                    }
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 7)
+                                    .background(Color.primary.opacity(0.06))
+                                    .foregroundStyle(.primary)
+                                    .cornerRadius(8)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
+                                        )
+                                }
+                                .buttonStyle(.plain)
+                                .fixedSize()
                             }
                         }
 
-                        // Blocked words list
-                        if blockedWordsList.isEmpty {
-                            Text(appState.l("No blocked words added yet."))
-                                .font(.system(size: 12))
-                                .foregroundStyle(.tertiary)
-                                .padding(.vertical, 6)
+                        if appState.customBlockedWordsPresets.isEmpty {
+                            HStack(spacing: 8) {
+                                Image(systemName: "shield.slash")
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(Color.red.opacity(0.8))
+                                Text(appState.l("No custom presets yet. Create one or import a share code to get started."))
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 8)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.primary.opacity(0.025))
+                            .cornerRadius(8)
                         } else {
-                            ScrollView(.vertical, showsIndicators: true) {
-                                FlowLayout(spacing: 6) {
-                                    ForEach(blockedWordsList, id: \.self) { word in
-                                        HStack(spacing: 6) {
-                                            Text(word)
-                                                .font(.system(size: 12, weight: .medium, design: .rounded))
-                                                .foregroundStyle(.primary)
+                            VStack(spacing: 8) {
+                                ForEach(appState.customBlockedWordsPresets) { preset in
+                                    HStack(spacing: 12) {
+                                        VStack(alignment: .leading, spacing: 3) {
+                                            HStack(spacing: 6) {
+                                                Text(preset.name)
+                                                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                                                    .foregroundStyle(.primary)
 
-                                            Button(action: { removeBlockedWord(word) }) {
-                                                Image(systemName: "xmark.circle.fill")
+                                                Text("\(preset.words.count) " + appState.l("words"))
+                                                    .font(.system(size: 9, weight: .bold))
+                                                    .padding(.horizontal, 6)
+                                                    .padding(.vertical, 2)
+                                                    .background(Color.red.opacity(0.15))
+                                                    .foregroundStyle(Color.red)
+                                                    .cornerRadius(4)
+                                            }
+
+                                            if !preset.description.isEmpty {
+                                                Text(preset.description)
                                                     .font(.system(size: 11))
-                                                    .foregroundStyle(.red.opacity(0.7))
+                                                    .foregroundStyle(.secondary)
+                                                    .lineLimit(1)
+                                            }
+
+                                            Text(preset.words.prefix(5).joined(separator: ", ") + (preset.words.count > 5 ? "..." : ""))
+                                                .font(.system(size: 10))
+                                                .foregroundStyle(.tertiary)
+                                                .lineLimit(1)
+                                        }
+
+                                        Spacer()
+
+                                        // Action buttons
+                                        HStack(spacing: 6) {
+                                            Button(action: { applyBlockedPreset(preset) }) {
+                                                HStack(spacing: 4) {
+                                                    Image(systemName: appliedPresetId == preset.id ? "checkmark" : "plus")
+                                                    Text(appliedPresetId == preset.id ? appState.l("Applied!") : appState.l("Apply"))
+                                                }
+                                                .font(.system(size: 11, weight: .semibold))
+                                                .padding(.horizontal, 8)
+                                                .padding(.vertical, 5)
+                                                .background(appliedPresetId == preset.id ? Color.green.opacity(0.15) : Color.primary.opacity(0.06))
+                                                .foregroundStyle(appliedPresetId == preset.id ? .green : .primary)
+                                                .cornerRadius(6)
+                                            }
+                                            .buttonStyle(.plain)
+
+                                            Button(action: { shareBlockedPreset(preset) }) {
+                                                HStack(spacing: 4) {
+                                                    Image(systemName: copiedPresetId == preset.id ? "checkmark" : "square.and.arrow.up")
+                                                    Text(copiedPresetId == preset.id ? appState.l("Copied!") : appState.l("Share"))
+                                                }
+                                                .font(.system(size: 11, weight: .semibold))
+                                                .padding(.horizontal, 8)
+                                                .padding(.vertical, 5)
+                                                .background(copiedPresetId == preset.id ? Color.green.opacity(0.15) : Color.red.opacity(0.12))
+                                                .foregroundStyle(copiedPresetId == preset.id ? .green : Color.red)
+                                                .cornerRadius(6)
+                                            }
+                                            .buttonStyle(.plain)
+
+                                            Button(action: { deleteBlockedPreset(preset) }) {
+                                                Image(systemName: "trash")
+                                                    .font(.system(size: 11))
+                                                    .foregroundStyle(.secondary)
+                                                    .padding(6)
                                             }
                                             .buttonStyle(.plain)
                                         }
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 5)
-                                        .background(Color.red.opacity(0.08))
-                                        .cornerRadius(12)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 12)
-                                                .strokeBorder(Color.red.opacity(0.2), lineWidth: 1)
-                                        )
                                     }
+                                    .padding(10)
+                                    .background(Color.primary.opacity(0.03))
+                                    .cornerRadius(10)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .strokeBorder(Color.red.opacity(0.12), lineWidth: 1)
+                                    )
                                 }
-                                .padding(.vertical, 4)
-                                .padding(.trailing, 4)
                             }
-                            .frame(minHeight: 60, maxHeight: 220)
                         }
                     }
                     .padding(14)
@@ -3488,10 +3721,10 @@ struct VocabularySettingsView: View {
             }
         }
         .sheet(isPresented: $showingCreatePresetModal) {
-            CreatePresetModalView()
+            CreatePresetModalView(category: selectedTab == .blockedWords ? "blocked" : "vocabulary")
         }
         .sheet(isPresented: $showingImportPresetModal) {
-            ImportPresetModalView()
+            ImportPresetModalView(category: selectedTab == .blockedWords ? "blocked" : "vocabulary")
         }
         .sheet(isPresented: $showingContributionPromptModal) {
             VocabularyContributionPromptModalView()
