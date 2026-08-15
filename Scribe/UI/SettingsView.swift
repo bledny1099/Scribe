@@ -3139,43 +3139,42 @@ struct VocabularySettingsView: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            // SECTION 1: Active Custom Words or Blocked Words (With Integrated Tab Switcher)
-            GlassSection(
-                title: selectedTab == .vocabulary ? appState.l("Active Custom Vocabulary") : appState.l("Active Blocked Words"),
-                icon: selectedTab == .vocabulary ? "text.book.closed.fill" : "nosign"
-            ) {
-                VStack(alignment: .leading, spacing: 14) {
-                    // Integrated Tab Switcher Inside Card
-                    HStack {
-                        Text(appState.l("Dictionary Mode:"))
+            // SECTION 1: Header with Integrated Mode Switcher & Active Words Card
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    HStack(spacing: 6) {
+                        Image(systemName: selectedTab == .vocabulary ? "text.book.closed.fill" : "nosign")
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        LiquidGlassSegmentedPicker(
-                            items: VocabularyTab.allCases,
-                            selection: $selectedTab,
-                            label: { tab in
-                                switch tab {
-                                case .vocabulary:
-                                    return (appState.l("Custom Vocabulary"), "text.book.closed.fill")
-                                case .blockedWords:
-                                    return (appState.l("Blocked Words"), "nosign")
-                                }
-                            }
-                        )
+                            .foregroundStyle(.primary)
+                        Text((selectedTab == .vocabulary ? appState.l("Active Custom Vocabulary") : appState.l("Active Blocked Words")).uppercased())
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .foregroundStyle(Color.primary.opacity(0.72))
                     }
-                    .padding(.bottom, 2)
+                    .padding(.horizontal, 4)
 
-                    Divider().opacity(0.15)
+                    Spacer()
 
+                    LiquidGlassSegmentedPicker(
+                        items: VocabularyTab.allCases,
+                        selection: $selectedTab,
+                        label: { tab in
+                            switch tab {
+                            case .vocabulary:
+                                return (appState.l("Custom Vocabulary"), "text.book.closed.fill")
+                            case .blockedWords:
+                                return (appState.l("Blocked Words"), "nosign")
+                            }
+                        }
+                    )
+                }
+
+                // Card Body
+                VStack(alignment: .leading, spacing: 12) {
                     if selectedTab == .vocabulary {
                         // Custom Vocabulary Controls
-                        HStack {
-                            Text(appState.l("All words below will be prioritized and automatically capitalized by Whisper."))
-                                .font(.system(size: 12))
-                                .foregroundStyle(.secondary)
-                            Spacer()
-                        }
+                        Text(appState.l("All words below will be prioritized and automatically capitalized by Whisper."))
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
 
                         HStack(spacing: 8) {
                             TextField(appState.l("Enter word or acronym..."), text: $newWord, onCommit: addWord)
@@ -3214,7 +3213,7 @@ struct VocabularySettingsView: View {
                             Text(appState.l("No custom words added yet."))
                                 .font(.system(size: 12))
                                 .foregroundStyle(.tertiary)
-                                .padding(.vertical, 6)
+                                .padding(.vertical, 2)
                         } else {
                             ScrollView(.vertical, showsIndicators: true) {
                                 FlowLayout(spacing: 6) {
@@ -3244,19 +3243,19 @@ struct VocabularySettingsView: View {
                                 .padding(.vertical, 4)
                                 .padding(.trailing, 4)
                             }
-                            .frame(minHeight: 60, maxHeight: 220)
+                            .frame(maxHeight: 180)
                         }
                     } else {
                         // Blocked Words Controls
                         HStack(spacing: 8) {
                             Image(systemName: "checkmark.seal.fill")
-                                .font(.system(size: 13))
+                                .font(.system(size: 12))
                                 .foregroundStyle(.green)
                             Text(appState.l("Scribe automatically filters common Whisper hallucination artifacts (subtitles, credits). Add your custom blocked words and sensitive terms below."))
                                 .font(.system(size: 11))
                                 .foregroundStyle(.secondary)
                         }
-                        .padding(10)
+                        .padding(9)
                         .background(Color.primary.opacity(0.03))
                         .cornerRadius(8)
                         .overlay(
@@ -3284,7 +3283,6 @@ struct VocabularySettingsView: View {
                                 }
                             )
                         }
-                        .padding(.vertical, 2)
 
                         // Input field
                         HStack(spacing: 8) {
@@ -3320,8 +3318,13 @@ struct VocabularySettingsView: View {
                             .disabled(!isValidItem(newBlockedWord))
                         }
 
-                        // Clear All Row
-                        if !blockedWordsList.isEmpty {
+                        // Clear All & Blocked words list
+                        if blockedWordsList.isEmpty {
+                            Text(appState.l("No blocked words added yet."))
+                                .font(.system(size: 12))
+                                .foregroundStyle(.tertiary)
+                                .padding(.vertical, 2)
+                        } else {
                             HStack {
                                 Spacer()
                                 Button(action: clearAllBlockedWords) {
@@ -3331,20 +3334,12 @@ struct VocabularySettingsView: View {
                                     }
                                     .font(.system(size: 11, weight: .medium))
                                     .padding(.horizontal, 8)
-                                    .padding(.vertical, 5)
+                                    .padding(.vertical, 3)
                                     .foregroundStyle(.secondary)
                                 }
                                 .buttonStyle(.plain)
                             }
-                        }
 
-                        // Blocked words list
-                        if blockedWordsList.isEmpty {
-                            Text(appState.l("No blocked words added yet."))
-                                .font(.system(size: 12))
-                                .foregroundStyle(.tertiary)
-                                .padding(.vertical, 6)
-                        } else {
                             ScrollView(.vertical, showsIndicators: true) {
                                 FlowLayout(spacing: 6) {
                                     ForEach(blockedWordsList, id: \.self) { word in
@@ -3373,11 +3368,23 @@ struct VocabularySettingsView: View {
                                 .padding(.vertical, 4)
                                 .padding(.trailing, 4)
                             }
-                            .frame(minHeight: 60, maxHeight: 220)
+                            .frame(maxHeight: 180)
                         }
                     }
                 }
                 .padding(14)
+                .background(
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(.ultraThinMaterial.opacity(0.6))
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color.primary.opacity(0.06))
+                    }
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
+                )
             }
 
             if selectedTab == .vocabulary {
