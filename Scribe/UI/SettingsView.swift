@@ -4284,6 +4284,22 @@ struct GeneralSettingsView: View {
                         KeyboardShortcuts.Recorder(for: .toggleRecording)
                     }
 
+                    // Push-to-Talk Toggle
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(appState.l("Push-to-Talk (Hold to record)"))
+                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                .foregroundStyle(.primary)
+                            Text(appState.l("Hold the hotkey to record, release to stop"))
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Toggle("", isOn: $appState.pushToTalk)
+                            .toggleStyle(.switch)
+                            .labelsHidden()
+                    }
+
                     // Enable Direct Note Feature Toggle
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
@@ -4408,21 +4424,6 @@ struct GeneralSettingsView: View {
             // SECTION: Recording Options
             GlassSection(title: appState.l("Options"), icon: "gearshape") {
                 VStack(spacing: 16) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(appState.l("Push-to-Talk (Hold to record)"))
-                                .font(.system(size: 14, weight: .medium, design: .rounded))
-                                .foregroundStyle(.primary)
-                            Text(appState.l("Hold Option+S to record, release to stop"))
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Toggle("", isOn: $appState.pushToTalk)
-                            .toggleStyle(.switch)
-                            .labelsHidden()
-                    }
-
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(appState.l("Live Preview"))
