@@ -5439,8 +5439,26 @@ struct AuthModalView: View {
                             icon: "chevron.left.forwardslash.chevron.right",
                             iconColor: .purple
                         ) {
+                            waitingProviderName = "GitHub"
+                            waitingProviderIcon = "chevron.left.forwardslash.chevron.right"
+                            waitingProviderColor = .purple
+                            errorMessage = nil
+                            successMessage = nil
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                showingGitHubInput = true
+                                isWaitingForLogin = true
+                            }
+                            Task {
+                                do {
+                                    try await authService.signInWithGitHubOAuth()
+                                    await MainActor.run {
+                                        dismiss()
+                                    }
+                                } catch {
+                                    await MainActor.run {
+                                        isWaitingForLogin = false
+                                        errorMessage = error.localizedDescription
+                                    }
+                                }
                             }
                         }
 

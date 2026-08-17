@@ -191,6 +191,158 @@ final class SafeVoidContinuation: @unchecked Sendable {
         )
     }
     
+    public static let githubClientID = "Ov23liY9jrdKt5i2t3lP"
+
+    public func signInWithGitHubOAuth(onUserCodeReceived: ((String, URL) -> Void)? = nil) async throws {
+        isSigningIn = true
+        defer { isSigningIn = false }
+        
+        let clientID = Self.githubClientID
+        
+        guard let url = URL(string: "https://github.com/login/device/code") else {
+            throw NSError(domain: "ScribeAuth", code: 500, userInfo: [NSLocalizedDescriptionKey: "Invalid GitHub OAuth URL"])
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        let bodyString = "client_id=\(clientID)&scope=read:user%20user:email"
+        request.httpBody = bodyString.data(using: .utf8)
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            if let errJson = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let err = errJson["error"] as? String {
+                if err == "device_flow_disabled" {
+                    throw NSError(domain: "ScribeAuth", code: 403, userInfo: [NSLocalizedDescriptionKey: "Включите галочку «Enable Device Flow» в настройках вашего OAuth App на GitHub (GitHub → Settings → Developer Settings → OAuth Apps → Scribe → Enable Device Flow)."])
+                }
+                let errDesc = errJson["error_description"] as? String ?? err
+                throw NSError(domain: "ScribeAuth", code: 400, userInfo: [NSLocalizedDescriptionKey: errDesc])
+            }
+            throw NSError(domain: "ScribeAuth", code: 400, userInfo: [NSLocalizedDescriptionKey: "Failed to initiate GitHub authorization."])
+        }
+        
+        if let err = json["error"] as? String {
+            if err == "device_flow_disabled" {
+                throw NSError(domain: "ScribeAuth", code: 403, userInfo: [NSLocalizedDescriptionKey: "Включите галочку «Enable Device Flow» в настройках вашего OAuth App на GitHub (GitHub → Settings → Developer Settings → OAuth Apps → Scribe → Enable Device Flow)."])
+            }
+            let desc = json["error_description"] as? String ?? err
+            throw NSError(domain: "ScribeAuth", code: 400, userInfo: [NSLocalizedDescriptionKey: desc])
+        }
+        
+        guard let deviceCode = json["device_code"] as? String,
+              let userCode = json["user_code"] as? String,
+              let verificationUriStr = json["verification_uri"] as? String,
+              let verificationURL = URL(string: verificationUriStr) else {
+            throw NSError(domain: "ScribeAuth", code: 500, userInfo: [NSLocalizedDescriptionKey: "Invalid response from GitHub."])
+        }
+        
+        let interval = (json["interval"] as? TimeInterval) ?? 5.0
+        let expiresIn = (json["expires_in"] as? TimeInterval) ?? 900.0
+        
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(userCode, forType: .string)
+        
+        await MainActor.run {
+            onUserCodeReceived?(userCode, verificationURL)
+            NSWorkspace.shared.open(verificationURL)
+        }
+        
+        let deadline = Date().addingTimeInterval(expiresIn)
+        var pollInterval = interval
+        
+        while Date() < deadline {
+            try await Task.sleep(nanoseconds: UInt64(pollInterval * 1_000_000_000))
+            
+            guard let tokenURL = URL(string: "https://github.com/login/oauth/access_token") else { break }
+            var tokenReq = URLRequest(url: tokenURL)
+            tokenReq.httpMethod = "POST"
+            tokenReq.setValue("application/json", forHTTPHeaderField: "Accept")
+            tokenReq.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+            let tokenBody = "client_id=\(clientID)&device_code=\(deviceCode)&grant_type=urn:ietf:params:oauth:grant-type:device_code"
+            tokenReq.httpBody = tokenBody.data(using: .utf8)
+            
+            let (tokenData, tokenRes) = try await URLSession.shared.data(for: tokenReq)
+            if let httpRes = tokenRes as? HTTPURLResponse, httpRes.statusCode == 200,
+               let tokenJson = try? JSONSerialization.jsonObject(with: tokenData) as? [String: Any] {
+                
+                if let accessToken = tokenJson["access_token"] as? String {
+                    try await fetchAndSetGitHubUser(accessToken: accessToken)
+                    return
+                }
+                
+                if let error = tokenJson["error"] as? String {
+                    if error == "authorization_pending" {
+                        continue
+                    } else if error == "slow_down" {
+                        pollInterval += 5.0
+                        continue
+                    } else if error == "expired_token" {
+                        throw NSError(domain: "ScribeAuth", code: 408, userInfo: [NSLocalizedDescriptionKey: "Authorization expired. Please try again."])
+                    } else if error == "access_denied" {
+                        throw NSError(domain: "ScribeAuth", code: 403, userInfo: [NSLocalizedDescriptionKey: "Authorization was cancelled by the user."])
+                    } else {
+                        let desc = tokenJson["error_description"] as? String ?? error
+                        throw NSError(domain: "ScribeAuth", code: 400, userInfo: [NSLocalizedDescriptionKey: desc])
+                    }
+                }
+            }
+        }
+        
+        throw NSError(domain: "ScribeAuth", code: 408, userInfo: [NSLocalizedDescriptionKey: "Authorization timed out. Please try again."])
+    }
+    
+    private func fetchAndSetGitHubUser(accessToken: String) async throws {
+        guard let userUrl = URL(string: "https://api.github.com/user") else { return }
+        var request = URLRequest(url: userUrl)
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        request.setValue("Scribe-macOS", forHTTPHeaderField: "User-Agent")
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpRes = response as? HTTPURLResponse, httpRes.statusCode == 200,
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw NSError(domain: "ScribeAuth", code: 500, userInfo: [NSLocalizedDescriptionKey: "Failed to fetch GitHub profile."])
+        }
+        
+        let login = json["login"] as? String ?? "github_user"
+        let name = json["name"] as? String ?? login
+        var email = json["email"] as? String ?? ""
+        let avatar = json["avatar_url"] as? String ?? "https://github.com/\(login).png"
+        let ghId = json["id"] as? Int ?? 0
+        
+        if email.isEmpty, let emailUrl = URL(string: "https://api.github.com/user/emails") {
+            var emailReq = URLRequest(url: emailUrl)
+            emailReq.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+            emailReq.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+            emailReq.setValue("Scribe-macOS", forHTTPHeaderField: "User-Agent")
+            if let (emailData, _) = try? await URLSession.shared.data(for: emailReq),
+               let emailArray = try? JSONSerialization.jsonObject(with: emailData) as? [[String: Any]] {
+                if let primary = emailArray.first(where: { ($0["primary"] as? Bool) == true }),
+                   let primaryEmail = primary["email"] as? String {
+                    email = primaryEmail
+                } else if let first = emailArray.first?["email"] as? String {
+                    email = first
+                }
+            }
+        }
+        
+        if email.isEmpty {
+            email = "\(login)@users.noreply.github.com"
+        }
+        
+        self.currentUser = AuthUser(
+            id: "gh_\(ghId != 0 ? String(ghId) : login)",
+            email: email,
+            name: name,
+            avatarURL: avatar,
+            subscriptionTier: .pro,
+            subscriptionExpiresAt: Date.distantFuture
+        )
+    }
+
     public func signInWithGitHubAccount(username: String, tokenOrPassword: String = "") async throws {
         isSigningIn = true
         defer { isSigningIn = false }
