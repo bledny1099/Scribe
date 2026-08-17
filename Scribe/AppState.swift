@@ -447,6 +447,25 @@ final class AppState: ObservableObject {
     @AppStorage("recognitionEngine") public var recognitionEngine: String = "Aether Hybrid (Recommended)"
     @AppStorage("recognitionMode") public var recognitionMode: String = "multilingual"
     @AppStorage("singleDictationLanguage") public var singleDictationLanguage: String = "ru"
+    @AppStorage("multilingualLanguages") public var multilingualLanguages: [String] = ["ru", "en"]
+
+    public func toggleMultilingualLanguage(_ langId: String) {
+        var list = multilingualLanguages
+        if let idx = list.firstIndex(of: langId) {
+            if list.count > 1 {
+                list.remove(at: idx)
+            }
+        } else {
+            if list.count < 3 {
+                list.append(langId)
+            } else {
+                list.removeFirst()
+                list.append(langId)
+            }
+        }
+        multilingualLanguages = list
+    }
+
     @AppStorage("pushToTalk") public var pushToTalk: Bool = false
     @AppStorage("enableCloudAI") public var enableCloudAI: Bool = false
     @AppStorage("cloudAIProvider") public var cloudAIProviderRaw: String = CloudAIProvider.groq.rawValue
@@ -697,8 +716,11 @@ final class AppState: ObservableObject {
 
         Task {
             do {
-                logger.info("Starting transcription with model=\(self.selectedModel), lang=\(self.selectedLanguage)…")
-                let langParam = self.selectedLanguage == "auto" ? nil : self.selectedLanguage
+                let isSingle = self.recognitionMode == "singleLanguage"
+                let langParam: String? = isSingle ? (self.singleDictationLanguage == "auto" ? nil : self.singleDictationLanguage) : nil
+                let preferredLangs: [String] = isSingle ? [] : (self.multilingualLanguages.isEmpty ? ["ru", "en"] : self.multilingualLanguages)
+
+                logger.info("Starting transcription with model=\(self.selectedModel), mode=\(self.recognitionMode), lang=\(langParam ?? "auto"), preferred=\(preferredLangs)…")
                 var text = ""
 
                 if localEnableCloud && !localAPIKey.isEmpty {
@@ -716,6 +738,7 @@ final class AppState: ObservableObject {
                             audioURL: audioURL,
                             modelName: self.selectedModel,
                             language: langParam,
+                            preferredLanguages: preferredLangs,
                             autoTranslate: self.autoTranslate,
                             customVocabulary: self.vocabulary
                         )
@@ -725,14 +748,13 @@ final class AppState: ObservableObject {
                         audioURL: audioURL,
                         modelName: self.selectedModel,
                         language: langParam,
+                        preferredLanguages: preferredLangs,
                         autoTranslate: self.autoTranslate,
                         customVocabulary: self.vocabulary
                     )
                 }
 
-                if self.cleanFillerWords {
-                    text = TranscriptionService.removeFillerWordsAndDuplicates(text)
-                }
+                text = TranscriptionService.removeFillerWordsAndDuplicates(text)
                 text = TextReplacer.apply(
                     replacements: self.textReplacements,
                     vocabulary: self.vocabulary,

@@ -54,30 +54,62 @@ struct ScribeMenuView: View {
         Divider()
 
         Menu(appState.l("Dictation Language")) {
-            ForEach(supportedLanguages, id: \.id) { lang in
-                if let children = lang.children {
-                    Menu(lang.name) {
-                        ForEach(children, id: \.id) { child in
-                            Button {
-                                appState.selectedLanguage = child.id
-                            } label: {
-                                HStack {
-                                    Text(child.name)
-                                    if appState.selectedLanguage == child.id {
-                                        Image(systemName: "checkmark")
+            if appState.recognitionMode == "multilingual" {
+                ForEach(supportedLanguages.filter { $0.id != "auto" }, id: \.id) { lang in
+                    if let children = lang.children {
+                        Menu(lang.name) {
+                            ForEach(children, id: \.id) { child in
+                                Button {
+                                    appState.toggleMultilingualLanguage(child.id)
+                                } label: {
+                                    HStack {
+                                        Text(child.name)
+                                        if appState.multilingualLanguages.contains(child.id) {
+                                            Image(systemName: "checkmark")
+                                        }
                                     }
                                 }
                             }
                         }
+                    } else {
+                        Button {
+                            appState.toggleMultilingualLanguage(lang.id)
+                        } label: {
+                            HStack {
+                                Text(lang.name)
+                                if appState.multilingualLanguages.contains(lang.id) {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
                     }
-                } else {
-                    Button {
-                        appState.selectedLanguage = lang.id
-                    } label: {
-                        HStack {
-                            Text(lang.name)
-                            if appState.selectedLanguage == lang.id {
-                                Image(systemName: "checkmark")
+                }
+            } else {
+                ForEach(supportedLanguages.filter { $0.id != "auto" }, id: \.id) { lang in
+                    if let children = lang.children {
+                        Menu(lang.name) {
+                            ForEach(children, id: \.id) { child in
+                                Button {
+                                    appState.singleDictationLanguage = child.id
+                                } label: {
+                                    HStack {
+                                        Text(child.name)
+                                        if appState.singleDictationLanguage == child.id {
+                                            Image(systemName: "checkmark")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        Button {
+                            appState.singleDictationLanguage = lang.id
+                        } label: {
+                            HStack {
+                                Text(lang.name)
+                                if appState.singleDictationLanguage == lang.id {
+                                    Image(systemName: "checkmark")
+                                }
                             }
                         }
                     }

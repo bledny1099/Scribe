@@ -444,7 +444,7 @@ struct SettingsView: View {
                                     Spacer()
                                     LiquidGlassLanguageMenu(
                                         items: supportedLanguages.filter { $0.id != "auto" },
-                                        selection: $appState.selectedLanguage
+                                        selection: $appState.singleDictationLanguage
                                     )
                                 }
                             } else {
@@ -458,9 +458,10 @@ struct SettingsView: View {
                                             .foregroundStyle(.secondary)
                                     }
                                     Spacer()
-                                    LiquidGlassLanguageMenu(
+                                    LiquidGlassMultiLanguageMenu(
                                         items: supportedLanguages,
-                                        selection: $appState.selectedLanguage
+                                        selectedLanguages: appState.multilingualLanguages,
+                                        onToggle: { appState.toggleMultilingualLanguage($0) }
                                     )
                                 }
                             }
@@ -1742,6 +1743,95 @@ struct LiquidGlassLanguageMenu: View {
         .buttonStyle(.plain)
     }
 }
+
+// MARK: - Liquid Glass Multi-Language Menu
+
+/// A specialized menu button that supports multi-selecting 2-3 languages for multilingual mode.
+struct LiquidGlassMultiLanguageMenu: View {
+    let items: [LanguageOption]
+    let selectedLanguages: [String]
+    let onToggle: (String) -> Void
+
+    private var displayTitle: String {
+        let validItems = items.flatMap { [$0] + ($0.children ?? []) }
+        let names = selectedLanguages.compactMap { id -> String? in
+            guard let item = validItems.first(where: { $0.id == id }) else { return id.uppercased() }
+            let clean = item.name.components(separatedBy: " (").first ?? item.name
+            return clean
+        }
+        if names.isEmpty {
+            return "Select 2-3 Languages"
+        }
+        return names.joined(separator: ", ")
+    }
+
+    var body: some View {
+        Menu {
+            ForEach(items.filter { $0.id != "auto" }, id: \.id) { lang in
+                if let children = lang.children {
+                    Menu(lang.name) {
+                        ForEach(children, id: \.id) { child in
+                            Button {
+                                withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
+                                    onToggle(child.id)
+                                }
+                            } label: {
+                                if selectedLanguages.contains(child.id) {
+                                    Label(child.name, systemImage: "checkmark")
+                                } else {
+                                    Text(child.name)
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Button {
+                        withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
+                            onToggle(lang.id)
+                        }
+                    } label: {
+                        if selectedLanguages.contains(lang.id) {
+                            Label(lang.name, systemImage: "checkmark")
+                        } else {
+                            Text(lang.name)
+                        }
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Text(displayTitle)
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+
+                Spacer(minLength: 4)
+
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .frame(minWidth: 180, maxWidth: 220)
+            .background(
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.primary.opacity(0.05))
+
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(.ultraThinMaterial.opacity(0.6))
+                }
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 
 // MARK: - Theme Swatch Button
 
@@ -4398,23 +4488,6 @@ struct GeneralSettingsView: View {
                             }
                         .padding(.top, 4)
                         .transition(.opacity.combined(with: .move(edge: .top)))
-                    }
-
-                    Divider()
-                        .opacity(0.3)
-
-                    // Clean Filler Words Toggle
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(appState.l("Clean Filler Words"))
-                                .font(.system(size: 14, weight: .medium, design: .rounded))
-                                .foregroundStyle(.primary)
-                            Text(appState.l("Removes hesitations (\"uh\", \"um\", \"эээ\", \"ну\") and duplicate words"))
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Toggle("", isOn: $appState.cleanFillerWords)
                     }
                 }
             }
