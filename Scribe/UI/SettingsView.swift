@@ -1,5 +1,6 @@
 import SwiftUI
 import KeyboardShortcuts
+import FirebaseAuth
 
 enum SettingsTab: String, CaseIterable {
     case general = "General"
@@ -4836,9 +4837,20 @@ struct AccountSettingsModalView: View {
 
                     // Account Actions
                     VStack(spacing: 10) {
-                        // Reset Password Button
-                        Button {
-                            if user.id.hasPrefix("gh_") || user.email.isEmpty {
+                                             Button {
+                            let isGoogle = user.id.hasPrefix("google_") || 
+                                           user.email.hasSuffix("@gmail.com") || 
+                                           user.email.hasSuffix("@googlemail.com") ||
+                                           (Auth.auth().currentUser?.providerData.contains(where: { $0.providerID == "google.com" }) ?? false)
+                            let isGitHub = user.id.hasPrefix("gh_")
+
+                            if isGoogle {
+                                if let url = URL(string: "https://myaccount.google.com/signinoptions/password") {
+                                    NSWorkspace.shared.open(url)
+                                }
+                                statusMessage = appState.l("Opened official Google password reset page in browser.")
+                                isSuccessStatus = true
+                            } else if isGitHub || user.email.isEmpty {
                                 if let url = URL(string: "https://github.com/password_reset") {
                                     NSWorkspace.shared.open(url)
                                 }
@@ -4858,8 +4870,14 @@ struct AccountSettingsModalView: View {
                             }
                         } label: {
                             HStack {
-                                Image(systemName: user.id.hasPrefix("gh_") ? "arrow.up.right.square" : "key.fill")
-                                Text(user.id.hasPrefix("gh_") ? appState.l("Reset Password on GitHub.com") : appState.l("Reset / Change Password"))
+                                let isGoogle = user.id.hasPrefix("google_") || 
+                                               user.email.hasSuffix("@gmail.com") || 
+                                               user.email.hasSuffix("@googlemail.com") ||
+                                               (Auth.auth().currentUser?.providerData.contains(where: { $0.providerID == "google.com" }) ?? false)
+                                let isGitHub = user.id.hasPrefix("gh_")
+
+                                Image(systemName: (isGoogle || isGitHub) ? "arrow.up.right.square" : "key.fill")
+                                Text(isGoogle ? appState.l("Manage Password on Google.com") : (isGitHub ? appState.l("Reset Password on GitHub.com") : appState.l("Reset / Change Password")))
                                     .font(.system(size: 12, weight: .semibold, design: .rounded))
                                 Spacer()
                                 Image(systemName: "chevron.right")

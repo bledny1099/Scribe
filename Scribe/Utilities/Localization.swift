@@ -453,7 +453,9 @@ enum Localization {
             "Tidal Wave": "Приливная волна",
             "Tsunami": "Цунами",
             "Category 5": "Категория 5",
-            "Force of Nature": "Стихия"
+            "Force of Nature": "Стихия",
+            "Manage Password on Google.com": "Управление паролем на Google.com",
+            "Opened official Google password reset page in browser.": "В браузере открыта страница восстановления пароля Google."
         ],
         "es": [
             "Start Dictation": "Iniciar dictado",
