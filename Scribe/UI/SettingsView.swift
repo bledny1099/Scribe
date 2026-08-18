@@ -34,6 +34,7 @@ struct SettingsView: View {
 
     @State private var selectedTab: SettingsTab = .general
     @EnvironmentObject var appState: AppState
+    @ObservedObject private var updateService = AppUpdateService.shared
     @State private var showingSupportModal = false
     @State private var showingAuthModal = false
     @State private var showingAccountSettingsModal = false
@@ -530,11 +531,40 @@ struct SettingsView: View {
             // Header — Draggable Cyber Glass Console Header
             VStack(spacing: 0) {
                 HStack(spacing: 12) {
-                    HStack(spacing: 8) {
+                    HStack(spacing: 10) {
                         Text("Scribe")
                             .font(.system(size: 20, weight: .bold, design: .default))
                             .tracking(1.2)
                             .foregroundStyle(.primary)
+
+                        if updateService.updateAvailable {
+                            Button(action: {
+                                updateService.performUpdate()
+                            }) {
+                                HStack(spacing: 5) {
+                                    if updateService.isDownloading {
+                                        ProgressView()
+                                            .scaleEffect(0.5)
+                                            .frame(width: 10, height: 10)
+                                    } else {
+                                        Image(systemName: "arrow.down.circle.fill")
+                                            .font(.system(size: 10, weight: .bold))
+                                    }
+                                    Text(updateService.isDownloading ? appState.l("Updating...") : appState.l("Update available"))
+                                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.green.opacity(0.18))
+                                .foregroundStyle(.green)
+                                .cornerRadius(6)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .stroke(Color.green.opacity(0.35), lineWidth: 1)
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
 
                     Spacer()
@@ -3546,15 +3576,11 @@ struct VocabularySettingsView: View {
         let isRussian = appState.selectedUILanguage == "ru" || (appState.selectedUILanguage == "auto" && Locale.current.language.languageCode?.identifier == "ru")
         if isRussian {
             return [
-                "Москва", "Санкт-Петербург", "Алматы", "Минск", "Астана", "Ташкент",
-                "Лондон", "Париж", "Берлин", "Амстердам", "Рим", "Мадрид", "Цюрих", "Вена", "Прага", "Варшава", "Барселона",
-                "Нью-Йорк", "Сан-Франциско", "Лос-Анджелес", "Майами", "Чикаго", "Дубай"
+                "Лондон", "Париж", "Берлин", "Амстердам", "Рим", "Мадрид", "Цюрих", "Вена", "Прага", "Варшава", "Барселона", "Милан", "Мюнхен", "Лиссабон", "Женева", "Стокгольм", "Дублин", "Дубай", "Абу-Даби", "Нью-Йорк", "Сан-Франциско", "Лос-Анджелес", "Майами", "Чикаго"
             ]
         } else {
             return [
-                "Moscow", "Saint Petersburg", "Almaty", "Minsk", "Astana", "Tashkent",
-                "London", "Paris", "Berlin", "Amsterdam", "Rome", "Madrid", "Zurich", "Vienna", "Prague", "Warsaw", "Barcelona",
-                "New York", "San Francisco", "Los Angeles", "Miami", "Chicago", "Dubai"
+                "London", "Paris", "Berlin", "Amsterdam", "Rome", "Madrid", "Zurich", "Vienna", "Prague", "Warsaw", "Barcelona", "Milan", "Munich", "Lisbon", "Geneva", "Stockholm", "Dublin", "Dubai", "Abu Dhabi", "New York", "San Francisco", "Los Angeles", "Miami", "Chicago"
             ]
         }
     }
@@ -4016,7 +4042,7 @@ struct VocabularySettingsView: View {
                             Image(systemName: "location.fill")
                                 .font(.system(size: 12))
                                 .foregroundStyle(.secondary)
-                            TextField(appState.l("e.g. Москва, Тверская, Арбат or Dubai, Marina..."), text: $appState.userCityLocation)
+                            TextField(appState.l("e.g. London, Oxford St, Soho or Dubai, Marina, Abu Dhabi..."), text: $appState.userCityLocation)
                                 .textFieldStyle(.plain)
                                 .font(.system(size: 12, design: .rounded))
                         }
@@ -6011,7 +6037,7 @@ struct AuthModalView: View {
                                 } label: {
                                     HStack(spacing: 4) {
                                         Image(systemName: "arrow.up.right.square")
-                                        Text("Открыть настройки GitHub OAuth")
+                                        Text(appState.l("Open GitHub OAuth Settings"))
                                     }
                                     .font(.system(size: 11, weight: .bold, design: .rounded))
                                     .foregroundStyle(.purple)
@@ -6051,7 +6077,7 @@ struct AuthModalView: View {
 
     private var headerTitle: String {
         if isWaitingForLogin {
-            return "Signing In…"
+            return appState.l("Signing In…")
         } else if showForgotPassword {
             return appState.l("Password Recovery")
         } else if showGoogleInput {
@@ -6067,6 +6093,7 @@ struct AuthModalView: View {
 }
 
 struct WaitingForLoginView: View {
+    @EnvironmentObject var appState: AppState
     let providerName: String
     let providerIcon: String
     let providerColor: Color
@@ -6104,7 +6131,7 @@ struct WaitingForLoginView: View {
             }
 
             VStack(spacing: 6) {
-                Text(userCode != nil ? "Подтвердите вход в браузере" : "Ожидание входа через браузер…")
+                Text(userCode != nil ? appState.l("Confirm sign in in browser") : appState.l("Waiting for browser sign in…"))
                     .font(.system(size: 14, weight: .bold, design: .rounded))
                     .foregroundStyle(.primary)
 
@@ -6124,12 +6151,12 @@ struct WaitingForLoginView: View {
                         .background(providerColor.opacity(0.12))
                         .cornerRadius(8)
                         
-                        Text("Код скопирован в буфер. Вставьте его в браузере.")
+                        Text(appState.l("Code copied to clipboard. Paste it in your browser."))
                             .font(.system(size: 10, weight: .medium, design: .rounded))
                             .foregroundStyle(.secondary)
                     }
                 } else {
-                    Text("Завершите авторизацию в открывшемся окне браузера.")
+                    Text(appState.l("Complete sign in in the opened browser window."))
                         .font(.system(size: 11, weight: .medium, design: .rounded))
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -6138,7 +6165,7 @@ struct WaitingForLoginView: View {
             }
 
             Button(action: onCancel) {
-                Text("Отмена")
+                Text(appState.l("Cancel"))
                     .font(.system(size: 12, weight: .semibold, design: .rounded))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 16)

@@ -491,7 +491,7 @@ enum Localization {
             "Location & Country Presets": "Пресеты стран и локаций",
             "Location Presets": "Пресеты локаций",
             "Specify your city, frequent neighborhoods or street names (comma-separated). Scribe will bias the transcription model to accurately recognize local addresses, street prefixes, and locations.": "Укажите ваш город, частые районы или улицы (через запятую). Scribe оптимизирует модель для точного распознавания местных адресов, улиц и топонимов.",
-            "e.g. Москва, Тверская, Арбат or Dubai, Marina...": "напр. Москва, Тверская, Арбат или Дубай, Марина...",
+            "e.g. London, Oxford St, Soho or Dubai, Marina, Abu Dhabi...": "напр. Лондон, Оксфорд-стрит, Сохо или Дубай, Марина, Абу-Даби...",
             "Quick presets:": "Быстрые города:",
             "Create Location Preset": "Создать пресет локаций",
             "Import Location Preset": "Импортировать пресет",
@@ -499,6 +499,8 @@ enum Localization {
             "Check for Updates": "Проверить обновления",
             "Checking for updates...": "Проверка обновлений...",
             "Update Available": "Доступно обновление",
+            "Update available": "Доступно обновление",
+            "Updating...": "Обновление...",
             "Install & Restart": "Установить и перезапустить",
             "Update Now": "Обновить сейчас",
             "Up to date": "Установлена актуальная версия",
@@ -508,7 +510,12 @@ enum Localization {
             "Downloading update...": "Загрузка обновления...",
             "Cities, Countries & Locations": "Города, страны и локации",
             "Create Location & Country Preset": "Создать пресет стран и локаций",
-            "Import Location & Country Preset": "Импортировать пресет стран и локаций"
+            "Import Location & Country Preset": "Импортировать пресет стран и локаций",
+            "Open GitHub OAuth Settings": "Открыть настройки GitHub OAuth",
+            "Confirm sign in in browser": "Подтвердите вход в браузере",
+            "Waiting for browser sign in…": "Ожидание входа через браузер…",
+            "Code copied to clipboard. Paste it in your browser.": "Код скопирован в буфер. Вставьте его в браузере.",
+            "Complete sign in in the opened browser window.": "Завершите авторизацию в открывшемся окне браузера."
         ],
         "es": [
             "Start Dictation": "Iniciar dictado",

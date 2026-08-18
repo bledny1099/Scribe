@@ -52,11 +52,60 @@ public final class AetherFuzzyMatcher: @unchecked Sendable {
         "джеминай": "Gemini"
     ]
 
+    /// Morphological phonetic & acoustic correction patterns (e.g. speech mishearing of roots)
+    private let commonPhoneticRules: [(pattern: String, template: String)] = [
+        // Nautical / Geographic / Historical roots (e.g. моревлаватели -> мореплаватели)
+        ("(?i)\\bморевлав([а-яё]*)", "мореплав$1"),
+        ("(?i)\\bперво открывател([а-яё]*)", "первооткрывател$1"),
+        ("(?i)\\bперваоткрывател([а-яё]*)", "первооткрывател$1"),
+        ("(?i)\\bпутишеств([а-яё]*)", "путешеств$1"),
+        ("(?i)\\bкораблекрашен([а-яё]*)", "кораблекрушен$1"),
+        ("(?i)\\bкорабле крушен([а-яё]*)", "кораблекрушен$1"),
+        ("(?i)\\bврядли\\b", "вряд ли"),
+        ("(?i)\\bкакбудто\\b", "как будто"),
+        ("(?i)\\bточь в точь\\b", "точь-в-точь"),
+        ("(?i)\\bвсетаки\\b", "всё-таки"),
+        ("(?i)\\bизпод\\b", "из-под"),
+        ("(?i)\\bизза\\b", "из-за"),
+        ("(?i)\\bповидимому\\b", "по-видимому"),
+        ("(?i)\\bпопрежнему\\b", "по-прежнему")
+    ]
+
+    /// Built-in canonical terms for Levenshtein fuzzy alignment
+    private let builtInDictionaryTargets: [String] = [
+        "мореплаватели", "мореплаватель", "путешественники", "исследователи",
+        "первооткрыватели", "первопроходцы", "мореплавание", "навигаторы",
+        "первооткрыватель", "путешественник", "исследователь"
+    ]
+
     /// Matches and realigns words against target vocabulary
     public func realign(text: String, vocabulary: [String]) -> String {
         guard !text.isEmpty else { return text }
 
         var result = text
+
+        // 0. Phonetic & Root Acoustic Repairs (with capitalization preservation)
+        for rule in commonPhoneticRules {
+            if let regex = try? NSRegularExpression(pattern: rule.pattern, options: []) {
+                let matches = regex.matches(in: result, options: [], range: NSRange(location: 0, length: result.utf16.count))
+                for match in matches.reversed() {
+                    if let range = Range(match.range, in: result) {
+                        let matchedText = String(result[range])
+                        let isCapitalized = matchedText.first?.isUppercase == true
+                        var replaced = regex.stringByReplacingMatches(
+                            in: matchedText,
+                            options: [],
+                            range: NSRange(location: 0, length: matchedText.utf16.count),
+                            withTemplate: rule.template
+                        )
+                        if isCapitalized, let first = replaced.first {
+                            replaced = String(first.uppercased()) + replaced.dropFirst()
+                        }
+                        result.replaceSubrange(range, with: replaced)
+                    }
+                }
+            }
+        }
 
         // 1. Direct Phonetic Transliteration Lookup
         for (phonetic, canonical) in commonTransliterationMap {
@@ -87,10 +136,10 @@ public final class AetherFuzzyMatcher: @unchecked Sendable {
             }
         }
 
-        // 3. Levenshtein Fuzzy Alignment for Longer Custom Vocabulary (>5 chars)
-        let longVocab = vocabulary.filter { $0.count >= 5 }
-        if !longVocab.isEmpty {
-            result = applyLevenshteinAlignment(text: result, targets: longVocab)
+        // 3. Levenshtein Fuzzy Alignment for Longer Custom & Built-in Vocabulary (>5 chars)
+        let combinedTargets = builtInDictionaryTargets + vocabulary.filter { $0.count >= 5 }
+        if !combinedTargets.isEmpty {
+            result = applyLevenshteinAlignment(text: result, targets: combinedTargets)
         }
 
         return result
@@ -111,6 +160,8 @@ public final class AetherFuzzyMatcher: @unchecked Sendable {
                 continue
             }
 
+            let isCapitalized = cleanWord.first?.isUppercase == true
+
             var matchedTarget: String? = nil
             for target in targets {
                 let dist = levenshteinDistance(cleanWord.lowercased(), target.lowercased())
@@ -122,7 +173,10 @@ public final class AetherFuzzyMatcher: @unchecked Sendable {
                 }
             }
 
-            if let target = matchedTarget {
+            if var target = matchedTarget {
+                if isCapitalized, let first = target.first {
+                    target = String(first.uppercased()) + target.dropFirst()
+                }
                 // Reconstruct word with original surrounding punctuation
                 let prefixScalars = word.unicodeScalars.prefix(while: { punctuationSet.contains($0) })
                 let suffixScalars = word.unicodeScalars.reversed().prefix(while: { punctuationSet.contains($0) }).reversed()

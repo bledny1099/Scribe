@@ -35,6 +35,7 @@ struct LiquidGlassMenuBarView: View {
     @ObservedObject var appState: AppState
     @ObservedObject var history = TranscriptionHistory.shared
     @ObservedObject var authService = AuthService.shared
+    @ObservedObject var updateService = AppUpdateService.shared
     
     private var theme: AppTheme { appState.selectedTheme }
     private var displayName: String {
@@ -150,7 +151,7 @@ struct LiquidGlassMenuBarView: View {
             .buttonStyle(.plain)
 
             // Footer
-            HStack {
+            HStack(spacing: 8) {
                 Button {
                     NSApplication.shared.terminate(nil)
                 } label: {
@@ -165,6 +166,35 @@ struct LiquidGlassMenuBarView: View {
                 .buttonStyle(.plain)
 
                 Spacer()
+
+                if updateService.updateAvailable {
+                    Button(action: {
+                        updateService.performUpdate()
+                    }) {
+                        HStack(spacing: 4) {
+                            if updateService.isDownloading {
+                                ProgressView()
+                                    .scaleEffect(0.5)
+                                    .frame(width: 9, height: 9)
+                            } else {
+                                Image(systemName: "arrow.down.circle.fill")
+                                    .font(.system(size: 9, weight: .bold))
+                            }
+                            Text(updateService.isDownloading ? appState.l("Updating...") : appState.l("Update available"))
+                                .font(.system(size: 9, weight: .bold, design: .rounded))
+                        }
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.green.opacity(0.18))
+                        .foregroundStyle(.green)
+                        .cornerRadius(5)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 5)
+                                .stroke(Color.green.opacity(0.35), lineWidth: 1)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
 
                 Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.1.0")")
                     .font(.system(size: 10, weight: .medium))

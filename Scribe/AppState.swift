@@ -447,31 +447,31 @@ final class AppState: ObservableObject {
 
     public static let defaultLocationPresets: [VocabularyPreset] = [
         VocabularyPreset(
-            name: "Европейские столицы & Hubs",
-            description: "Лондон, Париж, Берлин, Амстердам, Рим, Мадрид, Цюрих, Вена, Прага, Варшава, Барселона",
-            words: ["Лондон", "Париж", "Берлин", "Амстердам", "Рим", "Мадрид", "Цюрих", "Вена", "Прага", "Варшава", "Барселона", "London", "Paris", "Berlin", "Amsterdam", "Rome", "Madrid", "Zurich", "Vienna", "Prague", "Warsaw", "Barcelona"],
+            name: "European Capitals & Hubs",
+            description: "London, Paris, Berlin, Amsterdam, Rome, Madrid, Zurich, Vienna, Prague, Warsaw, Barcelona, Milan, Munich, Lisbon, Geneva, Stockholm, Dublin",
+            words: ["London", "Paris", "Berlin", "Amsterdam", "Rome", "Madrid", "Zurich", "Vienna", "Prague", "Warsaw", "Barcelona", "Milan", "Munich", "Lisbon", "Geneva", "Stockholm", "Dublin"],
             shareCode: "scr_loc_europe_hubs",
             category: "location"
         ),
         VocabularyPreset(
-            name: "США & Мегаполисы",
-            description: "Нью-Йорк, Сан-Франциско, Лос-Анджелес, Майами, Чикаго, Остин, Сиэтл, Бостон",
-            words: ["Нью-Йорк", "Сан-Франциско", "Лос-Анджелес", "Майами", "Чикаго", "Остин", "Сиэтл", "Бостон", "New York", "San Francisco", "Los Angeles", "Miami", "Chicago", "Austin", "Seattle", "Boston"],
+            name: "US Major Metros",
+            description: "New York, San Francisco, Los Angeles, Miami, Chicago, Austin, Seattle, Boston",
+            words: ["New York", "San Francisco", "Los Angeles", "Miami", "Chicago", "Austin", "Seattle", "Boston"],
             shareCode: "scr_loc_usa_cities",
             category: "location"
         ),
         VocabularyPreset(
-            name: "Страны и мировые центры",
-            description: "США, Великобритания, Германия, Франция, ОАЭ, Дубай, Швейцария, Нидерланды, Испания, Италия, Япония",
-            words: ["США", "Великобритания", "Германия", "Франция", "ОАЭ", "Дубай", "Швейцария", "Нидерланды", "Испания", "Италия", "Япония", "USA", "United Kingdom", "Germany", "France", "UAE", "Dubai", "Switzerland", "Netherlands", "Spain", "Italy", "Japan"],
-            shareCode: "scr_loc_countries_world",
+            name: "UAE & Middle East Hubs",
+            description: "Dubai, Abu Dhabi, Doha, Riyadh",
+            words: ["Dubai", "Abu Dhabi", "Doha", "Riyadh", "UAE", "United Arab Emirates"],
+            shareCode: "scr_loc_uae_middle_east",
             category: "location"
         ),
         VocabularyPreset(
-            name: "СНГ и топонимы",
-            description: "Москва, Санкт-Петербург, Алматы, Минск, Астана, Ташкент",
-            words: ["Москва", "Санкт-Петербург", "Алматы", "Минск", "Астана", "Ташкент", "Moscow", "Saint Petersburg", "Almaty", "Minsk", "Astana", "Tashkent"],
-            shareCode: "scr_loc_cis_capitals",
+            name: "Global Countries & Capitals",
+            description: "USA, United Kingdom, Germany, France, UAE, Switzerland, Netherlands, Spain, Italy, Japan, Canada, Australia, Singapore",
+            words: ["USA", "United Kingdom", "Germany", "France", "UAE", "Dubai", "Abu Dhabi", "Switzerland", "Netherlands", "Spain", "Italy", "Japan", "Canada", "Australia", "Singapore"],
+            shareCode: "scr_loc_countries_world",
             category: "location"
         )
     ]
@@ -673,7 +673,7 @@ final class AppState: ObservableObject {
         preloadModel()
         checkFirstLaunchPermissions()
         
-        if customLocationPresets.isEmpty {
+        if customLocationPresets.isEmpty || customLocationPresets.contains(where: { $0.shareCode == "scr_loc_cis_capitals" }) {
             customLocationPresets = Self.defaultLocationPresets
             activeLocationPresetIds = customLocationPresets.map { $0.id.uuidString }
         }
