@@ -146,6 +146,23 @@ final class SafeVoidContinuation: @unchecked Sendable {
         try await signInWithGoogle(presentingWindow: presentingWindow)
     }
     
+    private func resolvePreferredName(suggested: String? = nil, email: String? = nil) -> String {
+        let savedName = UserDefaults.standard.string(forKey: "userName")?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !savedName.isEmpty {
+            return savedName
+        }
+        if let currentName = currentUser?.name.trimmingCharacters(in: .whitespacesAndNewlines), !currentName.isEmpty, !currentName.contains("@") {
+            return currentName
+        }
+        if let suggested = suggested?.trimmingCharacters(in: .whitespacesAndNewlines), !suggested.isEmpty, !suggested.contains("@") {
+            return suggested
+        }
+        if let emailPrefix = email?.components(separatedBy: "@").first?.trimmingCharacters(in: .whitespacesAndNewlines), !emailPrefix.isEmpty {
+            return emailPrefix.capitalized
+        }
+        return "User"
+    }
+    
     public func signInWithGoogle(presentingWindow: NSWindow? = nil) async throws {
         isSigningIn = true
         defer { isSigningIn = false }
@@ -159,18 +176,19 @@ final class SafeVoidContinuation: @unchecked Sendable {
         let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: window)
         let user = result.user
         let email = user.profile?.email ?? "user@gmail.com"
-        let name = user.profile?.name ?? (email.components(separatedBy: "@").first?.capitalized ?? "Google User")
         let avatarURL = user.profile?.imageURL(withDimension: 256)?.absoluteString
+        let preferredName = resolvePreferredName(suggested: user.profile?.name, email: email)
         
         if let idToken = user.idToken?.tokenString {
             let credential = GoogleAuthProvider.credential(withIDToken: idToken, accessToken: user.accessToken.tokenString)
             do {
                 let authResult = try await Auth.auth().signIn(with: credential)
                 let fbUser = authResult.user
+                let finalName = resolvePreferredName(suggested: fbUser.displayName ?? user.profile?.name, email: fbUser.email ?? email)
                 self.currentUser = AuthUser(
                     id: fbUser.uid,
                     email: fbUser.email ?? email,
-                    name: fbUser.displayName ?? name,
+                    name: finalName,
                     avatarURL: fbUser.photoURL?.absoluteString ?? avatarURL,
                     subscriptionTier: .pro,
                     subscriptionExpiresAt: Date.distantFuture
@@ -184,7 +202,7 @@ final class SafeVoidContinuation: @unchecked Sendable {
         self.currentUser = AuthUser(
             id: "google_\(user.userID ?? String(UUID().uuidString.prefix(8)))",
             email: email,
-            name: name,
+            name: preferredName,
             avatarURL: avatarURL ?? "https://www.gstatic.com/images/branding/product/2x/avatar_square_blue_512dp.png",
             subscriptionTier: .pro,
             subscriptionExpiresAt: Date.distantFuture
@@ -193,7 +211,7 @@ final class SafeVoidContinuation: @unchecked Sendable {
     
     public static let githubClientID = "Ov23liY9jrdKt5i2t3lP"
 
-    public func signInWithGitHubOAuth(onUserCodeReceived: ((String, URL) -> Void)? = nil) async throws {
+    public func signInWithGitHubOAuth(onUserCodeReceived: (@MainActor @Sendable (String, URL) -> Void)? = nil) async throws {
         isSigningIn = true
         defer { isSigningIn = false }
         
@@ -333,10 +351,12 @@ final class SafeVoidContinuation: @unchecked Sendable {
             email = "\(login)@users.noreply.github.com"
         }
         
+        let preferredName = resolvePreferredName(suggested: name, email: email)
+        
         self.currentUser = AuthUser(
             id: "gh_\(ghId != 0 ? String(ghId) : login)",
             email: email,
-            name: name,
+            name: preferredName,
             avatarURL: avatar,
             subscriptionTier: .pro,
             subscriptionExpiresAt: Date.distantFuture
@@ -366,15 +386,16 @@ final class SafeVoidContinuation: @unchecked Sendable {
                    let httpRes = response as? HTTPURLResponse, httpRes.statusCode == 200,
                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                     let login = json["login"] as? String ?? cleanUsername
-                    let name = json["name"] as? String ?? login
+                    let rawName = json["name"] as? String ?? login
                     let email = json["email"] as? String ?? "\(login)@github.com"
                     let avatar = json["avatar_url"] as? String
                     let ghId = json["id"] as? Int ?? 0
+                    let finalName = resolvePreferredName(suggested: rawName, email: email)
                     
                     self.currentUser = AuthUser(
                         id: "gh_\(ghId != 0 ? String(ghId) : login)",
                         email: email,
-                        name: name,
+                        name: finalName,
                         avatarURL: avatar,
                         subscriptionTier: .pro,
                         subscriptionExpiresAt: Date.distantFuture
@@ -394,15 +415,16 @@ final class SafeVoidContinuation: @unchecked Sendable {
                let httpRes = response as? HTTPURLResponse, httpRes.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 let login = json["login"] as? String ?? cleanUsername
-                let name = json["name"] as? String ?? login
+                let rawName = json["name"] as? String ?? login
                 let email = json["email"] as? String ?? ""
                 let avatar = json["avatar_url"] as? String ?? "https://github.com/\(cleanUsername).png"
                 let ghId = json["id"] as? Int ?? 0
+                let finalName = resolvePreferredName(suggested: rawName, email: email)
                 
                 self.currentUser = AuthUser(
                     id: "gh_\(ghId != 0 ? String(ghId) : login)",
                     email: email,
-                    name: name,
+                    name: finalName,
                     avatarURL: avatar,
                     subscriptionTier: .pro,
                     subscriptionExpiresAt: Date.distantFuture
@@ -412,10 +434,11 @@ final class SafeVoidContinuation: @unchecked Sendable {
         }
         
         // 3. Fallback to direct AuthUser creation
+        let finalName = resolvePreferredName(suggested: cleanUsername, email: "")
         self.currentUser = AuthUser(
             id: "gh_\(cleanUsername.lowercased())",
             email: "",
-            name: cleanUsername,
+            name: finalName,
             avatarURL: "https://github.com/\(cleanUsername).png",
             subscriptionTier: .pro,
             subscriptionExpiresAt: Date.distantFuture
@@ -428,20 +451,22 @@ final class SafeVoidContinuation: @unchecked Sendable {
         do {
             let result = try await Auth.auth().signIn(withEmail: email, password: password)
             let user = result.user
+            let finalName = resolvePreferredName(suggested: user.displayName, email: user.email ?? email)
             self.currentUser = AuthUser(
                 id: user.uid,
                 email: user.email ?? email,
-                name: user.displayName ?? (user.email?.components(separatedBy: "@").first ?? "User"),
+                name: finalName,
                 avatarURL: user.photoURL?.absoluteString,
                 subscriptionTier: .pro,
                 subscriptionExpiresAt: Date.distantFuture
             )
         } catch {
             if let user = Auth.auth().currentUser {
+                let finalName = resolvePreferredName(suggested: user.displayName, email: user.email ?? email)
                 self.currentUser = AuthUser(
                     id: user.uid,
                     email: user.email ?? email,
-                    name: user.displayName ?? (user.email?.components(separatedBy: "@").first ?? "User"),
+                    name: finalName,
                     avatarURL: user.photoURL?.absoluteString,
                     subscriptionTier: .pro,
                     subscriptionExpiresAt: Date.distantFuture
@@ -450,10 +475,11 @@ final class SafeVoidContinuation: @unchecked Sendable {
             }
             let errStr = error.localizedDescription
             if errStr.lowercased().contains("keychain") {
+                let finalName = resolvePreferredName(suggested: nil, email: email)
                 self.currentUser = AuthUser(
                     id: UUID().uuidString,
                     email: email,
-                    name: email.components(separatedBy: "@").first ?? "User",
+                    name: finalName,
                     avatarURL: nil,
                     subscriptionTier: .pro,
                     subscriptionExpiresAt: Date.distantFuture
@@ -470,20 +496,22 @@ final class SafeVoidContinuation: @unchecked Sendable {
         do {
             let result = try await Auth.auth().createUser(withEmail: email, password: password)
             let user = result.user
+            let finalName = resolvePreferredName(suggested: user.displayName, email: user.email ?? email)
             self.currentUser = AuthUser(
                 id: user.uid,
                 email: user.email ?? email,
-                name: user.displayName ?? (user.email?.components(separatedBy: "@").first ?? "User"),
+                name: finalName,
                 avatarURL: user.photoURL?.absoluteString,
                 subscriptionTier: .pro,
                 subscriptionExpiresAt: Date.distantFuture
             )
         } catch {
             if let user = Auth.auth().currentUser {
+                let finalName = resolvePreferredName(suggested: user.displayName, email: user.email ?? email)
                 self.currentUser = AuthUser(
                     id: user.uid,
                     email: user.email ?? email,
-                    name: user.displayName ?? (user.email?.components(separatedBy: "@").first ?? "User"),
+                    name: finalName,
                     avatarURL: user.photoURL?.absoluteString,
                     subscriptionTier: .pro,
                     subscriptionExpiresAt: Date.distantFuture
@@ -492,10 +520,11 @@ final class SafeVoidContinuation: @unchecked Sendable {
             }
             let errStr = error.localizedDescription
             if errStr.lowercased().contains("keychain") {
+                let finalName = resolvePreferredName(suggested: nil, email: email)
                 self.currentUser = AuthUser(
                     id: UUID().uuidString,
                     email: email,
-                    name: email.components(separatedBy: "@").first ?? "User",
+                    name: finalName,
                     avatarURL: nil,
                     subscriptionTier: .pro,
                     subscriptionExpiresAt: Date.distantFuture
@@ -526,9 +555,11 @@ final class SafeVoidContinuation: @unchecked Sendable {
     }
     
     public func updateDisplayName(_ newName: String) async throws {
+        let cleanName = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        UserDefaults.standard.set(cleanName, forKey: "userName")
         if let user = Auth.auth().currentUser {
             let changeRequest = user.createProfileChangeRequest()
-            changeRequest.displayName = newName
+            changeRequest.displayName = cleanName
             try await changeRequest.commitChanges()
         }
         Task { @MainActor in
@@ -536,7 +567,7 @@ final class SafeVoidContinuation: @unchecked Sendable {
                 self.currentUser = AuthUser(
                     id: current.id,
                     email: current.email,
-                    name: newName,
+                    name: cleanName,
                     avatarURL: current.avatarURL,
                     subscriptionTier: current.subscriptionTier,
                     subscriptionExpiresAt: current.subscriptionExpiresAt

@@ -550,13 +550,13 @@ struct PermissionWelcomeView: View {
                     }
                     
                     if currentStep == .profile {
-                        GlassSection(title: "Profile", icon: "person.circle.fill") {
+                        GlassSection(title: appState.l("Profile"), icon: "person.circle.fill") {
                             VStack(spacing: 16) {
-                                Text("What should we call you?")
+                                Text(appState.l("What should we call you?"))
                                     .font(.system(size: 14, weight: .medium, design: .rounded))
                                     .foregroundStyle(.primary)
                                 
-                                TextField("Your Name or Nickname", text: $appState.userName)
+                                TextField(appState.l("Your Name or Nickname"), text: $appState.userName)
                                     .textFieldStyle(.roundedBorder)
                                     .font(.system(size: 14, design: .rounded))
                             }
@@ -564,6 +564,15 @@ struct PermissionWelcomeView: View {
                         }
                         
                         Button(action: {
+                            let clean = appState.userName.trimmingCharacters(in: .whitespacesAndNewlines)
+                            if !clean.isEmpty {
+                                UserDefaults.standard.set(clean, forKey: "userName")
+                                UserDefaults.standard.set(true, forKey: "hasCompletedFirstLaunchSetup")
+                                UserDefaults.standard.set(true, forKey: "hasCompletedOnboardingNamePrompt")
+                                Task {
+                                    try? await AuthService.shared.updateDisplayName(clean)
+                                }
+                            }
                             if let onComplete = onComplete {
                                 onComplete()
                             } else {
@@ -571,7 +580,7 @@ struct PermissionWelcomeView: View {
                             }
                         }) {
                             HStack(spacing: 8) {
-                                Text("Get Started")
+                                Text(appState.l("Get Started"))
                                     .font(.system(size: 14, weight: .semibold, design: .rounded))
                             }
                             .foregroundStyle(.white)

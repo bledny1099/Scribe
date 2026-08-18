@@ -4969,6 +4969,7 @@ struct AuthModalView: View {
     @State private var waitingProviderName = "Google"
     @State private var waitingProviderIcon = "g.circle.fill"
     @State private var waitingProviderColor = Color(red: 0.9, green: 0.25, blue: 0.2)
+    @State private var waitingUserCode: String? = nil
     @State private var showEmailForm = false
     @State private var showingGitHubInput = false
     @State private var showGoogleInput = false
@@ -4994,6 +4995,7 @@ struct AuthModalView: View {
                                 showGoogleInput = false
                                 showForgotPassword = false
                                 isWaitingForLogin = false
+                                waitingUserCode = nil
                                 errorMessage = nil
                                 successMessage = nil
                             }
@@ -5031,11 +5033,13 @@ struct AuthModalView: View {
                 WaitingForLoginView(
                     providerName: waitingProviderName,
                     providerIcon: waitingProviderIcon,
-                    providerColor: waitingProviderColor
+                    providerColor: waitingProviderColor,
+                    userCode: waitingUserCode
                 ) {
                     authService.cancelOAuth()
                     withAnimation {
                         isWaitingForLogin = false
+                        waitingUserCode = nil
                     }
                 }
             } else if showForgotPassword {
@@ -5444,12 +5448,15 @@ struct AuthModalView: View {
                             waitingProviderColor = .purple
                             errorMessage = nil
                             successMessage = nil
+                            waitingUserCode = nil
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                 isWaitingForLogin = true
                             }
                             Task {
                                 do {
-                                    try await authService.signInWithGitHubOAuth()
+                                    try await authService.signInWithGitHubOAuth { code, _ in
+                                        waitingUserCode = code
+                                    }
                                     await MainActor.run {
                                         dismiss()
                                     }
@@ -5474,6 +5481,36 @@ struct AuthModalView: View {
                         }
                     }
                     .padding(.horizontal, 20)
+
+                    if let err = errorMessage {
+                        VStack(spacing: 6) {
+                            Text(err)
+                                .font(.system(size: 11, weight: .medium, design: .rounded))
+                                .foregroundStyle(.red)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 12)
+                            
+                            if err.contains("Device Flow") || err.contains("GitHub") {
+                                Button {
+                                    if let url = URL(string: "https://github.com/settings/developers") {
+                                        NSWorkspace.shared.open(url)
+                                    }
+                                } label: {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "arrow.up.right.square")
+                                        Text("Открыть настройки GitHub OAuth")
+                                    }
+                                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                                    .foregroundStyle(.purple)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(8)
+                        .background(Color.red.opacity(0.08))
+                        .cornerRadius(8)
+                        .padding(.horizontal, 20)
+                    }
 
                     Button {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
@@ -5520,29 +5557,30 @@ struct WaitingForLoginView: View {
     let providerName: String
     let providerIcon: String
     let providerColor: Color
+    var userCode: String? = nil
     let onCancel: () -> Void
 
     @State private var isSpinning = false
     @State private var isPulsing = false
 
     var body: some View {
-        VStack(spacing: 18) {
+        VStack(spacing: 16) {
             Spacer()
 
             ZStack {
                 Circle()
                     .stroke(providerColor.opacity(0.15), lineWidth: 5)
-                    .frame(width: 76, height: 76)
+                    .frame(width: 72, height: 72)
 
                 Circle()
                     .trim(from: 0, to: 0.65)
                     .stroke(providerColor, style: StrokeStyle(lineWidth: 3.5, lineCap: .round))
-                    .frame(width: 76, height: 76)
+                    .frame(width: 72, height: 72)
                     .rotationEffect(.degrees(isSpinning ? 360 : 0))
                     .animation(.linear(duration: 1.1).repeatForever(autoreverses: false), value: isSpinning)
 
                 Image(systemName: providerIcon)
-                    .font(.system(size: 30))
+                    .font(.system(size: 28))
                     .foregroundStyle(providerColor)
                     .scaleEffect(isPulsing ? 1.08 : 0.94)
                     .animation(.easeInOut(duration: 0.85).repeatForever(autoreverses: true), value: isPulsing)
@@ -5553,19 +5591,41 @@ struct WaitingForLoginView: View {
             }
 
             VStack(spacing: 6) {
-                Text("Waiting for your login in browser…")
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                Text(userCode != nil ? "Подтвердите вход в браузере" : "Ожидание входа через браузер…")
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
                     .foregroundStyle(.primary)
 
-                Text("Complete authorization in the opened window. Scribe will automatically log you in.")
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 28)
+                if let code = userCode {
+                    VStack(spacing: 4) {
+                        HStack(spacing: 8) {
+                            Text(code)
+                                .font(.system(size: 18, weight: .black, design: .monospaced))
+                                .foregroundStyle(providerColor)
+                            
+                            Image(systemName: "doc.on.doc.fill")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(providerColor.opacity(0.12))
+                        .cornerRadius(8)
+                        
+                        Text("Код скопирован в буфер. Вставьте его в браузере.")
+                            .font(.system(size: 10, weight: .medium, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
+                } else {
+                    Text("Завершите авторизацию в открывшемся окне браузера.")
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
+                }
             }
 
             Button(action: onCancel) {
-                Text("Cancel")
+                Text("Отмена")
                     .font(.system(size: 12, weight: .semibold, design: .rounded))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 16)
@@ -5666,6 +5726,8 @@ struct OnboardingNameModalView: View {
             Button {
                 let finalName = nameInput.trimmingCharacters(in: .whitespaces)
                 if !finalName.isEmpty {
+                    appState.userName = finalName
+                    UserDefaults.standard.set(finalName, forKey: "userName")
                     Task {
                         try? await authService.updateDisplayName(finalName)
                     }

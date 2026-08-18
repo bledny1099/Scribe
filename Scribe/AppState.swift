@@ -608,16 +608,13 @@ final class AppState: ObservableObject {
     @AppStorage("userName") public var userName: String = ""
 
     private func checkFirstLaunchPermissions() {
-        if !hasCompletedFirstLaunchSetup {
-            hasCompletedFirstLaunchSetup = true
+        let namePromptDone = UserDefaults.standard.bool(forKey: "hasCompletedOnboardingNamePrompt")
+        let mic = PermissionManager.shared.isMicrophoneGranted
+        let ax = PasteService.isAccessibilityGranted()
+        
+        if !hasCompletedFirstLaunchSetup || !namePromptDone || userName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                let mic = PermissionManager.shared.isMicrophoneGranted
-                let ax = PasteService.isAccessibilityGranted()
-                if !mic || !ax {
-                    PermissionWindowManager.shared.showWindow(appState: self)
-                } else {
-                    SettingsWindowManager.shared.showSettings(appState: self)
-                }
+                PermissionWindowManager.shared.showWindow(appState: self)
             }
         }
     }
