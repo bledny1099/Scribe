@@ -39,10 +39,20 @@ struct ClassicOverlay: View {
     private var theme: AppTheme { appState.selectedTheme }
     private var gradient: LinearGradient { theme.accentGradient }
     private var glow: Color { theme.glowColor }
+    private var isEmbeddedActive: Bool {
+        appState.isEmbeddedPreviewActive && !appState.livePreviewText.isEmpty
+    }
 
     var body: some View {
-        VStack(spacing: 12) {
-            Spacer(minLength: 12)
+        let cardHeight = RecordingPanel.size(
+            for: .classic,
+            overlaySize: appState.selectedOverlaySize,
+            isEmbeddedPreviewActive: isEmbeddedActive,
+            previewTextLength: appState.livePreviewText.count
+        ).height / appState.selectedOverlaySize.scale
+
+        return VStack(spacing: 10) {
+            Spacer(minLength: 8)
 
             ZStack {
                 // Radial glow
@@ -106,9 +116,25 @@ struct ClassicOverlay: View {
                     .foregroundStyle(.primary.opacity(0.7))
             }
 
-            Spacer(minLength: 12)
+            if isEmbeddedActive {
+                Divider()
+                    .background(Color.primary.opacity(0.15))
+                    .padding(.horizontal, 14)
+
+                Text(appState.livePreviewText)
+                    .font(.system(size: 11 * appState.overlayTextCompensation, weight: .medium, design: .rounded))
+                    .foregroundStyle(.primary.opacity(0.9))
+                    .multilineTextAlignment(.center)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 6)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+
+            Spacer(minLength: 8)
         }
-        .frame(width: RecordingPanel.classicSize.width, height: RecordingPanel.classicSize.height)
+        .frame(width: RecordingPanel.classicSize.width, height: cardHeight)
         .overlay(alignment: .topTrailing) {
             Button(action: { appState.cancelRecording() }) {
                 Image(systemName: "xmark")
@@ -392,42 +418,71 @@ struct MinimalOverlay: View {
     @EnvironmentObject var audioRecorder: AudioRecorder
     private var theme: AppTheme { appState.selectedTheme }
     
+    private var isEmbeddedActive: Bool {
+        appState.isEmbeddedPreviewActive && !appState.livePreviewText.isEmpty
+    }
+
     var body: some View {
-        HStack(spacing: 8) {
-            Circle()
-                .fill(theme.glowColor)
-                .frame(width: 10, height: 10)
-                .scaleEffect((appState.recordingStatus == .recording || appState.isShowingPreview) ? (1 + CGFloat(audioRecorder.audioLevel) * 0.4) : 1.0)
-                .opacity((appState.recordingStatus == .recording || appState.isShowingPreview) ? (0.6 + Double(audioRecorder.audioLevel) * 0.4) : 0.3)
-                .animation(.linear(duration: 0.04), value: audioRecorder.audioLevel)
-                
-            if appState.recordingStatus == .recording || appState.isShowingPreview {
-                if appState.durationVisible {
-                    Text(appState.isShowingPreview ? "0:05" : appState.formattedDuration)
-                        .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(.secondary)
+        let cardHeight = RecordingPanel.size(
+            for: .minimal,
+            overlaySize: appState.selectedOverlaySize,
+            isEmbeddedPreviewActive: isEmbeddedActive,
+            previewTextLength: appState.livePreviewText.count
+        ).height / appState.selectedOverlaySize.scale
+
+        return VStack(spacing: 4) {
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(theme.glowColor)
+                    .frame(width: 10, height: 10)
+                    .scaleEffect((appState.recordingStatus == .recording || appState.isShowingPreview) ? (1 + CGFloat(audioRecorder.audioLevel) * 0.4) : 1.0)
+                    .opacity((appState.recordingStatus == .recording || appState.isShowingPreview) ? (0.6 + Double(audioRecorder.audioLevel) * 0.4) : 0.3)
+                    .animation(.linear(duration: 0.04), value: audioRecorder.audioLevel)
+                    
+                if appState.recordingStatus == .recording || appState.isShowingPreview {
+                    if appState.durationVisible {
+                        Text(appState.isShowingPreview ? "0:05" : appState.formattedDuration)
+                            .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text(appState.isShowingPreview ? appState.l("Recording…") : statusLabel)
+                            .font(.system(size: 11 * appState.overlayTextCompensation, weight: .medium, design: .rounded))
+                            .foregroundStyle(.primary.opacity(0.7))
+                    }
                 } else {
-                    Text(appState.isShowingPreview ? appState.l("Recording…") : statusLabel)
+                    Text(statusLabel)
                         .font(.system(size: 11 * appState.overlayTextCompensation, weight: .medium, design: .rounded))
                         .foregroundStyle(.primary.opacity(0.7))
                 }
-            } else {
-                Text(statusLabel)
-                    .font(.system(size: 11 * appState.overlayTextCompensation, weight: .medium, design: .rounded))
-                    .foregroundStyle(.primary.opacity(0.7))
-            }
-            
-            if appState.recordingStatus == .recording || appState.isShowingPreview {
-                Button(action: { appState.cancelRecording() }) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.primary.opacity(0.5))
+                
+                if appState.recordingStatus == .recording || appState.isShowingPreview {
+                    Button(action: { appState.cancelRecording() }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.primary.opacity(0.5))
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
+            }
+            .frame(height: RecordingPanel.minimalSize.height)
+
+            if isEmbeddedActive {
+                Divider()
+                    .background(Color.primary.opacity(0.15))
+                    .padding(.horizontal, 8)
+
+                Text(appState.livePreviewText)
+                    .font(.system(size: 10 * appState.overlayTextCompensation, weight: .medium, design: .rounded))
+                    .foregroundStyle(.primary.opacity(0.9))
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 8)
+                    .padding(.bottom, 4)
             }
         }
-        .padding(.horizontal, 16)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, 12)
+        .frame(width: RecordingPanel.minimalSize.width, height: cardHeight)
     }
     
     private var statusLabel: String {
@@ -448,8 +503,11 @@ struct ECGOverlay: View {
     @EnvironmentObject var audioRecorder: AudioRecorder
     private var theme: AppTheme { appState.selectedTheme }
     
+    private var isEmbeddedActive: Bool {
+        appState.isEmbeddedPreviewActive && !appState.livePreviewText.isEmpty
+    }
+
     var body: some View {
-        let isEmbeddedActive = false
         let cardHeight = RecordingPanel.size(
             for: .ecg,
             overlaySize: appState.selectedOverlaySize,
@@ -530,8 +588,19 @@ struct OrbOverlay: View {
     private var theme: AppTheme { appState.selectedTheme }
     private var gradient: LinearGradient { theme.accentGradient }
 
+    private var isEmbeddedActive: Bool {
+        appState.isEmbeddedPreviewActive && !appState.livePreviewText.isEmpty
+    }
+
     var body: some View {
-        VStack(spacing: 0) {
+        let cardHeight = RecordingPanel.size(
+            for: .orb,
+            overlaySize: appState.selectedOverlaySize,
+            isEmbeddedPreviewActive: isEmbeddedActive,
+            previewTextLength: appState.livePreviewText.count
+        ).height / appState.selectedOverlaySize.scale
+
+        return VStack(spacing: 0) {
             Spacer()
 
             // Bouncy Fluid Liquid Orb Sphere
@@ -582,9 +651,25 @@ struct OrbOverlay: View {
                     .font(.system(size: 11 * appState.overlayTextCompensation, weight: .medium, design: .rounded))
                     .foregroundStyle(.primary.opacity(0.7))
             }
-            .padding(.bottom, 12)
+            .padding(.bottom, isEmbeddedActive ? 4 : 12)
+
+            if isEmbeddedActive {
+                Divider()
+                    .background(Color.primary.opacity(0.15))
+                    .padding(.horizontal, 14)
+
+                Text(appState.livePreviewText)
+                    .font(.system(size: 11 * appState.overlayTextCompensation, weight: .medium, design: .rounded))
+                    .foregroundStyle(.primary.opacity(0.9))
+                    .multilineTextAlignment(.center)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 8)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
         }
-        .frame(width: RecordingPanel.orbSize.width, height: RecordingPanel.orbSize.height)
+        .frame(width: RecordingPanel.orbSize.width, height: cardHeight)
         .overlay(alignment: .topTrailing) {
             Button(action: { appState.cancelRecording() }) {
                 Image(systemName: "xmark")

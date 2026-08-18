@@ -2390,11 +2390,11 @@ struct ReplacementsSettingsView: View {
             VStack(spacing: 16) {
                 // Add new replacement at the TOP ("upper everything")
                 HStack {
-                    TextField("Original phrase", text: $newPhrase)
+                    TextField(appState.l("Original phrase"), text: $newPhrase)
                         .textFieldStyle(.roundedBorder)
                     Image(systemName: "arrow.right")
                         .foregroundColor(.secondary)
-                    TextField("Replacement", text: $newReplacement)
+                    TextField(appState.l("Replacement"), text: $newReplacement)
                         .textFieldStyle(.roundedBorder)
                     Button(action: {
                         if !newPhrase.isEmpty && !newReplacement.isEmpty {
@@ -4339,55 +4339,50 @@ struct GeneralSettingsView: View {
                                 KeyboardShortcuts.Recorder(for: .directNoteRecording)
                             }
 
-                            // Direct Note Export Target App
-                            HStack {
-                                Text(appState.l("Direct Note Target App"))
-                                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.primary)
+                            // Direct Note Export Target Apps (1 or more)
+                            HStack(alignment: .center) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(appState.l("Target Apps"))
+                                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                                        .foregroundStyle(.primary)
+                                    Text(appState.l("Select 1 or more apps for direct export"))
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(.secondary)
+                                }
                                 Spacer()
-                                LiquidGlassSegmentedPicker(
-                                    items: [NoteApp.appleNotes, NoteApp.obsidian, NoteApp.notion],
-                                    selection: Binding(
-                                        get: { appState.directNoteTargetApp },
-                                        set: { appState.directNoteTargetApp = $0 }
-                                    ),
-                                    label: { (appState.l($0.displayName), "") }
-                                )
+                                HStack(spacing: 6) {
+                                    ForEach([NoteApp.appleNotes, NoteApp.obsidian, NoteApp.notion], id: \.self) { app in
+                                        let isSelected = appState.directNoteTargetApps.contains(app)
+                                        Button {
+                                            withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
+                                                appState.toggleDirectNoteTargetApp(app)
+                                            }
+                                        } label: {
+                                            HStack(spacing: 5) {
+                                                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                                                    .font(.system(size: 12, weight: .bold))
+                                                Text(appState.l(app.displayName))
+                                                    .font(.system(size: 12, weight: isSelected ? .semibold : .regular, design: .rounded))
+                                            }
+                                            .padding(.horizontal, 10)
+                                            .padding(.vertical, 6)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 10)
+                                                    .fill(isSelected ? appState.selectedTheme.gradientColors.first!.opacity(0.18) : Color.primary.opacity(0.04))
+                                            )
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 10)
+                                                    .stroke(isSelected ? appState.selectedTheme.gradientColors.first!.opacity(0.4) : Color.primary.opacity(0.1), lineWidth: 1)
+                                            )
+                                            .foregroundStyle(isSelected ? appState.selectedTheme.gradientColors.first! : .secondary)
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
                             }
                         }
                         .transition(.opacity.combined(with: .move(edge: .top)).combined(with: .scale(scale: 0.98, anchor: .top)))
                     }
-
-                    HStack {
-                        Text(appState.l("Paste Mode"))
-                            .font(.system(size: 14, weight: .medium, design: .rounded))
-                            .foregroundStyle(.primary)
-                        Spacer()
-                        LiquidGlassSegmentedPicker(
-                            items: PasteMode.allCases,
-                            selection: Binding(
-                                get: { appState.selectedPasteMode },
-                                set: { appState.selectedPasteMode = $0 }
-                            ),
-                            label: { (appState.l($0.displayName), $0.icon) }
-                        )
-                    }
-
-                    let pasteDesc: String = {
-                        switch appState.selectedPasteMode {
-                        case .paste:
-                            return appState.l("Replaces clipboard content and pastes into active window.")
-                        case .append:
-                            return appState.l("Appends transcribed text to current clipboard content.")
-                        case .integrationsOnly:
-                            return appState.l("Exports directly to selected notes app without pasting into active window.")
-                        }
-                    }()
-
-                    Text(pasteDesc)
-                    .font(.system(size: 11, weight: .regular))
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
                     
                     if appState.selectedPasteMode == .integrationsOnly {
                         VStack(alignment: .leading, spacing: 14) {

@@ -221,17 +221,62 @@ final class TranscriptionHistory: ObservableObject {
         return levelNames[index]
     }
     
+    private static let levelThematicColors: [Color] = [
+        Color(red: 0.65, green: 0.88, blue: 0.98), // 1. Drip (Капля - кристальный ледяной)
+        Color(red: 0.52, green: 0.82, blue: 0.96), // 2. Trickle (Струйка - мягкий аква)
+        Color(red: 0.40, green: 0.78, blue: 0.94), // 3. Puddle (Лужица - рябь воды)
+        Color(red: 0.32, green: 0.84, blue: 0.88), // 4. Drinking Fountain (Питьевой фонтанчик - свежий бирюзовый)
+        Color(red: 0.22, green: 0.80, blue: 0.82), // 5. Leaky Faucet (Капающий кран - прохладный тил)
+        Color(red: 0.38, green: 0.86, blue: 0.52), // 6. Garden Hose (Садовый шланг - весенняя зелень)
+        Color(red: 0.46, green: 0.88, blue: 0.58), // 7. Sprinkler (Дождеватель - нежный травяной)
+        Color(red: 0.26, green: 0.84, blue: 0.92), // 8. Kitchen Tap (Кухонный кран - чистая лазурь)
+        Color(red: 0.28, green: 0.76, blue: 0.96), // 9. Rain Shower (Грибной дождь - дождевой синий)
+        Color(red: 0.18, green: 0.86, blue: 0.84), // 10. Spring (Родник - горный родник)
+        Color(red: 0.22, green: 0.84, blue: 0.48), // 11. Brook (Лесной ручей - изумрудный лес)
+        Color(red: 0.18, green: 0.80, blue: 0.42), // 12. Creek (Ручей - лесной поток)
+        Color(red: 0.24, green: 0.82, blue: 0.64), // 13. Rivulet (Речушка - мятная заводь)
+        Color(red: 0.12, green: 0.80, blue: 0.92), // 14. Stream (Поток - быстрый циан)
+        Color(red: 0.22, green: 0.84, blue: 0.78), // 15. Runoff (Талая вода - ледниковая бирюза)
+        Color(red: 0.38, green: 0.58, blue: 0.84), // 16. Storm Drain (Ливнесток - сланцевый шторм)
+        Color(red: 0.22, green: 0.72, blue: 1.00), // 17. Fountain (Фонтан - искрящийся лазурный)
+        Color(red: 0.16, green: 0.74, blue: 0.62), // 18. Mill Race (Жерновой поток - замшелый поток)
+        Color(red: 0.28, green: 0.76, blue: 1.00), // 19. Cascade (Каскад - водопадный лед)
+        Color(red: 0.10, green: 0.86, blue: 0.96), // 20. Rapids (Пороги - пенящийся циан)
+        Color(red: 0.16, green: 0.66, blue: 0.96), // 21. Tributary (Приток - речной приток)
+        Color(red: 0.20, green: 0.56, blue: 0.98), // 22. River (Река - глубокая река)
+        Color(red: 0.32, green: 0.78, blue: 0.44), // 23. Delta (Дельта - камышовая дельта)
+        Color(red: 0.24, green: 0.74, blue: 0.68), // 24. Estuary (Эстуарий - приливной эстуарий)
+        Color(red: 0.16, green: 0.50, blue: 0.96), // 25. Reservoir (Водохранилище - кобальтовая глубина)
+        Color(red: 0.24, green: 0.60, blue: 0.96), // 26. Lake (Озеро - альпийское озеро)
+        Color(red: 0.18, green: 0.46, blue: 0.94), // 27. Bay (Залив - сапфировая бухта)
+        Color(red: 0.28, green: 0.42, blue: 0.96), // 28. Sound (Пролив - морской индиго)
+        Color(red: 0.12, green: 0.74, blue: 0.86), // 29. Gulf (Морской залив - тропический залив)
+        Color(red: 0.08, green: 0.64, blue: 0.82), // 30. Inland Sea (Внутреннее море - глубинное море)
+        Color(red: 0.10, green: 0.52, blue: 0.96), // 31. Sea (Море - средиземноморский синий)
+        Color(red: 0.14, green: 0.36, blue: 0.96), // 32. Open Ocean (Открытый океан - ультрамариновая бездна)
+        Color(red: 0.34, green: 0.32, blue: 0.96), // 33. Deep Current (Глубинное течение - ночное течение)
+        Color(red: 0.58, green: 0.32, blue: 0.96), // 34. Geyser (Гейзер - термальный фиолетовый)
+        Color(red: 0.10, green: 0.84, blue: 1.00), // 35. Waterfall (Водопад - мощный водопад)
+        Color(red: 0.05, green: 0.70, blue: 1.00), // 36. Niagara Falls (Ниагарский водопад - ниагарский электрик)
+        Color(red: 0.66, green: 0.28, blue: 0.96), // 37. Broken Dam (Прорыв плотины - грозовой фиолетовый)
+        Color(red: 0.76, green: 0.26, blue: 0.92), // 38. Storm Surge (Штормовой нагон - напор шторма)
+        Color(red: 0.86, green: 0.22, blue: 0.86), // 39. Whirlpool (Водоворот - неоновая маджента)
+        Color(red: 0.96, green: 0.16, blue: 0.76), // 40. Maelstrom (Мальстрём - электрическая фуксия)
+        Color(red: 0.98, green: 0.30, blue: 0.44), // 41. Rogue Wave (Волна-убийца - коралловый прибой)
+        Color(red: 0.82, green: 0.22, blue: 0.82), // 42. Monsoon (Муссон - тропический муссон)
+        Color(red: 1.00, green: 0.46, blue: 0.16), // 43. Flash Flood (Внезапный паводок - янтарный поток)
+        Color(red: 1.00, green: 0.36, blue: 0.12), // 44. Deluge (Великий потоп - огненный потоп)
+        Color(red: 1.00, green: 0.26, blue: 0.36), // 45. Hurricane (Ураган - алый ураган)
+        Color(red: 1.00, green: 0.16, blue: 0.32), // 46. Typhoon (Тайфун - рубиновый тайфун)
+        Color(red: 1.00, green: 0.76, blue: 0.12), // 47. Tidal Wave (Приливная волна - сияющее золото)
+        Color(red: 1.00, green: 0.52, blue: 0.08), // 48. Tsunami (Цунами - солнечный взрыв)
+        Color(red: 0.96, green: 0.22, blue: 0.48), // 49. Category 5 (5-я категория - супернова)
+        Color(red: 1.00, green: 0.20, blue: 0.20)  // 50. Force of Nature (Сила природы - первородный огонь)
+    ]
+
     var currentLevelColor: Color {
-        switch currentLevel {
-        case 1...5: return Color(red: 0.0, green: 0.85, blue: 0.95) // Neon Cyan
-        case 6...10: return Color(red: 0.1, green: 0.70, blue: 1.0) // Vibrant Sky Blue
-        case 11...15: return Color(red: 0.25, green: 0.5, blue: 1.0) // Deep Electric Blue
-        case 16...20: return Color(red: 0.55, green: 0.35, blue: 1.0) // Electric Purple
-        case 21...30: return Color(red: 0.85, green: 0.3, blue: 1.0) // Neon Magenta
-        case 31...40: return Color(red: 1.0, green: 0.3, blue: 0.65) // Hot Pink
-        case 41...49: return Color(red: 1.0, green: 0.55, blue: 0.1) // Amber Gold
-        default: return Color(red: 1.0, green: 0.25, blue: 0.25) // Crimson Flame
-        }
+        let index = max(0, min(currentLevel - 1, Self.levelThematicColors.count - 1))
+        return Self.levelThematicColors[index]
     }
     
     var wordsToNextLevel: Int {

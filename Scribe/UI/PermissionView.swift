@@ -159,11 +159,47 @@ struct PermissionWelcomeView: View {
         return 460
     }
 
+    private var themeGradient: LinearGradient { appState.selectedTheme.accentGradient }
+    private var themeGlow: Color { appState.selectedTheme.glowColor }
+
     var body: some View {
         VStack(spacing: 0) {
-            // Header
-            HStack {
-                Text("Welcome")
+            // Header with Back button
+            HStack(spacing: 10) {
+                if currentStep != .permissions {
+                    Button(action: {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                            switch currentStep {
+                            case .permissions: break
+                            case .customization: currentStep = .permissions
+                            case .voiceTest: currentStep = .customization
+                            case .profile: currentStep = .voiceTest
+                            }
+                        }
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 12, weight: .bold))
+                            Text(appState.l("Back"))
+                                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        }
+                        .foregroundStyle(appState.selectedTheme.gradientColors.first!)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(
+                            Capsule()
+                                .fill(appState.selectedTheme.gradientColors.first!.opacity(0.12))
+                        )
+                        .overlay(
+                            Capsule()
+                                .stroke(appState.selectedTheme.gradientColors.first!.opacity(0.25), lineWidth: 1)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                }
+
+                Text(appState.l("Welcome"))
                     .font(.system(size: 20, weight: .bold, design: .rounded))
                     .foregroundStyle(.primary)
                 Spacer()
@@ -177,26 +213,20 @@ struct PermissionWelcomeView: View {
                 VStack(spacing: 20) {
                     if currentStep == .permissions {
                     // App Introduction Section
-                    GlassSection(title: "About Scribe", icon: "waveform") {
+                    GlassSection(title: appState.l("About Scribe"), icon: "waveform") {
                         VStack(spacing: 12) {
                             ZStack {
                                 Circle()
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [Color.blue, Color.purple],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        )
-                                    )
+                                    .fill(themeGradient)
                                     .frame(width: 52, height: 52)
 
                                 Image(systemName: "waveform")
                                     .font(.system(size: 24, weight: .bold))
                                     .foregroundStyle(.white)
                             }
-                            .shadow(color: .blue.opacity(0.3), radius: 10, y: 4)
+                            .shadow(color: themeGlow.opacity(0.35), radius: 10, y: 4)
 
-                            Text("Scribe converts your speech to text and automatically pastes it into your active app via ⌘V.")
+                            Text(appState.l("Scribe converts your speech to text and automatically pastes it into your active app via ⌘V."))
                                 .font(.system(size: 13, weight: .regular))
                                 .foregroundStyle(.secondary)
                                 .multilineTextAlignment(.center)
@@ -337,9 +367,9 @@ struct PermissionWelcomeView: View {
                     } // end permissions section
                     
                     if currentStep == .customization {
-                        GlassSection(title: "Customize Look", icon: "paintbrush.fill") {
+                        GlassSection(title: appState.l("Customize Look"), icon: "paintbrush.fill") {
                             VStack(spacing: 16) {
-                                Text("Choose how you want Scribe to look when recording.")
+                                Text(appState.l("Choose how you want Scribe to look when recording."))
                                     .font(.system(size: 13))
                                     .foregroundStyle(.secondary)
                                     .multilineTextAlignment(.center)
@@ -404,11 +434,9 @@ struct PermissionWelcomeView: View {
                                                 .foregroundStyle(.secondary)
                                         }
                                         Spacer()
-                                        let supportsLivePreview = appState.selectedOverlayStyle.supportsEmbeddedPreview
                                         Toggle("", isOn: Binding(
-                                            get: { supportsLivePreview ? appState.livePreviewEnabled : false },
+                                            get: { appState.livePreviewEnabled },
                                             set: { newValue in
-                                                guard supportsLivePreview else { return }
                                                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                                     appState.livePreviewEnabled = newValue
                                                 }
@@ -423,26 +451,40 @@ struct PermissionWelcomeView: View {
                                         ))
                                         .toggleStyle(.switch)
                                         .labelsHidden()
-                                        .allowsHitTesting(supportsLivePreview)
-                                        .opacity(supportsLivePreview ? 1.0 : 0.5)
                                     }
-                                    
-                                    if !appState.selectedOverlayStyle.supportsEmbeddedPreview {
-                                        HStack(spacing: 6) {
-                                            Image(systemName: "info.circle")
-                                                .font(.system(size: 11, weight: .medium))
-                                                .foregroundStyle(.secondary)
-                                            Text(appState.l("Live Preview is only available for Waveform and Pulse"))
-                                                .font(.system(size: 11, weight: .medium, design: .rounded))
-                                                .foregroundStyle(.secondary)
-                                        }
-                                        .padding(.top, 4)
-                                    }
-                                    
-
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                                
+
+                                Divider()
+                                    .padding(.horizontal, 10)
+
+                                // Sound feedback & Timer toggles
+                                VStack(spacing: 12) {
+                                    HStack {
+                                        Image(systemName: "speaker.wave.2.fill")
+                                            .font(.system(size: 14, weight: .semibold))
+                                            .foregroundStyle(appState.selectedTheme.gradientColors.first!)
+                                        Text(appState.l("Sound Feedback"))
+                                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                                        Spacer()
+                                        Toggle("", isOn: $appState.soundFeedbackEnabled)
+                                            .toggleStyle(.switch)
+                                            .labelsHidden()
+                                    }
+
+                                    HStack {
+                                        Image(systemName: "timer")
+                                            .font(.system(size: 14, weight: .semibold))
+                                            .foregroundStyle(appState.selectedTheme.gradientColors.first!)
+                                        Text(appState.l("Show Recording Timer"))
+                                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                                        Spacer()
+                                        Toggle("", isOn: $appState.durationVisible)
+                                            .toggleStyle(.switch)
+                                            .labelsHidden()
+                                    }
+                                }
+                                .padding(.horizontal, 8)
                             }
                         }
                         
@@ -452,7 +494,7 @@ struct PermissionWelcomeView: View {
                             }
                         }) {
                             HStack(spacing: 8) {
-                                Text("Continue")
+                                Text(appState.l("Continue"))
                                     .font(.system(size: 14, weight: .semibold, design: .rounded))
                                 Image(systemName: "arrow.right")
                                     .font(.system(size: 12, weight: .bold))
@@ -462,19 +504,19 @@ struct PermissionWelcomeView: View {
                             .padding(.vertical, 11)
                             .background(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .fill(LinearGradient(colors: [Color.blue, Color.purple], startPoint: .leading, endPoint: .trailing))
+                                    .fill(themeGradient)
                             )
-                            .shadow(color: .blue.opacity(0.3), radius: 8, y: 4)
+                            .shadow(color: themeGlow.opacity(0.35), radius: 8, y: 4)
                         }
                         .buttonStyle(.plain)
                     }
                     
                     if currentStep == .voiceTest {
-                        GlassSection(title: "Voice Test", icon: "mic.fill") {
+                        GlassSection(title: appState.l("Voice Test"), icon: "mic.fill") {
                             VStack(spacing: 20) {
                                 ZStack {
                                     Circle()
-                                        .fill(isTestingVoice ? Color.blue.opacity(0.15) : Color.primary.opacity(0.05))
+                                        .fill(isTestingVoice ? appState.selectedTheme.gradientColors.first!.opacity(0.15) : Color.primary.opacity(0.05))
                                         .frame(width: 80, height: 80)
                                     
                                     if voiceTestSuccess {
@@ -484,7 +526,7 @@ struct PermissionWelcomeView: View {
                                     } else {
                                         Image(systemName: isTestingVoice ? "waveform" : "mic.fill")
                                             .font(.system(size: 30))
-                                            .foregroundStyle(isTestingVoice ? .blue : .secondary)
+                                            .foregroundStyle(isTestingVoice ? appState.selectedTheme.gradientColors.first! : .secondary)
                                             
                                     }
                                 }
@@ -504,14 +546,14 @@ struct PermissionWelcomeView: View {
                                             startVoiceTest()
                                         }
                                     }) {
-                                        Text(isTestingVoice ? "Stop Test" : "Start Test")
+                                        Text(isTestingVoice ? appState.l("Stop Test") : appState.l("Start Test"))
                                             .font(.system(size: 13, weight: .semibold))
                                             .foregroundStyle(.white)
                                             .padding(.horizontal, 20)
                                             .padding(.vertical, 8)
                                             .background(
                                                 RoundedRectangle(cornerRadius: 8)
-                                                    .fill(isTestingVoice ? Color.red : Color.blue)
+                                                    .fill(isTestingVoice ? Color.red : appState.selectedTheme.gradientColors.first!)
                                             )
                                     }
                                     .buttonStyle(.plain)
@@ -530,7 +572,7 @@ struct PermissionWelcomeView: View {
                             }
                         }) {
                             HStack(spacing: 8) {
-                                Text("Continue")
+                                Text(appState.l("Continue"))
                                     .font(.system(size: 14, weight: .semibold, design: .rounded))
                                 Image(systemName: "arrow.right")
                                     .font(.system(size: 12, weight: .bold))
@@ -540,9 +582,9 @@ struct PermissionWelcomeView: View {
                             .padding(.vertical, 11)
                             .background(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .fill(LinearGradient(colors: [Color.blue, Color.purple], startPoint: .leading, endPoint: .trailing))
+                                    .fill(themeGradient)
                             )
-                            .shadow(color: .blue.opacity(0.3), radius: 8, y: 4)
+                            .shadow(color: themeGlow.opacity(0.35), radius: 8, y: 4)
                             .opacity(voiceTestSuccess ? 1.0 : 0.5)
                         }
                         .buttonStyle(.plain)
@@ -588,9 +630,9 @@ struct PermissionWelcomeView: View {
                             .padding(.vertical, 11)
                             .background(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .fill(LinearGradient(colors: [Color.blue, Color.purple], startPoint: .leading, endPoint: .trailing))
+                                    .fill(themeGradient)
                             )
-                            .shadow(color: .blue.opacity(0.3), radius: 8, y: 4)
+                            .shadow(color: themeGlow.opacity(0.35), radius: 8, y: 4)
                             .opacity(appState.userName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.5 : 1.0)
                         }
                         .buttonStyle(.plain)

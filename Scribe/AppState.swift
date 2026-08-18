@@ -66,10 +66,7 @@ enum OverlayStyle: String, CaseIterable, Identifiable {
 
     /// Whether this overlay style supports embedded (inside-card) live preview text.
     var supportsEmbeddedPreview: Bool {
-        switch self {
-        case .waveform, .ecg: true
-        case .classic, .minimal, .orb: false
-        }
+        return true
     }
 }
 
@@ -494,12 +491,43 @@ final class AppState: ObservableObject {
     @AppStorage("appendDateToNotes") public var appendDateToNotes: Bool = true
     @AppStorage("enableDirectNote") public var enableDirectNote: Bool = true
     @AppStorage("directNoteTargetApp") var directNoteTargetAppRaw: String = NoteApp.appleNotes.rawValue
+    @AppStorage("directNoteTargetApps") public var directNoteTargetAppsRaw: String = "appleNotes"
     @Published public var isDirectNoteRecording: Bool = false
 
-    /// Computed property for type-safe direct note target app access.
+    /// Multi-app direct note targets (1 or more apps)
+    public var directNoteTargetApps: Set<NoteApp> {
+        get {
+            let ids = directNoteTargetAppsRaw.split(separator: ",").map(String.init)
+            let apps = ids.compactMap { NoteApp(rawValue: $0) }
+            return apps.isEmpty ? [.appleNotes] : Set(apps)
+        }
+        set {
+            let val = newValue.isEmpty ? [.appleNotes] : newValue
+            directNoteTargetAppsRaw = val.map(\.rawValue).joined(separator: ",")
+            if let first = val.first {
+                directNoteTargetAppRaw = first.rawValue
+            }
+        }
+    }
+
+    public func toggleDirectNoteTargetApp(_ app: NoteApp) {
+        var current = directNoteTargetApps
+        if current.contains(app) {
+            if current.count > 1 {
+                current.remove(app)
+            }
+        } else {
+            current.insert(app)
+        }
+        directNoteTargetApps = current
+    }
+
+    /// Computed property for backward compatibility
     var directNoteTargetApp: NoteApp {
-        get { NoteApp(rawValue: directNoteTargetAppRaw) ?? .appleNotes }
-        set { directNoteTargetAppRaw = newValue.rawValue }
+        get { directNoteTargetApps.first ?? .appleNotes }
+        set {
+            directNoteTargetApps = [newValue]
+        }
     }
 
     /// Computed property for type-safe theme access.
@@ -553,6 +581,11 @@ final class AppState: ObservableObject {
         set {
             livePreviewModeRaw = newValue.rawValue
         }
+    }
+
+    /// Whether embedded live preview is active (inside the overlay card).
+    public var isEmbeddedPreviewActive: Bool {
+        return livePreviewEnabled && (isShowingPreview || !livePreviewText.isEmpty)
     }
 
     @AppStorage("selectedPasteMode") var selectedPasteModeRaw: String = PasteMode.paste.rawValue

@@ -42,21 +42,21 @@ class NoteExporter {
     static func export(text: String, state: AppState) {
         guard !text.isEmpty else { return }
         
-        let directApp = state.directNoteTargetApp
+        let directApps = state.directNoteTargetApps
         let isDirect = state.isDirectNoteRecording
         
         // Export to Apple Notes if explicitly enabled OR if triggered via Direct Note Hotkey with target Apple Notes
-        if state.enableAppleNotes || (isDirect && directApp == .appleNotes) {
+        if state.enableAppleNotes || (isDirect && directApps.contains(.appleNotes)) {
             exportToAppleNotes(text: text, mode: state.appleNotesExportMode, targetNote: state.appleNotesTargetNote, state: state)
         }
         
         // Export to Obsidian if explicitly enabled OR if triggered via Direct Note Hotkey with target Obsidian
-        if state.enableObsidian || (isDirect && directApp == .obsidian) {
+        if state.enableObsidian || (isDirect && directApps.contains(.obsidian)) {
             exportToObsidian(text: text, mode: state.noteExportMode, vaultURLString: state.obsidianVaultURL, targetNote: state.obsidianTargetNote, state: state)
         }
         
         // Export to Notion if explicitly enabled OR if triggered via Direct Note Hotkey with target Notion
-        if state.enableNotion || (isDirect && directApp == .notion) {
+        if state.enableNotion || (isDirect && directApps.contains(.notion)) {
             exportToNotion(text: text, mode: state.noteExportMode, integrationToken: state.notionIntegrationToken, pageId: state.notionPageId, state: state)
         }
     }

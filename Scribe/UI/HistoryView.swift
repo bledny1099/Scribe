@@ -2,6 +2,7 @@ import SwiftUI
 
 /// History view showing all past transcriptions in liquid glass style.
 struct HistoryView: View {
+    @EnvironmentObject var appState: AppState
     @ObservedObject var history = TranscriptionHistory.shared
     @State private var searchText = ""
     @State private var copiedId: UUID?
@@ -24,7 +25,7 @@ struct HistoryView: View {
             // Header
             if !inSettings {
             HStack {
-                Text("History")
+                Text(appState.l("History"))
                     .font(.system(size: 20, weight: .bold, design: .rounded))
                     .foregroundStyle(.primary)
 
@@ -57,7 +58,7 @@ struct HistoryView: View {
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(.secondary)
 
-                TextField("Search transcriptions…", text: $searchText)
+                TextField(appState.l("Search transcriptions…"), text: $searchText)
                     .textFieldStyle(.plain)
                     .font(.system(size: 13, design: .rounded))
 
@@ -91,12 +92,12 @@ struct HistoryView: View {
                         .font(.system(size: 36, weight: .light))
                         .foregroundStyle(.tertiary)
 
-                    Text(searchText.isEmpty ? "No transcriptions yet" : "No results found")
+                    Text(appState.l(searchText.isEmpty ? "No transcriptions yet" : "No results found"))
                         .font(.system(size: 14, weight: .medium, design: .rounded))
                         .foregroundStyle(.secondary)
 
                     if searchText.isEmpty {
-                        Text("Record something with ⌥S to get started")
+                        Text(appState.l("Record something with ⌥S to get started"))
                             .font(.system(size: 12))
                             .foregroundStyle(.tertiary)
                     }
@@ -141,12 +142,22 @@ struct HistoryView: View {
 // MARK: - Record Row
 
 struct HistoryRecordRow: View {
+    @EnvironmentObject var appState: AppState
     let record: TranscriptionRecord
     let isCopied: Bool
     let onCopy: () -> Void
     let onDelete: () -> Void
 
     @State private var isHovered = false
+
+    private var formattedRelativeDate: String {
+        let lang = appState.selectedUILanguage
+        let code = (lang == "auto") ? (Locale.preferredLanguages.first?.lowercased().hasPrefix("ru") == true ? "ru" : "en") : lang
+        let formatter = RelativeDateTimeFormatter()
+        formatter.locale = Locale(identifier: code)
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: record.date, relativeTo: Date())
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -163,7 +174,7 @@ struct HistoryRecordRow: View {
                 HStack(spacing: 4) {
                     Image(systemName: "clock")
                         .font(.system(size: 10))
-                    Text(record.date, style: .relative)
+                    Text(formattedRelativeDate)
                         .font(.system(size: 11))
                 }
                 .foregroundStyle(.tertiary)

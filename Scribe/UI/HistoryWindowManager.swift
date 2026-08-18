@@ -59,7 +59,7 @@ final class HistoryWindowManager {
         blurView.blendingMode = .behindWindow
         blurView.state = .active
 
-        let hostingView = NSHostingView(rootView: HistoryView())
+        let hostingView = NSHostingView(rootView: HistoryView().environmentObject(appState))
         hostingView.translatesAutoresizingMaskIntoConstraints = false
         hostingView.wantsLayer = true
         hostingView.layer?.backgroundColor = NSColor.clear.cgColor
