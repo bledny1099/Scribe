@@ -109,7 +109,7 @@ public final class AetherAudioConditioner: @unchecked Sendable {
         let frameSize = Int(sampleRate * 0.02) // 20ms frame
         guard frameSize > 0, count > frameSize else { return (0, count) }
 
-        let silenceThresholdDb: Float = -45.0
+        let silenceThresholdDb: Float = -40.0
         let thresholdRMS = pow(10.0, silenceThresholdDb / 20.0)
 
         var firstSpeechFrame: Int?
@@ -130,8 +130,8 @@ public final class AetherAudioConditioner: @unchecked Sendable {
             }
         }
 
-        // Add 120ms padding around speech to prevent sharp clipping of consonants
-        let paddingFrames = Int(sampleRate * 0.12)
+        // Add 80ms padding around speech to prevent sharp clipping while eliminating tail silence
+        let paddingFrames = Int(sampleRate * 0.08)
         let start = max(0, (firstSpeechFrame ?? 0) - paddingFrames)
         let end = min(count, (lastSpeechFrame ?? count) + paddingFrames)
 

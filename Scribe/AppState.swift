@@ -365,6 +365,7 @@ final class AppState: ObservableObject {
 
     @Published var recordingDuration: TimeInterval = 0
     @Published var livePreviewText: String = ""
+    @Published var requestedSettingsTab: SettingsTab? = nil
 
     @Published public var transcribingDotCount: Int = 3
     private var transcribingDotTimer: Timer?

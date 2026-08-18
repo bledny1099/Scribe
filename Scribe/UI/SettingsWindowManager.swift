@@ -12,8 +12,9 @@ final class SettingsWindowManager {
 
     private init() {}
 
-    func showSettings(appState: AppState) {
+    func showSettings(appState: AppState, tab: SettingsTab = .general) {
         self.currentAppState = appState
+        appState.requestedSettingsTab = tab
         if let existingWindow = window {
             existingWindow.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)

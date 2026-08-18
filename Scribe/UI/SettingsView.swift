@@ -561,8 +561,18 @@ struct SettingsView: View {
         .ignoresSafeArea(.container, edges: .top)
                 .frame(height: 620)
         .onAppear {
+            if let tab = appState.requestedSettingsTab {
+                selectedTab = tab
+                appState.requestedSettingsTab = nil
+            }
         }
-        .onChange(of: selectedTab) { newValue in
+        .onChange(of: appState.requestedSettingsTab) { newTab in
+            if let tab = newTab {
+                selectedTab = tab
+                appState.requestedSettingsTab = nil
+            }
+        }
+        .onChange(of: selectedTab) { _ in
         }
         .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
         .onDisappear {

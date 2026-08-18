@@ -265,7 +265,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
 
     // MARK: - Post-Processing
 
-    /// Built-in Whisper boundary hallucination artifacts (common subtitle credits & YouTube noise).
+    /// Built-in Whisper boundary hallucination artifacts (common subtitle credits, YouTube noise & trailing repetition loops).
     public static let builtInWhisperHallucinationRoots: [String] = [
         "субтитры сделал",
         "субтитры создавал",
@@ -276,50 +276,93 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         "спасибо за просмотр",
         "ставьте лайки",
         "ставьте лайк",
+        "поставьте лайк",
         "подписывайтесь на канал",
         "подпишитесь на канал",
+        "подпишитесь",
+        "подписывайтесь",
         "благодарю за просмотр",
         "до новых встреч",
+        "до встречи в следующем видео",
+        "до встречи в новом видео",
+        "ссылка в описании",
+        "нажмите на колокольчик",
+        "пишите в комментариях",
+        "оставляйте комментарии",
+        "всем пока",
+        "пока-пока",
         "amara.org",
         "subtitles by",
         "thank you for watching",
         "thanks for watching",
+        "thank you for listening",
+        "thanks for listening",
         "translated by",
-        "please subscribe"
+        "please subscribe",
+        "subscribe to my channel",
+        "subscribe to the channel",
+        "like and subscribe",
+        "like, share, and subscribe",
+        "like, comment, and subscribe",
+        "don't forget to subscribe",
+        "don't forget to like and subscribe",
+        "leave a like",
+        "leave a comment",
+        "let me know in the comments",
+        "link in description",
+        "link in the description",
+        "see you next time",
+        "see you in the next one",
+        "see you in the next video",
+        "watch next",
+        "watch more",
+        "top 10",
+        "top ten",
+        "top 5",
+        "top five"
     ]
 
     /// Removes non-speech annotations and boundary hallucinations from Whisper output.
     private static func cleanTranscription(_ text: String) -> String {
         var cleaned = text
 
-        // Remove [bracketed annotations] — e.g. [keyboard clicking], [BLANK_AUDIO], [music]
+        // 1. Remove [bracketed annotations] — e.g. [keyboard clicking], [BLANK_AUDIO], [music]
         cleaned = cleaned.replacingOccurrences(
             of: "\\[([^\\]]*?)\\]",
             with: "",
             options: .regularExpression
         )
 
-        // Remove (parenthesized annotations) — e.g. (music), (background noise)
+        // 2. Remove (parenthesized annotations) — e.g. (music), (background noise)
         cleaned = cleaned.replacingOccurrences(
             of: "\\(([^)]*?)\\)",
             with: "",
             options: .regularExpression
         )
 
-        // Remove *asterisk annotations* — e.g. *laughs*, *coughs*
+        // 3. Remove *asterisk annotations* — e.g. *laughs*, *coughs*
         cleaned = cleaned.replacingOccurrences(
             of: "\\*([^*]*?)\\*",
             with: "",
             options: .regularExpression
         )
 
-        // Remove repetitive noise hallucinations like ǎr ǎr ǎr
+        // 4. Remove repetitive noise hallucinations like ǎr ǎr ǎr
         if cleaned.contains("ǎr") {
             cleaned = cleaned.replacingOccurrences(of: "ǎr", with: "")
         }
 
-        // Apply built-in boundary hallucination filter
+        // 5. Strip leading hallucinated speaker labels (e.g. "Brooklyn: ", "Speaker 1: ")
+        cleaned = stripLeadingSpeakerLabels(cleaned)
+
+        // 6. Strip trailing repetitive loops (e.g. "Top 10. Top 10.")
+        cleaned = stripTrailingRepetitions(cleaned)
+
+        // 7. Apply built-in boundary hallucination filter
         cleaned = stripBuiltInHallucinations(cleaned)
+
+        // 8. Strip trailing repetitions again after root stripping
+        cleaned = stripTrailingRepetitions(cleaned)
 
         // Collapse multiple spaces into one and trim
         cleaned = cleaned.replacingOccurrences(
@@ -332,39 +375,73 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         return cleaned
     }
 
+    /// Removes hallucinated speaker labels at the beginning of transcriptions (e.g. "Speaker 1:", "Brooklyn:", "Narrator:").
+    private static func stripLeadingSpeakerLabels(_ text: String) -> String {
+        var cleaned = text
+        let pattern = #"^(?:[A-Z][a-zA-Z0-9_\s]{1,15}|Speaker\s*\d*|Narrator|Host|Interviewer|Voice|Man|Woman|Boy|Girl):\s+"#
+        cleaned = cleaned.replacingOccurrences(of: pattern, with: "", options: .regularExpression)
+        return cleaned
+    }
+
+    /// Removes consecutive duplicate phrases/words at the end of speech caused by Whisper decoding loops.
+    private static func stripTrailingRepetitions(_ text: String) -> String {
+        var current = text
+        let pattern = #"(?i)(?:\b([A-Za-zА-Яа-я0-9\s]{2,30}?)[.,!?;:\s]+)\1[.,!?;:\s]*$"#
+        if let regex = try? NSRegularExpression(pattern: pattern) {
+            for _ in 0..<3 {
+                let range = NSRange(current.startIndex..<current.endIndex, in: current)
+                guard let match = regex.firstMatch(in: current, options: [], range: range),
+                      let fullMatchRange = Range(match.range, in: current),
+                      let phraseRange = Range(match.range(at: 1), in: current) else { break }
+
+                let phrase = String(current[phraseRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+                let lower = phrase.lowercased()
+                let isKnownHallucination = builtInWhisperHallucinationRoots.contains(where: { lower.contains($0) || $0.contains(lower) })
+
+                if isKnownHallucination {
+                    current.removeSubrange(fullMatchRange)
+                } else {
+                    current.replaceSubrange(fullMatchRange, with: " " + phrase + ".")
+                }
+                current = current.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        }
+        return current
+    }
+
     /// Strips built-in boundary hallucination artifacts.
     /// If the user's entire recording session was intentionally just that phrase alone, it is preserved.
     public static func stripBuiltInHallucinations(_ text: String) -> String {
         guard !text.isEmpty else { return text }
-        
+
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         let stripped = trimmed.trimmingCharacters(in: CharacterSet.punctuationCharacters.union(.whitespacesAndNewlines))
         let lowerStripped = stripped.lowercased()
-        
+
         // 1. If the ENTIRE transcript is intentionally just that single root phrase, preserve it!
         for root in builtInWhisperHallucinationRoots {
             if lowerStripped == root {
                 return text
             }
         }
-        
+
         var result = text
         for root in builtInWhisperHallucinationRoots {
             let escaped = NSRegularExpression.escapedPattern(for: root)
-            // Match at the END of string with preceding punctuation/whitespace and optional trailing credits/words
-            let endPattern = "(?:[,\\.\\!\\?\\s]+|^)\(escaped)[^\\n]*?$"
+            // Match at the END of string with preceding punctuation/whitespace and optional trailing repetitions
+            let endPattern = "(?:[,\\.\\!\\?\\s]+|^)(?:\(escaped)[,\\.\\!\\?\\s]*)+[^\\n]*?$"
             result = result.replacingOccurrences(of: endPattern, with: "", options: [.regularExpression, .caseInsensitive])
-            
+
             // Match at the START of string with following punctuation/whitespace
-            let startPattern = "^\(escaped)[^\\n\\.\\!\\?]*?[,\\.\\!\\?\\s]+"
+            let startPattern = "^(?:\(escaped)[,\\.\\!\\?\\s]*)+[^\\n\\.\\!\\?]*?[,\\.\\!\\?\\s]+"
             result = result.replacingOccurrences(of: startPattern, with: "", options: [.regularExpression, .caseInsensitive])
         }
-        
+
         // Clean up punctuation and whitespace
         result = result.replacingOccurrences(of: "\\s{2,}", with: " ", options: .regularExpression)
         result = result.replacingOccurrences(of: "\\s+([.,!?:;])", with: "$1", options: .regularExpression)
         result = result.trimmingCharacters(in: .whitespacesAndNewlines)
-        
+
         // If stripping left only orphan punctuation (e.g. "." or "..."), but there was actual text, restore or clean
         let alphaCheck = result.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) }
         if alphaCheck.isEmpty && !trimmed.isEmpty {
@@ -375,7 +452,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             }
             return ""
         }
-        
+
         return result
     }
 

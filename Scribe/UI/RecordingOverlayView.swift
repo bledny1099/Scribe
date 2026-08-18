@@ -221,8 +221,8 @@ struct WaveformOverlay: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var audioRecorder: AudioRecorder
 
-    private let barCount = 48
-    @State private var levels: [Float] = Array(repeating: 0, count: 48)
+    private let barCount = 32
+    @State private var levels: [Float] = Array(repeating: 0, count: 32)
     @State private var spinAngle: Double = 0
 
     private var theme: AppTheme { appState.selectedTheme }
@@ -237,10 +237,10 @@ struct WaveformOverlay: View {
         ).height / appState.selectedOverlaySize.scale
 
         return VStack(spacing: 8) {
-            HStack(alignment: .center, spacing: 0) {
+            HStack(alignment: .center, spacing: 6) {
                 // Left: status indicator
                 statusIndicator
-                    .frame(width: 48, height: RecordingPanel.waveformSize.height)
+                    .frame(width: 36, height: RecordingPanel.waveformSize.height)
 
                 // Center: waveform bars
                 waveformBars
@@ -711,26 +711,25 @@ struct SubtitleOverlayView: View {
             if !appState.livePreviewText.isEmpty && (appState.recordingStatus == .recording || appState.isShowingPreview) {
                 Text(appState.livePreviewText)
                     .font(.system(size: 14, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(appState.livePreviewBackground == .dark ? Color.white : Color.primary)
                     .lineLimit(4)
                     .minimumScaleFactor(0.7)
-                    .padding(.horizontal, 16)
+                    .padding(.horizontal, 18)
                     .padding(.vertical, 10)
-                    .background(
-                        ZStack {
+                    .background {
+                        if appState.livePreviewBackground == .dark {
                             Capsule()
-                                .fill(Color.black.opacity(0.4))
-                                .overlay(Capsule().stroke(Color.white.opacity(0.15), lineWidth: 1))
-                                .opacity(appState.livePreviewBackground == .dark ? 1 : 0)
-
+                                .fill(Color.black.opacity(0.75))
+                                .overlay(Capsule().strokeBorder(Color.white.opacity(0.15), lineWidth: 0.5))
+                        } else {
                             Capsule()
-                                .fill(Color.primary.opacity(0.1))
-                                .background(.ultraThinMaterial, in: Capsule())
-                                .overlay(Capsule().stroke(Color.primary.opacity(0.15), lineWidth: 1))
-                                .opacity(appState.livePreviewBackground == .glass ? 1 : 0)
+                                .fill(.ultraThinMaterial)
+                                .overlay(Capsule().fill(Color.white.opacity(0.12)))
+                                .overlay(Capsule().strokeBorder(Color.white.opacity(0.25), lineWidth: 0.5))
                         }
-                    )
-                    .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
+                    }
+                    .clipShape(Capsule())
+                    .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 3)
                     .transition(.opacity.combined(with: .move(edge: .top)))
                     .animation(.spring(response: 0.4, dampingFraction: 0.8), value: appState.livePreviewText)
             }
@@ -750,18 +749,17 @@ struct TargetAppBadgeView: View {
                 Image(nsImage: icon)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(width: 14, height: 14)
+                    .frame(width: 13, height: 13)
                     .cornerRadius(3)
             }
             Text(name)
                 .font(.system(size: 11, weight: .semibold, design: .rounded))
                 .foregroundStyle(.primary.opacity(0.85))
                 .lineLimit(1)
-                .minimumScaleFactor(0.70)
-                .allowsTightening(true)
+                .truncationMode(.tail)
         }
         .padding(.horizontal, 8)
-        .padding(.vertical, 4)
+        .padding(.vertical, 3.5)
         .background(
             Capsule()
                 .fill(Color.primary.opacity(0.08))
@@ -770,6 +768,6 @@ struct TargetAppBadgeView: View {
             Capsule()
                 .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5)
         )
-        .fixedSize(horizontal: true, vertical: false)
+        .frame(maxWidth: 120)
     }
 }
