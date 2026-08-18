@@ -15,6 +15,7 @@
 		106D104DA22F96D067B6AFAE /* RecordingPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDBC9A85A8E71D647F586CE8 /* RecordingPanel.swift */; };
 		16496219C494A82E4F8E12A0 /* PasteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83B4865575EEDC52C327959E /* PasteService.swift */; };
 		24625C66C056DA51236D47BB /* FirebaseSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8292B0055A0E08315F0E6894 /* FirebaseSyncService.swift */; };
+		A0010004 /* AppUpdateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010004 /* AppUpdateService.swift */; };
 		3362D9645EC24874B59A8BDF /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = DD7B4611D68C13775268CE9F /* GoogleService-Info.plist */; };
 		3D0F8BC643B9E29439CB9A26 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 296BEB4DD4C8D78B9941E8AE /* SettingsView.swift */; };
 		3D4CEB771322E81FADBEFEF5 /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A23B5CC789E8DE4D6091ED9 /* AppTheme.swift */; };
@@ -73,6 +74,7 @@
 		7BE33F0D25D076E5F4FF407F /* SettingsView.swift.rej */ = {isa = PBXFileReference; path = SettingsView.swift.rej; sourceTree = "<group>"; };
 		81B038A3F5D1F61EC78284A5 /* check_braces.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = check_braces.py; sourceTree = "<group>"; };
 		8292B0055A0E08315F0E6894 /* FirebaseSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseSyncService.swift; sourceTree = "<group>"; };
+		F0010004 /* AppUpdateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpdateService.swift; sourceTree = "<group>"; };
 		83B4865575EEDC52C327959E /* PasteService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteService.swift; sourceTree = "<group>"; };
 		92BFCE91C2AFC558D1E53CFE /* NotePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotePickerView.swift; sourceTree = "<group>"; };
 		9A23B5CC789E8DE4D6091ED9 /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
@@ -133,6 +135,7 @@
 		9DCDD5E28C79618D3D7CE0FA /* Utilities */ = {
 			isa = PBXGroup;
 			children = (
+				F0010004 /* AppUpdateService.swift */,
 				F0010003 /* AetherFuzzyMatcher.swift */,
 				8292B0055A0E08315F0E6894 /* FirebaseSyncService.swift */,
 				57EAB6F0DCC91FC7E7CD8CC2 /* Localization.swift */,
@@ -306,6 +309,7 @@
 				A0010001 /* AetherAudioConditioner.swift in Sources */,
 				A0010002 /* AetherContextEngine.swift in Sources */,
 				A0010003 /* AetherFuzzyMatcher.swift in Sources */,
+				A0010004 /* AppUpdateService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

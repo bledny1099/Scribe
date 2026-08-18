@@ -440,8 +440,55 @@ final class AppState: ObservableObject {
     @AppStorage("blockedWordsAction") public var blockedWordsActionRaw: String = "remove" // "remove" or "mask"
     @AppStorage("customVocabularyPresets") public var customVocabularyPresets: [VocabularyPreset] = []
     @AppStorage("customBlockedWordsPresets") public var customBlockedWordsPresets: [VocabularyPreset] = []
+    @AppStorage("customLocationPresets") public var customLocationPresets: [VocabularyPreset] = []
+    @AppStorage("activeLocationPresetIds") public var activeLocationPresetIds: [String] = []
     @AppStorage("userCityLocation") public var userCityLocation: String = ""
     @AppStorage("smartCasingEnabled") public var smartCasingEnabled: Bool = true
+
+    public static let defaultLocationPresets: [VocabularyPreset] = [
+        VocabularyPreset(
+            name: "Европейские столицы & Hubs",
+            description: "Лондон, Париж, Берлин, Амстердам, Рим, Мадрид, Цюрих, Вена, Прага, Варшава, Барселона",
+            words: ["Лондон", "Париж", "Берлин", "Амстердам", "Рим", "Мадрид", "Цюрих", "Вена", "Прага", "Варшава", "Барселона", "London", "Paris", "Berlin", "Amsterdam", "Rome", "Madrid", "Zurich", "Vienna", "Prague", "Warsaw", "Barcelona"],
+            shareCode: "scr_loc_europe_hubs",
+            category: "location"
+        ),
+        VocabularyPreset(
+            name: "США & Мегаполисы",
+            description: "Нью-Йорк, Сан-Франциско, Лос-Анджелес, Майами, Чикаго, Остин, Сиэтл, Бостон",
+            words: ["Нью-Йорк", "Сан-Франциско", "Лос-Анджелес", "Майами", "Чикаго", "Остин", "Сиэтл", "Бостон", "New York", "San Francisco", "Los Angeles", "Miami", "Chicago", "Austin", "Seattle", "Boston"],
+            shareCode: "scr_loc_usa_cities",
+            category: "location"
+        ),
+        VocabularyPreset(
+            name: "Страны и мировые центры",
+            description: "США, Великобритания, Германия, Франция, ОАЭ, Дубай, Швейцария, Нидерланды, Испания, Италия, Япония",
+            words: ["США", "Великобритания", "Германия", "Франция", "ОАЭ", "Дубай", "Швейцария", "Нидерланды", "Испания", "Италия", "Япония", "USA", "United Kingdom", "Germany", "France", "UAE", "Dubai", "Switzerland", "Netherlands", "Spain", "Italy", "Japan"],
+            shareCode: "scr_loc_countries_world",
+            category: "location"
+        ),
+        VocabularyPreset(
+            name: "СНГ и топонимы",
+            description: "Москва, Санкт-Петербург, Алматы, Минск, Астана, Ташкент",
+            words: ["Москва", "Санкт-Петербург", "Алматы", "Минск", "Астана", "Ташкент", "Moscow", "Saint Petersburg", "Almaty", "Minsk", "Astana", "Tashkent"],
+            shareCode: "scr_loc_cis_capitals",
+            category: "location"
+        )
+    ]
+
+    public var effectiveUserLocation: String {
+        var items: [String] = []
+        if !userCityLocation.isEmpty {
+            let split = userCityLocation.split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+            items.append(contentsOf: split)
+        }
+        for preset in customLocationPresets {
+            if activeLocationPresetIds.contains(preset.id.uuidString) || activeLocationPresetIds.isEmpty {
+                items.append(contentsOf: preset.words)
+            }
+        }
+        return items.joined(separator: ", ")
+    }
     @AppStorage("allowAnonymousVocabularyContribution") public var allowAnonymousVocabularyContribution: Bool = false
     @AppStorage("hasPromptedVocabularyDataSharing") public var hasPromptedVocabularyDataSharing: Bool = false
     @AppStorage("recognitionEngine") public var recognitionEngine: String = "Aether Hybrid (Recommended)"
@@ -626,6 +673,11 @@ final class AppState: ObservableObject {
         preloadModel()
         checkFirstLaunchPermissions()
         
+        if customLocationPresets.isEmpty {
+            customLocationPresets = Self.defaultLocationPresets
+            activeLocationPresetIds = customLocationPresets.map { $0.id.uuidString }
+        }
+        
         if CommandLine.arguments.contains("--settings") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 SettingsWindowManager.shared.showSettings(appState: self)
@@ -774,7 +826,7 @@ final class AppState: ObservableObject {
                             preferredLanguages: preferredLangs,
                             autoTranslate: self.autoTranslate,
                             customVocabulary: self.vocabulary,
-                            userLocation: self.userCityLocation
+                            userLocation: self.effectiveUserLocation
                         )
                     }
                 } else {
@@ -785,7 +837,7 @@ final class AppState: ObservableObject {
                         preferredLanguages: preferredLangs,
                         autoTranslate: self.autoTranslate,
                         customVocabulary: self.vocabulary,
-                        userLocation: self.userCityLocation
+                        userLocation: self.effectiveUserLocation
                     )
                 }
 
@@ -810,9 +862,7 @@ final class AppState: ObservableObject {
                 }
 
                 // Smart Casing: Lowercase first letter if continuing an active sentence
-                if self.smartCasingEnabled {
-                    text = PasteService.adjustCasingForContext(text: text)
-                }
+                text = PasteService.adjustCasingForContext(text: text)
 
                 logger.info("Transcription result: '\(text)'")
 
@@ -888,19 +938,24 @@ final class AppState: ObservableObject {
             .environmentObject(audioRecorder)
 
         let isEmbedded = false
+        let hasAI = enableCloudAI && selectedAIRefinementMode != .raw
         let panel = RecordingPanel.make(
             style: selectedOverlayStyle,
             appearance: selectedPanelAppearance,
             size: selectedOverlaySize,
             isEmbeddedPreviewActive: isEmbedded,
-            previewTextLength: livePreviewText.count
+            previewTextLength: livePreviewText.count,
+            targetAppName: targetAppName,
+            hasAIMode: hasAI
         )
         panel.setContent(
             overlay,
             style: selectedOverlayStyle,
             overlaySize: selectedOverlaySize,
             isEmbeddedPreviewActive: isEmbedded,
-            previewTextLength: livePreviewText.count
+            previewTextLength: livePreviewText.count,
+            targetAppName: targetAppName,
+            hasAIMode: hasAI
         )
 
         panel.positionAtBottom()
@@ -1141,17 +1196,23 @@ final class AppState: ObservableObject {
             .environmentObject(audioRecorder)
 
         let isEmbeddedActive = false
+        let hasAI = enableCloudAI && selectedAIRefinementMode != .raw
+        let previewAppName = "Scribe"
         let targetSize = RecordingPanel.size(
             for: selectedOverlayStyle,
             overlaySize: selectedOverlaySize,
             isEmbeddedPreviewActive: isEmbeddedActive,
-            previewTextLength: livePreviewText.count
+            previewTextLength: livePreviewText.count,
+            targetAppName: previewAppName,
+            hasAIMode: hasAI
         )
         let targetRadius = RecordingPanel.radius(
             for: selectedOverlayStyle, 
             overlaySize: selectedOverlaySize, 
             isEmbeddedPreviewActive: isEmbeddedActive,
-            previewTextLength: livePreviewText.count
+            previewTextLength: livePreviewText.count,
+            targetAppName: previewAppName,
+            hasAIMode: hasAI
         )
         let targetOrigin = targetPreviewOrigin(for: selectedOverlayStyle, size: targetSize, isDragging: isDragging)
         let targetFrame = NSRect(origin: targetOrigin, size: targetSize)
@@ -1160,7 +1221,15 @@ final class AppState: ObservableObject {
             // Update existing panel in-place without recreation or flashing
             existingPanel.ignoresMouseEvents = true
             existingPanel.updateAppearance(selectedPanelAppearance)
-            existingPanel.setContent(overlay, style: selectedOverlayStyle, overlaySize: selectedOverlaySize, isEmbeddedPreviewActive: isEmbeddedActive, previewTextLength: livePreviewText.count)
+            existingPanel.setContent(
+                overlay,
+                style: selectedOverlayStyle,
+                overlaySize: selectedOverlaySize,
+                isEmbeddedPreviewActive: isEmbeddedActive,
+                previewTextLength: livePreviewText.count,
+                targetAppName: previewAppName,
+                hasAIMode: hasAI
+            )
             existingPanel.updateCornerRadius(targetRadius, targetSize: targetSize)
 
             let oldFrame = existingPanel.frame
@@ -1184,9 +1253,19 @@ final class AppState: ObservableObject {
                 appearance: selectedPanelAppearance,
                 size: selectedOverlaySize,
                 isEmbeddedPreviewActive: isEmbeddedActive,
-                previewTextLength: livePreviewText.count
+                previewTextLength: livePreviewText.count,
+                targetAppName: previewAppName,
+                hasAIMode: hasAI
             )
-            panel.setContent(overlay, style: selectedOverlayStyle, overlaySize: selectedOverlaySize, isEmbeddedPreviewActive: isEmbeddedActive, previewTextLength: livePreviewText.count)
+            panel.setContent(
+                overlay,
+                style: selectedOverlayStyle,
+                overlaySize: selectedOverlaySize,
+                isEmbeddedPreviewActive: isEmbeddedActive,
+                previewTextLength: livePreviewText.count,
+                targetAppName: previewAppName,
+                hasAIMode: hasAI
+            )
             panel.collectionBehavior = [.moveToActiveSpace, .ignoresCycle]
 
             let startY = targetOrigin.y - 24

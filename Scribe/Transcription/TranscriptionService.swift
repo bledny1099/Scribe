@@ -550,7 +550,12 @@ public struct VocabularyPreset: Identifiable, Codable, Equatable, Hashable, Send
     }
     
     public static func generateShareCode(category: String = "vocabulary") -> String {
-        let prefix = category == "blocked" ? "scr_blk_" : "scr_"
+        let prefix: String
+        switch category {
+        case "blocked": prefix = "scr_blk_"
+        case "location": prefix = "scr_loc_"
+        default: prefix = "scr_"
+        }
         let chars = "abcdefghijklmnopqrstuvwxyz0123456789"
         let randomChars = String((0..<16).compactMap { _ in chars.randomElement() })
         return "\(prefix)\(randomChars)"
@@ -571,7 +576,12 @@ public struct VocabularyPreset: Identifiable, Codable, Equatable, Hashable, Send
                 .replacingOccurrences(of: "+", with: "-")
                 .replacingOccurrences(of: "/", with: "_")
                 .trimmingCharacters(in: CharacterSet(charactersIn: "="))
-            let prefix = category == "blocked" ? "scr_blk_" : "scr_"
+            let prefix: String
+            switch category {
+            case "blocked": prefix = "scr_blk_"
+            case "location": prefix = "scr_loc_"
+            default: prefix = "scr_"
+            }
             return "\(prefix)\(base64)"
         }
         return shareCode
@@ -581,8 +591,14 @@ public struct VocabularyPreset: Identifiable, Codable, Equatable, Hashable, Send
     public static func fromExportCode(_ rawCode: String) -> VocabularyPreset? {
         let trimmed = rawCode.trimmingCharacters(in: .whitespacesAndNewlines)
         let isBlocked = trimmed.hasPrefix("scr_blk_")
-        let prefixLength = isBlocked ? 8 : 4
-        guard trimmed.hasPrefix("scr_") || isBlocked else { return nil }
+        let isLocation = trimmed.hasPrefix("scr_loc_")
+        let prefixLength: Int
+        if isBlocked || isLocation {
+            prefixLength = 8
+        } else {
+            prefixLength = 4
+        }
+        guard trimmed.hasPrefix("scr_") || isBlocked || isLocation else { return nil }
         let payloadString = String(trimmed.dropFirst(prefixLength))
         
         // Try decoding as packed base64 payload
@@ -602,7 +618,8 @@ public struct VocabularyPreset: Identifiable, Codable, Equatable, Hashable, Send
                 let cat: String?
             }
             if let decoded = try? JSONDecoder().decode(Payload.self, from: data) {
-                let detectedCategory = decoded.cat ?? (isBlocked ? "blocked" : "vocabulary")
+                let defaultCategory = isBlocked ? "blocked" : (isLocation ? "location" : "vocabulary")
+                let detectedCategory = decoded.cat ?? defaultCategory
                 return VocabularyPreset(name: decoded.n, description: decoded.d, words: decoded.w, shareCode: decoded.c, category: detectedCategory)
             }
         }

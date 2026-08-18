@@ -229,27 +229,35 @@ struct WaveformOverlay: View {
 
     var body: some View {
         let isEmbeddedActive = false
-        let cardHeight = RecordingPanel.size(
+        let isAIModeActive = appState.enableCloudAI && appState.selectedAIRefinementMode != .raw && (appState.recordingStatus == .recording || appState.recordingStatus == .transcribing)
+        let effectiveAppName = (appState.recordingStatus == .recording || appState.recordingStatus == .transcribing) ? appState.targetAppName : (appState.isShowingPreview ? "Scribe" : "")
+        
+        let dynamicSize = RecordingPanel.size(
             for: .waveform,
             overlaySize: appState.selectedOverlaySize,
             isEmbeddedPreviewActive: isEmbeddedActive,
-            previewTextLength: appState.livePreviewText.count
-        ).height / appState.selectedOverlaySize.scale
+            previewTextLength: appState.livePreviewText.count,
+            targetAppName: effectiveAppName,
+            hasAIMode: isAIModeActive
+        )
+        let cardWidth = dynamicSize.width / appState.selectedOverlaySize.scale
+        let cardHeight = dynamicSize.height / appState.selectedOverlaySize.scale
 
         return VStack(spacing: 8) {
-            HStack(alignment: .center, spacing: 4) {
-                // Left: status indicator
-                statusIndicator
-                    .frame(width: 32, height: RecordingPanel.waveformSize.height)
+            HStack(alignment: .center, spacing: 6) {
+                // Left: status indicator centered in the left cap area
+                ZStack(alignment: .center) {
+                    statusIndicator
+                }
+                .frame(width: 44, height: RecordingPanel.waveformSize.height)
 
-                // Center: widened waveform bars
+                // Center: dynamically expanding waveform bars
                 waveformBars
                     .frame(maxWidth: .infinity, maxHeight: RecordingPanel.waveformSize.height)
-                    .padding(.horizontal, 4)
 
                 // Right: status label + target app badge + timer + stop button
                 HStack(spacing: 8) {
-                    if appState.enableCloudAI && appState.selectedAIRefinementMode != .raw && (appState.recordingStatus == .recording || appState.recordingStatus == .transcribing) {
+                    if isAIModeActive {
                         HStack(spacing: 4) {
                             Image(systemName: appState.selectedAIRefinementMode.icon)
                                 .font(.system(size: 10, weight: .bold))
@@ -263,9 +271,12 @@ struct WaveformOverlay: View {
                         .cornerRadius(6)
                     }
 
-                    if !appState.targetAppName.isEmpty && (appState.recordingStatus == .recording || appState.recordingStatus == .transcribing) {
-                        TargetAppBadgeView(name: appState.targetAppName, icon: appState.targetAppIcon)
-                            .padding(.trailing, 2)
+                    if !effectiveAppName.isEmpty {
+                        TargetAppBadgeView(
+                            name: effectiveAppName,
+                            icon: (appState.recordingStatus == .recording || appState.recordingStatus == .transcribing) ? appState.targetAppIcon : NSApp.applicationIconImage
+                        )
+                        .padding(.trailing, 2)
                     }
 
                     if appState.durationVisible && (appState.recordingStatus == .recording || appState.isShowingPreview) {
@@ -317,11 +328,12 @@ struct WaveformOverlay: View {
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
         }
-        .padding(.horizontal, 8)
+        .padding(.horizontal, 6)
         .frame(
-            width: RecordingPanel.waveformSize.width,
+            width: cardWidth,
             height: cardHeight
         )
+        .animation(.spring(response: 0.35, dampingFraction: 0.82), value: cardWidth)
         .onChange(of: audioRecorder.audioLevel) { _, newLevel in
             levels.removeFirst()
             levels.append(newLevel)
@@ -770,6 +782,6 @@ struct TargetAppBadgeView: View {
             Capsule()
                 .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5)
         )
-        .frame(maxWidth: 135)
+        .frame(maxWidth: 200)
     }
 }

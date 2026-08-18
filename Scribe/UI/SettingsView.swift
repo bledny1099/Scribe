@@ -494,26 +494,31 @@ struct SettingsView: View {
                                 HistoryView(inSettings: true)
                             }
                         case .system:
-                    // SECTION: System
-                    GlassSection(title: appState.l("System"), icon: "lock.shield") {
-                        VStack(alignment: .leading, spacing: 16) {
-                            // Launch at login
-                            HStack {
-                                Text(appState.l("Launch at Login"))
-                                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.primary)
-                                Spacer()
-                                Toggle("", isOn: Binding(
-                                    get: { LaunchAtLoginHelper.isEnabled },
-                                    set: { LaunchAtLoginHelper.setEnabled($0) }
-                                ))
-                                .toggleStyle(.switch)
-                                .labelsHidden()
+                            // SECTION: Software Updates
+                            GlassSection(title: appState.l("Software Updates"), icon: "arrow.triangle.2.circlepath.circle.fill") {
+                                AppUpdatesView()
                             }
 
-                            PermissionsCard()
-                        }
-                    }
+                            // SECTION: System
+                            GlassSection(title: appState.l("System"), icon: "lock.shield") {
+                                VStack(alignment: .leading, spacing: 16) {
+                                    // Launch at login
+                                    HStack {
+                                        Text(appState.l("Launch at Login"))
+                                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                                            .foregroundStyle(.primary)
+                                        Spacer()
+                                        Toggle("", isOn: Binding(
+                                            get: { LaunchAtLoginHelper.isEnabled },
+                                            set: { LaunchAtLoginHelper.setEnabled($0) }
+                                        ))
+                                        .toggleStyle(.switch)
+                                        .labelsHidden()
+                                    }
+
+                                    PermissionsCard()
+                                }
+                            }
                     }
                     }
                     .padding(.horizontal, 24)
@@ -2505,6 +2510,77 @@ struct CreatePresetModalView: View {
     @State private var copiedCode: Bool = false
 
     private var isBlocked: Bool { category == "blocked" }
+    private var isLocation: Bool { category == "location" }
+
+    private var headerIcon: String {
+        if isBlocked { return "nosign" }
+        if isLocation { return "mappin.and.ellipse" }
+        return "plus.square.fill.on.square.fill"
+    }
+
+    private var headerColor: Color {
+        if isBlocked { return Color.red }
+        if isLocation { return Color.blue }
+        return Color.primary
+    }
+
+    private var headerTitle: String {
+        if isBlocked { return appState.l("Create Blocked Words Preset") }
+        if isLocation { return appState.l("Create Location & Country Preset") }
+        return appState.l("Create Vocabulary Preset")
+    }
+
+    private var namePlaceholder: String {
+        if isBlocked { return appState.l("e.g. Profanity Filter, Competitor Names, Sensitive Terms...") }
+        if isLocation { return appState.l("e.g. European Tech Hubs, US Cities, Asian Capitals...") }
+        return appState.l("e.g. Gaming Slang, Medical Terms, Tech Stack...")
+    }
+
+    private var wordsLabel: String {
+        if isBlocked { return appState.l("Blocked Words & Phrases") }
+        if isLocation { return appState.l("Cities, Countries & Locations") }
+        return appState.l("Words & Acronyms")
+    }
+
+    private var wordsPlaceholder: String {
+        if isBlocked { return appState.l("Add blocked word or comma-separated list...") }
+        if isLocation { return appState.l("Add city, country or comma-separated list...") }
+        return appState.l("Add word or comma-separated list...")
+    }
+
+    private var addButtonBackground: Color {
+        guard isValidItem(wordInput) else { return Color.primary.opacity(0.05) }
+        if isBlocked { return Color.red.opacity(0.18) }
+        if isLocation { return Color.blue.opacity(0.18) }
+        return Color.primary.opacity(0.12)
+    }
+
+    private var addButtonForeground: Color {
+        guard isValidItem(wordInput) else { return Color.secondary }
+        if isBlocked { return Color.red }
+        if isLocation { return Color.blue }
+        return Color.primary
+    }
+
+    private var addButtonBorder: Color {
+        guard isValidItem(wordInput) else { return Color.clear }
+        if isBlocked { return Color.red.opacity(0.3) }
+        if isLocation { return Color.blue.opacity(0.3) }
+        return Color.primary.opacity(0.15)
+    }
+
+    private var wordChipBackground: Color {
+        if isBlocked { return Color.red.opacity(0.08) }
+        if isLocation { return Color.blue.opacity(0.08) }
+        return Color.primary.opacity(0.06)
+    }
+
+    private var saveButtonBackground: Color {
+        guard canSave else { return Color.primary.opacity(0.1) }
+        if isBlocked { return Color.red }
+        if isLocation { return Color.blue }
+        return appState.selectedTheme.gradientColors.first ?? Color.accentColor
+    }
 
     private func isValidItem(_ text: String) -> Bool {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -2548,6 +2624,11 @@ struct CreatePresetModalView: View {
                 }
             }
             appState.blockedWords = current.joined(separator: ", ")
+        } else if isLocation {
+            appState.customLocationPresets.append(preset)
+            if !appState.activeLocationPresetIds.contains(preset.id.uuidString) {
+                appState.activeLocationPresetIds.append(preset.id.uuidString)
+            }
         } else {
             appState.customVocabularyPresets.append(preset)
             var current = appState.vocabulary
@@ -2573,10 +2654,10 @@ struct CreatePresetModalView: View {
             // Header
             HStack {
                 HStack(spacing: 8) {
-                    Image(systemName: isBlocked ? "nosign" : "plus.square.fill.on.square.fill")
+                    Image(systemName: headerIcon)
                         .font(.system(size: 16))
-                        .foregroundStyle(isBlocked ? Color.red : Color.primary)
-                    Text(isBlocked ? appState.l("Create Blocked Words Preset") : appState.l("Create Vocabulary Preset"))
+                        .foregroundStyle(headerColor)
+                    Text(headerTitle)
                         .font(.system(size: 16, weight: .bold, design: .rounded))
                 }
                 Spacer()
@@ -2598,7 +2679,7 @@ struct CreatePresetModalView: View {
                         Text(appState.l("Preset Name"))
                             .font(.system(size: 12, weight: .semibold))
                             .foregroundStyle(.secondary)
-                        TextField(isBlocked ? appState.l("e.g. Profanity Filter, Competitor Names, Sensitive Terms...") : appState.l("e.g. Gaming Slang, Medical Terms, Tech Stack..."), text: $presetName)
+                        TextField(namePlaceholder, text: $presetName)
                             .textFieldStyle(.plain)
                             .padding(10)
                             .background(Color.primary.opacity(0.04))
@@ -2622,7 +2703,7 @@ struct CreatePresetModalView: View {
                     // Words Input
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
-                            Text(isBlocked ? appState.l("Blocked Words & Phrases") : appState.l("Words & Acronyms"))
+                            Text(wordsLabel)
                                 .font(.system(size: 12, weight: .semibold))
                                 .foregroundStyle(.secondary)
                             Spacer()
@@ -2632,7 +2713,7 @@ struct CreatePresetModalView: View {
                         }
 
                         HStack(spacing: 8) {
-                            TextField(isBlocked ? appState.l("Add blocked word or comma-separated list...") : appState.l("Add word or comma-separated list..."), text: $wordInput, onCommit: addWord)
+                            TextField(wordsPlaceholder, text: $wordInput, onCommit: addWord)
                                 .textFieldStyle(.plain)
                                 .padding(10)
                                 .background(Color.primary.opacity(0.04))
@@ -2646,10 +2727,10 @@ struct CreatePresetModalView: View {
                                 }
                                 .padding(.horizontal, 14)
                                 .padding(.vertical, 10)
-                                .background(isValidItem(wordInput) ? (isBlocked ? Color.red.opacity(0.18) : Color.primary.opacity(0.12)) : Color.primary.opacity(0.05))
-                                .foregroundStyle(isValidItem(wordInput) ? (isBlocked ? Color.red : Color.primary) : Color.secondary)
+                                .background(addButtonBackground)
+                                .foregroundStyle(addButtonForeground)
                                 .cornerRadius(8)
-                                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(isValidItem(wordInput) ? (isBlocked ? Color.red.opacity(0.3) : Color.primary.opacity(0.15)) : Color.clear, lineWidth: 1))
+                                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(addButtonBorder, lineWidth: 1))
                             }
                             .buttonStyle(.plain)
                             .disabled(!isValidItem(wordInput))
@@ -2671,7 +2752,7 @@ struct CreatePresetModalView: View {
                                         }
                                         .padding(.horizontal, 8)
                                         .padding(.vertical, 4)
-                                        .background(isBlocked ? Color.red.opacity(0.08) : Color.primary.opacity(0.06))
+                                        .background(wordChipBackground)
                                         .cornerRadius(8)
                                     }
                                 }
@@ -2691,7 +2772,7 @@ struct CreatePresetModalView: View {
                         HStack {
                             Text(shareCode.isEmpty ? VocabularyPreset.generateShareCode(category: category) : shareCode)
                                 .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                                .foregroundStyle(isBlocked ? Color.red : Color.primary)
+                                .foregroundStyle(isBlocked ? Color.red : (isLocation ? Color.blue : Color.primary))
 
                             Spacer()
 
@@ -2743,16 +2824,8 @@ struct CreatePresetModalView: View {
                     .font(.system(size: 13, weight: .bold, design: .rounded))
                     .padding(.horizontal, 20)
                     .padding(.vertical, 8)
-                    .background(
-                        canSave 
-                            ? (isBlocked ? Color.red : appState.selectedTheme.gradientColors.first!) 
-                            : Color.primary.opacity(0.1)
-                    )
-                    .foregroundStyle(
-                        canSave 
-                            ? Color.white 
-                            : Color.secondary.opacity(0.7)
-                    )
+                    .background(saveButtonBackground)
+                    .foregroundStyle(canSave ? Color.white : Color.secondary.opacity(0.7))
                     .cornerRadius(8)
                 }
                 .buttonStyle(.plain)
@@ -2782,6 +2855,25 @@ struct ImportPresetModalView: View {
     @State private var applyDirectlyToActive: Bool = true
 
     private var isBlockedContext: Bool { category == "blocked" }
+    private var isLocationContext: Bool { category == "location" }
+
+    private var headerIcon: String {
+        if isBlockedContext { return "nosign" }
+        if isLocationContext { return "mappin.and.ellipse" }
+        return "square.and.arrow.down.fill"
+    }
+
+    private var headerColor: Color {
+        if isBlockedContext { return Color.red }
+        if isLocationContext { return Color.blue }
+        return Color.primary
+    }
+
+    private var headerTitle: String {
+        if isBlockedContext { return appState.l("Import Blocked Preset") }
+        if isLocationContext { return appState.l("Import Location & Country Preset") }
+        return appState.l("Import Vocabulary Preset")
+    }
 
     private func parseCode() {
         let trimmed = codeInput.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -2798,6 +2890,9 @@ struct ImportPresetModalView: View {
             parsedPreset = existing
             parseError = nil
         } else if let existing = appState.customBlockedWordsPresets.first(where: { $0.shareCode == trimmed }) {
+            parsedPreset = existing
+            parseError = nil
+        } else if let existing = appState.customLocationPresets.first(where: { $0.shareCode == trimmed }) {
             parsedPreset = existing
             parseError = nil
         } else {
@@ -2826,6 +2921,13 @@ struct ImportPresetModalView: View {
                 }
                 appState.blockedWords = current.joined(separator: ", ")
             }
+        } else if presetCategory == "location" {
+            if !appState.customLocationPresets.contains(where: { $0.shareCode == preset.shareCode || $0.name == preset.name }) {
+                appState.customLocationPresets.append(preset)
+            }
+            if !appState.activeLocationPresetIds.contains(preset.id.uuidString) {
+                appState.activeLocationPresetIds.append(preset.id.uuidString)
+            }
         } else {
             if !appState.customVocabularyPresets.contains(where: { $0.shareCode == preset.shareCode || $0.name == preset.name }) {
                 appState.customVocabularyPresets.append(preset)
@@ -2851,10 +2953,10 @@ struct ImportPresetModalView: View {
             // Header
             HStack {
                 HStack(spacing: 8) {
-                    Image(systemName: isBlockedContext ? "nosign" : "square.and.arrow.down.fill")
+                    Image(systemName: headerIcon)
                         .font(.system(size: 16))
-                        .foregroundStyle(isBlockedContext ? Color.red : Color.primary)
-                    Text(isBlockedContext ? appState.l("Import Blocked Preset") : appState.l("Import Vocabulary Preset"))
+                        .foregroundStyle(headerColor)
+                    Text(headerTitle)
                         .font(.system(size: 16, weight: .bold, design: .rounded))
                 }
                 Spacer()
@@ -3432,12 +3534,30 @@ struct VocabularySettingsView: View {
     @State private var showingImportPresetModal: Bool = false
     @State private var showingShareActiveModal: Bool = false
     @State private var showingContributionPromptModal: Bool = false
+    @State private var presetModalCategory: String = "vocabulary"
     @State private var copiedPresetId: UUID? = nil
     @State private var appliedPresetId: UUID? = nil
     @State private var copiedActiveVocabularyFeedback: Bool = false
     @State private var copiedActiveBlockedWordsFeedback: Bool = false
     @State private var presetToDelete: VocabularyPreset? = nil
     @State private var addedHallucinationsFeedback: Bool = false
+
+    private var quickCityPresets: [String] {
+        let isRussian = appState.selectedUILanguage == "ru" || (appState.selectedUILanguage == "auto" && Locale.current.language.languageCode?.identifier == "ru")
+        if isRussian {
+            return [
+                "Москва", "Санкт-Петербург", "Алматы", "Минск", "Астана", "Ташкент",
+                "Лондон", "Париж", "Берлин", "Амстердам", "Рим", "Мадрид", "Цюрих", "Вена", "Прага", "Варшава", "Барселона",
+                "Нью-Йорк", "Сан-Франциско", "Лос-Анджелес", "Майами", "Чикаго", "Дубай"
+            ]
+        } else {
+            return [
+                "Moscow", "Saint Petersburg", "Almaty", "Minsk", "Astana", "Tashkent",
+                "London", "Paris", "Berlin", "Amsterdam", "Rome", "Madrid", "Zurich", "Vienna", "Prague", "Warsaw", "Barcelona",
+                "New York", "San Francisco", "Los Angeles", "Miami", "Chicago", "Dubai"
+            ]
+        }
+    }
 
     private var wordsList: [String] {
         appState.vocabulary
@@ -3541,12 +3661,17 @@ struct VocabularySettingsView: View {
     }
 
     private func deletePreset(_ preset: VocabularyPreset, removeWordsFromActive: Bool) {
-        appState.customVocabularyPresets.removeAll { $0.id == preset.id }
-        if removeWordsFromActive {
-            var current = wordsList
-            let presetWordsLower = Set(preset.words.map { $0.lowercased() })
-            current.removeAll { presetWordsLower.contains($0.lowercased()) }
-            appState.vocabulary = current.joined(separator: ", ")
+        if preset.category == "location" {
+            appState.customLocationPresets.removeAll { $0.id == preset.id }
+            appState.activeLocationPresetIds.removeAll { $0 == preset.id.uuidString }
+        } else {
+            appState.customVocabularyPresets.removeAll { $0.id == preset.id }
+            if removeWordsFromActive {
+                var current = wordsList
+                let presetWordsLower = Set(preset.words.map { $0.lowercased() })
+                current.removeAll { presetWordsLower.contains($0.lowercased()) }
+                appState.vocabulary = current.joined(separator: ", ")
+            }
         }
         presetToDelete = nil
     }
@@ -3904,14 +4029,14 @@ struct VocabularySettingsView: View {
                                 .strokeBorder(Color.primary.opacity(0.1), lineWidth: 1)
                         )
 
-                        // Quick City Tags
+                        // Quick City Tags in Consistent Language
                         VStack(alignment: .leading, spacing: 6) {
                             Text(appState.l("Quick presets:"))
                                 .font(.system(size: 11, weight: .medium))
                                 .foregroundStyle(.secondary)
 
                             FlowLayout(spacing: 6) {
-                                ForEach(["Москва", "Санкт-Петербург", "Дубай", "Алматы", "Тбилиси", "Ереван", "Киев", "Минск", "Ташкент", "Баку", "London", "New York"], id: \.self) { city in
+                                ForEach(quickCityPresets, id: \.self) { city in
                                     Button(action: {
                                         var current = appState.userCityLocation.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
                                         if current.contains(city) {
@@ -3944,20 +4069,6 @@ struct VocabularySettingsView: View {
                                 }
                             }
                         }
-
-                        Divider()
-                            .padding(.vertical, 4)
-
-                        Toggle(isOn: $appState.smartCasingEnabled) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(appState.l("Smart Lowercase in Mid-Sentence"))
-                                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                                Text(appState.l("Automatically lowers the first character when inserting into an already active sentence."))
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .toggleStyle(SwitchToggleStyle(tint: .accentColor))
                     }
                     .padding(14)
                     .background(
@@ -3974,17 +4085,20 @@ struct VocabularySettingsView: View {
                     )
                 }
 
-                // SECTION 2: Custom Presets & Community Share (Vocabulary)
-                GlassSection(title: appState.l("Vocabulary Presets"), icon: "square.grid.2x2.fill") {
+                // SECTION: Location & Country Presets
+                GlassSection(title: appState.l("Location & Country Presets"), icon: "globe.europe.africa.fill") {
                     VStack(alignment: .leading, spacing: 14) {
                         HStack(alignment: .center, spacing: 12) {
-                            Text(appState.l("Create custom word packs and share them instantly."))
+                            Text(appState.l("Biasing packs for world cities, countries, and regional hubs."))
                                 .font(.system(size: 12))
                                 .foregroundStyle(.secondary)
                                 .frame(maxWidth: .infinity, alignment: .leading)
 
                             HStack(spacing: 8) {
-                                Button(action: { showingCreatePresetModal = true }) {
+                                Button(action: {
+                                    presetModalCategory = "location"
+                                    showingCreatePresetModal = true
+                                }) {
                                     HStack(spacing: 5) {
                                         Image(systemName: "plus.circle.fill")
                                             .font(.system(size: 11, weight: .bold))
@@ -4005,7 +4119,10 @@ struct VocabularySettingsView: View {
                                 .buttonStyle(.plain)
                                 .fixedSize()
 
-                                Button(action: { showingImportPresetModal = true }) {
+                                Button(action: {
+                                    presetModalCategory = "location"
+                                    showingImportPresetModal = true
+                                }) {
                                     HStack(spacing: 5) {
                                         Image(systemName: "square.and.arrow.down.fill")
                                             .font(.system(size: 11, weight: .bold))
@@ -4021,7 +4138,170 @@ struct VocabularySettingsView: View {
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 8)
                                             .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
-                                        )
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                                .fixedSize()
+                            }
+                        }
+
+                        if appState.customLocationPresets.isEmpty {
+                            HStack(spacing: 8) {
+                                Image(systemName: "sparkles")
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(.secondary)
+                                Text(appState.l("No custom location presets yet."))
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 8)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.primary.opacity(0.025))
+                            .cornerRadius(8)
+                        } else {
+                            VStack(spacing: 8) {
+                                ForEach(appState.customLocationPresets) { preset in
+                                    let isActive = appState.activeLocationPresetIds.contains(preset.id.uuidString) || appState.activeLocationPresetIds.isEmpty
+                                    HStack(spacing: 12) {
+                                        Button(action: {
+                                            withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
+                                                if appState.activeLocationPresetIds.contains(preset.id.uuidString) {
+                                                    appState.activeLocationPresetIds.removeAll { $0 == preset.id.uuidString }
+                                                } else {
+                                                    appState.activeLocationPresetIds.append(preset.id.uuidString)
+                                                }
+                                            }
+                                        }) {
+                                            Image(systemName: isActive ? "checkmark.circle.fill" : "circle")
+                                                .font(.system(size: 16, weight: .semibold))
+                                                .foregroundStyle(isActive ? Color.accentColor : Color.secondary.opacity(0.5))
+                                        }
+                                        .buttonStyle(.plain)
+
+                                        VStack(alignment: .leading, spacing: 3) {
+                                            HStack(spacing: 6) {
+                                                Text(preset.name)
+                                                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                                                    .foregroundStyle(.primary)
+
+                                                Text("\(preset.words.count) " + appState.l("words"))
+                                                    .font(.system(size: 9, weight: .bold))
+                                                    .padding(.horizontal, 6)
+                                                    .padding(.vertical, 2)
+                                                    .background(Color.primary.opacity(0.08))
+                                                    .foregroundStyle(Color.primary.opacity(0.85))
+                                                    .cornerRadius(4)
+                                            }
+
+                                            if !preset.description.isEmpty {
+                                                Text(preset.description)
+                                                    .font(.system(size: 11))
+                                                    .foregroundStyle(.secondary)
+                                                    .lineLimit(1)
+                                            }
+
+                                            Text(preset.words.prefix(6).joined(separator: ", ") + (preset.words.count > 6 ? "..." : ""))
+                                                .font(.system(size: 10))
+                                                .foregroundStyle(.tertiary)
+                                                .lineLimit(1)
+                                        }
+
+                                        Spacer()
+
+                                        // Action buttons
+                                        HStack(spacing: 6) {
+                                            Button(action: { sharePreset(preset) }) {
+                                                HStack(spacing: 4) {
+                                                    Image(systemName: copiedPresetId == preset.id ? "checkmark" : "square.and.arrow.up")
+                                                    Text(copiedPresetId == preset.id ? appState.l("Copied!") : appState.l("Share"))
+                                                }
+                                                .font(.system(size: 11, weight: .semibold))
+                                                .padding(.horizontal, 8)
+                                                .padding(.vertical, 5)
+                                                .background(copiedPresetId == preset.id ? Color.green.opacity(0.15) : Color.primary.opacity(0.08))
+                                                .foregroundStyle(copiedPresetId == preset.id ? .green : .primary)
+                                                .cornerRadius(6)
+                                            }
+                                            .buttonStyle(.plain)
+
+                                            Button(action: { presetToDelete = preset }) {
+                                                Image(systemName: "trash")
+                                                    .font(.system(size: 11))
+                                                    .foregroundStyle(.secondary)
+                                                    .padding(6)
+                                            }
+                                            .buttonStyle(.plain)
+                                        }
+                                    }
+                                    .padding(10)
+                                    .background(Color.primary.opacity(0.03))
+                                    .cornerRadius(10)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    .padding(14)
+                }
+
+                // SECTION 2: Custom Presets & Community Share (Vocabulary)
+                GlassSection(title: appState.l("Vocabulary Presets"), icon: "square.grid.2x2.fill") {
+                    VStack(alignment: .leading, spacing: 14) {
+                        HStack(alignment: .center, spacing: 12) {
+                            Text(appState.l("Create custom word packs and share them instantly."))
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                            HStack(spacing: 8) {
+                                Button(action: {
+                                    presetModalCategory = "vocabulary"
+                                    showingCreatePresetModal = true
+                                }) {
+                                    HStack(spacing: 5) {
+                                        Image(systemName: "plus.circle.fill")
+                                            .font(.system(size: 11, weight: .bold))
+                                        Text(appState.l("Create Preset"))
+                                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                                            .lineLimit(1)
+                                    }
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 7)
+                                    .background(Color.primary.opacity(0.06))
+                                    .foregroundStyle(.primary)
+                                    .cornerRadius(8)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                                .fixedSize()
+
+                                Button(action: {
+                                    presetModalCategory = "vocabulary"
+                                    showingImportPresetModal = true
+                                }) {
+                                    HStack(spacing: 5) {
+                                        Image(systemName: "square.and.arrow.down.fill")
+                                            .font(.system(size: 11, weight: .bold))
+                                        Text(appState.l("Import Preset"))
+                                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                                            .lineLimit(1)
+                                    }
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 7)
+                                    .background(Color.primary.opacity(0.06))
+                                    .foregroundStyle(.primary)
+                                    .cornerRadius(8)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
+                                    )
                                 }
                                 .buttonStyle(.plain)
                                 .fixedSize()
@@ -4151,13 +4431,16 @@ struct VocabularySettingsView: View {
                 GlassSection(title: appState.l("Blocked Words Presets"), icon: "square.grid.2x2.fill") {
                     VStack(alignment: .leading, spacing: 14) {
                         HStack(alignment: .center, spacing: 12) {
-                            Text(appState.l("Create custom blocked word packs and share them instantly."))
+                            Text(appState.l("Create custom word packs and share them instantly."))
                                 .font(.system(size: 12))
                                 .foregroundStyle(.secondary)
                                 .frame(maxWidth: .infinity, alignment: .leading)
 
                             HStack(spacing: 8) {
-                                Button(action: { showingCreatePresetModal = true }) {
+                                Button(action: {
+                                    presetModalCategory = "blocked"
+                                    showingCreatePresetModal = true
+                                }) {
                                     HStack(spacing: 5) {
                                         Image(systemName: "plus.circle.fill")
                                             .font(.system(size: 11, weight: .bold))
@@ -4178,7 +4461,10 @@ struct VocabularySettingsView: View {
                                 .buttonStyle(.plain)
                                 .fixedSize()
 
-                                Button(action: { showingImportPresetModal = true }) {
+                                Button(action: {
+                                    presetModalCategory = "blocked"
+                                    showingImportPresetModal = true
+                                }) {
                                     HStack(spacing: 5) {
                                         Image(systemName: "square.and.arrow.down.fill")
                                             .font(.system(size: 11, weight: .bold))
@@ -4203,10 +4489,10 @@ struct VocabularySettingsView: View {
 
                         if appState.customBlockedWordsPresets.isEmpty {
                             HStack(spacing: 8) {
-                                Image(systemName: "shield.slash")
+                                Image(systemName: "nosign")
                                     .font(.system(size: 13))
-                                    .foregroundStyle(Color.red.opacity(0.8))
-                                Text(appState.l("No custom presets yet. Create one or import a share code to get started."))
+                                    .foregroundStyle(.secondary)
+                                Text(appState.l("No custom blocked presets yet."))
                                     .font(.system(size: 12))
                                     .foregroundStyle(.secondary)
                             }
@@ -4229,8 +4515,8 @@ struct VocabularySettingsView: View {
                                                     .font(.system(size: 9, weight: .bold))
                                                     .padding(.horizontal, 6)
                                                     .padding(.vertical, 2)
-                                                    .background(Color.red.opacity(0.15))
-                                                    .foregroundStyle(Color.red)
+                                                    .background(Color.red.opacity(0.1))
+                                                    .foregroundStyle(Color.red.opacity(0.85))
                                                     .cornerRadius(4)
                                             }
 
@@ -4273,8 +4559,8 @@ struct VocabularySettingsView: View {
                                                 .font(.system(size: 11, weight: .semibold))
                                                 .padding(.horizontal, 8)
                                                 .padding(.vertical, 5)
-                                                .background(copiedPresetId == preset.id ? Color.green.opacity(0.15) : Color.red.opacity(0.12))
-                                                .foregroundStyle(copiedPresetId == preset.id ? .green : Color.red)
+                                                .background(copiedPresetId == preset.id ? Color.green.opacity(0.15) : Color.primary.opacity(0.08))
+                                                .foregroundStyle(copiedPresetId == preset.id ? .green : .primary)
                                                 .cornerRadius(6)
                                             }
                                             .buttonStyle(.plain)
@@ -4293,7 +4579,7 @@ struct VocabularySettingsView: View {
                                     .cornerRadius(10)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 10)
-                                            .strokeBorder(Color.red.opacity(0.12), lineWidth: 1)
+                                            .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
                                     )
                                 }
                             }
@@ -4342,10 +4628,10 @@ struct VocabularySettingsView: View {
             }
         }
         .sheet(isPresented: $showingCreatePresetModal) {
-            CreatePresetModalView(category: selectedTab == .blockedWords ? "blocked" : "vocabulary")
+            CreatePresetModalView(category: presetModalCategory)
         }
         .sheet(isPresented: $showingImportPresetModal) {
-            ImportPresetModalView(category: selectedTab == .blockedWords ? "blocked" : "vocabulary")
+            ImportPresetModalView(category: presetModalCategory)
         }
         .sheet(isPresented: $showingShareActiveModal) {
             ShareActiveWordsModalView(
@@ -4355,6 +4641,133 @@ struct VocabularySettingsView: View {
         }
         .sheet(isPresented: $showingContributionPromptModal) {
             VocabularyContributionPromptModalView()
+        }
+    }
+}
+
+// MARK: - App Updates View
+struct AppUpdatesView: View {
+    @ObservedObject var updateService = AppUpdateService.shared
+    @EnvironmentObject var appState: AppState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(updateService.updateAvailable ? Color.green.opacity(0.15) : Color.primary.opacity(0.06))
+                        .frame(width: 36, height: 36)
+                    Image(systemName: updateService.updateAvailable ? "arrow.down.circle.fill" : "checkmark.seal.fill")
+                        .font(.system(size: 18))
+                        .foregroundStyle(updateService.updateAvailable ? Color.green : Color.accentColor)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text("Scribe v\(updateService.currentVersion)")
+                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .foregroundStyle(.primary)
+
+                        if updateService.updateAvailable {
+                            Text("UPDATE AVAILABLE")
+                                .font(.system(size: 9, weight: .black))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.green.opacity(0.2))
+                                .foregroundStyle(.green)
+                                .cornerRadius(4)
+                        } else {
+                            Text(appState.l("Up to date"))
+                                .font(.system(size: 9, weight: .bold))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.primary.opacity(0.06))
+                                .foregroundStyle(.secondary)
+                                .cornerRadius(4)
+                        }
+                    }
+
+                    Text(updateService.statusMessage.isEmpty ? appState.l("Auto-checks GitHub every 30s") : updateService.statusMessage)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                Spacer()
+
+                if updateService.updateAvailable {
+                    Button(action: {
+                        updateService.performUpdate()
+                    }) {
+                        HStack(spacing: 5) {
+                            if updateService.isDownloading {
+                                ProgressView()
+                                    .scaleEffect(0.6)
+                                    .frame(width: 12, height: 12)
+                            } else {
+                                Image(systemName: "arrow.down.to.line.compact")
+                                    .font(.system(size: 11, weight: .bold))
+                            }
+                            Text(appState.l("Update Now"))
+                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .background(Color.green)
+                        .foregroundStyle(.white)
+                        .cornerRadius(8)
+                        .shadow(color: Color.green.opacity(0.3), radius: 4, x: 0, y: 2)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    Button(action: {
+                        Task {
+                            await updateService.checkForUpdates(silent: false)
+                        }
+                    }) {
+                        HStack(spacing: 5) {
+                            if updateService.isChecking {
+                                ProgressView()
+                                    .scaleEffect(0.6)
+                                    .frame(width: 12, height: 12)
+                            } else {
+                                Image(systemName: "arrow.clockwise")
+                                    .font(.system(size: 11, weight: .bold))
+                            }
+                            Text(appState.l("Check for Updates"))
+                                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Color.primary.opacity(0.06))
+                        .foregroundStyle(.primary)
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .strokeBorder(Color.primary.opacity(0.1), lineWidth: 1)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(updateService.isChecking)
+                }
+            }
+
+            if updateService.updateAvailable && !updateService.releaseNotes.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(updateService.releaseTitle.isEmpty ? "What's New in v\(updateService.latestVersion):" : updateService.releaseTitle)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.primary)
+
+                    Text(updateService.releaseNotes)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(4)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(8)
+                        .background(Color.primary.opacity(0.03))
+                        .cornerRadius(6)
+                }
+            }
         }
     }
 }

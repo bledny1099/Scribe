@@ -13,21 +13,43 @@ final class RecordingPanel: NSPanel {
     // MARK: - Layout Constants
 
     static let classicSize  = NSSize(width: 220, height: 220)
-    static let waveformSize = NSSize(width: 560, height: 72)
+    static let waveformSize = NSSize(width: 520, height: 72)
     static let minimalSize  = NSSize(width: 140, height: 44)
     static let ecgSize      = NSSize(width: 260, height: 64)
     static let orbSize      = NSSize(width: 200, height: 200)
+
+    static func dynamicWaveformSize(targetAppName: String = "", hasAIMode: Bool = false) -> NSSize {
+        // Base width: Left dot (44) + Waveform visualizer (220) + Timer/Stop/Status (86) + paddings (30) = 380 pt
+        var width: CGFloat = 380
+        
+        if !targetAppName.isEmpty {
+            // Target app badge width:
+            // icon (13) + spacing (5) + padding (16) = 34 pt
+            // Font is system 11 weight semi-bold rounded. Average character width ~7.0 pt.
+            let textWidth = CGFloat(targetAppName.count) * 7.0
+            let badgeWidth = max(min(34 + textWidth, 200), 50)
+            width += badgeWidth + 8 // badge width + spacing
+        }
+        
+        if hasAIMode {
+            width += 85 // AI refinement mode badge
+        }
+        
+        return NSSize(width: min(max(width, 380), 660), height: 72)
+    }
 
     static func size(
         for style: OverlayStyle,
         overlaySize: OverlaySize = .s100,
         isEmbeddedPreviewActive: Bool = false,
-        previewTextLength: Int = 0
+        previewTextLength: Int = 0,
+        targetAppName: String = "",
+        hasAIMode: Bool = false
     ) -> NSSize {
         var base: NSSize
         switch style {
         case .classic:  base = classicSize
-        case .waveform: base = waveformSize
+        case .waveform: base = dynamicWaveformSize(targetAppName: targetAppName, hasAIMode: hasAIMode)
         case .minimal:  base = minimalSize
         case .ecg:      base = ecgSize
         case .orb:      base = orbSize
@@ -54,13 +76,17 @@ final class RecordingPanel: NSPanel {
         for style: OverlayStyle, 
         overlaySize: OverlaySize = .s100, 
         isEmbeddedPreviewActive: Bool = false,
-        previewTextLength: Int = 0
+        previewTextLength: Int = 0,
+        targetAppName: String = "",
+        hasAIMode: Bool = false
     ) -> CGFloat {
         let currentSize = self.size(
             for: style, 
             overlaySize: overlaySize, 
             isEmbeddedPreviewActive: isEmbeddedPreviewActive, 
-            previewTextLength: previewTextLength
+            previewTextLength: previewTextLength,
+            targetAppName: targetAppName,
+            hasAIMode: hasAIMode
         )
         switch style {
         case .classic:  return round(24 * overlaySize.scale)
@@ -92,19 +118,25 @@ final class RecordingPanel: NSPanel {
         appearance: PanelAppearance = .dark,
         size overlaySize: OverlaySize = .s100,
         isEmbeddedPreviewActive: Bool = false,
-        previewTextLength: Int = 0
+        previewTextLength: Int = 0,
+        targetAppName: String = "",
+        hasAIMode: Bool = false
     ) -> RecordingPanel {
         let size: NSSize = Self.size(
             for: style,
             overlaySize: overlaySize,
             isEmbeddedPreviewActive: isEmbeddedPreviewActive,
-            previewTextLength: previewTextLength
+            previewTextLength: previewTextLength,
+            targetAppName: targetAppName,
+            hasAIMode: hasAIMode
         )
         let radius: CGFloat = Self.radius(
             for: style, 
             overlaySize: overlaySize,
             isEmbeddedPreviewActive: isEmbeddedPreviewActive,
-            previewTextLength: previewTextLength
+            previewTextLength: previewTextLength,
+            targetAppName: targetAppName,
+            hasAIMode: hasAIMode
         )
 
         let panel = RecordingPanel(
@@ -189,12 +221,28 @@ final class RecordingPanel: NSPanel {
         style: OverlayStyle = .waveform,
         overlaySize: OverlaySize = .s100,
         isEmbeddedPreviewActive: Bool = false,
-        previewTextLength: Int = 0
+        previewTextLength: Int = 0,
+        targetAppName: String = "",
+        hasAIMode: Bool = false
     ) {
         containerView.subviews.filter { $0 != blurView }.forEach { $0.removeFromSuperview() }
 
-        let baseSize: NSSize = Self.size(for: style, overlaySize: .s100, isEmbeddedPreviewActive: isEmbeddedPreviewActive, previewTextLength: previewTextLength)
-        let targetSize: NSSize = Self.size(for: style, overlaySize: overlaySize, isEmbeddedPreviewActive: isEmbeddedPreviewActive, previewTextLength: previewTextLength)
+        let baseSize: NSSize = Self.size(
+            for: style,
+            overlaySize: .s100,
+            isEmbeddedPreviewActive: isEmbeddedPreviewActive,
+            previewTextLength: previewTextLength,
+            targetAppName: targetAppName,
+            hasAIMode: hasAIMode
+        )
+        let targetSize: NSSize = Self.size(
+            for: style,
+            overlaySize: overlaySize,
+            isEmbeddedPreviewActive: isEmbeddedPreviewActive,
+            previewTextLength: previewTextLength,
+            targetAppName: targetAppName,
+            hasAIMode: hasAIMode
+        )
         let scale = overlaySize.scale
 
         blurView.isHidden = false
@@ -230,7 +278,9 @@ final class RecordingPanel: NSPanel {
             for: style, 
             overlaySize: overlaySize, 
             isEmbeddedPreviewActive: isEmbeddedPreviewActive,
-            previewTextLength: previewTextLength
+            previewTextLength: previewTextLength,
+            targetAppName: targetAppName,
+            hasAIMode: hasAIMode
         )
         updateCornerRadius(targetRadius, targetSize: targetSize)
         invalidateShadow()
