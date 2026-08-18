@@ -1,16 +1,20 @@
 import SwiftUI
 import KeyboardShortcuts
 
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        NSApp.setActivationPolicy(.accessory)
+    }
+}
+
 @main
 struct ScribeApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var appState: AppState
 
     init() {
         let state = AppState()
         _appState = StateObject(wrappedValue: state)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            SettingsWindowManager.shared.showSettings(appState: state)
-        }
     }
 
     var body: some Scene {
