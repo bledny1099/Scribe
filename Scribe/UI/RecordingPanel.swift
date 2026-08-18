@@ -13,7 +13,7 @@ final class RecordingPanel: NSPanel {
     // MARK: - Layout Constants
 
     static let classicSize  = NSSize(width: 220, height: 220)
-    static let waveformSize = NSSize(width: 520, height: 72)
+    static let waveformSize = NSSize(width: 560, height: 72)
     static let minimalSize  = NSSize(width: 140, height: 44)
     static let ecgSize      = NSSize(width: 260, height: 64)
     static let orbSize      = NSSize(width: 200, height: 200)

@@ -440,6 +440,8 @@ final class AppState: ObservableObject {
     @AppStorage("blockedWordsAction") public var blockedWordsActionRaw: String = "remove" // "remove" or "mask"
     @AppStorage("customVocabularyPresets") public var customVocabularyPresets: [VocabularyPreset] = []
     @AppStorage("customBlockedWordsPresets") public var customBlockedWordsPresets: [VocabularyPreset] = []
+    @AppStorage("userCityLocation") public var userCityLocation: String = ""
+    @AppStorage("smartCasingEnabled") public var smartCasingEnabled: Bool = true
     @AppStorage("allowAnonymousVocabularyContribution") public var allowAnonymousVocabularyContribution: Bool = false
     @AppStorage("hasPromptedVocabularyDataSharing") public var hasPromptedVocabularyDataSharing: Bool = false
     @AppStorage("recognitionEngine") public var recognitionEngine: String = "Aether Hybrid (Recommended)"
@@ -771,7 +773,8 @@ final class AppState: ObservableObject {
                             language: langParam,
                             preferredLanguages: preferredLangs,
                             autoTranslate: self.autoTranslate,
-                            customVocabulary: self.vocabulary
+                            customVocabulary: self.vocabulary,
+                            userLocation: self.userCityLocation
                         )
                     }
                 } else {
@@ -781,7 +784,8 @@ final class AppState: ObservableObject {
                         language: langParam,
                         preferredLanguages: preferredLangs,
                         autoTranslate: self.autoTranslate,
-                        customVocabulary: self.vocabulary
+                        customVocabulary: self.vocabulary,
+                        userLocation: self.userCityLocation
                     )
                 }
 
@@ -803,6 +807,11 @@ final class AppState: ObservableObject {
                         provider: localProvider,
                         apiKey: localAPIKey
                     )
+                }
+
+                // Smart Casing: Lowercase first letter if continuing an active sentence
+                if self.smartCasingEnabled {
+                    text = PasteService.adjustCasingForContext(text: text)
                 }
 
                 logger.info("Transcription result: '\(text)'")

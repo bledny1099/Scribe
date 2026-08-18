@@ -3879,6 +3879,101 @@ struct VocabularySettingsView: View {
             }
 
             if selectedTab == .vocabulary {
+                // SECTION: Cities & Street Locations
+                GlassSection(title: appState.l("Cities & Locations"), icon: "mappin.and.ellipse") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text(appState.l("Specify your city, frequent neighborhoods or street names (comma-separated). Scribe will bias the transcription model to accurately recognize local addresses, street prefixes, and locations."))
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                            .lineSpacing(2)
+
+                        HStack(spacing: 8) {
+                            Image(systemName: "location.fill")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                            TextField(appState.l("e.g. Москва, Тверская, Арбат or Dubai, Marina..."), text: $appState.userCityLocation)
+                                .textFieldStyle(.plain)
+                                .font(.system(size: 12, design: .rounded))
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .background(Color.primary.opacity(0.04))
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .strokeBorder(Color.primary.opacity(0.1), lineWidth: 1)
+                        )
+
+                        // Quick City Tags
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(appState.l("Quick presets:"))
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(.secondary)
+
+                            FlowLayout(spacing: 6) {
+                                ForEach(["Москва", "Санкт-Петербург", "Дубай", "Алматы", "Тбилиси", "Ереван", "Киев", "Минск", "Ташкент", "Баку", "London", "New York"], id: \.self) { city in
+                                    Button(action: {
+                                        var current = appState.userCityLocation.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+                                        if current.contains(city) {
+                                            current.removeAll { $0 == city }
+                                        } else {
+                                            current.append(city)
+                                        }
+                                        appState.userCityLocation = current.joined(separator: ", ")
+                                    }) {
+                                        let isSelected = appState.userCityLocation.contains(city)
+                                        HStack(spacing: 4) {
+                                            if isSelected {
+                                                Image(systemName: "checkmark")
+                                                    .font(.system(size: 9, weight: .bold))
+                                            }
+                                            Text(city)
+                                                .font(.system(size: 11, weight: isSelected ? .semibold : .regular, design: .rounded))
+                                        }
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(isSelected ? Color.accentColor.opacity(0.2) : Color.primary.opacity(0.05))
+                                        .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
+                                        .cornerRadius(10)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 10)
+                                                .strokeBorder(isSelected ? Color.accentColor.opacity(0.4) : Color.primary.opacity(0.08), lineWidth: 1)
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                        }
+
+                        Divider()
+                            .padding(.vertical, 4)
+
+                        Toggle(isOn: $appState.smartCasingEnabled) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(appState.l("Smart Lowercase in Mid-Sentence"))
+                                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                Text(appState.l("Automatically lowers the first character when inserting into an already active sentence."))
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .toggleStyle(SwitchToggleStyle(tint: .accentColor))
+                    }
+                    .padding(14)
+                    .background(
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(.ultraThinMaterial.opacity(0.6))
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color.primary.opacity(0.06))
+                        }
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
+                    )
+                }
+
                 // SECTION 2: Custom Presets & Community Share (Vocabulary)
                 GlassSection(title: appState.l("Vocabulary Presets"), icon: "square.grid.2x2.fill") {
                     VStack(alignment: .leading, spacing: 14) {

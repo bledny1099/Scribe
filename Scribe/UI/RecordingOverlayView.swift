@@ -221,8 +221,8 @@ struct WaveformOverlay: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var audioRecorder: AudioRecorder
 
-    private let barCount = 32
-    @State private var levels: [Float] = Array(repeating: 0, count: 32)
+    private let barCount = 44
+    @State private var levels: [Float] = Array(repeating: 0, count: 44)
     @State private var spinAngle: Double = 0
 
     private var theme: AppTheme { appState.selectedTheme }
@@ -237,16 +237,17 @@ struct WaveformOverlay: View {
         ).height / appState.selectedOverlaySize.scale
 
         return VStack(spacing: 8) {
-            HStack(alignment: .center, spacing: 6) {
+            HStack(alignment: .center, spacing: 4) {
                 // Left: status indicator
                 statusIndicator
-                    .frame(width: 36, height: RecordingPanel.waveformSize.height)
+                    .frame(width: 32, height: RecordingPanel.waveformSize.height)
 
-                // Center: waveform bars
+                // Center: widened waveform bars
                 waveformBars
                     .frame(maxWidth: .infinity, maxHeight: RecordingPanel.waveformSize.height)
+                    .padding(.horizontal, 4)
 
-                // Right: status label + target app badge + stop button
+                // Right: status label + target app badge + timer + stop button
                 HStack(spacing: 8) {
                     if appState.enableCloudAI && appState.selectedAIRefinementMode != .raw && (appState.recordingStatus == .recording || appState.recordingStatus == .transcribing) {
                         HStack(spacing: 4) {
@@ -264,6 +265,7 @@ struct WaveformOverlay: View {
 
                     if !appState.targetAppName.isEmpty && (appState.recordingStatus == .recording || appState.recordingStatus == .transcribing) {
                         TargetAppBadgeView(name: appState.targetAppName, icon: appState.targetAppIcon)
+                            .padding(.trailing, 2)
                     }
 
                     if appState.durationVisible && (appState.recordingStatus == .recording || appState.isShowingPreview) {
@@ -295,7 +297,7 @@ struct WaveformOverlay: View {
                 }
                 .fixedSize(horizontal: true, vertical: false)
                 .frame(height: RecordingPanel.waveformSize.height)
-                .padding(.trailing, 14)
+                .padding(.trailing, 10)
                 .animation(.easeInOut(duration: 0.2), value: appState.recordingStatus == .recording)
             }
             .frame(height: RecordingPanel.waveformSize.height)
@@ -315,7 +317,7 @@ struct WaveformOverlay: View {
                     .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 8)
         .frame(
             width: RecordingPanel.waveformSize.width,
             height: cardHeight
@@ -758,7 +760,7 @@ struct TargetAppBadgeView: View {
                 .lineLimit(1)
                 .truncationMode(.tail)
         }
-        .padding(.horizontal, 8)
+        .padding(.horizontal, 7)
         .padding(.vertical, 3.5)
         .background(
             Capsule()
@@ -768,6 +770,6 @@ struct TargetAppBadgeView: View {
             Capsule()
                 .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5)
         )
-        .frame(maxWidth: 120)
+        .frame(maxWidth: 135)
     }
 }

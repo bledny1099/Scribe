@@ -24,6 +24,53 @@ final class PasteService {
         pasteboard.setString(combined, forType: .string)
     }
 
+    /// Reads preceding text before cursor to detect if we're continuing an existing sentence
+    static func getPrecedingTextContext() -> String? {
+        guard AXIsProcessTrusted() else { return nil }
+        let systemWide = AXUIElementCreateSystemWide()
+        var focusedElement: AnyObject?
+        guard AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focusedElement) == .success,
+              let element = focusedElement as! AXUIElement? else { return nil }
+
+        // 1. Get selected text range
+        var selectedRangeValue: AnyObject?
+        guard AXUIElementCopyAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, &selectedRangeValue) == .success,
+              let rangeVal = selectedRangeValue else { return nil }
+
+        var range = CFRange()
+        guard AXValueGetValue(rangeVal as! AXValue, .cfRange, &range) else { return nil }
+
+        // 2. Get full text value of focused field
+        var fullTextValue: AnyObject?
+        guard AXUIElementCopyAttributeValue(element, kAXValueAttribute as CFString, &fullTextValue) == .success,
+              let fullString = fullTextValue as? String else { return nil }
+
+        let cursorIndex = max(0, min(range.location, fullString.count))
+        let precedingString = String(fullString.prefix(cursorIndex))
+        return precedingString
+    }
+
+    /// Adjusts first-letter casing to lowercase if inserting into an ongoing sentence
+    static func adjustCasingForContext(text: String) -> String {
+        guard !text.isEmpty else { return text }
+        guard let preceding = getPrecedingTextContext() else { return text }
+
+        let trimmedPreceding = preceding.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedPreceding.isEmpty else { return text }
+
+        if let lastChar = trimmedPreceding.last {
+            // Sentence enders require uppercase
+            let sentenceEnders: Set<Character> = [".", "!", "?", "…", "\n", "\r"]
+            if !sentenceEnders.contains(lastChar) {
+                // Mid-sentence continuation: Lowercase first letter
+                let firstChar = text.prefix(1)
+                let remaining = text.dropFirst()
+                return firstChar.lowercased() + remaining
+            }
+        }
+        return text
+    }
+
     /// Checks if Accessibility permission is currently granted.
     static func isAccessibilityGranted() -> Bool {
         return AXIsProcessTrusted()

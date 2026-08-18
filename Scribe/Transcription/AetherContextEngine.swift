@@ -86,10 +86,11 @@ public final class AetherContextEngine: @unchecked Sendable {
         }
     }
 
-    /// Generates a comprehensive prompt string conditioned on active app and custom vocabulary
+    /// Generates a comprehensive prompt string conditioned on active app, location, and custom vocabulary
     public func buildConditioningPrompt(
         basePrompt: String,
         customVocabulary: String,
+        userLocation: String = "",
         targetApp: NSRunningApplication? = nil,
         language: String?
     ) -> String {
@@ -103,6 +104,15 @@ public final class AetherContextEngine: @unchecked Sendable {
             components.append("App: \(appName). \(domainHint)")
         }
 
+        if !userLocation.isEmpty {
+            let isRussian = language == "ru" || language == nil
+            let locHeader = isRussian ? "Локации и адреса:" : "Locations and streets:"
+            let addressAffixes = isRussian
+                ? "ул., улица, проспект, бульвар, переулок, шоссе, набережная, дом, корп., стр., кв."
+                : "st., ave, blvd, road, drive, lane, apt, suite, bldg"
+            components.append("\(locHeader) \(userLocation), \(addressAffixes).")
+        }
+
         if !customVocabulary.isEmpty {
             components.append("Custom Terms: \(customVocabulary).")
         }
@@ -113,6 +123,7 @@ public final class AetherContextEngine: @unchecked Sendable {
     /// Extracts clean contextual words array for Apple Speech contextualStrings
     public func buildContextualStrings(
         customVocabulary: String,
+        userLocation: String = "",
         targetApp: NSRunningApplication? = nil
     ) -> [String] {
         var strings: [String] = []
@@ -123,6 +134,16 @@ public final class AetherContextEngine: @unchecked Sendable {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
         strings.append(contentsOf: customWords)
+
+        // Add user locations & street indicators
+        if !userLocation.isEmpty {
+            let locWords = userLocation
+                .components(separatedBy: CharacterSet(charactersIn: ",\n;"))
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+            strings.append(contentsOf: locWords)
+            strings.append(contentsOf: ["ул.", "улица", "проспект", "бульвар", "набережная", "переулок", "шоссе", "дом", "корпус", "строение", "квартира", "метро", "Street", "Avenue", "Boulevard", "Road"])
+        }
 
         // Add domain terms
         let (_, domain) = detectActiveAppDomain(targetApp: targetApp)

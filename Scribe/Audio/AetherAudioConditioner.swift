@@ -13,16 +13,15 @@ public final class AetherAudioConditioner: @unchecked Sendable {
 
     private init() {}
 
-    /// Conditions the input WAV audio file:
-    /// 1. Trims leading/trailing silence (VAD)
-    /// 2. Applies high-pass filtering (>80 Hz)
-    /// 3. Normalizes loudness
-    public func condition(audioURL: URL) -> URL {
+    /// Conditions an input audio file: removes sub-80Hz rumble, strips leading/trailing silence, and normalizes peak loudness.
+    /// Returns nil if the file contains no audible human speech above the noise floor.
+    public func condition(audioURL: URL) -> URL? {
         do {
             let file = try AVAudioFile(forReading: audioURL)
             let format = file.processingFormat
             let frameCount = AVAudioFrameCount(file.length)
-            guard frameCount > 0 else { return audioURL }
+
+            guard frameCount > 0 else { return nil }
 
             guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount) else {
                 return audioURL
@@ -44,11 +43,14 @@ public final class AetherAudioConditioner: @unchecked Sendable {
             applyHighPassFilter(channelData: channelData, channelCount: channelCount, count: samplesPerChannel, sampleRate: sampleRate)
 
             // 2. VAD: Find speech boundaries (leading & trailing silence)
-            let (startFrame, endFrame) = detectSpeechBoundaries(
+            guard let (startFrame, endFrame) = detectSpeechBoundaries(
                 channelData: channelData[0],
                 count: samplesPerChannel,
                 sampleRate: sampleRate
-            )
+            ) else {
+                logger.info("Aether VAD: No speech detected in audio file (\(samplesPerChannel) frames)")
+                return nil
+            }
 
             let trimmedLength = max(1, endFrame - startFrame)
             guard let trimmedBuffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(trimmedLength)) else {
@@ -105,7 +107,7 @@ public final class AetherAudioConditioner: @unchecked Sendable {
 
     // MARK: - VAD & Speech Boundary Detection
 
-    private func detectSpeechBoundaries(channelData: UnsafePointer<Float>, count: Int, sampleRate: Float) -> (Int, Int) {
+    private func detectSpeechBoundaries(channelData: UnsafePointer<Float>, count: Int, sampleRate: Float) -> (Int, Int)? {
         let frameSize = Int(sampleRate * 0.02) // 20ms frame
         guard frameSize > 0, count > frameSize else { return (0, count) }
 
@@ -114,6 +116,7 @@ public final class AetherAudioConditioner: @unchecked Sendable {
 
         var firstSpeechFrame: Int?
         var lastSpeechFrame: Int?
+        var totalSpeechFrames = 0
 
         let totalFrames = count / frameSize
 
@@ -127,13 +130,19 @@ public final class AetherAudioConditioner: @unchecked Sendable {
                     firstSpeechFrame = offset
                 }
                 lastSpeechFrame = min(count, offset + frameSize)
+                totalSpeechFrames += 1
             }
+        }
+
+        // Require at least 4 frames (~80ms) of audible speech to prevent random mic pops from triggering decoding
+        guard let first = firstSpeechFrame, let last = lastSpeechFrame, totalSpeechFrames >= 4 else {
+            return nil
         }
 
         // Add 80ms padding around speech to prevent sharp clipping while eliminating tail silence
         let paddingFrames = Int(sampleRate * 0.08)
-        let start = max(0, (firstSpeechFrame ?? 0) - paddingFrames)
-        let end = min(count, (lastSpeechFrame ?? count) + paddingFrames)
+        let start = max(0, first - paddingFrames)
+        let end = min(count, last + paddingFrames)
 
         return (start, end)
     }

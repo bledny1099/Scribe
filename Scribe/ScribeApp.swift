@@ -48,61 +48,62 @@ struct LiquidGlassMenuBarView: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            // User Header Card — Entire area opens statistics & gamification
-            Button {
-                SettingsWindowManager.shared.showSettings(appState: appState, tab: .statistics)
-            } label: {
-                HStack(spacing: 10) {
-                    ZStack {
-                        Circle()
-                            .fill(history.currentLevelColor.opacity(0.18))
-                            .frame(width: 36, height: 36)
-                            .overlay(Circle().stroke(history.currentLevelColor.opacity(0.35), lineWidth: 1))
+            // User Header Card
+            HStack(spacing: 10) {
+                // Clicking avatar / name / level opens Statistics & Gamification
+                Button {
+                    SettingsWindowManager.shared.showSettings(appState: appState, tab: .statistics)
+                } label: {
+                    HStack(spacing: 10) {
+                        ZStack {
+                            Circle()
+                                .fill(history.currentLevelColor.opacity(0.18))
+                                .frame(width: 36, height: 36)
+                                .overlay(Circle().stroke(history.currentLevelColor.opacity(0.35), lineWidth: 1))
 
-                        Text(String(displayName.prefix(1)).uppercased())
-                            .font(.system(size: 15, weight: .bold, design: .rounded))
-                            .foregroundStyle(history.currentLevelColor)
-                    }
+                            Text(String(displayName.prefix(1)).uppercased())
+                                .font(.system(size: 15, weight: .bold, design: .rounded))
+                                .foregroundStyle(history.currentLevelColor)
+                        }
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 6) {
+                        VStack(alignment: .leading, spacing: 2) {
                             Text(displayName)
                                 .font(.system(size: 14, weight: .bold, design: .rounded))
                                 .foregroundStyle(Color.primary)
+                                .lineLimit(1)
 
-                            Text("PRO")
-                                .font(.system(size: 9, weight: .heavy, design: .rounded))
+                            Text("LVL \(history.currentLevel) • \(appState.l(history.currentLevelName))")
+                                .font(.system(size: 11, weight: .semibold, design: .rounded))
                                 .foregroundStyle(history.currentLevelColor)
-                                .padding(.horizontal, 5)
-                                .padding(.vertical, 1.5)
-                                .background(history.currentLevelColor.opacity(0.15))
-                                .cornerRadius(6)
+                                .lineLimit(1)
                         }
-
-                        Text("LVL \(history.currentLevel) • \(appState.l(history.currentLevelName))")
-                            .font(.system(size: 10, weight: .semibold, design: .rounded))
-                            .foregroundStyle(history.currentLevelColor)
                     }
+                }
+                .buttonStyle(.plain)
 
-                    Spacer()
+                Spacer()
 
-                    Image(systemName: "chart.bar.fill")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.secondary)
-                        .padding(6)
+                // Settings Gear Button on the right
+                Button {
+                    SettingsWindowManager.shared.showSettings(appState: appState, tab: .general)
+                } label: {
+                    Image(systemName: "gearshape.fill")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(Color.secondary)
+                        .padding(7)
                         .background(Circle().fill(Color.primary.opacity(0.06)))
                 }
-                .padding(10)
-                .background(
-                    RoundedRectangle(cornerRadius: 14)
-                        .fill(Color.primary.opacity(0.04))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-                )
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
+            .padding(10)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(Color.primary.opacity(0.04))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+            )
 
             // Start / Stop Dictation Button
             Button {
@@ -173,7 +174,7 @@ struct LiquidGlassMenuBarView: View {
             .padding(.top, 2)
         }
         .padding(12)
-        .frame(width: 250)
+        .frame(width: 290)
         .background(.ultraThinMaterial)
     }
 }

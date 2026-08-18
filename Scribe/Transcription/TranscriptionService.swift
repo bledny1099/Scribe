@@ -173,7 +173,8 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         language: String? = nil,
         preferredLanguages: [String] = [],
         autoTranslate: Bool = false,
-        customVocabulary: String = ""
+        customVocabulary: String = "",
+        userLocation: String = ""
     ) async throws -> String {
         try await ensureModelLoaded(modelName: modelName)
 
@@ -187,13 +188,21 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         }
 
         // 1. Stage B: Audio Conditioning (VAD, high-pass filter, loudness normalization)
-        let conditionedURL = AetherAudioConditioner.shared.condition(audioURL: audioURL)
+        guard let conditionedURL = AetherAudioConditioner.shared.condition(audioURL: audioURL) else {
+            logger.info("Audio contains no audible speech, skipping Whisper decoding to prevent hallucinations")
+            state = .done("")
+            return ""
+        }
         let path = conditionedURL.path
 
-        // 2. Configure DecodingOptions
+        // 2. Configure DecodingOptions with high-performance decoding
         let baseLang = language != nil ? baseLanguageCode(for: language!) : "auto"
         let langKey = baseLang
         var options = DecodingOptions(task: autoTranslate ? .translate : .transcribe)
+        options.temperature = 0.0
+        options.temperatureFallbackCount = 0
+        options.withoutTimestamps = true
+        options.skipSpecialTokens = true
         if baseLang != "auto" {
             options.language = baseLang
             options.detectLanguage = false
@@ -207,6 +216,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         let promptText = AetherContextEngine.shared.buildConditioningPrompt(
             basePrompt: basePrompt,
             customVocabulary: customVocabulary,
+            userLocation: userLocation,
             language: language
         )
 
@@ -219,26 +229,30 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             logger.debug("Aether set initial prompt (\(tokens.count) tokens) for language '\(langKey)'")
         }
         
-        // Custom Language Detection with Preferred Languages
+        // Custom Language Detection with Strict Preferred Languages Lock
         if options.detectLanguage, !preferredLanguages.isEmpty {
+            let basePreferred = preferredLanguages.map { baseLanguageCode(for: $0) }
             do {
                 let (detectedLang, langProbs) = try await kit.detectLanguage(audioPath: path)
                 let baseDetected = baseLanguageCode(for: detectedLang)
-                let basePreferred = preferredLanguages.map { baseLanguageCode(for: $0) }
                 logger.info("Auto-detected language: \(detectedLang) (base: \(baseDetected)), preferred: \(basePreferred)")
                 
                 if basePreferred.contains(baseDetected) {
                     logger.info("Using detected preferred language: \(baseDetected)")
                     options.language = baseDetected
                     options.detectLanguage = false
-                } else if let bestLang = basePreferred.max(by: { (langProbs[$0] ?? -Float.greatestFiniteMagnitude) < (langProbs[$1] ?? -Float.greatestFiniteMagnitude) }),
-                          let bestProb = langProbs[bestLang], bestProb > 0.25 {
-                    logger.info("Constraining detected language to best preferred match: \(bestLang) (prob: \(bestProb))")
+                } else if let bestLang = basePreferred.max(by: { (langProbs[$0] ?? -Float.greatestFiniteMagnitude) < (langProbs[$1] ?? -Float.greatestFiniteMagnitude) }) {
+                    logger.info("Strict language lock: Overriding detected foreign language '\(baseDetected)' to preferred match '\(bestLang)'")
                     options.language = bestLang
+                    options.detectLanguage = false
+                } else {
+                    options.language = basePreferred.first
                     options.detectLanguage = false
                 }
             } catch {
-                logger.warning("Custom language detection failed: \(error)")
+                logger.warning("Custom language detection failed: \(error), defaulting to first preferred language: \(basePreferred.first ?? "ru")")
+                options.language = basePreferred.first
+                options.detectLanguage = false
             }
         }
         
@@ -319,7 +333,17 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         "top 10",
         "top ten",
         "top 5",
-        "top five"
+        "top five",
+        "4nb",
+        "genin",
+        "jenin",
+        "4 nb",
+        "find, genin",
+        "what is the best place to live in home city",
+        "what is the best place to live",
+        "what is the best place",
+        "in home city",
+        "sir"
     ]
 
     /// Removes non-speech annotations and boundary hallucinations from Whisper output.
