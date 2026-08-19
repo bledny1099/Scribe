@@ -2,7 +2,7 @@ import AppKit
 import CoreGraphics
 import Foundation
 
-let srcURL = URL(fileURLWithPath: "/Users/aleksei/.gemini/antigravity-ide/brain/203d6658-9585-4d25-8c6c-5c78ef1cdcb2/.user_uploaded/media_1787146851034.png")
+let srcURL = URL(fileURLWithPath: "/Users/aleksei/.gemini/antigravity-ide/brain/203d6658-9585-4d25-8c6c-5c78ef1cdcb2/scribe_blended_app_icon_1787148172054.jpg")
 guard let srcImage = NSImage(contentsOf: srcURL),
       let cgImage = srcImage.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
     print("Error loading source image")
