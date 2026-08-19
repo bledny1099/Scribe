@@ -5065,6 +5065,36 @@ struct GeneralSettingsView: View {
                             .labelsHidden()
                     }
 
+                    // Paste Mode Picker
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(appState.l("Paste Mode"))
+                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                .foregroundStyle(.primary)
+                            Text(appState.selectedPasteMode == .paste
+                                ? appState.l("Replaces clipboard content with transcribed text.")
+                                : (appState.selectedPasteMode == .append
+                                    ? appState.l("Appends transcribed text to current clipboard content.")
+                                    : appState.l("Send text straight to notes app"))
+                            )
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        LiquidGlassSegmentedPicker(
+                            items: PasteMode.allCases,
+                            selection: Binding(
+                                get: { appState.selectedPasteMode },
+                                set: { val in
+                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                        appState.selectedPasteMode = val
+                                    }
+                                }
+                            ),
+                            label: { (appState.l($0.displayName), $0.icon) }
+                        )
+                    }
+
                     // Enable Direct Note Feature Toggle
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
