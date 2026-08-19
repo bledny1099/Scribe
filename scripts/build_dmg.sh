@@ -44,9 +44,10 @@ fi
 
 rm -f "$DIST_DIR/$DMG_NAME"
 
-BG_IMAGE="$DIST_DIR/dmg_background.png"
 echo "🎨 Generating installer gradient background..."
-swift "$SCRIPT_DIR/generate_dmg_background.swift" "$BG_IMAGE"
+swift "$SCRIPT_DIR/generate_dmg_background.swift" "$DIST_DIR"
+tiffutil -cathidpicheck "$DIST_DIR/dmg_bg.png" "$DIST_DIR/dmg_bg@2x.png" -out "$DIST_DIR/dmg_background.tiff"
+BG_IMAGE="$DIST_DIR/dmg_background.tiff"
 
 if command -v create-dmg >/dev/null 2>&1; then
     echo "💿 Creating DMG with create-dmg and gradient background..."
