@@ -149,7 +149,7 @@ enum PanelAppearance: String, CaseIterable, Identifiable {
         switch self {
         case .dark:        NSAppearance(named: .darkAqua)!
         case .light:       NSAppearance(named: .aqua)!
-        case .liquidGlass: NSAppearance(named: .aqua)!
+        case .liquidGlass: NSAppearance(named: .vibrantDark)!
         }
     }
 
@@ -157,7 +157,7 @@ enum PanelAppearance: String, CaseIterable, Identifiable {
         switch self {
         case .dark:        .underWindowBackground
         case .light:       .sheet
-        case .liquidGlass: .sheet
+        case .liquidGlass: .popover
         }
     }
 
@@ -165,7 +165,7 @@ enum PanelAppearance: String, CaseIterable, Identifiable {
         switch self {
         case .dark:        NSColor(red: 0.05, green: 0.05, blue: 0.07, alpha: 0.88)
         case .light:       NSColor(white: 0.95, alpha: 0.85)
-        case .liquidGlass: NSColor(white: 1.0, alpha: 0.18)
+        case .liquidGlass: NSColor(red: 0.06, green: 0.06, blue: 0.08, alpha: 0.35)
         }
     }
 }
