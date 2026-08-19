@@ -1080,15 +1080,15 @@ final class AppState: ObservableObject {
         let screenFrame = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
 
         let subWidth: CGFloat = min(720, screenFrame.width - 48)
-        let subHeight: CGFloat = 80
+        let subHeight: CGFloat = 50
         let subX = frame.midX - subWidth / 2
 
         // If there is enough room below the main panel, place below; otherwise place above!
         let subY: CGFloat
-        if frame.minY - subHeight - 12 >= screenFrame.minY {
-            subY = frame.minY - subHeight - 12
+        if frame.minY - subHeight - 6 >= screenFrame.minY {
+            subY = frame.minY - subHeight - 6
         } else {
-            subY = frame.maxY + 12
+            subY = frame.maxY + 8
         }
 
         let finalRect = NSRect(
@@ -1406,7 +1406,7 @@ final class AppState: ObservableObject {
             }
             if settingsSubtitlePanel == nil {
                 let subPanel = NSPanel(
-                    contentRect: NSRect(x: 0, y: 0, width: 800, height: 100),
+                    contentRect: NSRect(x: 0, y: 0, width: 720, height: 60),
                     styleMask: [.borderless, .nonactivatingPanel],
                     backing: .buffered,
                     defer: false
@@ -1428,12 +1428,18 @@ final class AppState: ObservableObject {
                 // Animate entrance
                 subPanel.alphaValue = 0
                 settingsPreviewPanel?.addChildWindow(subPanel, ordered: .above)
+                subPanel.orderFrontRegardless()
 
                 NSAnimationContext.runAnimationGroup { ctx in
                     ctx.duration = 0.35
                     ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
                     subPanel.animator().alphaValue = 1
                 }
+            } else if let subPanel = settingsSubtitlePanel, let panel = settingsPreviewPanel {
+                if subPanel.parent == nil {
+                    panel.addChildWindow(subPanel, ordered: .above)
+                }
+                subPanel.orderFrontRegardless()
             }
 
             // Position safely on-screen
@@ -1444,9 +1450,9 @@ final class AppState: ObservableObject {
         } else {
             // Remove subtitle panel if no longer needed
             if let subPanel = settingsSubtitlePanel {
+                settingsSubtitlePanel = nil
                 subPanel.orderOut(nil)
                 subPanel.close()
-                settingsSubtitlePanel = nil
             }
         }
     }
@@ -1457,7 +1463,12 @@ final class AppState: ObservableObject {
         settingsPreviewAnimTimer?.invalidate()
         settingsPreviewAnimTimer = nil
 
+        let subPanel = settingsSubtitlePanel
+        settingsSubtitlePanel = nil
+
         guard let panel = settingsPreviewPanel else {
+            subPanel?.orderOut(nil)
+            subPanel?.close()
             if !isRecording && !isTranscribing { audioLevel = 0 }
             return
         }
@@ -1469,11 +1480,14 @@ final class AppState: ObservableObject {
             ctx.duration = 0.35
             ctx.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
             panel.animator().alphaValue = 0
+            subPanel?.animator().alphaValue = 0
 
             let currentFrame = panel.frame
             panel.animator().setFrameOrigin(NSPoint(x: currentFrame.minX, y: currentFrame.minY - 24))
         } completionHandler: { [weak self] in
             MainActor.assumeIsolated {
+                subPanel?.orderOut(nil)
+                subPanel?.close()
                 panel.orderOut(nil)
                 panel.close()
                 if self?.isRecording == false && self?.isTranscribing == false {

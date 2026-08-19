@@ -741,7 +741,7 @@ struct SubtitleOverlayView: View {
                     .lineLimit(4)
                     .minimumScaleFactor(0.7)
                     .padding(.horizontal, 18)
-                    .padding(.vertical, 10)
+                    .padding(.vertical, 7)
                     .background {
                         if appState.livePreviewBackground == .dark {
                             Capsule()

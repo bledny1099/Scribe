@@ -729,61 +729,59 @@ struct SettingsBackgroundView: View {
             }
 
             // Ambient Glow
-            if panelAppearance != .liquidGlass {
-                if selectedTab == .statistics {
-                    // Level-Themed Ambient Glow (Only on Statistics tab)
-                    RadialGradient(
-                        gradient: Gradient(colors: [
-                            levelColor.opacity(0.35),
-                            levelColor.opacity(0.12),
-                            Color.clear
-                        ]),
-                        center: .topLeading,
-                        startRadius: 10,
-                        endRadius: 650
-                    )
-                    
-                    RadialGradient(
-                        gradient: Gradient(colors: [
-                            levelColor.opacity(0.20),
-                            Color.clear
-                        ]),
-                        center: .bottomTrailing,
-                        startRadius: 50,
-                        endRadius: 500
-                    )
-                    
-                    // Right-to-Left Level Up Sweep Transition
-                    if isLevelUpSweepActive {
-                        LevelUpSweepOverlay(
-                            newColor: levelColor,
-                            oldColor: previousLevelColor,
-                            progress: sweepProgress
-                        )
-                    }
-                } else {
-                    // Standard Theme Glow for other tabs
-                    RadialGradient(
-                        gradient: Gradient(colors: [
-                            selectedTheme.glowColor.opacity(0.22),
-                            selectedTheme.gradientColors[0].opacity(0.08),
-                            Color.clear
-                        ]),
-                        center: .topLeading,
-                        startRadius: 10,
-                        endRadius: 650
-                    )
-                    
-                    RadialGradient(
-                        gradient: Gradient(colors: [
-                            selectedTheme.gradientColors[1].opacity(0.12),
-                            Color.clear
-                        ]),
-                        center: .bottomTrailing,
-                        startRadius: 50,
-                        endRadius: 500
+            if selectedTab == .statistics {
+                // Level-Themed Ambient Glow (Only on Statistics tab) - active in ALL panel appearances!
+                RadialGradient(
+                    gradient: Gradient(colors: [
+                        levelColor.opacity(panelAppearance == .liquidGlass ? 0.40 : 0.35),
+                        levelColor.opacity(panelAppearance == .liquidGlass ? 0.18 : 0.12),
+                        Color.clear
+                    ]),
+                    center: .topLeading,
+                    startRadius: 10,
+                    endRadius: 650
+                )
+
+                RadialGradient(
+                    gradient: Gradient(colors: [
+                        levelColor.opacity(panelAppearance == .liquidGlass ? 0.28 : 0.20),
+                        Color.clear
+                    ]),
+                    center: .bottomTrailing,
+                    startRadius: 50,
+                    endRadius: 500
+                )
+
+                // Right-to-Left Level Up Sweep Transition
+                if isLevelUpSweepActive {
+                    LevelUpSweepOverlay(
+                        newColor: levelColor,
+                        oldColor: previousLevelColor,
+                        progress: sweepProgress
                     )
                 }
+            } else if panelAppearance != .liquidGlass {
+                // Standard Theme Glow for other tabs
+                RadialGradient(
+                    gradient: Gradient(colors: [
+                        selectedTheme.glowColor.opacity(0.22),
+                        selectedTheme.gradientColors[0].opacity(0.08),
+                        Color.clear
+                    ]),
+                    center: .topLeading,
+                    startRadius: 10,
+                    endRadius: 650
+                )
+
+                RadialGradient(
+                    gradient: Gradient(colors: [
+                        selectedTheme.gradientColors[1].opacity(0.12),
+                        Color.clear
+                    ]),
+                    center: .bottomTrailing,
+                    startRadius: 50,
+                    endRadius: 500
+                )
             }
         }
         .ignoresSafeArea()
@@ -827,11 +825,11 @@ struct StatisticsSectionView: View {
     var isLevelUpSweepActive: Bool = false
     var previousLevel: Int = 1
     @State private var timeFrame: StatsTimeFrame = .today
-    @AppStorage("goldCertColorTheme") private var certColorThemeRaw: String = CertificateColorTheme.gold.rawValue
+    @AppStorage("goldCertColorTheme") private var certColorThemeRaw: String = CertificateColorTheme.levelColor.rawValue
     @State private var showTopWords: Bool = false
 
     private var selectedTheme: CertificateColorTheme {
-        CertificateColorTheme(rawValue: certColorThemeRaw) ?? .gold
+        CertificateColorTheme(rawValue: certColorThemeRaw) ?? .levelColor
     }
     
     // Animation states
@@ -1226,7 +1224,7 @@ struct CyberShieldCardView: View {
 struct GoldCertificateCardView: View {
     @EnvironmentObject var appState: AppState
     @ObservedObject var history = TranscriptionHistory.shared
-    @AppStorage("goldCertColorTheme") private var colorThemeRaw: String = CertificateColorTheme.gold.rawValue
+    @AppStorage("goldCertColorTheme") private var colorThemeRaw: String = CertificateColorTheme.levelColor.rawValue
     var isPulsing: Bool
     var isShimmering: Bool
     @Binding var showTopWords: Bool
