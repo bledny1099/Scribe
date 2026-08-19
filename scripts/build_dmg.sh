@@ -56,12 +56,12 @@ if command -v create-dmg >/dev/null 2>&1; then
         --volicon "$ROOT_DIR/Scribe/AppIcon.icns" \
         --background "$BG_IMAGE" \
         --window-pos 200 120 \
-        --window-size 660 400 \
+        --window-size 540 360 \
         --icon-size 128 \
         --text-size 13 \
-        --icon "$APP_NAME.app" 175 180 \
+        --icon "$APP_NAME.app" 140 170 \
         --hide-extension "$APP_NAME.app" \
-        --app-drop-link 485 180 \
+        --app-drop-link 400 170 \
         --no-internet-enable \
         --applescript-sleep-duration 6 \
         --overwrite \

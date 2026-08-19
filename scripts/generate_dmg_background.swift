@@ -2,8 +2,8 @@ import Cocoa
 import CoreGraphics
 
 func renderDMGBackground(scale: CGFloat) -> NSImage {
-    let baseWidth: CGFloat = 660
-    let baseHeight: CGFloat = 400
+    let baseWidth: CGFloat = 540
+    let baseHeight: CGFloat = 360
     
     let pixelWidth = Int(baseWidth * scale)
     let pixelHeight = Int(baseHeight * scale)
@@ -23,14 +23,14 @@ func renderDMGBackground(scale: CGFloat) -> NSImage {
     
     context.scaleBy(x: scale, y: scale)
     
-    // 1. Sleek Vertical Gradient (Dark Charcoal to Pure White)
-    // CoreGraphics (0,0) is bottom-left, (0, height) is top-left
+    // 1. Sleek Vertical Gradient (Dark Charcoal Top to Crisp White Bottom)
+    // CoreGraphics coordinates: (0,0) is bottom-left, (0, height) is top-left
     let colors = [
         NSColor(red: 0.11, green: 0.12, blue: 0.14, alpha: 1.0).cgColor, // Top dark charcoal (#1C1E24)
-        NSColor(red: 0.17, green: 0.19, blue: 0.22, alpha: 1.0).cgColor, // Dark slate (#2B3038)
-        NSColor(red: 0.32, green: 0.35, blue: 0.40, alpha: 1.0).cgColor, // Mid tone (#525966)
+        NSColor(red: 0.16, green: 0.18, blue: 0.21, alpha: 1.0).cgColor, // Slate dark (#292E36)
+        NSColor(red: 0.30, green: 0.33, blue: 0.38, alpha: 1.0).cgColor, // Mid tone (#4D5461)
         NSColor(red: 0.65, green: 0.69, blue: 0.75, alpha: 1.0).cgColor, // Platinum (#A6B0BF)
-        NSColor(red: 0.92, green: 0.94, blue: 0.96, alpha: 1.0).cgColor, // Soft white (#EBF0F5)
+        NSColor(red: 0.93, green: 0.95, blue: 0.97, alpha: 1.0).cgColor, // Near white (#EDF2F7)
         NSColor(red: 1.00, green: 1.00, blue: 1.00, alpha: 1.0).cgColor  // Pure white (#FFFFFF)
     ] as CFArray
     
@@ -47,7 +47,7 @@ func renderDMGBackground(scale: CGFloat) -> NSImage {
     
     // 2. Subtle Radial Light Accent at Top
     let ambientColors = [
-        NSColor(red: 1.0, green: 1.0, blue: 1.0, alpha: 0.08).cgColor,
+        NSColor(red: 1.0, green: 1.0, blue: 1.0, alpha: 0.09).cgColor,
         NSColor(red: 1.0, green: 1.0, blue: 1.0, alpha: 0.0).cgColor
     ] as CFArray
     
@@ -57,89 +57,76 @@ func renderDMGBackground(scale: CGFloat) -> NSImage {
             startCenter: CGPoint(x: baseWidth / 2, y: baseHeight),
             startRadius: 0,
             endCenter: CGPoint(x: baseWidth / 2, y: baseHeight),
-            endRadius: 360,
+            endRadius: 280,
             options: []
         )
     }
     
-    // 3. Minimalist, Ultra-Crisp Apple-Style Arrow
-    // Scribe icon: X = 175, Applications: X = 485
-    // Exact center between icons: X = 330, Y = 225
-    let arrowY: CGFloat = 225
-    let arrowCenterX: CGFloat = 330
+    // 3. Bold, Clean, Minimalist Apple-Style Arrow (NO OVAL / NO CAPSULE)
+    // Scribe icon center: X = 140, Y = 170 in Finder -> CG Y = 360 - 170 = 190
+    // Applications folder center: X = 400, Y = 170 in Finder -> CG Y = 190
+    // Center between icons: X = 270, CG Y = 190
+    let arrowY: CGFloat = 190
+    let arrowCenterX: CGFloat = 270
     
     context.saveGState()
     
-    // Subtle frosted glass micro-capsule
-    let capsuleW: CGFloat = 88
-    let capsuleH: CGFloat = 32
-    let capsuleRect = CGRect(x: arrowCenterX - (capsuleW / 2), y: arrowY - (capsuleH / 2), width: capsuleW, height: capsuleH)
-    let capsulePath = CGPath(roundedRect: capsuleRect, cornerWidth: capsuleH / 2, cornerHeight: capsuleH / 2, transform: nil)
-    
-    context.setFillColor(NSColor(white: 1.0, alpha: 0.12).cgColor)
-    context.addPath(capsulePath)
-    context.fillPath()
-    
-    context.setStrokeColor(NSColor(white: 1.0, alpha: 0.28).cgColor)
-    context.setLineWidth(1.0)
-    context.addPath(capsulePath)
-    context.strokePath()
-    
-    // Crisp minimalist vector arrow
     let arrowPath = CGMutablePath()
-    let shaftStart: CGFloat = arrowCenterX - 22
-    let shaftEnd: CGFloat = arrowCenterX + 20
+    let shaftStart: CGFloat = arrowCenterX - 28
+    let shaftEnd: CGFloat = arrowCenterX + 24
     
-    // Shaft
+    // Bold Shaft
     arrowPath.move(to: CGPoint(x: shaftStart, y: arrowY))
     arrowPath.addLine(to: CGPoint(x: shaftEnd, y: arrowY))
     
-    // Head chevron
-    let headSize: CGFloat = 7.0
-    arrowPath.move(to: CGPoint(x: shaftEnd - headSize, y: arrowY + headSize))
-    arrowPath.addLine(to: CGPoint(x: shaftEnd + 2, y: arrowY))
-    arrowPath.addLine(to: CGPoint(x: shaftEnd - headSize, y: arrowY - headSize))
+    // Bold Chevron Arrowhead
+    let headSpread: CGFloat = 10.0
+    arrowPath.move(to: CGPoint(x: shaftEnd - headSpread, y: arrowY + headSpread))
+    arrowPath.addLine(to: CGPoint(x: shaftEnd + 3, y: arrowY))
+    arrowPath.addLine(to: CGPoint(x: shaftEnd - headSpread, y: arrowY - headSpread))
     
     context.setStrokeColor(NSColor(white: 1.0, alpha: 0.95).cgColor)
-    context.setLineWidth(2.2)
+    context.setLineWidth(3.8)
     context.setLineCap(.round)
     context.setLineJoin(.round)
-    context.setShadow(offset: CGSize(width: 0, height: 1), blur: 3, color: NSColor(white: 0.0, alpha: 0.25).cgColor)
+    context.setShadow(offset: CGSize(width: 0, height: 1.5), blur: 5, color: NSColor(white: 0.0, alpha: 0.35).cgColor)
     context.addPath(arrowPath)
     context.strokePath()
     
     context.restoreGState()
     
-    // 4. Apple Typography at the bottom (elevated above Finder status bar)
+    // 4. Typography
     let nsContext = NSGraphicsContext(cgContext: context, flipped: false)
     NSGraphicsContext.saveGraphicsState()
     NSGraphicsContext.current = nsContext
     
-    let primaryParagraph = NSMutableParagraphStyle()
-    primaryParagraph.alignment = .center
+    // Top Slogan (Large, prominent, clean white on dark charcoal)
+    let topParagraph = NSMutableParagraphStyle()
+    topParagraph.alignment = .center
     
-    let primaryFont = NSFont.systemFont(ofSize: 14.0, weight: .semibold)
-    let primaryAttributes: [NSAttributedString.Key: Any] = [
-        .font: primaryFont,
-        .foregroundColor: NSColor(red: 0.12, green: 0.14, blue: 0.17, alpha: 0.95),
-        .paragraphStyle: primaryParagraph
+    let topFont = NSFont.systemFont(ofSize: 17.5, weight: .bold)
+    let topAttributes: [NSAttributedString.Key: Any] = [
+        .font: topFont,
+        .foregroundColor: NSColor(white: 1.0, alpha: 0.95),
+        .paragraphStyle: topParagraph
     ]
     
-    let primaryString = NSAttributedString(string: "One drag away from saving hours.", attributes: primaryAttributes)
-    primaryString.draw(in: CGRect(x: 0, y: 78, width: baseWidth, height: 22))
+    let topString = NSAttributedString(string: "One drag away from saving hours.", attributes: topAttributes)
+    topString.draw(in: CGRect(x: 0, y: baseHeight - 48, width: baseWidth, height: 26))
     
-    let subParagraph = NSMutableParagraphStyle()
-    subParagraph.alignment = .center
+    // Bottom Subtitle ("Drag Scribe to Applications to install" - elevated above bottom bar)
+    let bottomParagraph = NSMutableParagraphStyle()
+    bottomParagraph.alignment = .center
     
-    let subFont = NSFont.systemFont(ofSize: 11.5, weight: .regular)
-    let subAttributes: [NSAttributedString.Key: Any] = [
-        .font: subFont,
-        .foregroundColor: NSColor(red: 0.44, green: 0.48, blue: 0.54, alpha: 0.85),
-        .paragraphStyle: subParagraph
+    let bottomFont = NSFont.systemFont(ofSize: 12.0, weight: .medium)
+    let bottomAttributes: [NSAttributedString.Key: Any] = [
+        .font: bottomFont,
+        .foregroundColor: NSColor(red: 0.32, green: 0.35, blue: 0.40, alpha: 0.90),
+        .paragraphStyle: bottomParagraph
     ]
     
-    let subString = NSAttributedString(string: "Drag Scribe to Applications to install", attributes: subAttributes)
-    subString.draw(in: CGRect(x: 0, y: 58, width: baseWidth, height: 18))
+    let bottomString = NSAttributedString(string: "Drag Scribe to Applications to install", attributes: bottomAttributes)
+    bottomString.draw(in: CGRect(x: 0, y: 52, width: baseWidth, height: 20))
     
     NSGraphicsContext.restoreGraphicsState()
     
@@ -166,4 +153,4 @@ if let tiff2x = img2x.tiffRepresentation, let rep2x = NSBitmapImageRep(data: tif
     try png2x.write(to: url2x)
 }
 
-print("Rendered 1x and 2x background images in: \(distDir)")
+print("Rendered 1x and 2x background images (540x360) in: \(distDir)")
