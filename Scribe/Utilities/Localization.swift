@@ -576,10 +576,7 @@ enum Localization {
             "Mastery": "мастерства",
             "words to Level": "слов до ур.",
             "Words": "слов",
-            "words": "слов",
-            "Words remaining": "Осталось слов",
-            "CERTIFICATE OF MASTERY": "СЕРТИФИКАТ МАСТЕРСТВА",
-            "Conferred for outstanding dedication and voice dictation mastery": "За выдающуюся продуктивность и голосовое мастерство"
+            "Words remaining": "Осталось слов"
         ],
         "es": [
             "Start Dictation": "Iniciar dictado",
