@@ -1977,60 +1977,6 @@ struct SupportDeveloperModal: View {
                     .padding(.top, 16)
                     .padding(.bottom, 10)
                 
-                // Ko-fi Button
-                Button {
-                    if let url = URL(string: "https://ko-fi.com/alekseit") {
-                        NSWorkspace.shared.open(url)
-                    }
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: "cup.and.saucer.fill")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundStyle(.white)
-                        Text(appState.l("Buy Me a Coffee on Ko-fi"))
-                            .font(.system(size: 14, weight: .bold, design: .rounded))
-                            .foregroundStyle(.white)
-                        Spacer()
-                        Image(systemName: "arrow.up.right")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(.white.opacity(0.8))
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [Color(red: 1.0, green: 0.36, blue: 0.35), Color(red: 1.0, green: 0.45, blue: 0.25)],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [Color.white.opacity(0.2), Color.clear],
-                                        startPoint: .top,
-                                        endPoint: .bottom
-                                    )
-                                )
-                        }
-                    )
-                    .shadow(color: Color(red: 1.0, green: 0.36, blue: 0.35).opacity(0.4), radius: 8, y: 4)
-                }
-                .buttonStyle(.plain)
-                .padding(.horizontal)
-
-                HStack {
-                    Rectangle().frame(height: 1).foregroundStyle(Color.primary.opacity(0.1))
-                    Text(appState.l("or Crypto"))
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.tertiary)
-                    Rectangle().frame(height: 1).foregroundStyle(Color.primary.opacity(0.1))
-                }
-                .padding(.horizontal)
-                
                 VStack(spacing: 10) {
                     CopyAddressRow(title: "USDT (TRC20)", address: "TDxy3x7N33wCgyTCKzsNHnfPu5kAyqk4EX", icon: "t.circle.fill", color: .green)
                     CopyAddressRow(title: "USDT (TON)", address: "UQDGb_rPU7i3gJ5mzrofTHxM13hEKAeoBRtZdCRRmb8UV6fE", icon: "t.circle.fill", color: .blue)
@@ -2043,7 +1989,7 @@ struct SupportDeveloperModal: View {
             
             Spacer(minLength: 0)
         }
-        .frame(width: 420, height: 600)
+        .frame(width: 420, height: 500)
         .background(.ultraThinMaterial)
     }
 }
