@@ -24,7 +24,8 @@ Privacy-focused, native voice dictation for macOS. Dictate anywhere with a singl
 
 1. Download the latest **[Scribe.dmg](https://github.com/bledny1099/Scribe/releases/latest/download/Scribe.dmg)**.
 2. Open the disk image and drag **Scribe** into your **Applications** folder.
-3. Launch Scribe and grant the required permissions (Microphone and Accessibility for auto-pasting).
+3. On first launch, right-click (or Control-click) **Scribe.app** in Applications and choose **Open** (or run `xattr -cr /Applications/Scribe.app` in Terminal).
+4. Grant the requested permissions (Microphone for recording, Accessibility for automatic pasting).
 
 ### Building from Source
 
