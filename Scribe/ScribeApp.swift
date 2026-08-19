@@ -158,12 +158,15 @@ struct LiquidGlassMenuBarView: View {
                     HStack(spacing: 5) {
                         Image(systemName: "power")
                             .font(.system(size: 11, weight: .semibold))
-                        Text(appState.l("Quit Scribe"))
-                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                        if !updateService.updateAvailable {
+                            Text(appState.l("Quit Scribe"))
+                                .font(.system(size: 11, weight: .medium, design: .rounded))
+                        }
                     }
                     .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
+                .help(appState.l("Quit Scribe"))
 
                 Spacer()
 
@@ -174,29 +177,31 @@ struct LiquidGlassMenuBarView: View {
                         HStack(spacing: 4) {
                             if updateService.isDownloading {
                                 ProgressView()
-                                    .scaleEffect(0.5)
-                                    .frame(width: 9, height: 9)
+                                    .controlSize(.mini)
+                                    .frame(width: 10, height: 10)
                             } else {
                                 Image(systemName: "arrow.down.circle.fill")
-                                    .font(.system(size: 9, weight: .bold))
+                                    .font(.system(size: 8.5, weight: .bold))
                             }
                             Text(updateService.isDownloading ? appState.l("Updating...") : appState.l("Update available"))
-                                .font(.system(size: 9, weight: .bold, design: .rounded))
+                                .font(.system(size: 9.5, weight: .semibold, design: .rounded))
+                                .lineLimit(1)
+                                .fixedSize()
                         }
                         .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
+                        .padding(.vertical, 2.5)
                         .background(Color.green.opacity(0.18))
                         .foregroundStyle(.green)
                         .cornerRadius(5)
                         .overlay(
                             RoundedRectangle(cornerRadius: 5)
-                                .stroke(Color.green.opacity(0.35), lineWidth: 1)
+                                .stroke(Color.green.opacity(0.35), lineWidth: 0.8)
                         )
                     }
                     .buttonStyle(.plain)
                 }
 
-                Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.1.0")")
+                Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.3.0")")
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(.tertiary)
             }

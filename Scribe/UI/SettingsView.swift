@@ -588,17 +588,19 @@ struct SettingsHeaderView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            HStack(spacing: 8) {
-                Image("MenuBarIcon")
-                    .resizable()
-                    .renderingMode(.template)
-                    .foregroundStyle(.primary)
-                    .frame(width: 14, height: 14)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    Image("MenuBarIcon")
+                        .resizable()
+                        .renderingMode(.template)
+                        .foregroundStyle(.primary)
+                        .frame(width: 14, height: 14)
 
-                Text("Scribe")
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
-                    .tracking(1.0)
-                    .foregroundStyle(.primary)
+                    Text("Scribe")
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .tracking(1.0)
+                        .foregroundStyle(.primary)
+                }
 
                 if updateService.updateAvailable {
                     Button(action: {
@@ -607,17 +609,18 @@ struct SettingsHeaderView: View {
                         HStack(spacing: 5) {
                             if updateService.isDownloading {
                                 ProgressView()
-                                    .scaleEffect(0.5)
+                                    .controlSize(.mini)
                                     .frame(width: 10, height: 10)
                             } else {
                                 Image(systemName: "arrow.down.circle.fill")
-                                    .font(.system(size: 10, weight: .bold))
+                                    .font(.system(size: 9.5, weight: .bold))
                             }
                             Text(updateService.isDownloading ? appState.l("Updating...") : appState.l("Update available"))
-                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                                .lineLimit(1)
                         }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
                         .background(Color.green.opacity(0.18))
                         .foregroundStyle(.green)
                         .cornerRadius(6)

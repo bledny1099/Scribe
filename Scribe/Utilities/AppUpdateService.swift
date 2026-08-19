@@ -226,10 +226,15 @@ public final class AppUpdateService: ObservableObject {
                     return
                 }
 
+                let tempDMGName = "Scribe_v\(self.latestVersion.isEmpty ? "latest" : self.latestVersion).dmg"
+                let targetDMG = FileManager.default.temporaryDirectory.appendingPathComponent(tempDMGName)
+                try? FileManager.default.removeItem(at: targetDMG)
+                try FileManager.default.moveItem(at: tempURL, to: targetDMG)
+
                 await MainActor.run {
                     self.isDownloading = false
                     self.statusMessage = "Opening update package..."
-                    NSWorkspace.shared.open(tempURL)
+                    NSWorkspace.shared.open(targetDMG)
                 }
             } catch {
                 await MainActor.run {
