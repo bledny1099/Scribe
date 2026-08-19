@@ -114,20 +114,6 @@ func renderDMGBackground(scale: CGFloat) -> NSImage {
     let topString = NSAttributedString(string: "One drag away from saving hours.", attributes: topAttributes)
     topString.draw(in: CGRect(x: 0, y: baseHeight - 48, width: baseWidth, height: 26))
     
-    // Bottom Subtitle ("Drag Scribe to Applications to install" - elevated above bottom bar)
-    let bottomParagraph = NSMutableParagraphStyle()
-    bottomParagraph.alignment = .center
-    
-    let bottomFont = NSFont.systemFont(ofSize: 12.0, weight: .medium)
-    let bottomAttributes: [NSAttributedString.Key: Any] = [
-        .font: bottomFont,
-        .foregroundColor: NSColor(red: 0.32, green: 0.35, blue: 0.40, alpha: 0.90),
-        .paragraphStyle: bottomParagraph
-    ]
-    
-    let bottomString = NSAttributedString(string: "Drag Scribe to Applications to install", attributes: bottomAttributes)
-    bottomString.draw(in: CGRect(x: 0, y: 52, width: baseWidth, height: 20))
-    
     NSGraphicsContext.restoreGraphicsState()
     
     guard let cgImage = context.makeImage() else {
