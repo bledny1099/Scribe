@@ -67,9 +67,13 @@ public final class AetherAudioConditioner: @unchecked Sendable {
                 }
             }
 
-            // No audible speech detected in audio buffer: return nil to avoid Whisper hallucinations on silence
-            logger.debug("Aether VAD detected no audible speech in audio buffer")
-            return nil
+            // Fallback: If speech boundaries were not trimmed, normalize full audio and return it
+            normalizeLoudness(buffer: buffer)
+            let fallbackURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("aether_conditioned_\(UUID().uuidString).wav")
+            let fallbackFile = try AVAudioFile(forWriting: fallbackURL, settings: format.settings)
+            try fallbackFile.write(from: buffer)
+            return fallbackURL
         } catch {
             logger.warning("Aether audio conditioning failed: \(error.localizedDescription), using raw audio")
             return audioURL
@@ -105,7 +109,7 @@ public final class AetherAudioConditioner: @unchecked Sendable {
         let frameSize = Int(sampleRate * 0.02) // 20ms frame
         guard frameSize > 0, count > frameSize else { return (0, count) }
 
-        let silenceThresholdDb: Float = -48.0
+        let silenceThresholdDb: Float = -55.0
         let thresholdRMS = pow(10.0, silenceThresholdDb / 20.0)
 
         var firstSpeechFrame: Int?
@@ -128,8 +132,7 @@ public final class AetherAudioConditioner: @unchecked Sendable {
             }
         }
 
-        // Require at least 2 frames (~40ms) of speech for single short words (e.g. "Да", "Ок")
-        guard let first = firstSpeechFrame, let last = lastSpeechFrame, totalSpeechFrames >= 2 else {
+        guard let first = firstSpeechFrame, let last = lastSpeechFrame, totalSpeechFrames >= 1 else {
             return nil
         }
 

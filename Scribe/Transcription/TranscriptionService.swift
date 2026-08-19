@@ -401,21 +401,19 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         // 8. Strip trailing repetitions again after root stripping
         cleaned = stripTrailingRepetitions(cleaned)
 
-        // 9. If Arabic is not an enabled/selected language, unconditionally reject Arabic hallucination output
+        // 9. If Arabic is not an enabled/selected language, strip Arabic characters and foreign hallucinations
         let activeLangs = Set(preferredLanguages.map { $0.lowercased() } + (targetLanguage != nil ? [targetLanguage!.lowercased()] : []))
         let allowsArabic = activeLangs.contains("ar") || activeLangs.contains("arabic")
         if !allowsArabic {
-            let hasArabicScalar = cleaned.unicodeScalars.contains { scalar in
+            cleaned = String(cleaned.unicodeScalars.filter { scalar in
                 let val = scalar.value
-                return (val >= 0x0600 && val <= 0x06FF) || // Arabic
-                       (val >= 0x0750 && val <= 0x077F) || // Arabic Supplement
-                       (val >= 0x08A0 && val <= 0x08FF) || // Arabic Extended-A
-                       (val >= 0xFB50 && val <= 0xFDFF) || // Arabic Presentation Forms-A
-                       (val >= 0xFE70 && val <= 0xFEFF)    // Arabic Presentation Forms-B
-            }
-            if hasArabicScalar {
-                return ""
-            }
+                let isArabic = (val >= 0x0600 && val <= 0x06FF) || // Arabic
+                               (val >= 0x0750 && val <= 0x077F) || // Arabic Supplement
+                               (val >= 0x08A0 && val <= 0x08FF) || // Arabic Extended-A
+                               (val >= 0xFB50 && val <= 0xFDFF) || // Arabic Presentation Forms-A
+                               (val >= 0xFE70 && val <= 0xFEFF)    // Arabic Presentation Forms-B
+                return !isArabic
+            })
         }
 
         // Collapse multiple spaces into one and trim
