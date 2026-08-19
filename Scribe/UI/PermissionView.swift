@@ -222,7 +222,7 @@ struct PermissionWelcomeView: View {
 
                                 Image(systemName: "waveform")
                                     .font(.system(size: 24, weight: .bold))
-                                    .foregroundStyle(.white)
+                                    .foregroundStyle(appState.selectedTheme == .whiteGlow ? Color.black : Color.white)
                             }
                             .shadow(color: themeGlow.opacity(0.35), radius: 10, y: 4)
 
@@ -576,15 +576,31 @@ struct PermissionWelcomeView: View {
                                             startVoiceTest()
                                         }
                                     }) {
-                                        Text(isTestingVoice ? appState.l("Stop Test") : appState.l("Start Test"))
-                                            .font(.system(size: 13, weight: .semibold))
-                                            .foregroundStyle(.white)
-                                            .padding(.horizontal, 20)
-                                            .padding(.vertical, 8)
-                                            .background(
-                                                RoundedRectangle(cornerRadius: 8)
-                                                    .fill(isTestingVoice ? Color.red : appState.selectedTheme.gradientColors.first!)
-                                            )
+                                        HStack(spacing: 6) {
+                                            Image(systemName: isTestingVoice ? "stop.fill" : "mic.fill")
+                                                .font(.system(size: 12, weight: .bold))
+                                            Text(isTestingVoice ? appState.l("Stop Test") : appState.l("Start Test"))
+                                                .font(.system(size: 13, weight: .bold, design: .rounded))
+                                        }
+                                        .foregroundStyle(isTestingVoice ? Color.white : Color(white: 0.12))
+                                        .padding(.horizontal, 22)
+                                        .padding(.vertical, 9)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 10)
+                                                .fill(
+                                                    isTestingVoice
+                                                        ? LinearGradient(colors: [Color.red, Color.red.opacity(0.85)], startPoint: .top, endPoint: .bottom)
+                                                        : LinearGradient(colors: [Color.white, Color(white: 0.92)], startPoint: .top, endPoint: .bottom)
+                                                )
+                                                .overlay(
+                                                    RoundedRectangle(cornerRadius: 10)
+                                                        .stroke(isTestingVoice ? Color.red.opacity(0.5) : Color.white.opacity(0.8), lineWidth: 1)
+                                                )
+                                        )
+                                        .shadow(
+                                            color: isTestingVoice ? Color.red.opacity(0.35) : Color.white.opacity(0.35),
+                                            radius: 8, y: 2
+                                        )
                                     }
                                     .buttonStyle(.plain)
                                 }
