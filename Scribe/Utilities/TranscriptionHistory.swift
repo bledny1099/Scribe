@@ -382,11 +382,11 @@ final class TranscriptionHistory: ObservableObject {
 /// 5-Level Supporter Tiers based on contribution amount
 enum SupporterTier: Int, CaseIterable, Codable, Sendable {
     case none = 0
-    case tier1 = 1 // до $5: Supporter I (Bronze)
-    case tier2 = 2 // $5 - $10: Supporter II (Silver)
-    case tier3 = 3 // $10 - $30: Supporter III (Gold)
-    case tier4 = 4 // $30 - $50: Supporter IV (Platinum)
-    case tier5 = 5 // > $50: Supporter V (Diamond)
+    case tier1 = 1 // до $5: Aether Initiate
+    case tier2 = 2 // $5 - $10: Voice Vanguard
+    case tier3 = 3 // $10 - $30: Astral Chronicler
+    case tier4 = 4 // $30 - $50: Celestial Archon
+    case tier5 = 5 // > $50: Immortal Sovereign
 
     static func tier(for amountInUSD: Double) -> SupporterTier {
         if amountInUSD <= 0 { return .none }
@@ -400,32 +400,32 @@ enum SupporterTier: Int, CaseIterable, Codable, Sendable {
     var title: String {
         switch self {
         case .none: return ""
-        case .tier1: return "Supporter I"
-        case .tier2: return "Supporter II"
-        case .tier3: return "Supporter III"
-        case .tier4: return "Supporter IV"
-        case .tier5: return "Supporter V"
+        case .tier1: return "Aether Initiate"
+        case .tier2: return "Voice Vanguard"
+        case .tier3: return "Astral Chronicler"
+        case .tier4: return "Celestial Archon"
+        case .tier5: return "Immortal Sovereign"
         }
     }
 
     var badgeText: String {
         switch self {
         case .none: return ""
-        case .tier1: return "BRONZE SUPPORTER"
-        case .tier2: return "SILVER SUPPORTER"
-        case .tier3: return "GOLD SUPPORTER"
-        case .tier4: return "PLATINUM SUPPORTER"
-        case .tier5: return "DIAMOND SUPPORTER"
+        case .tier1: return "INITIATE SUPPORTER"
+        case .tier2: return "VANGUARD SUPPORTER"
+        case .tier3: return "CHRONICLER SUPPORTER"
+        case .tier4: return "ARCHON SUPPORTER"
+        case .tier5: return "SOVEREIGN SUPPORTER"
         }
     }
 
     var icon: String {
         switch self {
         case .none: return "star"
-        case .tier1: return "shield.fill"
-        case .tier2: return "sparkles"
+        case .tier1: return "sparkles"
+        case .tier2: return "shield.fill"
         case .tier3: return "crown.fill"
-        case .tier4: return "trophy.fill"
+        case .tier4: return "sun.max.fill"
         case .tier5: return "diamond.fill"
         }
     }
@@ -433,11 +433,11 @@ enum SupporterTier: Int, CaseIterable, Codable, Sendable {
     var gradientColors: [Color] {
         switch self {
         case .none: return [.secondary]
-        case .tier1: return [Color(red: 0.82, green: 0.52, blue: 0.32), Color(red: 0.62, green: 0.38, blue: 0.22)] // Bronze
-        case .tier2: return [Color(white: 0.88), Color(white: 0.68)] // Silver
-        case .tier3: return [.yellow, .orange] // Gold
-        case .tier4: return [Color(red: 0.35, green: 0.85, blue: 0.95), Color(red: 0.20, green: 0.55, blue: 0.90)] // Platinum
-        case .tier5: return [Color(red: 0.75, green: 0.45, blue: 1.0), Color(red: 0.40, green: 0.75, blue: 1.0)] // Diamond
+        case .tier1: return [Color(red: 0.88, green: 0.60, blue: 0.38), Color(red: 0.68, green: 0.42, blue: 0.25)] // Warm Amber Bronze
+        case .tier2: return [Color(white: 0.94), Color(red: 0.65, green: 0.78, blue: 0.88)] // Moonlight Silver
+        case .tier3: return [Color(red: 1.0, green: 0.84, blue: 0.0), Color(red: 1.0, green: 0.55, blue: 0.0)] // Radiant Gold
+        case .tier4: return [Color(red: 0.30, green: 0.90, blue: 1.0), Color(red: 0.15, green: 0.60, blue: 0.95)] // Celestial Cyan
+        case .tier5: return [Color(red: 0.85, green: 0.45, blue: 1.0), Color(red: 0.45, green: 0.75, blue: 1.0), Color(red: 1.0, green: 0.85, blue: 0.3)] // Cosmic Sovereign
         }
     }
 }

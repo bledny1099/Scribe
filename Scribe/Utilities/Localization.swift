@@ -591,7 +591,10 @@ enum Localization {
             "TxID (Transaction Hash) is the unique receipt ID of your crypto transfer. You can find it in your wallet or exchange withdrawal history (Bybit, Tonkeeper, Telegram Wallet) under transfer details.": "TxID (хэш транзакции) — это уникальный идентификатор вашего перевода. Его можно скопировать в деталях вывода на бирже (Bybit) или в истории кошелька (Tonkeeper, Telegram Wallet).",
             "Synced with your account": "Привязано к вашему аккаунту",
             "Go to Statistics": "Перейти в статистику",
-            "Supporter Status Active": "Статус Supporter активен"
+            "Supporter Status Active": "Статус Supporter активен",
+            "Want to claim Supporter status?": "Хотите получить статус Supporter?",
+            "Specify your personal code in the Comment / Memo field during transfer (TON / Bybit) to protect against snipe and instantly link your account:": "Укажите ваш персональный код в поле Комментарий / Memo при переводе (TON / Bybit), чтобы защитить перевод и сразу связать его с вашим профилем:",
+            "Optional (anonymous donations require no memo)": "Опционально (для анонимного доната код не нужен)"
         ],
         "es": [
             "Start Dictation": "Iniciar dictado",

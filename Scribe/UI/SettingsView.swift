@@ -2252,6 +2252,7 @@ struct SupportDeveloperModal: View {
     @AppStorage("supporterDonationAmount") private var supporterDonationAmount: Double = 0
     @AppStorage("supporterDonationCurrency") private var supporterDonationCurrency: String = ""
     @AppStorage("supporterTxHash") private var supporterTxHash: String = ""
+    @AppStorage("supporterPersonalMemoCode") private var supporterPersonalMemoCode: String = ""
 
     @State private var inputAddressOrTx: String = ""
     @State private var isVerifying = false
@@ -2262,6 +2263,15 @@ struct SupportDeveloperModal: View {
 
     private var supporterTier: SupporterTier {
         SupporterTier.tier(for: supporterDonationAmount > 0 ? supporterDonationAmount : 10.0)
+    }
+
+    private var personalMemoCode: String {
+        if supporterPersonalMemoCode.isEmpty {
+            let code = "SCR-" + String(format: "%04X", Int.random(in: 0x1000...0xFFFF))
+            DispatchQueue.main.async { supporterPersonalMemoCode = code }
+            return code
+        }
+        return supporterPersonalMemoCode
     }
 
     var body: some View {
@@ -2307,21 +2317,19 @@ struct SupportDeveloperModal: View {
                                     .foregroundStyle(.white)
                             }
 
-                            VStack(alignment: .leading, spacing: 2) {
-                                HStack(spacing: 6) {
-                                    Text(supporterTier.badgeText)
-                                        .font(.system(size: 11.5, weight: .bold, design: .rounded))
-                                        .foregroundStyle(LinearGradient(colors: supporterTier.gradientColors, startPoint: .topLeading, endPoint: .bottomTrailing))
-                                    if supporterDonationAmount > 0 {
-                                        Text("(\(String(format: "%.2f", supporterDonationAmount)) \(supporterDonationCurrency))")
-                                            .font(.system(size: 10.5, weight: .semibold, design: .monospaced))
-                                            .foregroundStyle(.secondary)
-                                    }
-                                }
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(supporterTier.badgeText)
+                                    .font(.system(size: 11.5, weight: .black, design: .rounded))
+                                    .foregroundStyle(LinearGradient(colors: supporterTier.gradientColors, startPoint: .topLeading, endPoint: .bottomTrailing))
+                                    .lineLimit(1)
+                                    .fixedSize(horizontal: true, vertical: false)
 
-                                Text(appState.l("Supporter Status Active"))
-                                    .font(.system(size: 10.5, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.secondary)
+                                if supporterDonationAmount > 0 {
+                                    Text("\(String(format: "%.2f", supporterDonationAmount)) \(supporterDonationCurrency)")
+                                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                }
                             }
 
                             Spacer()
@@ -2386,6 +2394,62 @@ struct SupportDeveloperModal: View {
                         .multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.horizontal, 18)
+
+                    // Optional Supporter Memo Code Card
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "shield.lefthalf.filled.badge.checkmark")
+                                .font(.system(size: 11))
+                                .foregroundStyle(appState.selectedTheme.gradientColors.first ?? .blue)
+                            Text(appState.l("Want to claim Supporter status?"))
+                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                                .foregroundStyle(.primary)
+                            Spacer()
+                        }
+
+                        Text(appState.l("Specify your personal code in the Comment / Memo field during transfer (TON / Bybit) to protect against snipe and instantly link your account:"))
+                            .font(.system(size: 10.5, weight: .medium, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        HStack(spacing: 8) {
+                            Text(personalMemoCode)
+                                .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                .foregroundStyle(appState.selectedTheme.gradientColors.first ?? .blue)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.primary.opacity(0.06))
+                                .cornerRadius(6)
+
+                            Button(action: {
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString(personalMemoCode, forType: .string)
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "doc.on.clipboard")
+                                        .font(.system(size: 10))
+                                    Text(appState.l("Copy"))
+                                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.primary.opacity(0.06))
+                                .cornerRadius(6)
+                            }
+                            .buttonStyle(.plain)
+
+                            Spacer()
+
+                            Text(appState.l("Optional (anonymous donations require no memo)"))
+                                .font(.system(size: 9.5, weight: .medium, design: .rounded))
+                                .foregroundStyle(.secondary.opacity(0.8))
+                        }
+                    }
+                    .padding(10)
+                    .background(Color.primary.opacity(0.025))
+                    .cornerRadius(9)
+                    .overlay(RoundedRectangle(cornerRadius: 9).stroke(Color.primary.opacity(0.07), lineWidth: 1))
+                    .padding(.horizontal, 18)
 
                     // Address Rows
                     VStack(spacing: 10) {
