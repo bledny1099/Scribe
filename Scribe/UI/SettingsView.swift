@@ -44,6 +44,7 @@ struct SettingsView: View {
     @State private var showingAuthModal = false
     @State private var showingAccountSettingsModal = false
     @State private var showingOnboardingNameModal = false
+    @State private var showingAppleNotesModal = false
 
     // Supported multilingual models ordered by quality
     private let models: [(id: String, name: String, desc: String)] = [
@@ -188,6 +189,9 @@ struct SettingsView: View {
                 }
                 .sheet(isPresented: $showingOnboardingNameModal) {
                     OnboardingNameModalView()
+                }
+                .sheet(isPresented: $showingAppleNotesModal) {
+                    AppleNotesPermissionModalView()
                 }
                 .onAppear {
                     if !UserDefaults.standard.bool(forKey: "hasCompletedOnboardingNamePrompt") {
@@ -2383,6 +2387,7 @@ struct NotionAppIconView: View {
 // MARK: - Integrations Settings View
 struct IntegrationsSettingsView: View {
     @EnvironmentObject var appState: AppState
+    @State private var showingAppleNotesModal = false
     
     var body: some View {
         VStack(spacing: 16) {
@@ -2425,8 +2430,23 @@ struct IntegrationsSettingsView: View {
                             Toggle("", isOn: Binding(
                                 get: { appState.enableAppleNotes },
                                 set: { val in
-                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                                        appState.enableAppleNotes = val
+                                    if val {
+                                        if !UserDefaults.standard.bool(forKey: "hasSeenAppleNotesPermissionModal") {
+                                            showingAppleNotesModal = true
+                                        } else {
+                                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                                appState.enableAppleNotes = true
+                                            }
+                                            DispatchQueue.global(qos: .userInitiated).async {
+                                                let script = NSAppleScript(source: "tell application \"Notes\" to get name")
+                                                var error: NSDictionary?
+                                                script?.executeAndReturnError(&error)
+                                            }
+                                        }
+                                    } else {
+                                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                            appState.enableAppleNotes = false
+                                        }
                                     }
                                 }
                             ))
@@ -2617,6 +2637,9 @@ struct IntegrationsSettingsView: View {
                     }
                 }
             }
+        }
+        .sheet(isPresented: $showingAppleNotesModal) {
+            AppleNotesPermissionModalView()
         }
     }
 }
@@ -4997,6 +5020,8 @@ struct AppUpdatesView: View {
 // MARK: - General Settings View
 struct GeneralSettingsView: View {
     @EnvironmentObject var appState: AppState
+    @State private var showingAppleNotesModal = false
+
     var body: some View {
         VStack(spacing: 16) {
             // SECTION: Language
@@ -5064,7 +5089,7 @@ struct GeneralSettingsView: View {
                     }
 
                     if appState.enableDirectNote {
-                        VStack(spacing: 14) {
+                        VStack(alignment: .leading, spacing: 14) {
                             // Direct Note Export Shortcut
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
@@ -5080,7 +5105,7 @@ struct GeneralSettingsView: View {
                             }
 
                             // Direct Note Export Target Apps (1 or more)
-                            VStack(alignment: .leading, spacing: 10) {
+                            VStack(alignment: .leading, spacing: 8) {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(appState.l("Target Apps"))
                                         .font(.system(size: 14, weight: .medium, design: .rounded))
@@ -5094,8 +5119,19 @@ struct GeneralSettingsView: View {
                                     ForEach([NoteApp.appleNotes, NoteApp.obsidian, NoteApp.notion], id: \.self) { app in
                                         let isSelected = appState.directNoteTargetApps.contains(app)
                                         Button {
-                                            withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
-                                                appState.toggleDirectNoteTargetApp(app)
+                                            if app == .appleNotes && !isSelected && !UserDefaults.standard.bool(forKey: "hasSeenAppleNotesPermissionModal") {
+                                                showingAppleNotesModal = true
+                                            } else {
+                                                withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
+                                                    appState.toggleDirectNoteTargetApp(app)
+                                                }
+                                                if app == .appleNotes && !isSelected {
+                                                    DispatchQueue.global(qos: .userInitiated).async {
+                                                        let script = NSAppleScript(source: "tell application \"Notes\" to get name")
+                                                        var error: NSDictionary?
+                                                        script?.executeAndReturnError(&error)
+                                                    }
+                                                }
                                             }
                                         } label: {
                                             HStack(spacing: 6) {
@@ -5122,7 +5158,9 @@ struct GeneralSettingsView: View {
                                     }
                                 }
                             }
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .transition(.opacity.combined(with: .move(edge: .top)).combined(with: .scale(scale: 0.98, anchor: .top)))
                     }
                     
@@ -5230,6 +5268,9 @@ struct GeneralSettingsView: View {
                     }
                 }
             }
+        }
+        .sheet(isPresented: $showingAppleNotesModal) {
+            AppleNotesPermissionModalView()
         }
     }
 }
@@ -6489,6 +6530,169 @@ struct OnboardingNameModalView: View {
         }
         .padding(24)
         .frame(width: 340, height: 320)
+        .background(.ultraThinMaterial)
+    }
+}
+
+// MARK: - Apple Notes Permission / Request Modal
+
+struct AppleNotesPermissionModalView: View {
+    @EnvironmentObject var appState: AppState
+    @Environment(\.dismiss) var dismiss
+    
+    var onConfirm: (() -> Void)? = nil
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header with dismiss button
+            HStack {
+                Spacer()
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(.secondary.opacity(0.7))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.top, 16)
+            .padding(.trailing, 16)
+
+            VStack(spacing: 16) {
+                // Large Icon with glow
+                ZStack {
+                    Circle()
+                        .fill(appState.selectedTheme.gradientColors.first!.opacity(0.12))
+                        .frame(width: 88, height: 88)
+                        .blur(radius: 12)
+
+                    AppleNotesAppIconView(size: 64)
+                        .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
+                }
+                .padding(.top, -8)
+
+                VStack(spacing: 6) {
+                    Text(appState.l("Apple Notes Integration"))
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .foregroundStyle(.primary)
+
+                    Text(appState.l("Scribe can save and append your speech transcriptions directly to Apple Notes on your Mac."))
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, 24)
+                }
+
+                // Features list
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: "doc.badge.plus")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(appState.selectedTheme.gradientColors.first!)
+                            .frame(width: 24, height: 24)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(appState.l("Automatic Transcripts"))
+                                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.primary)
+                            Text(appState.l("Append to a daily note or create a new note for each speech."))
+                                .font(.system(size: 11, weight: .regular))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: "lock.shield.fill")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(appState.selectedTheme.gradientColors.first!)
+                            .frame(width: 24, height: 24)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(appState.l("100% Local & Private"))
+                                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.primary)
+                            Text(appState.l("Runs on-device through AppleScript. No cloud API or keys required."))
+                                .font(.system(size: 11, weight: .regular))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: "hand.raised.fill")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(appState.selectedTheme.gradientColors.first!)
+                            .frame(width: 24, height: 24)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(appState.l("One-Time Permission"))
+                                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.primary)
+                            Text(appState.l("macOS will ask to allow Automation control of Notes."))
+                                .font(.system(size: 11, weight: .regular))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .padding(14)
+                .background(Color.primary.opacity(0.04))
+                .cornerRadius(12)
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.primary.opacity(0.08), lineWidth: 1))
+                .padding(.horizontal, 24)
+
+                Spacer(minLength: 12)
+
+                // Buttons
+                VStack(spacing: 8) {
+                    Button {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                            appState.enableAppleNotes = true
+                            var current = appState.directNoteTargetApps
+                            if !current.contains(.appleNotes) {
+                                current.insert(.appleNotes)
+                                appState.directNoteTargetApps = current
+                            }
+                        }
+                        UserDefaults.standard.set(true, forKey: "hasSeenAppleNotesPermissionModal")
+                        onConfirm?()
+                        // Trigger light AppleScript test to prompt macOS permission dialog immediately
+                        DispatchQueue.global(qos: .userInitiated).async {
+                            let script = NSAppleScript(source: "tell application \"Notes\" to get name")
+                            var error: NSDictionary?
+                            script?.executeAndReturnError(&error)
+                        }
+                        dismiss()
+                    } label: {
+                        Text(appState.l("Allow & Connect Apple Notes"))
+                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(appState.selectedTheme.accentGradient)
+                            )
+                            .shadow(color: appState.selectedTheme.glowColor.opacity(0.3), radius: 6, y: 2)
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        dismiss()
+                    } label: {
+                        Text(appState.l("Don't Allow"))
+                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 6)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 20)
+            }
+        }
+        .frame(width: 420, height: 490)
         .background(.ultraThinMaterial)
     }
 }
