@@ -311,10 +311,24 @@ struct WaveformOverlay: View {
             height: cardHeight
         )
         .animation(.spring(response: 0.35, dampingFraction: 0.82), value: cardWidth)
-        .onReceive(Timer.publish(every: 0.045, on: .main, in: .common).autoconnect()) { _ in
+        .onReceive(Timer.publish(every: 0.04, on: .main, in: .common).autoconnect()) { _ in
             if appState.isShowingPreview {
                 let t = Date().timeIntervalSinceReferenceDate
-                let simulated = Float(max(0.03, 0.38 + 0.32 * sin(t * 4.2) * cos(t * 2.1)))
+                // Realistic vocal cadence envelope: syllables, pauses, natural speech bursts 1:1 like real speech
+                let sentenceCycle = t.truncatingRemainder(dividingBy: 3.6)
+                let isSpeaking = sentenceCycle < 2.9 // 2.9s speech, 0.7s breath pause
+                let syllable = sin(t * 12.0) * cos(t * 7.5)
+                let modulation = 0.5 + 0.5 * sin(t * 3.2)
+
+                let simulated: Float
+                if isSpeaking {
+                    let base = 0.28 + Float(modulation * 0.38)
+                    let syllabicBurst = Float(max(0.0, syllable * 0.34))
+                    simulated = min(0.92, base + syllabicBurst)
+                } else {
+                    simulated = Float(max(0.02, 0.035 + 0.015 * sin(t * 6.0)))
+                }
+
                 levels.removeFirst()
                 levels.append(simulated)
             }
@@ -645,19 +659,19 @@ struct SubtitleOverlayView: View {
     @EnvironmentObject var appState: AppState
 
     var body: some View {
-        VStack {
+        VStack(spacing: 0) {
             if !appState.livePreviewText.isEmpty && (appState.recordingStatus == .recording || appState.isShowingPreview) {
                 Text(appState.livePreviewText)
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .font(.system(size: 13.5, weight: .medium, design: .rounded))
                     .foregroundStyle(appState.livePreviewBackground == .dark ? Color.white : Color.primary)
                     .lineLimit(4)
-                    .minimumScaleFactor(0.7)
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 7)
+                    .minimumScaleFactor(0.75)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 6)
                     .background {
                         if appState.livePreviewBackground == .dark {
                             Capsule()
-                                .fill(Color.black.opacity(0.75))
+                                .fill(Color.black.opacity(0.78))
                                 .overlay(Capsule().strokeBorder(Color.white.opacity(0.15), lineWidth: 0.5))
                         } else {
                             Capsule()
@@ -669,10 +683,10 @@ struct SubtitleOverlayView: View {
                     .clipShape(Capsule())
                     .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 3)
                     .transition(.opacity.combined(with: .move(edge: .top)))
-                    .animation(.spring(response: 0.4, dampingFraction: 0.8), value: appState.livePreviewText)
+                    .animation(.spring(response: 0.35, dampingFraction: 0.8), value: appState.livePreviewText)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 }
 
