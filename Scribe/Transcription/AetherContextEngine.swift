@@ -64,25 +64,43 @@ public final class AetherContextEngine: @unchecked Sendable {
 
     /// Constructs domain-specific contextual priming hints
     public func domainContextPrompt(for domain: AppDomain, language: String?) -> String {
-        let isRussian = (language ?? "").lowercased().starts(with: "ru")
+        let lang = (language ?? "").lowercased()
+        let isRussianOnly = lang.starts(with: "ru")
+        let isEnglishOnly = lang.starts(with: "en")
 
         switch domain {
         case .development:
-            return isRussian
-                ? "Контекст разработки кода, терминала и IDE: Git, Swift, TypeScript, Python, Docker, API, PR, commit, merge, branch, function, async, await, deploy, bugs."
-                : "Code development & terminal context: Git, Swift, TypeScript, Python, Docker, API, PR, commit, merge, branch, function, async, await, deploy, bugs."
+            if isRussianOnly {
+                return "Контекст разработки кода, терминала и IDE: Git, Swift, TypeScript, Python, Docker, API, PR, commit, merge, branch, function, async, await, deploy, bugs, проект, ветка, коммит."
+            } else if isEnglishOnly {
+                return "Code development & terminal context: Git, Swift, TypeScript, Python, Docker, API, PR, commit, merge, branch, function, async, await, deploy, bugs."
+            } else {
+                return "Bilingual code development context (Russian & English): Git, Swift, Xcode, TypeScript, Python, Docker, API, PR, commit, merge, branch, function, async, await, deploy, bugs, проект, ветка, коммит, функция, правка."
+            }
         case .communication:
-            return isRussian
-                ? "Разговорная переписка в мессенджере с естественной пунктуацией, запятыми и эмодзи."
-                : "Casual chat and messaging context with natural punctuation, commas, and formatting."
+            if isRussianOnly {
+                return "Разговорная переписка в мессенджере с естественной пунктуацией, запятыми и эмодзи."
+            } else if isEnglishOnly {
+                return "Casual chat and messaging context with natural punctuation, commas, and formatting."
+            } else {
+                return "Casual multilingual chat (Russian & English): естественная переписка, messaging, пунктуация, commas, эмодзи."
+            }
         case .writing:
-            return isRussian
-                ? "Структурированные заметки, документы, списки и заголовки с четкой пунктуацией."
-                : "Structured documentation, notes, outlines, and clear punctuation."
+            if isRussianOnly {
+                return "Структурированные заметки, документы, списки и заголовки с четкой пунктуацией."
+            } else if isEnglishOnly {
+                return "Structured documentation, notes, outlines, and clear punctuation."
+            } else {
+                return "Structured notes & documentation (Russian & English): заметки, списки, headers, punctuation, форматирование."
+            }
         case .general:
-            return isRussian
-                ? "Используйте правильную пунктуацию, запятые и заглавные буквы."
-                : "Use proper punctuation, capitalization, and formatting."
+            if isRussianOnly {
+                return "Используйте правильную пунктуацию, запятые и заглавные буквы."
+            } else if isEnglishOnly {
+                return "Use proper punctuation, capitalization, and formatting."
+            } else {
+                return "Multilingual Russian and English speech: правильная пунктуация, commas, capitalization, заглавные буквы."
+            }
         }
     }
 

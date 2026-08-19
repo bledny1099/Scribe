@@ -61,7 +61,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         "pt": "Termos: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE.",
         "tr": "Terimler: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE.",
         "uk": "Терміни: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE.",
-        "auto": "Terms: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE."
+        "auto": "Russian and English speech: Привет, как дела? Hello, how are you? Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Telegram, Viber, ChatGPT, Gemini, Claude, OpenAI, Swift, Xcode, Docker, Kubernetes, TypeScript, Python, LLM, Google, Antigravity, IDE."
     ]
 
     // MARK: - Model Lifecycle
@@ -163,7 +163,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         return finalText
     }
 
-    // MARK: - WhisperKit (File-based)
+    // MARK: - WhisperKit (High Accuracy File Transcription)
 
     /// Transcribes the audio file at `audioURL` using the specified language (nil for auto-detect).
     @MainActor
@@ -176,16 +176,18 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         customVocabulary: String = "",
         userLocation: String = ""
     ) async throws -> String {
-        try await ensureModelLoaded(modelName: modelName)
-
-        state = .transcribing
         logger.info("Aether Transcribing: \(audioURL.lastPathComponent), model: \(modelName), language: \(language ?? "auto-detect"), translate: \(autoTranslate)")
 
-        guard let kit = whisperKit else {
-            let err = TranscriptionError.modelNotLoaded
-            state = .error(err.localizedDescription)
-            throw err
+        // Check if model is loaded; load if missing
+        if whisperKit == nil || loadedModelName != modelName {
+            try await ensureModelLoaded(modelName: modelName)
         }
+
+        guard let kit = whisperKit else {
+            throw TranscriptionError.modelNotLoaded
+        }
+
+        state = .transcribing
 
         // 1. Stage B: Audio Conditioning (VAD, high-pass filter, loudness normalization)
         guard let conditionedURL = AetherAudioConditioner.shared.condition(audioURL: audioURL) else {
@@ -205,49 +207,16 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
 
         var resolvedLang = baseLang
         if baseLang != "auto" {
+            // User explicitly chose single locked language
             options.language = baseLang
             options.detectLanguage = false
-        } else if !preferredLanguages.isEmpty {
-            let basePreferred = preferredLanguages.map { baseLanguageCode(for: $0) }
-            if basePreferred.count == 1, let singleLang = basePreferred.first {
-                resolvedLang = singleLang
-                options.language = singleLang
-                options.detectLanguage = false
-            } else {
-                do {
-                    let (detectedLang, langProbs) = try await kit.detectLanguage(audioPath: path)
-                    let baseDetected = baseLanguageCode(for: detectedLang)
-                    logger.info("Auto-detected language: \(detectedLang) (base: \(baseDetected)), preferred: \(basePreferred)")
-                    
-                    if basePreferred.contains(baseDetected) {
-                        logger.info("Using detected preferred language: \(baseDetected)")
-                        resolvedLang = baseDetected
-                    } else {
-                        // Strict lock: Pick the preferred language with the highest probability
-                        var bestLang = basePreferred.first ?? "ru"
-                        var bestProb: Float = -Float.greatestFiniteMagnitude
-                        for pref in basePreferred {
-                            let prob = langProbs[pref] ?? -1000.0
-                            if prob > bestProb {
-                                bestProb = prob
-                                bestLang = pref
-                            }
-                        }
-                        logger.info("Strict language lock: Overriding detected foreign language '\(baseDetected)' to preferred match '\(bestLang)'")
-                        resolvedLang = bestLang
-                    }
-                    options.language = resolvedLang
-                    options.detectLanguage = false
-                } catch {
-                    logger.warning("Custom language detection failed: \(error), defaulting to first preferred language: \(basePreferred.first ?? "ru")")
-                    resolvedLang = basePreferred.first ?? "ru"
-                    options.language = resolvedLang
-                    options.detectLanguage = false
-                }
-            }
+            logger.info("Single language mode: Locked to '\(baseLang)'")
         } else {
+            // Multilingual / Dynamic auto mode:
+            // Do NOT lock Whisper to one language; allow seamless switching between Russian, English, and other languages.
             options.language = nil
             options.detectLanguage = true
+            logger.info("Multilingual dynamic mode: Real-time language detection active across preferred: \(preferredLanguages)")
         }
 
         // 3. Stage A: Context Biasing & Dynamic Vocabulary Injection
