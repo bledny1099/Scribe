@@ -2326,6 +2326,30 @@ struct SupportDeveloperModal: View {
                                 .background(Color.yellow.opacity(0.08))
                                 .cornerRadius(6)
                             }
+
+                            HStack {
+                                Button(action: {
+                                    withAnimation {
+                                        isScribeSupporter = false
+                                        supporterDonationAmount = 0
+                                        supporterDonationCurrency = ""
+                                        supporterTxHash = ""
+                                        showVerificationSuccess = false
+                                        verifiedResult = nil
+                                    }
+                                }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "arrow.counterclockwise")
+                                            .font(.system(size: 9))
+                                        Text(appState.l("Reset Supporter Status"))
+                                            .font(.system(size: 10, weight: .medium, design: .rounded))
+                                    }
+                                    .foregroundStyle(.secondary)
+                                }
+                                .buttonStyle(.plain)
+                                Spacer()
+                            }
+                            .padding(.top, 2)
                         }
                         .padding(12)
                         .background(Color.yellow.opacity(0.12))

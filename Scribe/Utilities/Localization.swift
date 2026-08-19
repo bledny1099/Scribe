@@ -584,7 +584,8 @@ enum Localization {
             "Thank you for supporting Scribe!": "Спасибо за поддержку Scribe!",
             "Transaction not found yet. If sent recently, please wait 1-2 minutes for network confirmation and try again.": "Транзакция пока не найдена. Если перевод сделан недавно, подождите 1–2 минуты подтверждения сети и попробуйте снова.",
             "HONOURED SCRIBE SUPPORTER": "ПОЧЁТНЫЙ МЕЦЕНАТ SCRIBE",
-            "You are a verified Scribe Supporter!": "Вы являетесь верифицированным меценатом Scribe!"
+            "You are a verified Scribe Supporter!": "Вы являетесь верифицированным меценатом Scribe!",
+            "Reset Supporter Status": "Сбросить статус мецената"
         ],
         "es": [
             "Start Dictation": "Iniciar dictado",
