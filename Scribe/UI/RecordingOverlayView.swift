@@ -273,7 +273,8 @@ struct WaveformOverlay: View {
                                 name: effectiveAppName,
                                 icon: (appState.recordingStatus == .recording || appState.recordingStatus == .transcribing) ? appState.targetAppIcon : NSApp.applicationIconImage
                             )
-                            .padding(.trailing, isTimerVisible ? 2 : 6)
+                            .padding(.leading, 6)
+                            .padding(.trailing, isTimerVisible ? 2 : 4)
                         }
 
                         if isTimerVisible {

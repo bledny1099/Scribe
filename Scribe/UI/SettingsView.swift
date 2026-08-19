@@ -5080,7 +5080,7 @@ struct GeneralSettingsView: View {
                             }
 
                             // Direct Note Export Target Apps (1 or more)
-                            HStack(alignment: .center) {
+                            VStack(alignment: .leading, spacing: 10) {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(appState.l("Target Apps"))
                                         .font(.system(size: 14, weight: .medium, design: .rounded))
@@ -5089,8 +5089,8 @@ struct GeneralSettingsView: View {
                                         .font(.system(size: 11))
                                         .foregroundStyle(.secondary)
                                 }
-                                Spacer()
-                                HStack(spacing: 6) {
+
+                                HStack(spacing: 8) {
                                     ForEach([NoteApp.appleNotes, NoteApp.obsidian, NoteApp.notion], id: \.self) { app in
                                         let isSelected = appState.directNoteTargetApps.contains(app)
                                         Button {
@@ -5098,14 +5098,16 @@ struct GeneralSettingsView: View {
                                                 appState.toggleDirectNoteTargetApp(app)
                                             }
                                         } label: {
-                                            HStack(spacing: 5) {
+                                            HStack(spacing: 6) {
                                                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                                                     .font(.system(size: 12, weight: .bold))
                                                 Text(appState.l(app.displayName))
-                                                    .font(.system(size: 12, weight: isSelected ? .semibold : .regular, design: .rounded))
+                                                    .font(.system(size: 12, weight: isSelected ? .semibold : .medium, design: .rounded))
+                                                    .lineLimit(1)
+                                                    .fixedSize(horizontal: true, vertical: false)
                                             }
-                                            .padding(.horizontal, 10)
-                                            .padding(.vertical, 6)
+                                            .padding(.horizontal, 12)
+                                            .padding(.vertical, 7)
                                             .background(
                                                 RoundedRectangle(cornerRadius: 10)
                                                     .fill(isSelected ? appState.selectedTheme.gradientColors.first!.opacity(0.18) : Color.primary.opacity(0.04))
