@@ -67,13 +67,9 @@ public final class AetherAudioConditioner: @unchecked Sendable {
                 }
             }
 
-            // Fallback: If VAD boundary detection was inconclusive, normalize the full audio and return it
-            normalizeLoudness(buffer: buffer)
-            let fallbackURL = FileManager.default.temporaryDirectory
-                .appendingPathComponent("aether_conditioned_\(UUID().uuidString).wav")
-            let fallbackFile = try AVAudioFile(forWriting: fallbackURL, settings: format.settings)
-            try fallbackFile.write(from: buffer)
-            return fallbackURL
+            // No audible speech detected in audio buffer: return nil to avoid Whisper hallucinations on silence
+            logger.debug("Aether VAD detected no audible speech in audio buffer")
+            return nil
         } catch {
             logger.warning("Aether audio conditioning failed: \(error.localizedDescription), using raw audio")
             return audioURL

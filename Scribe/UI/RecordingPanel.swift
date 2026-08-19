@@ -373,7 +373,7 @@ final class RecordingPanel: NSPanel {
         case .activeWindow:
             if let windowFrame = Self.getActiveWindowFrame() {
                 // If the active window is full screen / maximized (occupies almost the full screen), position at screen bottom
-                let isNearlyFullScreen = windowFrame.width >= (screenFrame.width - 40) && windowFrame.height >= (screenFrame.height - 40)
+                let isNearlyFullScreen = windowFrame.width >= (screenFrame.width - 60) && windowFrame.height >= (screenFrame.height - 60)
                 if isNearlyFullScreen {
                     let x = screenFrame.midX - frame.width / 2
                     let y = screenFrame.minY + 160 + yOffset
@@ -381,12 +381,12 @@ final class RecordingPanel: NSPanel {
                 } else {
                     // Center horizontally within the active window
                     var x = windowFrame.midX - frame.width / 2
-                    // Place in lower area of the active window
-                    var y = windowFrame.minY + max(20, min(windowFrame.height * 0.18, 90)) + yOffset
+                    // Place comfortably near the lower portion of the active window
+                    var y = windowFrame.minY + max(28, min(windowFrame.height * 0.12, 60)) + yOffset
 
                     // Keep strictly inside the screen visible bounds
                     x = max(screenFrame.minX + 16, min(x, screenFrame.maxX - frame.width - 16))
-                    y = max(screenFrame.minY + 16, min(y, screenFrame.maxY - frame.height - 16))
+                    y = max(screenFrame.minY + 24, min(y, screenFrame.maxY - frame.height - 24))
                     setFrameOrigin(NSPoint(x: x, y: y))
                 }
             } else {

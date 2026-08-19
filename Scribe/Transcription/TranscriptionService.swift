@@ -281,8 +281,8 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
         // Strip non-speech annotations that Whisper sometimes inserts,
-        // e.g. [keyboard clicking], (music), *laughs*, [BLANK_AUDIO]
-        let text = Self.cleanTranscription(rawText)
+        // e.g. [keyboard clicking], (music), *laughs*, [BLANK_AUDIO], rogue scripts
+        let text = Self.cleanTranscription(rawText, preferredLanguages: preferredLanguages, targetLanguage: resolvedLang)
 
         logger.info("Transcribed text (\(text.count) chars): \(text.prefix(100))")
 
@@ -360,7 +360,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
     ]
 
     /// Removes non-speech annotations and boundary hallucinations from Whisper output.
-    private static func cleanTranscription(_ text: String) -> String {
+    private static func cleanTranscription(_ text: String, preferredLanguages: [String] = [], targetLanguage: String? = nil) -> String {
         var cleaned = text
 
         // 1. Remove [bracketed annotations] — e.g. [keyboard clicking], [BLANK_AUDIO], [music]
@@ -401,6 +401,17 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         // 8. Strip trailing repetitions again after root stripping
         cleaned = stripTrailingRepetitions(cleaned)
 
+        // 9. If Arabic is not an enabled/selected language, strip rogue Arabic hallucinations
+        let activeLangs = Set(preferredLanguages.map { $0.lowercased() } + (targetLanguage != nil ? [targetLanguage!.lowercased()] : []))
+        let allowsArabic = activeLangs.contains("ar") || activeLangs.contains("arabic")
+        if !allowsArabic {
+            cleaned = cleaned.replacingOccurrences(
+                of: "[\\p{Arabic}\\u0600-\\u06FF\\u0750-\\u077F\\u08A0-\\u08FF]+",
+                with: "",
+                options: .regularExpression
+            )
+        }
+
         // Collapse multiple spaces into one and trim
         cleaned = cleaned.replacingOccurrences(
             of: "\\s{2,}",
@@ -408,6 +419,12 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             options: .regularExpression
         )
         .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // If after cleaning it only contains commas/dots/punctuation, discard
+        let alphanumericCount = cleaned.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) }.count
+        if alphanumericCount == 0 {
+            return ""
+        }
 
         return cleaned
     }

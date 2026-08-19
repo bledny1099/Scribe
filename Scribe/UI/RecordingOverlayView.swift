@@ -770,30 +770,30 @@ struct TargetAppBadgeView: View {
     let icon: NSImage?
 
     var body: some View {
-        HStack(spacing: 5) {
+        HStack(spacing: 6) {
             if let icon = icon {
                 Image(nsImage: icon)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(width: 13, height: 13)
-                    .cornerRadius(3)
+                    .frame(width: 15, height: 15)
+                    .cornerRadius(3.5)
             }
             Text(name)
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
-                .foregroundStyle(.primary.opacity(0.85))
+                .font(.system(size: 13, weight: .bold, design: .rounded))
+                .foregroundStyle(.primary.opacity(0.9))
                 .lineLimit(1)
                 .truncationMode(.tail)
         }
-        .padding(.horizontal, 7)
-        .padding(.vertical, 3.5)
+        .padding(.horizontal, 9)
+        .padding(.vertical, 5)
         .background(
             Capsule()
-                .fill(Color.primary.opacity(0.08))
+                .fill(Color.primary.opacity(0.09))
         )
         .overlay(
             Capsule()
-                .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5)
+                .strokeBorder(Color.primary.opacity(0.16), lineWidth: 0.8)
         )
-        .frame(maxWidth: 200)
+        .frame(maxWidth: 220)
     }
 }

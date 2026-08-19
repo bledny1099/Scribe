@@ -1590,12 +1590,16 @@ final class AppState: ObservableObject {
 
         do {
             let langParam = selectedLanguage == "auto" ? nil : selectedLanguage
+            let isSingle = self.recognitionMode == "single"
+            let preferredLangs: [String] = isSingle ? (selectedLanguage != "auto" ? [selectedLanguage] : []) : (self.multilingualLanguages.isEmpty ? ["ru", "en"] : self.multilingualLanguages)
             let text = try await transcriptionService.transcribe(
                 audioURL: snapshotURL,
                 modelName: selectedModel,
                 language: langParam,
+                preferredLanguages: preferredLangs,
                 autoTranslate: autoTranslate,
-                customVocabulary: vocabulary
+                customVocabulary: vocabulary,
+                userLocation: effectiveUserLocation
             )
             // Only update if we're still recording
             if isRecording {
