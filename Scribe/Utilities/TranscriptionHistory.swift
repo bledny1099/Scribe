@@ -379,14 +379,81 @@ final class TranscriptionHistory: ObservableObject {
 
 // MARK: - Donation Verification Service
 
+/// 5-Level Supporter Tiers based on contribution amount
+enum SupporterTier: Int, CaseIterable, Codable, Sendable {
+    case none = 0
+    case tier1 = 1 // до $5: Supporter I (Bronze)
+    case tier2 = 2 // $5 - $10: Supporter II (Silver)
+    case tier3 = 3 // $10 - $30: Supporter III (Gold)
+    case tier4 = 4 // $30 - $50: Supporter IV (Platinum)
+    case tier5 = 5 // > $50: Supporter V (Diamond)
+
+    static func tier(for amountInUSD: Double) -> SupporterTier {
+        if amountInUSD <= 0 { return .none }
+        if amountInUSD <= 5.0 { return .tier1 }
+        if amountInUSD <= 10.0 { return .tier2 }
+        if amountInUSD <= 30.0 { return .tier3 }
+        if amountInUSD <= 50.0 { return .tier4 }
+        return .tier5
+    }
+
+    var title: String {
+        switch self {
+        case .none: return ""
+        case .tier1: return "Supporter I"
+        case .tier2: return "Supporter II"
+        case .tier3: return "Supporter III"
+        case .tier4: return "Supporter IV"
+        case .tier5: return "Supporter V"
+        }
+    }
+
+    var badgeText: String {
+        switch self {
+        case .none: return ""
+        case .tier1: return "BRONZE SUPPORTER"
+        case .tier2: return "SILVER SUPPORTER"
+        case .tier3: return "GOLD SUPPORTER"
+        case .tier4: return "PLATINUM SUPPORTER"
+        case .tier5: return "DIAMOND SUPPORTER"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .none: return "star"
+        case .tier1: return "shield.fill"
+        case .tier2: return "sparkles"
+        case .tier3: return "crown.fill"
+        case .tier4: return "trophy.fill"
+        case .tier5: return "diamond.fill"
+        }
+    }
+
+    var gradientColors: [Color] {
+        switch self {
+        case .none: return [.secondary]
+        case .tier1: return [Color(red: 0.82, green: 0.52, blue: 0.32), Color(red: 0.62, green: 0.38, blue: 0.22)] // Bronze
+        case .tier2: return [Color(white: 0.88), Color(white: 0.68)] // Silver
+        case .tier3: return [.yellow, .orange] // Gold
+        case .tier4: return [Color(red: 0.35, green: 0.85, blue: 0.95), Color(red: 0.20, green: 0.55, blue: 0.90)] // Platinum
+        case .tier5: return [Color(red: 0.75, green: 0.45, blue: 1.0), Color(red: 0.40, green: 0.75, blue: 1.0)] // Diamond
+        }
+    }
+}
+
 /// Result of a verified donation
-struct DonationVerificationResult {
+struct DonationVerificationResult: Sendable {
     let network: String
     let amount: Double
     let currency: String
     let txHash: String
     let senderAddress: String
     let date: Date?
+
+    var tier: SupporterTier {
+        SupporterTier.tier(for: amount)
+    }
 }
 
 /// Service that securely checks incoming donations across multiple public blockchain networks

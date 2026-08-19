@@ -589,7 +589,9 @@ enum Localization {
             "This transaction has already been claimed": "Этот перевод уже был привязан к аккаунту",
             "What is TxID?": "Что такое TxID (хэш перевода)?",
             "TxID (Transaction Hash) is the unique receipt ID of your crypto transfer. You can find it in your wallet or exchange withdrawal history (Bybit, Tonkeeper, Telegram Wallet) under transfer details.": "TxID (хэш транзакции) — это уникальный идентификатор вашего перевода. Его можно скопировать в деталях вывода на бирже (Bybit) или в истории кошелька (Tonkeeper, Telegram Wallet).",
-            "Synced with your account": "Привязано к вашему аккаунту"
+            "Synced with your account": "Привязано к вашему аккаунту",
+            "Go to Statistics": "Перейти в статистику",
+            "Supporter Status Active": "Статус Supporter активен"
         ],
         "es": [
             "Start Dictation": "Iniciar dictado",

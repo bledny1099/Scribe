@@ -179,7 +179,9 @@ struct SettingsView: View {
                 .padding(.horizontal, 10)
                 .background(Color.primary.opacity(0.015))
                 .sheet(isPresented: $showingSupportModal) {
-                    SupportDeveloperModal()
+                    SupportDeveloperModal(onOpenStatistics: {
+                        selectedTab = .statistics
+                    })
                 }
                 .sheet(isPresented: $showingAuthModal) {
                     AuthModalView()
@@ -1274,9 +1276,14 @@ struct GoldCertificateCardView: View {
     @ObservedObject var history = TranscriptionHistory.shared
     @AppStorage("goldCertColorTheme") private var colorThemeRaw: String = CertificateColorTheme.levelColor.rawValue
     @AppStorage("isScribeSupporter") private var isScribeSupporter: Bool = false
+    @AppStorage("supporterDonationAmount") private var supporterDonationAmount: Double = 0
     var isPulsing: Bool
     var isShimmering: Bool
     @Binding var showTopWords: Bool
+
+    private var supporterTier: SupporterTier {
+        SupporterTier.tier(for: supporterDonationAmount > 0 ? supporterDonationAmount : 10.0)
+    }
 
     private var isLevelTheme: Bool {
         colorThemeRaw == CertificateColorTheme.levelColor.rawValue
@@ -1313,18 +1320,18 @@ struct GoldCertificateCardView: View {
                 HStack(spacing: 8) {
                     if isScribeSupporter {
                         HStack(spacing: 4) {
-                            Image(systemName: "crown.fill")
+                            Image(systemName: supporterTier.icon)
                                 .font(.system(size: 8, weight: .bold))
-                            Text("SUPPORTER")
+                            Text(supporterTier.badgeText)
                                 .font(.system(size: 8, weight: .black, design: .rounded))
-                                .tracking(0.5)
+                                .tracking(0.4)
                         }
-                        .foregroundStyle(.yellow)
-                        .padding(.horizontal, 6)
+                        .foregroundStyle(LinearGradient(colors: supporterTier.gradientColors, startPoint: .topLeading, endPoint: .bottomTrailing))
+                        .padding(.horizontal, 7)
                         .padding(.vertical, 2.5)
-                        .background(Color.yellow.opacity(0.16))
+                        .background(supporterTier.gradientColors.first?.opacity(0.16) ?? Color.yellow.opacity(0.16))
                         .cornerRadius(5)
-                        .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color.yellow.opacity(0.45), lineWidth: 0.8))
+                        .overlay(RoundedRectangle(cornerRadius: 5).stroke(supporterTier.gradientColors.first?.opacity(0.45) ?? Color.yellow.opacity(0.45), lineWidth: 0.8))
                     }
 
                     Text("EST. 2026")
@@ -2239,6 +2246,7 @@ struct SupportDeveloperModal: View {
     @EnvironmentObject var appState: AppState
     @ObservedObject var authService = AuthService.shared
     @Environment(\.dismiss) var dismiss
+    var onOpenStatistics: (() -> Void)? = nil
 
     @AppStorage("isScribeSupporter") private var isScribeSupporter: Bool = false
     @AppStorage("supporterDonationAmount") private var supporterDonationAmount: Double = 0
@@ -2252,31 +2260,19 @@ struct SupportDeveloperModal: View {
     @State private var showVerificationSuccess = false
     @State private var showTxIdHelp = false
 
+    private var supporterTier: SupporterTier {
+        SupporterTier.tier(for: supporterDonationAmount > 0 ? supporterDonationAmount : 10.0)
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            // Header
+            // Clean Header
             HStack {
                 HStack(spacing: 8) {
                     Text(appState.l("Support Scribe"))
                         .font(.system(size: 16, weight: .bold, design: .rounded))
-
-                    if isScribeSupporter {
-                        HStack(spacing: 4) {
-                            Image(systemName: "crown.fill")
-                                .font(.system(size: 10, weight: .bold))
-                            Text("SUPPORTER")
-                                .font(.system(size: 9, weight: .bold, design: .rounded))
-                        }
-                        .foregroundStyle(.yellow)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(Color.yellow.opacity(0.18))
-                        .cornerRadius(6)
-                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.yellow.opacity(0.4), lineWidth: 1))
-                    } else {
-                        Text("☕️")
-                            .font(.system(size: 15))
-                    }
+                    Text("☕️")
+                        .font(.system(size: 15))
                 }
 
                 Spacer()
@@ -2297,88 +2293,64 @@ struct SupportDeveloperModal: View {
 
             ScrollView(.vertical, showsIndicators: true) {
                 VStack(spacing: 18) {
-                    // Supporter Golden Gratitude Banner (if verified)
+                    // Supporter Active Status Ribbon (Compact & Clean)
                     if isScribeSupporter {
-                        VStack(spacing: 10) {
-                            HStack(spacing: 12) {
-                                ZStack {
-                                    Circle()
-                                        .fill(LinearGradient(colors: [.yellow, .orange], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                        .frame(width: 42, height: 42)
-                                        .shadow(color: Color.yellow.opacity(0.4), radius: 6)
+                        HStack(spacing: 12) {
+                            ZStack {
+                                Circle()
+                                    .fill(LinearGradient(colors: supporterTier.gradientColors, startPoint: .topLeading, endPoint: .bottomTrailing))
+                                    .frame(width: 36, height: 36)
+                                    .shadow(color: (supporterTier.gradientColors.first ?? .yellow).opacity(0.35), radius: 5)
 
-                                    Image(systemName: "crown.fill")
-                                        .font(.system(size: 20, weight: .bold))
-                                        .foregroundStyle(.white)
-                                }
-
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(appState.l("HONOURED SCRIBE SUPPORTER") + " 🌟")
-                                        .font(.system(size: 13, weight: .bold, design: .serif))
-                                        .foregroundStyle(LinearGradient(colors: [.yellow, .orange], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                    Text(appState.l("Thank you for supporting Scribe!"))
-                                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                                        .foregroundStyle(.primary.opacity(0.9))
-                                }
-                                Spacer()
+                                Image(systemName: supporterTier.icon)
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundStyle(.white)
                             }
 
-                            if supporterDonationAmount > 0 {
-                                HStack {
-                                    Text("\(String(format: "%.2f", supporterDonationAmount)) \(supporterDonationCurrency)")
-                                        .font(.system(size: 12, weight: .bold, design: .monospaced))
-                                        .foregroundStyle(.yellow)
-                                    Spacer()
-                                    if let email = authService.currentUser?.email, !email.isEmpty {
-                                        HStack(spacing: 4) {
-                                            Image(systemName: "checkmark.icloud.fill")
-                                                .font(.system(size: 10))
-                                            Text(appState.l("Synced with your account"))
-                                                .font(.system(size: 10, weight: .medium, design: .rounded))
-                                        }
-                                        .foregroundStyle(.green)
-                                    } else {
-                                        Text(appState.l("Donation verified!"))
-                                            .font(.system(size: 10, weight: .semibold, design: .rounded))
-                                            .foregroundStyle(.green)
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack(spacing: 6) {
+                                    Text(supporterTier.badgeText)
+                                        .font(.system(size: 11.5, weight: .bold, design: .rounded))
+                                        .foregroundStyle(LinearGradient(colors: supporterTier.gradientColors, startPoint: .topLeading, endPoint: .bottomTrailing))
+                                    if supporterDonationAmount > 0 {
+                                        Text("(\(String(format: "%.2f", supporterDonationAmount)) \(supporterDonationCurrency))")
+                                            .font(.system(size: 10.5, weight: .semibold, design: .monospaced))
+                                            .foregroundStyle(.secondary)
                                     }
+                                }
+
+                                Text(appState.l("Supporter Status Active"))
+                                    .font(.system(size: 10.5, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Spacer()
+
+                            Button(action: {
+                                dismiss()
+                                onOpenStatistics?()
+                            }) {
+                                HStack(spacing: 5) {
+                                    Image(systemName: "chart.bar.fill")
+                                        .font(.system(size: 10, weight: .bold))
+                                    Text(appState.l("Go to Statistics"))
+                                        .font(.system(size: 11, weight: .bold, design: .rounded))
                                 }
                                 .padding(.horizontal, 10)
-                                .padding(.vertical, 5)
-                                .background(Color.yellow.opacity(0.09))
-                                .cornerRadius(8)
+                                .padding(.vertical, 6)
+                                .background((supporterTier.gradientColors.first ?? .yellow).opacity(0.18))
+                                .foregroundStyle(Color.primary)
+                                .cornerRadius(7)
+                                .overlay(RoundedRectangle(cornerRadius: 7).stroke((supporterTier.gradientColors.first ?? .yellow).opacity(0.45), lineWidth: 0.8))
                             }
-
-                            HStack {
-                                Button(action: {
-                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                                        isScribeSupporter = false
-                                        supporterDonationAmount = 0
-                                        supporterDonationCurrency = ""
-                                        supporterTxHash = ""
-                                        showVerificationSuccess = false
-                                        verifiedResult = nil
-                                    }
-                                }) {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "arrow.counterclockwise")
-                                            .font(.system(size: 9))
-                                        Text(appState.l("Reset Supporter Status"))
-                                            .font(.system(size: 10, weight: .medium, design: .rounded))
-                                    }
-                                    .foregroundStyle(.secondary)
-                                }
-                                .buttonStyle(.plain)
-                                Spacer()
-                            }
-                            .padding(.top, 2)
+                            .buttonStyle(.plain)
                         }
-                        .padding(14)
-                        .background(Color.yellow.opacity(0.12))
-                        .cornerRadius(14)
-                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.yellow.opacity(0.4), lineWidth: 1))
+                        .padding(10)
+                        .background(Color.primary.opacity(0.035))
+                        .cornerRadius(10)
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke((supporterTier.gradientColors.first ?? .yellow).opacity(0.3), lineWidth: 0.8))
                         .padding(.horizontal, 18)
-                        .padding(.top, 8)
+                        .padding(.top, 4)
                     }
 
                     // Account Status Ribbon
@@ -2391,9 +2363,15 @@ struct SupportDeveloperModal: View {
                                 .font(.system(size: 11, weight: .medium, design: .rounded))
                                 .foregroundStyle(.secondary)
                             Spacer()
-                            Text(isScribeSupporter ? "Supporter Активен" : "Аккаунт подключен")
-                                .font(.system(size: 10, weight: .semibold, design: .rounded))
-                                .foregroundStyle(isScribeSupporter ? .yellow : .secondary)
+                            if isScribeSupporter {
+                                Text(supporterTier.title)
+                                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                                    .foregroundStyle(LinearGradient(colors: supporterTier.gradientColors, startPoint: .leading, endPoint: .trailing))
+                            } else {
+                                Text("Аккаунт подключен")
+                                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
@@ -2415,62 +2393,6 @@ struct SupportDeveloperModal: View {
                         CopyAddressRow(title: "USDT (TON)", address: DonationVerificationService.tonDepositAddress, icon: "t.circle.fill", color: .blue)
                         CopyAddressRow(title: "Bitcoin (BTC)", address: DonationVerificationService.btcDepositAddress, icon: "bitcoinsign.circle.fill", color: .orange)
                         CopyAddressRow(title: "Ethereum (ERC20)", address: DonationVerificationService.ethDepositAddress, icon: "diamond.circle.fill", color: .purple)
-                    }
-                    .padding(.horizontal, 18)
-
-                    // TxID Helper Accordion
-                    VStack(alignment: .leading, spacing: 8) {
-                        Button(action: {
-                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                                showTxIdHelp.toggle()
-                            }
-                        }) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "questionmark.circle.fill")
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(appState.selectedTheme.gradientColors.first ?? .blue)
-                                Text(appState.l("What is TxID?"))
-                                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                                    .foregroundStyle(.primary.opacity(0.85))
-                                Spacer()
-                                Image(systemName: showTxIdHelp ? "chevron.up" : "chevron.down")
-                                    .font(.system(size: 10, weight: .semibold))
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(Color.primary.opacity(0.035))
-                            .cornerRadius(8)
-                        }
-                        .buttonStyle(.plain)
-
-                        if showTxIdHelp {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(appState.l("TxID (Transaction Hash) is the unique receipt ID of your crypto transfer. You can find it in your wallet or exchange withdrawal history (Bybit, Tonkeeper, Telegram Wallet) under transfer details."))
-                                    .font(.system(size: 11, weight: .regular, design: .rounded))
-                                    .foregroundStyle(.secondary)
-                                    .fixedSize(horizontal: false, vertical: true)
-
-                                HStack(spacing: 8) {
-                                    HStack(spacing: 4) {
-                                        Circle().fill(Color.blue).frame(width: 5, height: 5)
-                                        Text("Bybit: История выводов → TxID")
-                                            .font(.system(size: 10, weight: .medium, design: .monospaced))
-                                    }
-                                    HStack(spacing: 4) {
-                                        Circle().fill(Color.cyan).frame(width: 5, height: 5)
-                                        Text("Tonkeeper: Детали → Хэш")
-                                            .font(.system(size: 10, weight: .medium, design: .monospaced))
-                                    }
-                                }
-                                .foregroundStyle(.secondary)
-                                .padding(.top, 2)
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(Color.primary.opacity(0.02))
-                            .cornerRadius(8)
-                        }
                     }
                     .padding(.horizontal, 18)
 
@@ -2567,19 +2489,40 @@ struct SupportDeveloperModal: View {
                         }
 
                         if showVerificationSuccess, let res = verifiedResult {
-                            HStack(spacing: 10) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .font(.system(size: 16))
-                                    .foregroundStyle(.green)
-                                VStack(alignment: .leading, spacing: 1) {
+                            HStack(spacing: 12) {
+                                Image(systemName: res.tier.icon)
+                                    .font(.system(size: 18, weight: .bold))
+                                    .foregroundStyle(LinearGradient(colors: res.tier.gradientColors, startPoint: .topLeading, endPoint: .bottomTrailing))
+
+                                VStack(alignment: .leading, spacing: 2) {
                                     Text(appState.l("Donation verified!") + " 💛")
                                         .font(.system(size: 12, weight: .bold, design: .rounded))
                                         .foregroundStyle(.green)
-                                    Text("\(String(format: "%.2f", res.amount)) \(res.currency) (\(res.network))")
+                                    Text("\(res.tier.badgeText) • \(String(format: "%.2f", res.amount)) \(res.currency)")
                                         .font(.system(size: 11, weight: .semibold, design: .monospaced))
                                         .foregroundStyle(.primary.opacity(0.85))
                                 }
+
                                 Spacer()
+
+                                Button(action: {
+                                    dismiss()
+                                    onOpenStatistics?()
+                                }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "chart.bar.fill")
+                                            .font(.system(size: 10, weight: .bold))
+                                        Text(appState.l("Go to Statistics"))
+                                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                                    }
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                                    .background(Color.green.opacity(0.2))
+                                    .foregroundStyle(Color.primary)
+                                    .cornerRadius(7)
+                                    .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.green.opacity(0.4), lineWidth: 0.8))
+                                }
+                                .buttonStyle(.plain)
                             }
                             .padding(12)
                             .background(Color.green.opacity(0.12))
@@ -2588,8 +2531,65 @@ struct SupportDeveloperModal: View {
                         }
                     }
                     .padding(.horizontal, 18)
+
+                    // TxID Helper Accordion (At the very end of the modal)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Button(action: {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                showTxIdHelp.toggle()
+                            }
+                        }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "questionmark.circle.fill")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(appState.selectedTheme.gradientColors.first ?? .blue)
+                                Text(appState.l("What is TxID?"))
+                                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(.primary.opacity(0.85))
+                                Spacer()
+                                Image(systemName: showTxIdHelp ? "chevron.up" : "chevron.down")
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color.primary.opacity(0.035))
+                            .cornerRadius(8)
+                        }
+                        .buttonStyle(.plain)
+
+                        if showTxIdHelp {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(appState.l("TxID (Transaction Hash) is the unique receipt ID of your crypto transfer. You can find it in your wallet or exchange withdrawal history (Bybit, Tonkeeper, Telegram Wallet) under transfer details."))
+                                    .font(.system(size: 11, weight: .regular, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+
+                                HStack(spacing: 8) {
+                                    HStack(spacing: 4) {
+                                        Circle().fill(Color.blue).frame(width: 5, height: 5)
+                                        Text("Bybit: История выводов → TxID")
+                                            .font(.system(size: 10, weight: .medium, design: .monospaced))
+                                    }
+                                    HStack(spacing: 4) {
+                                        Circle().fill(Color.cyan).frame(width: 5, height: 5)
+                                        Text("Tonkeeper: Детали → Хэш")
+                                            .font(.system(size: 10, weight: .medium, design: .monospaced))
+                                    }
+                                }
+                                .foregroundStyle(.secondary)
+                                .padding(.top, 2)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color.primary.opacity(0.02))
+                            .cornerRadius(8)
+                        }
+                    }
+                    .padding(.horizontal, 18)
                     .padding(.bottom, 36) // Generous bottom spacing
                 }
+                .padding(.top, 14) // Top breathing room so content isn't cramped
             }
         }
         .frame(width: 470, height: 630)
