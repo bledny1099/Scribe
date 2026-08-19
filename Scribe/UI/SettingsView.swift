@@ -547,6 +547,12 @@ struct SettingsView: View {
         .onChange(of: appState.selectedPanelAppearance) { _ in
             appState.showSettingsPreviewFor5Seconds()
         }
+        .onChange(of: appState.durationVisible) { _ in
+            appState.showSettingsPreviewFor5Seconds()
+        }
+        .onChange(of: appState.showTargetAppInOverlay) { _ in
+            appState.showSettingsPreviewFor5Seconds()
+        }
         .preferredColorScheme(
             appState.selectedPanelAppearance == .light ? .light : .dark
         )

@@ -20,6 +20,7 @@ final class RecordingPanel: NSPanel {
 
     static func dynamicWaveformSize(
         targetAppName: String = "",
+        isTimerVisible: Bool = true,
         hasAIMode: Bool = false,
         isStatusMessage: Bool = false,
         statusTextLength: Int = 0
@@ -30,23 +31,24 @@ final class RecordingPanel: NSPanel {
             return NSSize(width: width, height: 56)
         }
 
-        // Base width: Left dot (44) + Waveform visualizer (260) + Timer/Stop/Status (96) + paddings (40) = 440 pt
-        var width: CGFloat = 440
+        // Base width: Left dot cap (44) + Waveform visualizer (220) + Stop button cap (44) = 308 pt
+        var width: CGFloat = 308
+        
+        if isTimerVisible {
+            width += 48 // Timer digits + spacing
+        }
         
         if !targetAppName.isEmpty {
-            // Target app badge width:
-            // icon (13) + spacing (5) + padding (16) = 34 pt
-            // Font is system 11 weight semi-bold rounded. Average character width ~7.0 pt.
             let textWidth = CGFloat(targetAppName.count) * 7.0
             let badgeWidth = max(min(34 + textWidth, 200), 50)
-            width += badgeWidth + 8 // badge width + spacing
+            width += badgeWidth + 10 // badge width + spacing
         }
         
         if hasAIMode {
             width += 85 // AI refinement mode badge
         }
         
-        return NSSize(width: min(max(width, 440), 680), height: 72)
+        return NSSize(width: min(max(width, 308), 680), height: 72)
     }
 
     static func size(
@@ -55,6 +57,7 @@ final class RecordingPanel: NSPanel {
         isEmbeddedPreviewActive: Bool = false,
         previewTextLength: Int = 0,
         targetAppName: String = "",
+        isTimerVisible: Bool = true,
         hasAIMode: Bool = false,
         isStatusMessage: Bool = false,
         statusTextLength: Int = 0
@@ -64,6 +67,7 @@ final class RecordingPanel: NSPanel {
         case .classic:  base = classicSize
         case .waveform: base = dynamicWaveformSize(
             targetAppName: targetAppName,
+            isTimerVisible: isTimerVisible,
             hasAIMode: hasAIMode,
             isStatusMessage: isStatusMessage,
             statusTextLength: statusTextLength
@@ -96,6 +100,7 @@ final class RecordingPanel: NSPanel {
         isEmbeddedPreviewActive: Bool = false, 
         previewTextLength: Int = 0,
         targetAppName: String = "",
+        isTimerVisible: Bool = true,
         hasAIMode: Bool = false,
         isStatusMessage: Bool = false,
         statusTextLength: Int = 0
@@ -106,6 +111,7 @@ final class RecordingPanel: NSPanel {
             isEmbeddedPreviewActive: isEmbeddedPreviewActive, 
             previewTextLength: previewTextLength,
             targetAppName: targetAppName,
+            isTimerVisible: isTimerVisible,
             hasAIMode: hasAIMode,
             isStatusMessage: isStatusMessage,
             statusTextLength: statusTextLength
@@ -134,7 +140,7 @@ final class RecordingPanel: NSPanel {
         configureBlur()
     }
 
-    /// Convenience factory that selects the right size and appearance.
+    /// Factory method: creates and configures the panel in one shot.
     static func make(
         style: OverlayStyle = .waveform,
         appearance: PanelAppearance = .dark,
@@ -142,6 +148,7 @@ final class RecordingPanel: NSPanel {
         isEmbeddedPreviewActive: Bool = false,
         previewTextLength: Int = 0,
         targetAppName: String = "",
+        isTimerVisible: Bool = true,
         hasAIMode: Bool = false
     ) -> RecordingPanel {
         let size: NSSize = Self.size(
@@ -150,14 +157,16 @@ final class RecordingPanel: NSPanel {
             isEmbeddedPreviewActive: isEmbeddedPreviewActive,
             previewTextLength: previewTextLength,
             targetAppName: targetAppName,
+            isTimerVisible: isTimerVisible,
             hasAIMode: hasAIMode
         )
         let radius: CGFloat = Self.radius(
             for: style, 
-            overlaySize: overlaySize,
-            isEmbeddedPreviewActive: isEmbeddedPreviewActive,
+            overlaySize: overlaySize, 
+            isEmbeddedPreviewActive: isEmbeddedPreviewActive, 
             previewTextLength: previewTextLength,
             targetAppName: targetAppName,
+            isTimerVisible: isTimerVisible,
             hasAIMode: hasAIMode
         )
 
@@ -245,6 +254,7 @@ final class RecordingPanel: NSPanel {
         isEmbeddedPreviewActive: Bool = false,
         previewTextLength: Int = 0,
         targetAppName: String = "",
+        isTimerVisible: Bool = true,
         hasAIMode: Bool = false
     ) {
         containerView.subviews.filter { $0 != blurView }.forEach { $0.removeFromSuperview() }
@@ -255,6 +265,7 @@ final class RecordingPanel: NSPanel {
             isEmbeddedPreviewActive: isEmbeddedPreviewActive,
             previewTextLength: previewTextLength,
             targetAppName: targetAppName,
+            isTimerVisible: isTimerVisible,
             hasAIMode: hasAIMode
         )
         let targetSize: NSSize = Self.size(
@@ -263,6 +274,7 @@ final class RecordingPanel: NSPanel {
             isEmbeddedPreviewActive: isEmbeddedPreviewActive,
             previewTextLength: previewTextLength,
             targetAppName: targetAppName,
+            isTimerVisible: isTimerVisible,
             hasAIMode: hasAIMode
         )
         let scale = overlaySize.scale

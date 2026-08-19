@@ -232,6 +232,7 @@ struct WaveformOverlay: View {
         let isAIModeActive = appState.enableCloudAI && appState.selectedAIRefinementMode != .raw && (appState.recordingStatus == .recording || appState.recordingStatus == .transcribing)
         let isStatusMessage = appState.recordingStatus != .recording && !appState.isShowingPreview && !statusLabel.isEmpty
         let effectiveAppName = appState.showTargetAppInOverlay ? ((appState.recordingStatus == .recording || appState.recordingStatus == .transcribing) ? appState.targetAppName : (appState.isShowingPreview ? "Scribe" : "")) : ""
+        let isTimerVisible = appState.durationVisible && (appState.recordingStatus == .recording || appState.isShowingPreview)
 
         let dynamicSize = RecordingPanel.size(
             for: .waveform,
@@ -239,14 +240,13 @@ struct WaveformOverlay: View {
             isEmbeddedPreviewActive: isEmbeddedActive,
             previewTextLength: appState.livePreviewText.count,
             targetAppName: effectiveAppName,
+            isTimerVisible: isTimerVisible,
             hasAIMode: isAIModeActive,
             isStatusMessage: isStatusMessage,
             statusTextLength: statusLabel.count
         )
         let cardWidth = dynamicSize.width / appState.selectedOverlaySize.scale
         let cardHeight = dynamicSize.height / appState.selectedOverlaySize.scale
-
-        let isTimerVisible = appState.durationVisible && (appState.recordingStatus == .recording || appState.isShowingPreview)
 
         return VStack(spacing: 8) {
             if isStatusMessage {
@@ -294,7 +294,7 @@ struct WaveformOverlay: View {
                                 name: effectiveAppName,
                                 icon: (appState.recordingStatus == .recording || appState.recordingStatus == .transcribing) ? appState.targetAppIcon : NSApp.applicationIconImage
                             )
-                            .padding(.trailing, isTimerVisible ? 2 : 10)
+                            .padding(.trailing, isTimerVisible ? 2 : 6)
                         }
 
                         if isTimerVisible {
@@ -319,7 +319,7 @@ struct WaveformOverlay: View {
                     }
                     .fixedSize(horizontal: true, vertical: false)
                     .frame(height: RecordingPanel.waveformSize.height)
-                    .padding(.trailing, 12)
+                    .padding(.trailing, 8)
                     .animation(.easeInOut(duration: 0.2), value: appState.recordingStatus == .recording)
                 }
                 .frame(height: RecordingPanel.waveformSize.height)

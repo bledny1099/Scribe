@@ -1025,6 +1025,7 @@ final class AppState: ObservableObject {
         let isEmbedded = false
         let hasAI = enableCloudAI && selectedAIRefinementMode != .raw
         let activeAppName = showTargetAppInOverlay ? targetAppName : ""
+        let isTimerVis = durationVisible
         let panel = RecordingPanel.make(
             style: selectedOverlayStyle,
             appearance: selectedPanelAppearance,
@@ -1032,6 +1033,7 @@ final class AppState: ObservableObject {
             isEmbeddedPreviewActive: isEmbedded,
             previewTextLength: livePreviewText.count,
             targetAppName: activeAppName,
+            isTimerVisible: isTimerVis,
             hasAIMode: hasAI
         )
         panel.setContent(
@@ -1041,6 +1043,7 @@ final class AppState: ObservableObject {
             isEmbeddedPreviewActive: isEmbedded,
             previewTextLength: livePreviewText.count,
             targetAppName: activeAppName,
+            isTimerVisible: isTimerVis,
             hasAIMode: hasAI
         )
 
@@ -1312,12 +1315,14 @@ final class AppState: ObservableObject {
         let isEmbeddedActive = false
         let hasAI = enableCloudAI && selectedAIRefinementMode != .raw
         let previewAppName = showTargetAppInOverlay ? "Scribe" : ""
+        let isTimerVis = durationVisible
         let targetSize = RecordingPanel.size(
             for: selectedOverlayStyle,
             overlaySize: selectedOverlaySize,
             isEmbeddedPreviewActive: isEmbeddedActive,
             previewTextLength: livePreviewText.count,
             targetAppName: previewAppName,
+            isTimerVisible: isTimerVis,
             hasAIMode: hasAI
         )
         let targetRadius = RecordingPanel.radius(
@@ -1326,6 +1331,7 @@ final class AppState: ObservableObject {
             isEmbeddedPreviewActive: isEmbeddedActive,
             previewTextLength: livePreviewText.count,
             targetAppName: previewAppName,
+            isTimerVisible: isTimerVis,
             hasAIMode: hasAI
         )
         let targetOrigin = targetPreviewOrigin(for: selectedOverlayStyle, size: targetSize, isDragging: isDragging)
@@ -1342,6 +1348,7 @@ final class AppState: ObservableObject {
                 isEmbeddedPreviewActive: isEmbeddedActive,
                 previewTextLength: livePreviewText.count,
                 targetAppName: previewAppName,
+                isTimerVisible: isTimerVis,
                 hasAIMode: hasAI
             )
             existingPanel.updateCornerRadius(targetRadius, targetSize: targetSize)
@@ -1369,6 +1376,7 @@ final class AppState: ObservableObject {
                 isEmbeddedPreviewActive: isEmbeddedActive,
                 previewTextLength: livePreviewText.count,
                 targetAppName: previewAppName,
+                isTimerVisible: isTimerVis,
                 hasAIMode: hasAI
             )
             panel.setContent(
@@ -1378,6 +1386,7 @@ final class AppState: ObservableObject {
                 isEmbeddedPreviewActive: isEmbeddedActive,
                 previewTextLength: livePreviewText.count,
                 targetAppName: previewAppName,
+                isTimerVisible: isTimerVis,
                 hasAIMode: hasAI
             )
             panel.collectionBehavior = [.moveToActiveSpace, .ignoresCycle]

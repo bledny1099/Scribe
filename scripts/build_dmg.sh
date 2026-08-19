@@ -14,9 +14,13 @@ cd "$ROOT_DIR"
 mkdir -p "$BUILD_DIR"
 mkdir -p "$DIST_DIR"
 
+ARCH=$(uname -m)
 xcodebuild -project Scribe.xcodeproj \
     -scheme Scribe \
     -configuration Release \
+    -destination "platform=macOS,arch=$ARCH" \
+    ONLY_ACTIVE_ARCH=YES \
+    -parallelizeTargets \
     -derivedDataPath "$BUILD_DIR/DerivedData" \
     build
 
