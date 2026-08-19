@@ -67,7 +67,15 @@ struct SettingsView: View {
                 case .dark:
                     Color(red: 0.05, green: 0.05, blue: 0.07).opacity(0.85)
                 case .liquidGlass:
-                    Color.black.opacity(0.20)
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.16),
+                            Color.white.opacity(0.04),
+                            Color.clear
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
                 case .light:
                     Color.white.opacity(0.85)
                 }
@@ -79,7 +87,7 @@ struct SettingsView: View {
             ZStack {
                 RadialGradient(
                     gradient: Gradient(colors: [
-                        appState.selectedTheme.glowColor.opacity(appState.selectedPanelAppearance == .liquidGlass ? 0.20 : 0.22),
+                        appState.selectedTheme.glowColor.opacity(appState.selectedPanelAppearance == .liquidGlass ? 0.22 : 0.22),
                         appState.selectedTheme.gradientColors[0].opacity(0.08),
                         Color.clear
                     ]),
@@ -1390,14 +1398,14 @@ struct GlassSection<Content: View>: View {
                 .background(
                     ZStack {
                         RoundedRectangle(cornerRadius: 16)
-                            .fill(.ultraThinMaterial.opacity(0.55))
+                            .fill(.ultraThinMaterial.opacity(appState.selectedPanelAppearance == .liquidGlass ? 0.35 : 0.55))
                         RoundedRectangle(cornerRadius: 16)
-                            .fill(Color.primary.opacity(0.06))
+                            .fill(appState.selectedPanelAppearance == .liquidGlass ? Color.white.opacity(0.08) : Color.primary.opacity(0.06))
                     }
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
-                        .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
+                        .strokeBorder(appState.selectedPanelAppearance == .liquidGlass ? Color.white.opacity(0.18) : Color.primary.opacity(0.12), lineWidth: 1)
                 )
         }
     }
@@ -1451,14 +1459,14 @@ struct GlassCollapsibleSection<Content: View>: View {
                 .background(
                     ZStack {
                         RoundedRectangle(cornerRadius: 16)
-                            .fill(.ultraThinMaterial.opacity(0.55))
+                            .fill(.ultraThinMaterial.opacity(appState.selectedPanelAppearance == .liquidGlass ? 0.35 : 0.55))
                         RoundedRectangle(cornerRadius: 16)
-                            .fill(Color.primary.opacity(0.06))
+                            .fill(appState.selectedPanelAppearance == .liquidGlass ? Color.white.opacity(0.08) : Color.primary.opacity(0.06))
                     }
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
-                        .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
+                        .strokeBorder(appState.selectedPanelAppearance == .liquidGlass ? Color.white.opacity(0.18) : Color.primary.opacity(0.12), lineWidth: 1)
                 )
                 .background(
                     GeometryReader { geo in
