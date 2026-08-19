@@ -12,9 +12,9 @@ Press `⌥S`, talk, press it again. Your words land directly in whatever text fi
 
 [**Download Scribe (.dmg)**](https://github.com/bledny1099/Scribe/releases/latest/download/Scribe.dmg) · [**Releases**](https://github.com/bledny1099/Scribe/releases) · [**Report Issue**](https://github.com/bledny1099/Scribe/issues)
 
-<br>
+<br><br>
 
-<video src="assets/scribe_demo.mp4" controls width="100%" poster="assets/appearance.jpeg"></video>
+<img src="assets/scribe_demo.gif" alt="Scribe Demo" width="100%">
 
 </div>
 
@@ -29,6 +29,11 @@ Release or press the shortcut again, and the transcribed text is automatically p
 ---
 
 ## Screenshots
+
+<details>
+<summary><b>Click to view Screenshots & Interface</b></summary>
+
+<br>
 
 <div align="center">
 
@@ -46,6 +51,8 @@ Release or press the shortcut again, and the transcribed text is automatically p
 <img src="assets/stats.jpeg" alt="Scribe Statistics and History" width="100%">
 
 </div>
+
+</details>
 
 ---
 
