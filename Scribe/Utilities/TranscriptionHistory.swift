@@ -274,9 +274,19 @@ final class TranscriptionHistory: ObservableObject {
         Color(red: 1.00, green: 0.20, blue: 0.20)  // 50. Force of Nature (Сила природы - первородный огонь)
     ]
 
+    static func levelColor(for level: Int) -> Color {
+        let index = max(0, min(level - 1, levelThematicColors.count - 1))
+        return levelThematicColors[index]
+    }
+    
+    static func levelName(for level: Int) -> String {
+        let names = shared.levelNames
+        let index = max(0, min(level - 1, names.count - 1))
+        return names[index]
+    }
+
     var currentLevelColor: Color {
-        let index = max(0, min(currentLevel - 1, Self.levelThematicColors.count - 1))
-        return Self.levelThematicColors[index]
+        Self.levelColor(for: currentLevel)
     }
     
     var wordsToNextLevel: Int {

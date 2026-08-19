@@ -35,6 +35,11 @@ struct SettingsView: View {
     @State private var selectedTab: SettingsTab = .general
     @EnvironmentObject var appState: AppState
     @ObservedObject private var updateService = AppUpdateService.shared
+    @ObservedObject private var history = TranscriptionHistory.shared
+    @AppStorage("lastSeenLevel") private var lastSeenLevel: Int = 1
+    @State private var isLevelUpSweepActive: Bool = false
+    @State private var sweepProgress: CGFloat = 1.0
+    @State private var previousLevelForAnimation: Int = 1
     @State private var showingSupportModal = false
     @State private var showingAuthModal = false
     @State private var showingAccountSettingsModal = false
@@ -61,86 +66,33 @@ struct SettingsView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            // Panel Appearance base background fill
-            Group {
-                switch appState.selectedPanelAppearance {
-                case .dark:
-                    Color(red: 0.05, green: 0.05, blue: 0.07).opacity(0.85)
-                case .liquidGlass:
-                    Color.clear
-                case .light:
-                    Color.white.opacity(0.85)
-                }
-            }
-            .ignoresSafeArea()
-            .animation(.easeInOut(duration: 0.4), value: appState.selectedPanelAppearance)
-
-            // Complex Ambient Background Glow & Neon Mesh (disabled on Liquid Glass)
-            if appState.selectedPanelAppearance != .liquidGlass {
-                ZStack {
-                    RadialGradient(
-                        gradient: Gradient(colors: [
-                            appState.selectedTheme.glowColor.opacity(0.22),
-                            appState.selectedTheme.gradientColors[0].opacity(0.08),
-                            Color.clear
-                        ]),
-                        center: .topLeading,
-                        startRadius: 10,
-                        endRadius: 650
-                    )
-                    
-                    RadialGradient(
-                        gradient: Gradient(colors: [
-                            appState.selectedTheme.gradientColors[1].opacity(0.12),
-                            Color.clear
-                        ]),
-                        center: .bottomTrailing,
-                        startRadius: 50,
-                        endRadius: 500
-                    )
-                }
-                .ignoresSafeArea()
-                .animation(.easeInOut(duration: 0.6), value: appState.selectedTheme)
-            }
-
-            if appState.selectedPanelAppearance != .liquidGlass {
-                TranscriptionHistory.shared.currentLevelColor.opacity(selectedTab == .statistics ? 0.12 : 0)
-                    .ignoresSafeArea()
-                    .animation(.easeInOut(duration: 0.5), value: selectedTab)
-            }
+            // Background & Ambient Glow
+            SettingsBackgroundView(
+                panelAppearance: appState.selectedPanelAppearance,
+                selectedTheme: appState.selectedTheme,
+                selectedTab: selectedTab,
+                levelColor: history.currentLevelColor,
+                previousLevelColor: TranscriptionHistory.levelColor(for: previousLevelForAnimation),
+                isLevelUpSweepActive: isLevelUpSweepActive,
+                sweepProgress: sweepProgress
+            )
             
             HStack(alignment: .top, spacing: 0) {
                 // Sidebar — Cyber Command Dock
                 VStack(alignment: .leading, spacing: 6) {
                     // Main Categories (ending with System)
                     ForEach(mainTabs, id: \.self) { tab in
-                        Button(action: {
+                        SidebarTabButton(
+                            tab: tab,
+                            isSelected: selectedTab == tab,
+                            panelAppearance: appState.selectedPanelAppearance,
+                            themeGradientColor: appState.selectedTheme.gradientColors.first ?? .blue,
+                            title: appState.l(tab.rawValue)
+                        ) {
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                 selectedTab = tab
                             }
-                        }) {
-                            HStack(spacing: 8) {
-                                Image(systemName: tab.icon)
-                                    .font(.system(size: 13, weight: selectedTab == tab ? .bold : .medium))
-                                    .foregroundStyle(selectedTab == tab ? .primary : .secondary)
-                                    .frame(width: 18)
-
-                                Text(appState.l(tab.rawValue))
-                                    .font(.system(size: 13, weight: selectedTab == tab ? .bold : .medium, design: .rounded))
-                                    .lineLimit(1)
-                                    .minimumScaleFactor(0.8)
-                                Spacer()
-                            }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 8)
-                            .background(
-                                selectedTab == tab
-                                    ? (appState.selectedPanelAppearance == .liquidGlass ? Color.white.opacity(0.12) : appState.selectedTheme.gradientColors.first!.opacity(0.2))
-                                    : Color.clear
-                            )
-                            .cornerRadius(8)
                         }
-                        .buttonStyle(.plain)
                     }
 
                     // Divider Line after System
@@ -149,33 +101,17 @@ struct SettingsView: View {
                         .padding(.vertical, 4)
 
                     // Statistics Tab Button
-                    Button(action: {
+                    SidebarTabButton(
+                        tab: .statistics,
+                        isSelected: selectedTab == .statistics,
+                        panelAppearance: appState.selectedPanelAppearance,
+                        themeGradientColor: appState.selectedTheme.gradientColors.first ?? .blue,
+                        title: appState.l(SettingsTab.statistics.rawValue)
+                    ) {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                             selectedTab = .statistics
                         }
-                    }) {
-                        HStack(spacing: 8) {
-                            Image(systemName: SettingsTab.statistics.icon)
-                                .font(.system(size: 13, weight: selectedTab == .statistics ? .bold : .medium))
-                                .foregroundStyle(selectedTab == .statistics ? .primary : .secondary)
-                                .frame(width: 18)
-
-                            Text(appState.l(SettingsTab.statistics.rawValue))
-                                .font(.system(size: 13, weight: selectedTab == .statistics ? .bold : .medium, design: .rounded))
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.8)
-                            Spacer()
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 8)
-                        .background(
-                            selectedTab == .statistics
-                                ? (appState.selectedPanelAppearance == .liquidGlass ? Color.white.opacity(0.12) : appState.selectedTheme.gradientColors.first!.opacity(0.2))
-                                : Color.clear
-                        )
-                        .cornerRadius(8)
                     }
-                    .buttonStyle(.plain)
                     // Support Scribe Button (Redesigned & Compact)
                     Button(action: {
                         showingSupportModal = true
@@ -551,84 +487,33 @@ struct SettingsView: View {
             
             // Header — Draggable Cyber Glass Console Header
             VStack(spacing: 0) {
-                HStack(spacing: 12) {
-                    HStack(spacing: 10) {
-                        Text("Scribe")
-                            .font(.system(size: 20, weight: .bold, design: .default))
-                            .tracking(1.2)
-                            .foregroundStyle(.primary)
-
-                        if updateService.updateAvailable {
-                            Button(action: {
-                                updateService.performUpdate()
-                            }) {
-                                HStack(spacing: 5) {
-                                    if updateService.isDownloading {
-                                        ProgressView()
-                                            .scaleEffect(0.5)
-                                            .frame(width: 10, height: 10)
-                                    } else {
-                                        Image(systemName: "arrow.down.circle.fill")
-                                            .font(.system(size: 10, weight: .bold))
-                                    }
-                                    Text(updateService.isDownloading ? appState.l("Updating...") : appState.l("Update available"))
-                                        .font(.system(size: 10, weight: .bold, design: .rounded))
-                                }
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color.green.opacity(0.18))
-                                .foregroundStyle(.green)
-                                .cornerRadius(6)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 6)
-                                        .stroke(Color.green.opacity(0.35), lineWidth: 1)
-                                )
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-
-                    Spacer()
-
-                    // Sleek Cyber Close Button
-                    Button(action: { SettingsWindowManager.shared.closeWindow() }) {
-                        ZStack {
-                            Circle()
-                                .fill(Color.primary.opacity(0.06))
-                                .frame(width: 28, height: 28)
-
-                            Image(systemName: "xmark")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(.primary.opacity(0.75))
-                        }
-                        .overlay(
-                            Circle()
-                                .stroke(Color.primary.opacity(0.14), lineWidth: 1)
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
-                .padding(.horizontal, 22)
-                .padding(.top, 16)
-                .padding(.bottom, 14)
-                .background(WindowDragView())
+                SettingsHeaderView()
             }
         }
         .ignoresSafeArea(.container, edges: .top)
-                .frame(height: 620)
+        .frame(height: 620)
         .onAppear {
             if let tab = appState.requestedSettingsTab {
                 selectedTab = tab
                 appState.requestedSettingsTab = nil
+            }
+            if selectedTab == .statistics {
+                triggerLevelUpSweepIfNeeded()
             }
         }
         .onChange(of: appState.requestedSettingsTab) { newTab in
             if let tab = newTab {
                 selectedTab = tab
                 appState.requestedSettingsTab = nil
+                if tab == .statistics {
+                    triggerLevelUpSweepIfNeeded()
+                }
             }
         }
-        .onChange(of: selectedTab) { _ in
+        .onChange(of: selectedTab) { newTab in
+            if newTab == .statistics {
+                triggerLevelUpSweepIfNeeded()
+            }
         }
         .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
         .onDisappear {
@@ -650,10 +535,268 @@ struct SettingsView: View {
             appState.selectedPanelAppearance == .light ? .light : .dark
         )
     }
+
+    private func triggerLevelUpSweepIfNeeded() {
+        let current = history.currentLevel
+        if lastSeenLevel < current && lastSeenLevel > 0 {
+            previousLevelForAnimation = lastSeenLevel
+            isLevelUpSweepActive = true
+            sweepProgress = 0.0
+            withAnimation(.easeInOut(duration: 1.8)) {
+                sweepProgress = 1.0
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.2) {
+                isLevelUpSweepActive = false
+                lastSeenLevel = current
+            }
+        } else {
+            lastSeenLevel = current
+        }
+    }
 }
 
-// MARK: - Statistics Section Component
+// MARK: - Settings Header View Component
+struct SettingsHeaderView: View {
+    @ObservedObject var updateService = AppUpdateService.shared
+    @EnvironmentObject var appState: AppState
 
+    var body: some View {
+        HStack(spacing: 12) {
+            HStack(spacing: 8) {
+                Image("MenuBarIcon")
+                    .resizable()
+                    .renderingMode(.template)
+                    .foregroundStyle(.primary)
+                    .frame(width: 14, height: 14)
+
+                Text("Scribe")
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .tracking(1.0)
+                    .foregroundStyle(.primary)
+
+                if updateService.updateAvailable {
+                    Button(action: {
+                        updateService.performUpdate()
+                    }) {
+                        HStack(spacing: 5) {
+                            if updateService.isDownloading {
+                                ProgressView()
+                                    .scaleEffect(0.5)
+                                    .frame(width: 10, height: 10)
+                            } else {
+                                Image(systemName: "arrow.down.circle.fill")
+                                    .font(.system(size: 10, weight: .bold))
+                            }
+                            Text(updateService.isDownloading ? appState.l("Updating...") : appState.l("Update available"))
+                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.green.opacity(0.18))
+                        .foregroundStyle(.green)
+                        .cornerRadius(6)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .stroke(Color.green.opacity(0.35), lineWidth: 1)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            Spacer()
+
+            HStack(spacing: 8) {
+                Button(action: {
+                    if let url = URL(string: "https://github.com/bledny1099/Scribe/issues") {
+                        NSWorkspace.shared.open(url)
+                    }
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "bubble.left.and.exclamationmark.bubble.right.fill")
+                            .font(.system(size: 9, weight: .semibold))
+                        Text(appState.l("Feedback"))
+                            .font(.system(size: 10, weight: .semibold, design: .rounded))
+                    }
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3.5)
+                    .background(Color.primary.opacity(0.06))
+                    .cornerRadius(6)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(Color.primary.opacity(0.1), lineWidth: 0.5)
+                    )
+                }
+                .buttonStyle(.plain)
+
+                Button(action: { SettingsWindowManager.shared.closeWindow() }) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.primary.opacity(0.08))
+                            .frame(width: 22, height: 22)
+
+                        Image(systemName: "xmark")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(.primary.opacity(0.75))
+                    }
+                    .overlay(
+                        Circle()
+                            .stroke(Color.primary.opacity(0.14), lineWidth: 1)
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 22)
+        .padding(.top, 16)
+        .padding(.bottom, 14)
+        .background(WindowDragView())
+    }
+}
+
+// MARK: - Sidebar Tab Button Component
+struct SidebarTabButton: View {
+    let tab: SettingsTab
+    let isSelected: Bool
+    let panelAppearance: PanelAppearance
+    let themeGradientColor: Color
+    let title: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: tab.icon)
+                    .font(.system(size: 13, weight: isSelected ? .bold : .medium))
+                    .foregroundStyle(isSelected ? .primary : .secondary)
+                    .frame(width: 18)
+
+                Text(title)
+                    .font(.system(size: 13, weight: isSelected ? .bold : .medium, design: .rounded))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Spacer()
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(
+                isSelected
+                    ? (panelAppearance == .liquidGlass ? Color.white.opacity(0.12) : themeGradientColor.opacity(0.2))
+                    : Color.clear
+            )
+            .cornerRadius(8)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Settings Ambient Background View
+struct SettingsBackgroundView: View {
+    let panelAppearance: PanelAppearance
+    let selectedTheme: AppTheme
+    let selectedTab: SettingsTab
+    let levelColor: Color
+    let previousLevelColor: Color
+    let isLevelUpSweepActive: Bool
+    let sweepProgress: CGFloat
+
+    var body: some View {
+        ZStack {
+            // Panel Appearance base background fill
+            switch panelAppearance {
+            case .dark:
+                Color(red: 0.05, green: 0.05, blue: 0.07).opacity(0.85)
+            case .liquidGlass:
+                Color.clear
+            case .light:
+                Color.white.opacity(0.85)
+            }
+
+            // Ambient Glow
+            if panelAppearance != .liquidGlass {
+                if selectedTab == .statistics {
+                    // Level-Themed Ambient Glow (Only on Statistics tab)
+                    RadialGradient(
+                        gradient: Gradient(colors: [
+                            levelColor.opacity(0.35),
+                            levelColor.opacity(0.12),
+                            Color.clear
+                        ]),
+                        center: .topLeading,
+                        startRadius: 10,
+                        endRadius: 650
+                    )
+                    
+                    RadialGradient(
+                        gradient: Gradient(colors: [
+                            levelColor.opacity(0.20),
+                            Color.clear
+                        ]),
+                        center: .bottomTrailing,
+                        startRadius: 50,
+                        endRadius: 500
+                    )
+                    
+                    // Right-to-Left Level Up Sweep Transition
+                    if isLevelUpSweepActive {
+                        LevelUpSweepOverlay(
+                            newColor: levelColor,
+                            oldColor: previousLevelColor,
+                            progress: sweepProgress
+                        )
+                    }
+                } else {
+                    // Standard Theme Glow for other tabs
+                    RadialGradient(
+                        gradient: Gradient(colors: [
+                            selectedTheme.glowColor.opacity(0.22),
+                            selectedTheme.gradientColors[0].opacity(0.08),
+                            Color.clear
+                        ]),
+                        center: .topLeading,
+                        startRadius: 10,
+                        endRadius: 650
+                    )
+                    
+                    RadialGradient(
+                        gradient: Gradient(colors: [
+                            selectedTheme.gradientColors[1].opacity(0.12),
+                            Color.clear
+                        ]),
+                        center: .bottomTrailing,
+                        startRadius: 50,
+                        endRadius: 500
+                    )
+                }
+            }
+        }
+        .ignoresSafeArea()
+        .animation(.easeInOut(duration: 0.6), value: selectedTab)
+        .animation(.easeInOut(duration: 0.6), value: selectedTheme)
+        .animation(.easeInOut(duration: 0.4), value: panelAppearance)
+    }
+}
+
+// MARK: - Level Up Sweep Overlay Component
+struct LevelUpSweepOverlay: View {
+    let newColor: Color
+    let oldColor: Color
+    let progress: CGFloat
+    
+    var body: some View {
+        let loc1: CGFloat = max(0.0, min(1.0, 1.0 - progress * 1.5))
+        let loc2: CGFloat = max(0.0, min(1.0, 1.4 - progress * 1.5))
+        LinearGradient(
+            stops: [
+                Gradient.Stop(color: newColor.opacity(0.40), location: loc1),
+                Gradient.Stop(color: oldColor.opacity(0.25), location: loc2)
+            ],
+            startPoint: .trailing,
+            endPoint: .leading
+        )
+        .blendMode(.plusLighter)
+    }
+}
 
 enum CertificateColorTheme: String, CaseIterable, Identifiable {
     case gold = "Gold Theme"
@@ -665,6 +808,8 @@ enum CertificateColorTheme: String, CaseIterable, Identifiable {
 struct StatisticsSectionView: View {
     @EnvironmentObject var appState: AppState
     @ObservedObject var history = TranscriptionHistory.shared
+    var isLevelUpSweepActive: Bool = false
+    var previousLevel: Int = 1
     @State private var timeFrame: StatsTimeFrame = .today
     @AppStorage("goldCertColorTheme") private var certColorThemeRaw: String = CertificateColorTheme.gold.rawValue
     @State private var showTopWords: Bool = false
@@ -680,6 +825,70 @@ struct StatisticsSectionView: View {
 
     var body: some View {
         VStack(spacing: 20) {
+            // Level Up Celebration Banner
+            if isLevelUpSweepActive {
+                HStack(spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .fill(history.currentLevelColor.opacity(0.25))
+                            .frame(width: 38, height: 38)
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundStyle(history.currentLevelColor)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(appState.l("LEVEL UP!"))
+                            .font(.system(size: 11, weight: .black, design: .rounded))
+                            .foregroundStyle(history.currentLevelColor)
+                            .tracking(1.2)
+                        
+                        Text("\(appState.l("Promoted to")) LVL \(history.currentLevel) • \(appState.l(history.currentLevelName))")
+                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                            .foregroundStyle(.primary)
+                    }
+                    
+                    Spacer()
+                    
+                    HStack(spacing: 6) {
+                        Text("LVL \(previousLevel)")
+                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                        Image(systemName: "arrow.right")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(history.currentLevelColor)
+                        Text("LVL \(history.currentLevel)")
+                            .font(.system(size: 12, weight: .black, design: .monospaced))
+                            .foregroundStyle(history.currentLevelColor)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(history.currentLevelColor.opacity(0.15))
+                    .cornerRadius(8)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(history.currentLevelColor.opacity(0.3), lineWidth: 1)
+                    )
+                }
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(.ultraThinMaterial)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(
+                            LinearGradient(
+                                colors: [history.currentLevelColor.opacity(0.6), history.currentLevelColor.opacity(0.1)],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            ),
+                            lineWidth: 1.2
+                        )
+                )
+                .shadow(color: history.currentLevelColor.opacity(0.3), radius: 12, x: 0, y: 4)
+                .transition(.asymmetric(insertion: .scale.combined(with: .opacity), removal: .opacity))
+            }
             // Certificate Color Theme Switcher Row
             HStack {
                 Text(appState.l("Certificate Color"))
