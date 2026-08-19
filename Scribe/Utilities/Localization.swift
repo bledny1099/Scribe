@@ -144,7 +144,6 @@ enum Localization {
             "Time Dictated": "Time Dictated",
             "Sessions": "Sessions",
         
-            "Overlay Size": "Overlay Size",
             "Live Floating Preview": "Live Floating Preview",
             "Launch at Login": "Launch at Login",
             "Sound Feedback": "Sound Feedback",
