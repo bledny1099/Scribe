@@ -5065,36 +5065,6 @@ struct GeneralSettingsView: View {
                             .labelsHidden()
                     }
 
-                    // Paste Mode Picker
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(appState.l("Paste Mode"))
-                                .font(.system(size: 14, weight: .medium, design: .rounded))
-                                .foregroundStyle(.primary)
-                            Text(appState.selectedPasteMode == .paste
-                                ? appState.l("Replaces clipboard content with transcribed text.")
-                                : (appState.selectedPasteMode == .append
-                                    ? appState.l("Appends transcribed text to current clipboard content.")
-                                    : appState.l("Send text straight to notes app"))
-                            )
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        LiquidGlassSegmentedPicker(
-                            items: PasteMode.allCases,
-                            selection: Binding(
-                                get: { appState.selectedPasteMode },
-                                set: { val in
-                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                                        appState.selectedPasteMode = val
-                                    }
-                                }
-                            ),
-                            label: { (appState.l($0.displayName), $0.icon) }
-                        )
-                    }
-
                     // Enable Direct Note Feature Toggle
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
@@ -5191,36 +5161,6 @@ struct GeneralSettingsView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .transition(.opacity.combined(with: .move(edge: .top)).combined(with: .scale(scale: 0.98, anchor: .top)))
-                    }
-                    
-                    if appState.selectedPasteMode == .integrationsOnly {
-                        VStack(alignment: .leading, spacing: 14) {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(appState.l("Insertion & Export Mode"))
-                                        .font(.system(size: 14, weight: .bold))
-                                    Text(appState.l("Choose where transcribed text goes when dictation ends"))
-                                        .font(.system(size: 11))
-                                        .foregroundStyle(Color.primary.opacity(0.70))
-                                }
-                                Spacer()
-                                LiquidGlassMenu(
-                                    items: ["both", "notesOnly"],
-                                    selection: $appState.integrationExportMode,
-                                    title: { id in
-                                        switch id {
-                                        case "both": return appState.l("Active Window + Notes")
-                                        case "notesOnly": return appState.l("Notes Only (No Window Paste)")
-                                        default: return id
-                                        }
-                                    }
-                                )
-                            }
-                        }
-                        .padding(14)
-                        .background(Color.primary.opacity(0.04))
-                        .cornerRadius(12)
                         .transition(.opacity.combined(with: .move(edge: .top)).combined(with: .scale(scale: 0.98, anchor: .top)))
                     }
                 }
