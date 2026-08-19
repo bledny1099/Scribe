@@ -369,14 +369,14 @@ struct PermissionWelcomeView: View {
                     
                     if currentStep == .customization {
                         GlassSection(title: appState.l("Customize Look"), icon: "paintbrush.fill") {
-                            VStack(spacing: 16) {
+                            VStack(spacing: 14) {
                                 Text(appState.l("Choose how you want Scribe to look when recording."))
                                     .font(.system(size: 13))
                                     .foregroundStyle(.secondary)
                                     .multilineTextAlignment(.center)
                                 
-                                // Theme picker (Clean 2-row grid)
-                                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 5), spacing: 12) {
+                                // Theme picker (Single clean row of all 6 themes)
+                                HStack(spacing: 16) {
                                     ForEach(AppTheme.allCases) { theme in
                                         ThemeSwatchButton(
                                             theme: theme,
@@ -389,13 +389,18 @@ struct PermissionWelcomeView: View {
                                         }
                                     }
                                 }
+                                .frame(maxWidth: .infinity)
                                 .padding(.vertical, 4)
                                 
-                                // Overlay style picker
-                                VStack(alignment: .leading, spacing: 8) {
+                                Divider()
+                                    .padding(.horizontal, 4)
+
+                                // Overlay style picker (Horizontal row)
+                                HStack {
                                     Text(appState.l("Overlay Style"))
-                                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                                        .font(.system(size: 13.5, weight: .medium, design: .rounded))
                                         .foregroundStyle(.primary)
+                                    Spacer()
                                     LiquidGlassSegmentedPicker(
                                         items: OverlayStyle.allCases,
                                         selection: Binding(
@@ -405,13 +410,13 @@ struct PermissionWelcomeView: View {
                                         label: { ("", $0.icon) }
                                     )
                                 }
-                                .frame(maxWidth: .infinity, alignment: .leading)
 
-                                // Overlay size picker
-                                VStack(alignment: .leading, spacing: 8) {
+                                // Overlay size picker (Horizontal row)
+                                HStack {
                                     Text(appState.l("Overlay Size"))
-                                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                                        .font(.system(size: 13.5, weight: .medium, design: .rounded))
                                         .foregroundStyle(.primary)
+                                    Spacer()
                                     LiquidGlassSegmentedPicker(
                                         items: OverlaySize.allCases,
                                         selection: Binding(
@@ -421,13 +426,13 @@ struct PermissionWelcomeView: View {
                                         label: { (appState.l($0.shortName), $0.icon) }
                                     )
                                 }
-                                .frame(maxWidth: .infinity, alignment: .leading)
                                 
-                                // Panel appearance picker
-                                VStack(alignment: .leading, spacing: 8) {
+                                // Panel appearance picker (Horizontal row)
+                                HStack {
                                     Text(appState.l("Panel Appearance"))
-                                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                                        .font(.system(size: 13.5, weight: .medium, design: .rounded))
                                         .foregroundStyle(.primary)
+                                    Spacer()
                                     LiquidGlassSegmentedPicker(
                                         items: PanelAppearance.allCases,
                                         selection: Binding(
@@ -437,71 +442,65 @@ struct PermissionWelcomeView: View {
                                         label: { (appState.l($0.displayName), $0.icon) }
                                     )
                                 }
-                                .frame(maxWidth: .infinity, alignment: .leading)
                                 
+                                Divider()
+                                    .padding(.horizontal, 4)
+
                                 // Live Preview
-                                VStack(alignment: .leading, spacing: 8) {
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(appState.l("Live Preview"))
-                                                .font(.system(size: 14, weight: .medium, design: .rounded))
-                                                .foregroundStyle(.primary)
-                                            Text(appState.l("Shows intermediate text while recording"))
-                                                .font(.system(size: 11))
-                                                .foregroundStyle(.secondary)
-                                        }
-                                        Spacer()
-                                        Toggle("", isOn: Binding(
-                                            get: { appState.livePreviewEnabled },
-                                            set: { newValue in
-                                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                                    appState.livePreviewEnabled = newValue
-                                                }
-                                                DispatchQueue.main.async {
-                                                    if newValue {
-                                                        appState.showSettingsPreviewFor5Seconds()
-                                                    } else {
-                                                        appState.hideSettingsPreviewPanel()
-                                                    }
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(appState.l("Live Preview"))
+                                            .font(.system(size: 13.5, weight: .medium, design: .rounded))
+                                            .foregroundStyle(.primary)
+                                        Text(appState.l("Shows intermediate text while recording"))
+                                            .font(.system(size: 11))
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                    Toggle("", isOn: Binding(
+                                        get: { appState.livePreviewEnabled },
+                                        set: { newValue in
+                                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                                appState.livePreviewEnabled = newValue
+                                            }
+                                            DispatchQueue.main.async {
+                                                if newValue {
+                                                    appState.showSettingsPreviewFor5Seconds()
+                                                } else {
+                                                    appState.hideSettingsPreviewPanel()
                                                 }
                                             }
-                                        ))
+                                        }
+                                    ))
+                                    .toggleStyle(.switch)
+                                    .labelsHidden()
+                                }
+
+                                // Sound feedback toggle
+                                HStack {
+                                    Image(systemName: "speaker.wave.2.fill")
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .foregroundStyle(appState.selectedTheme.gradientColors.first!)
+                                    Text(appState.l("Sound Feedback"))
+                                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                                    Spacer()
+                                    Toggle("", isOn: $appState.soundFeedbackEnabled)
                                         .toggleStyle(.switch)
                                         .labelsHidden()
-                                    }
                                 }
-                                .frame(maxWidth: .infinity, alignment: .leading)
 
-                                Divider()
-                                    .padding(.horizontal, 10)
-
-                                // Sound feedback & Timer toggles
-                                VStack(spacing: 12) {
-                                    HStack {
-                                        Image(systemName: "speaker.wave.2.fill")
-                                            .font(.system(size: 14, weight: .semibold))
-                                            .foregroundStyle(appState.selectedTheme.gradientColors.first!)
-                                        Text(appState.l("Sound Feedback"))
-                                            .font(.system(size: 13, weight: .medium, design: .rounded))
-                                        Spacer()
-                                        Toggle("", isOn: $appState.soundFeedbackEnabled)
-                                            .toggleStyle(.switch)
-                                            .labelsHidden()
-                                    }
-
-                                    HStack {
-                                        Image(systemName: "timer")
-                                            .font(.system(size: 14, weight: .semibold))
-                                            .foregroundStyle(appState.selectedTheme.gradientColors.first!)
-                                        Text(appState.l("Show Recording Timer"))
-                                            .font(.system(size: 13, weight: .medium, design: .rounded))
-                                        Spacer()
-                                        Toggle("", isOn: $appState.durationVisible)
-                                            .toggleStyle(.switch)
-                                            .labelsHidden()
-                                    }
+                                // Timer toggle
+                                HStack {
+                                    Image(systemName: "timer")
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .foregroundStyle(appState.selectedTheme.gradientColors.first!)
+                                    Text(appState.l("Show Recording Timer"))
+                                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                                    Spacer()
+                                    Toggle("", isOn: $appState.durationVisible)
+                                        .toggleStyle(.switch)
+                                        .labelsHidden()
                                 }
-                                .padding(.horizontal, 8)
                             }
                         }
                         
