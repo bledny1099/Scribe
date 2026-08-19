@@ -41,7 +41,7 @@ Because Scribe is a free open-source application distributed outside the Mac App
 Requirements:
 - macOS 14.0 (Sonoma) or newer
 - Xcode 15+ / 16+
-- Apple Silicon (M1/M2/M3/M4) recommended
+- Apple Silicon (M1/M2/M3/M4/M5) recommended
 
 ```bash
 # Clone the repository
@@ -90,7 +90,7 @@ Scribe was built with a different architecture:
 
 | Component | Minimum Specification |
 | **OS** | macOS 14.0 (Sonoma) or later |
-| **Hardware** | Apple Silicon (M1, M2, M3, M4) or Intel 64-bit |
+| **Hardware** | Apple Silicon (M1, M2, M3, M4, M5) or Intel 64-bit |
 | **Permissions** | Microphone (audio capture), Accessibility (auto-paste) |
 | **Storage** | ~500 MB for recommended local Whisper models |
 
