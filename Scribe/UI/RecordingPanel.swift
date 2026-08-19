@@ -310,48 +310,55 @@ final class RecordingPanel: NSPanel {
 
     /// Retrieves the bounds of the currently active frontmost window (in Cocoa bottom-left coordinates).
     public static func getActiveWindowFrame() -> NSRect? {
-        let scribeBundleID = Bundle.main.bundleIdentifier
-        guard let frontApp = NSWorkspace.shared.frontmostApplication,
-              frontApp.bundleIdentifier != scribeBundleID else {
-            return nil
-        }
+        let scribeBundleID = Bundle.main.bundleIdentifier ?? "com.alexey.scribe"
+        let scribePID = ProcessInfo.processInfo.processIdentifier
 
-        let pid = frontApp.processIdentifier
-        let appElement = AXUIElementCreateApplication(pid)
-        var focusedWindow: AnyObject?
-        if AXUIElementCopyAttributeValue(appElement, kAXFocusedWindowAttribute as CFString, &focusedWindow) == .success,
-           let win = focusedWindow as! AXUIElement? {
-            var positionVal: AnyObject?
-            var sizeVal: AnyObject?
-            if AXUIElementCopyAttributeValue(win, kAXPositionAttribute as CFString, &positionVal) == .success,
-               AXUIElementCopyAttributeValue(win, kAXSizeAttribute as CFString, &sizeVal) == .success,
-               let posValue = positionVal as! AXValue?,
-               let sizeValue = sizeVal as! AXValue? {
-                var point = CGPoint.zero
-                var size = CGSize.zero
-                AXValueGetValue(posValue, .cgPoint, &point)
-                AXValueGetValue(sizeValue, .cgSize, &size)
-                if size.width > 80 && size.height > 80, let primaryScreen = NSScreen.screens.first {
-                    // Convert CoreGraphics top-left coordinates to Cocoa bottom-left coordinates
-                    let cocoaY = primaryScreen.frame.height - point.y - size.height
-                    return NSRect(x: point.x, y: cocoaY, width: size.width, height: size.height)
+        // 1. Try frontmost application if it's not Scribe
+        if let frontApp = NSWorkspace.shared.frontmostApplication,
+           frontApp.processIdentifier != scribePID,
+           frontApp.bundleIdentifier != scribeBundleID {
+            let pid = frontApp.processIdentifier
+            let appElement = AXUIElementCreateApplication(pid)
+            var focusedWindow: AnyObject?
+            if AXUIElementCopyAttributeValue(appElement, kAXFocusedWindowAttribute as CFString, &focusedWindow) == .success,
+               let win = focusedWindow as! AXUIElement? {
+                var positionVal: AnyObject?
+                var sizeVal: AnyObject?
+                if AXUIElementCopyAttributeValue(win, kAXPositionAttribute as CFString, &positionVal) == .success,
+                   AXUIElementCopyAttributeValue(win, kAXSizeAttribute as CFString, &sizeVal) == .success,
+                   let posValue = positionVal as! AXValue?,
+                   let sizeValue = sizeVal as! AXValue? {
+                    var point = CGPoint.zero
+                    var size = CGSize.zero
+                    AXValueGetValue(posValue, .cgPoint, &point)
+                    AXValueGetValue(sizeValue, .cgSize, &size)
+                    if size.width > 80 && size.height > 80, let primary = NSScreen.screens.first {
+                        let cocoaY = primary.frame.height - (point.y + size.height)
+                        return NSRect(x: point.x, y: cocoaY, width: size.width, height: size.height)
+                    }
                 }
             }
         }
 
-        // Fallback: Query CGWindowList for the active frontmost application window
+        // 2. Query CGWindowList for the topmost user application window (excluding Scribe and system shells)
         if let windowList = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] {
             for window in windowList {
-                if let winPID = window[kCGWindowOwnerPID as String] as? pid_t, winPID == pid,
-                   let layer = window[kCGWindowLayer as String] as? Int, layer == 0,
-                   let boundsDict = window[kCGWindowBounds as String] as? [String: CGFloat],
-                   let w = boundsDict["Width"], let h = boundsDict["Height"], w > 80 && h > 80 {
-                    let x = boundsDict["X"] ?? 0
-                    let y = boundsDict["Y"] ?? 0
-                    if let primaryScreen = NSScreen.screens.first {
-                        let cocoaY = primaryScreen.frame.height - y - h
-                        return NSRect(x: x, y: cocoaY, width: w, height: h)
-                    }
+                guard let winPID = window[kCGWindowOwnerPID as String] as? pid_t,
+                      winPID != scribePID,
+                      let layer = window[kCGWindowLayer as String] as? Int, layer == 0,
+                      let boundsDict = window[kCGWindowBounds as String] as? [String: CGFloat],
+                      let w = boundsDict["Width"], let h = boundsDict["Height"], w > 150 && h > 150 else {
+                    continue
+                }
+                let ownerName = window[kCGWindowOwnerName as String] as? String ?? ""
+                if ownerName == "Scribe" || ownerName == "Window Server" || ownerName == "Dock" || ownerName == "Control Center" || ownerName == "Notification Center" {
+                    continue
+                }
+                let x = boundsDict["X"] ?? 0
+                let y = boundsDict["Y"] ?? 0
+                if let primary = NSScreen.screens.first {
+                    let cocoaY = primary.frame.height - (y + h)
+                    return NSRect(x: x, y: cocoaY, width: w, height: h)
                 }
             }
         }
@@ -379,10 +386,10 @@ final class RecordingPanel: NSPanel {
                     let y = screenFrame.minY + 160 + yOffset
                     setFrameOrigin(NSPoint(x: x, y: y))
                 } else {
-                    // Center horizontally within the active window
+                    // Center horizontally at the active target window
                     var x = windowFrame.midX - frame.width / 2
-                    // Place comfortably near the lower portion of the active window
-                    var y = windowFrame.minY + max(28, min(windowFrame.height * 0.12, 60)) + yOffset
+                    // Place near the bottom edge of the active window
+                    var y = windowFrame.minY + 32 + yOffset
 
                     // Keep strictly inside the screen visible bounds
                     x = max(screenFrame.minX + 16, min(x, screenFrame.maxX - frame.width - 16))

@@ -401,15 +401,21 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         // 8. Strip trailing repetitions again after root stripping
         cleaned = stripTrailingRepetitions(cleaned)
 
-        // 9. If Arabic is not an enabled/selected language, strip rogue Arabic hallucinations
+        // 9. If Arabic is not an enabled/selected language, unconditionally reject Arabic hallucination output
         let activeLangs = Set(preferredLanguages.map { $0.lowercased() } + (targetLanguage != nil ? [targetLanguage!.lowercased()] : []))
         let allowsArabic = activeLangs.contains("ar") || activeLangs.contains("arabic")
         if !allowsArabic {
-            cleaned = cleaned.replacingOccurrences(
-                of: "[\\p{Arabic}\\u0600-\\u06FF\\u0750-\\u077F\\u08A0-\\u08FF]+",
-                with: "",
-                options: .regularExpression
-            )
+            let hasArabicScalar = cleaned.unicodeScalars.contains { scalar in
+                let val = scalar.value
+                return (val >= 0x0600 && val <= 0x06FF) || // Arabic
+                       (val >= 0x0750 && val <= 0x077F) || // Arabic Supplement
+                       (val >= 0x08A0 && val <= 0x08FF) || // Arabic Extended-A
+                       (val >= 0xFB50 && val <= 0xFDFF) || // Arabic Presentation Forms-A
+                       (val >= 0xFE70 && val <= 0xFEFF)    // Arabic Presentation Forms-B
+            }
+            if hasArabicScalar {
+                return ""
+            }
         }
 
         // Collapse multiple spaces into one and trim
@@ -420,7 +426,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         )
         .trimmingCharacters(in: .whitespacesAndNewlines)
 
-        // If after cleaning it only contains commas/dots/punctuation, discard
+        // If after cleaning it only contains punctuation or spaces, discard
         let alphanumericCount = cleaned.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) }.count
         if alphanumericCount == 0 {
             return ""

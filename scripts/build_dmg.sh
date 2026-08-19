@@ -28,6 +28,16 @@ if [ -z "$APP_PATH" ]; then
 fi
 
 echo "📦 Found App at: $APP_PATH"
+
+CODE_SIGN_IDENTITY=$(security find-identity -v -p codesigning 2>/dev/null | grep "Apple Development" | head -n 1 | awk -F'"' '{print $2}')
+if [ -n "$CODE_SIGN_IDENTITY" ]; then
+    echo "🔏 Signing app with identity: $CODE_SIGN_IDENTITY"
+    codesign --force --deep --sign "$CODE_SIGN_IDENTITY" "$APP_PATH"
+else
+    echo "🔏 Signing app ad-hoc..."
+    codesign --force --deep --sign - "$APP_PATH"
+fi
+
 rm -f "$DIST_DIR/$DMG_NAME"
 
 BG_IMAGE="$DIST_DIR/dmg_background.png"
