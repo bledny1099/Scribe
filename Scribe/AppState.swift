@@ -298,7 +298,27 @@ let supportedLanguages: [LanguageOption] = [
     LanguageOption("sk", "Slovak (Slovenčina)"),
     LanguageOption("th", "Thai (ไทย)"),
     LanguageOption("vi", "Vietnamese (Tiếng Việt)"),
-    LanguageOption("id", "Indonesian (Bahasa Indonesia)")
+    LanguageOption("id", "Indonesian (Bahasa Indonesia)"),
+    LanguageOption("kk", "Kazakh (Қазақша)"),
+    LanguageOption("uz", "Uzbek (Oʻzbekcha)"),
+    LanguageOption("az", "Azerbaijani (Azərbaycan)"),
+    LanguageOption("ka", "Georgian (ქართული)"),
+    LanguageOption("hy", "Armenian (Հայերեն)"),
+    LanguageOption("sr", "Serbian (Српски)"),
+    LanguageOption("hr", "Croatian (Hrvatski)"),
+    LanguageOption("bg", "Bulgarian (Български)"),
+    LanguageOption("sl", "Slovenian (Slovenščina)"),
+    LanguageOption("lt", "Lithuanian (Lietuvių)"),
+    LanguageOption("lv", "Latvian (Latviešu)"),
+    LanguageOption("et", "Estonian (Eesti)"),
+    LanguageOption("fa", "Persian (فارسی)"),
+    LanguageOption("ms", "Malay (Bahasa Melayu)"),
+    LanguageOption("tl", "Tagalog / Filipino"),
+    LanguageOption("ca", "Catalan (Català)"),
+    LanguageOption("is", "Icelandic (Íslenska)"),
+    LanguageOption("ta", "Tamil (தமிழ்)"),
+    LanguageOption("bn", "Bengali (বাংলা)"),
+    LanguageOption("ur", "Urdu (اردو)")
 ]
 
 /// Helper to get a flat list of all selectable language IDs (used for validation).
