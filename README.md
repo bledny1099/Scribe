@@ -12,6 +12,10 @@ Press `⌥S`, talk, press it again. Your words land directly in whatever text fi
 
 [**Download Scribe (.dmg)**](https://github.com/bledny1099/Scribe/releases/latest/download/Scribe.dmg) · [**Releases**](https://github.com/bledny1099/Scribe/releases) · [**Report Issue**](https://github.com/bledny1099/Scribe/issues)
 
+<br>
+
+<video src="assets/scribe_demo.mp4" controls width="100%" poster="assets/appearance.jpeg"></video>
+
 </div>
 
 ---
@@ -22,6 +26,29 @@ Scribe sits in your menu bar and waits for a global shortcut. Trigger it anywher
 
 Release or press the shortcut again, and the transcribed text is automatically pasted into the active application you were already working in (Xcode, Slack, VS Code, Telegram, Notes, terminal, or browser). Every transcription is stored locally in your searchable history, so you can revisit or copy past dictations at any time.
 
+---
+
+## Screenshots
+
+<div align="center">
+
+### Customization & Overlays
+<img src="assets/appearance.jpeg" alt="Scribe Appearance Settings" width="100%">
+
+<br><br>
+
+### Direct Note Integrations
+<img src="assets/integrations.jpeg" alt="Scribe Integrations Settings" width="100%">
+
+<br><br>
+
+### Speech Statistics & History
+<img src="assets/stats.jpeg" alt="Scribe Statistics and History" width="100%">
+
+</div>
+
+---
+
 ## Install
 
 ### Direct download
@@ -30,7 +57,7 @@ Download the latest **[Scribe.dmg](https://github.com/bledny1099/Scribe/releases
 
 #### First-Launch Note (macOS Gatekeeper)
 
-Because Scribe is a free open-source application distributed outside the Mac App Store without a paid Apple Developer certificate, macOS may flag it on first launch:
+Because Scribe is an open-source application distributed outside the Mac App Store without a paid Apple Developer certificate, macOS may flag it on first launch:
 
 - **Quickest**: Right-click (or Control-click) `Scribe.app` in `/Applications` → click **Open** → click **Open** in the confirmation dialog.
 - **System Settings**: Go to **System Settings** → **Privacy & Security** → scroll down to Security → click **Open Anyway**.
@@ -60,7 +87,7 @@ The compiled application and installer disk image will be created at `dist/Scrib
 
 There are plenty of voice-to-text tools for macOS, but most come with significant trade-offs:
 
-- **Cloud subscriptions & privacy risks**: Many services stream your raw audio or keystrokes to third-party servers.
+- **Cloud subscriptions and privacy risks**: Many services stream your raw audio or keystrokes to third-party servers.
 - **Heavy web wrappers**: Electron and browser-based apps consume hundreds of megabytes of RAM while idling in the background.
 - **Slow transcription**: Generic tools lack hardware optimization for Apple Silicon Neural Engine cores.
 
@@ -69,7 +96,7 @@ Scribe was built with a different architecture:
 1. **Hybrid Aether Engine**: Combines Apple's on-device Speech framework for zero-latency live visual feedback with WhisperKit compiled for Apple Neural Engine (ANE) to deliver studio-quality punctuation, formatting, and capitalization.
 2. **Zero-Download Mode (Aether Instant)**: If you prefer not to download external models (~0 MB download, ~0 MB disk usage), switch the engine to **Aether Instant** in Settings to run purely on macOS's built-in native Apple Speech engine with instant speed and minimal CPU usage.
 3. **Context Biasing**: Intelligently identifies the active application and biases recognition toward technical terminology, developer jargon, and custom dictionary words.
-4. **100% On-Device & Open Source**: Native Swift, lightweight memory footprint, and zero analytics or telemetry.
+4. **100% On-Device and Open Source**: Native Swift, lightweight memory footprint, and zero analytics or telemetry.
 
 ---
 
