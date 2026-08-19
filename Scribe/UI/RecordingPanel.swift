@@ -30,8 +30,8 @@ final class RecordingPanel: NSPanel {
             return NSSize(width: width, height: 56)
         }
 
-        // Base width: Left dot (44) + Waveform visualizer (220) + Timer/Stop/Status (86) + paddings (30) = 380 pt
-        var width: CGFloat = 380
+        // Base width: Left dot (44) + Waveform visualizer (260) + Timer/Stop/Status (96) + paddings (40) = 440 pt
+        var width: CGFloat = 440
         
         if !targetAppName.isEmpty {
             // Target app badge width:
@@ -46,7 +46,7 @@ final class RecordingPanel: NSPanel {
             width += 85 // AI refinement mode badge
         }
         
-        return NSSize(width: min(max(width, 380), 660), height: 72)
+        return NSSize(width: min(max(width, 440), 680), height: 72)
     }
 
     static func size(
@@ -306,6 +306,95 @@ final class RecordingPanel: NSPanel {
         )
         updateCornerRadius(targetRadius, targetSize: targetSize)
         invalidateShadow()
+    }
+
+    /// Retrieves the bounds of the currently active frontmost window (in Cocoa bottom-left coordinates).
+    public static func getActiveWindowFrame() -> NSRect? {
+        let scribeBundleID = Bundle.main.bundleIdentifier
+        guard let frontApp = NSWorkspace.shared.frontmostApplication,
+              frontApp.bundleIdentifier != scribeBundleID else {
+            return nil
+        }
+
+        let pid = frontApp.processIdentifier
+        let appElement = AXUIElementCreateApplication(pid)
+        var focusedWindow: AnyObject?
+        if AXUIElementCopyAttributeValue(appElement, kAXFocusedWindowAttribute as CFString, &focusedWindow) == .success,
+           let win = focusedWindow as! AXUIElement? {
+            var positionVal: AnyObject?
+            var sizeVal: AnyObject?
+            if AXUIElementCopyAttributeValue(win, kAXPositionAttribute as CFString, &positionVal) == .success,
+               AXUIElementCopyAttributeValue(win, kAXSizeAttribute as CFString, &sizeVal) == .success,
+               let posValue = positionVal as! AXValue?,
+               let sizeValue = sizeVal as! AXValue? {
+                var point = CGPoint.zero
+                var size = CGSize.zero
+                AXValueGetValue(posValue, .cgPoint, &point)
+                AXValueGetValue(sizeValue, .cgSize, &size)
+                if size.width > 80 && size.height > 80, let primaryScreen = NSScreen.screens.first {
+                    // Convert CoreGraphics top-left coordinates to Cocoa bottom-left coordinates
+                    let cocoaY = primaryScreen.frame.height - point.y - size.height
+                    return NSRect(x: point.x, y: cocoaY, width: size.width, height: size.height)
+                }
+            }
+        }
+
+        // Fallback: Query CGWindowList for the active frontmost application window
+        if let windowList = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] {
+            for window in windowList {
+                if let winPID = window[kCGWindowOwnerPID as String] as? pid_t, winPID == pid,
+                   let layer = window[kCGWindowLayer as String] as? Int, layer == 0,
+                   let boundsDict = window[kCGWindowBounds as String] as? [String: CGFloat],
+                   let w = boundsDict["Width"], let h = boundsDict["Height"], w > 80 && h > 80 {
+                    let x = boundsDict["X"] ?? 0
+                    let y = boundsDict["Y"] ?? 0
+                    if let primaryScreen = NSScreen.screens.first {
+                        let cocoaY = primaryScreen.frame.height - y - h
+                        return NSRect(x: x, y: cocoaY, width: w, height: h)
+                    }
+                }
+            }
+        }
+
+        return nil
+    }
+
+    /// Positions the panel based on the selected positioning mode.
+    func positionPanel(mode: OverlayPositionMode, yOffset: CGFloat = 0) {
+        guard let screen = NSScreen.main else { center(); return }
+        let screenFrame = screen.visibleFrame
+
+        switch mode {
+        case .screenBottom:
+            let x = screenFrame.midX - frame.width / 2
+            let y = screenFrame.minY + 160 + yOffset
+            setFrameOrigin(NSPoint(x: x, y: y))
+
+        case .activeWindow:
+            if let windowFrame = Self.getActiveWindowFrame() {
+                // If the active window is full screen / maximized (occupies almost the full screen), position at screen bottom
+                let isNearlyFullScreen = windowFrame.width >= (screenFrame.width - 40) && windowFrame.height >= (screenFrame.height - 40)
+                if isNearlyFullScreen {
+                    let x = screenFrame.midX - frame.width / 2
+                    let y = screenFrame.minY + 160 + yOffset
+                    setFrameOrigin(NSPoint(x: x, y: y))
+                } else {
+                    // Center horizontally within the active window
+                    var x = windowFrame.midX - frame.width / 2
+                    // Place in lower area of the active window
+                    var y = windowFrame.minY + max(20, min(windowFrame.height * 0.18, 90)) + yOffset
+
+                    // Keep strictly inside the screen visible bounds
+                    x = max(screenFrame.minX + 16, min(x, screenFrame.maxX - frame.width - 16))
+                    y = max(screenFrame.minY + 16, min(y, screenFrame.maxY - frame.height - 16))
+                    setFrameOrigin(NSPoint(x: x, y: y))
+                }
+            } else {
+                let x = screenFrame.midX - frame.width / 2
+                let y = screenFrame.minY + 160 + yOffset
+                setFrameOrigin(NSPoint(x: x, y: y))
+            }
+        }
     }
 
     /// Positions the panel near the bottom-center of the main screen.

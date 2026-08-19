@@ -289,6 +289,22 @@ struct SettingsView: View {
                                 )
                             }
 
+                            // Overlay placement / position mode picker
+                            HStack {
+                                Text(appState.l("Overlay Position"))
+                                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                LiquidGlassSegmentedPicker(
+                                    items: OverlayPositionMode.allCases,
+                                    selection: Binding(
+                                        get: { appState.overlayPositionMode },
+                                        set: { appState.overlayPositionMode = $0 }
+                                    ),
+                                    label: { (appState.l($0.displayName), $0.icon) }
+                                )
+                            }
+
                             // Background appearance picker
                             HStack {
                                 Text(appState.l("Panel Appearance"))

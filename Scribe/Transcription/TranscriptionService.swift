@@ -197,42 +197,20 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
 
         // 2. Configure DecodingOptions with high-performance decoding
         let baseLang = language != nil ? baseLanguageCode(for: language!) : "auto"
-        let langKey = baseLang
         var options = DecodingOptions(task: autoTranslate ? .translate : .transcribe)
         options.temperature = 0.0
         options.temperatureFallbackCount = 0
         options.withoutTimestamps = true
         options.skipSpecialTokens = true
+
+        var resolvedLang = baseLang
         if baseLang != "auto" {
             options.language = baseLang
             options.detectLanguage = false
-        } else {
-            options.language = nil
-            options.detectLanguage = true
-        }
-
-        // 3. Stage A: Context Biasing & Dynamic Vocabulary Injection
-        let basePrompt = initialPrompt[langKey] ?? initialPrompt["auto"]!
-        let promptText = AetherContextEngine.shared.buildConditioningPrompt(
-            basePrompt: basePrompt,
-            customVocabulary: customVocabulary,
-            userLocation: userLocation,
-            language: language
-        )
-
-        if let tokenizer = kit.tokenizer {
-            let tokens = tokenizer.encode(text: promptText)
-            // WhisperKit prompt tokens: keep compact (max 100) for faster attention decoding
-            options.promptTokens = Array(tokens.suffix(min(tokens.count, 100)))
-            // Must disable prefill cache when using promptTokens (WhisperKit limitation)
-            options.usePrefillCache = false
-            logger.debug("Aether set initial prompt (\(options.promptTokens?.count ?? 0) tokens) for language '\(langKey)'")
-        }
-        
-        // Custom Language Detection with Strict Preferred Languages Lock
-        if options.detectLanguage, !preferredLanguages.isEmpty {
+        } else if !preferredLanguages.isEmpty {
             let basePreferred = preferredLanguages.map { baseLanguageCode(for: $0) }
             if basePreferred.count == 1, let singleLang = basePreferred.first {
+                resolvedLang = singleLang
                 options.language = singleLang
                 options.detectLanguage = false
             } else {
@@ -243,22 +221,52 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
                     
                     if basePreferred.contains(baseDetected) {
                         logger.info("Using detected preferred language: \(baseDetected)")
-                        options.language = baseDetected
-                        options.detectLanguage = false
-                    } else if let bestLang = basePreferred.max(by: { (langProbs[$0] ?? -Float.greatestFiniteMagnitude) < (langProbs[$1] ?? -Float.greatestFiniteMagnitude) }) {
-                        logger.info("Strict language lock: Overriding detected foreign language '\(baseDetected)' to preferred match '\(bestLang)'")
-                        options.language = bestLang
-                        options.detectLanguage = false
+                        resolvedLang = baseDetected
                     } else {
-                        options.language = basePreferred.first
-                        options.detectLanguage = false
+                        // Strict lock: Pick the preferred language with the highest probability
+                        var bestLang = basePreferred.first ?? "ru"
+                        var bestProb: Float = -Float.greatestFiniteMagnitude
+                        for pref in basePreferred {
+                            let prob = langProbs[pref] ?? -1000.0
+                            if prob > bestProb {
+                                bestProb = prob
+                                bestLang = pref
+                            }
+                        }
+                        logger.info("Strict language lock: Overriding detected foreign language '\(baseDetected)' to preferred match '\(bestLang)'")
+                        resolvedLang = bestLang
                     }
+                    options.language = resolvedLang
+                    options.detectLanguage = false
                 } catch {
                     logger.warning("Custom language detection failed: \(error), defaulting to first preferred language: \(basePreferred.first ?? "ru")")
-                    options.language = basePreferred.first
+                    resolvedLang = basePreferred.first ?? "ru"
+                    options.language = resolvedLang
                     options.detectLanguage = false
                 }
             }
+        } else {
+            options.language = nil
+            options.detectLanguage = true
+        }
+
+        // 3. Stage A: Context Biasing & Dynamic Vocabulary Injection
+        let langKey = resolvedLang
+        let basePrompt = initialPrompt[langKey] ?? initialPrompt["auto"]!
+        let promptText = AetherContextEngine.shared.buildConditioningPrompt(
+            basePrompt: basePrompt,
+            customVocabulary: customVocabulary,
+            userLocation: userLocation,
+            language: resolvedLang != "auto" ? resolvedLang : language
+        )
+
+        if let tokenizer = kit.tokenizer {
+            let tokens = tokenizer.encode(text: promptText)
+            // WhisperKit prompt tokens: keep compact (max 100) for faster attention decoding
+            options.promptTokens = Array(tokens.suffix(min(tokens.count, 100)))
+            // Must disable prefill cache when using promptTokens (WhisperKit limitation)
+            options.usePrefillCache = false
+            logger.debug("Aether set initial prompt (\(options.promptTokens?.count ?? 0) tokens) for language '\(langKey)'")
         }
         
         logger.debug("Calling WhisperKit.transcribe(audioPath: \(path), language: \(options.language ?? "auto"))")

@@ -274,7 +274,7 @@ struct WaveformOverlay: View {
                         .frame(maxWidth: .infinity, maxHeight: RecordingPanel.waveformSize.height)
 
                     // Right: status label + target app badge + timer + stop button
-                    HStack(spacing: 8) {
+                    HStack(spacing: 10) {
                         if isAIModeActive {
                             HStack(spacing: 4) {
                                 Image(systemName: appState.selectedAIRefinementMode.icon)
@@ -301,7 +301,7 @@ struct WaveformOverlay: View {
                             Text(appState.isShowingPreview ? "0:05" : appState.formattedDuration)
                                 .font(.system(size: 14, weight: .medium, design: .rounded).monospacedDigit())
                                 .foregroundStyle(.secondary)
-                                .frame(width: 42, alignment: .leading)
+                                .frame(minWidth: 42, alignment: .center)
                                 .animation(.default, value: appState.recordingDuration)
                         }
 
@@ -319,7 +319,7 @@ struct WaveformOverlay: View {
                     }
                     .fixedSize(horizontal: true, vertical: false)
                     .frame(height: RecordingPanel.waveformSize.height)
-                    .padding(.trailing, 10)
+                    .padding(.trailing, 12)
                     .animation(.easeInOut(duration: 0.2), value: appState.recordingStatus == .recording)
                 }
                 .frame(height: RecordingPanel.waveformSize.height)

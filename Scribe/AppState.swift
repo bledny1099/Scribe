@@ -111,6 +111,37 @@ enum OverlaySize: String, CaseIterable, Identifiable {
     var icon: String { "" }
 }
 
+// MARK: - Overlay Position Mode
+
+/// How the overlay panel is positioned on screen during dictation.
+public enum OverlayPositionMode: String, CaseIterable, Identifiable {
+    case activeWindow = "Active Window"
+    case screenBottom = "Screen Bottom"
+
+    public var id: String { rawValue }
+
+    public var displayName: String {
+        switch self {
+        case .activeWindow: "Active Window"
+        case .screenBottom: "Screen Bottom"
+        }
+    }
+
+    public var shortName: String {
+        switch self {
+        case .activeWindow: "Active Window"
+        case .screenBottom: "Screen Bottom"
+        }
+    }
+
+    public var icon: String {
+        switch self {
+        case .activeWindow: "macwindow"
+        case .screenBottom: "menubar.dock.rectangle"
+        }
+    }
+}
+
 // MARK: - Panel Appearance
 
 /// Background appearance for the recording panel.
@@ -432,6 +463,7 @@ final class AppState: ObservableObject {
     @AppStorage("selectedTheme") var selectedThemeRaw: String = AppTheme.aurora.rawValue
     @AppStorage("selectedOverlayStyle") var selectedOverlayStyleRaw: String = OverlayStyle.waveform.rawValue
     @AppStorage("selectedOverlaySize") var selectedOverlaySizeRaw: String = OverlaySize.s100.rawValue
+    @AppStorage("overlayPositionMode") var overlayPositionModeRaw: String = OverlayPositionMode.activeWindow.rawValue
     @AppStorage("selectedPanelAppearance") var selectedPanelAppearanceRaw: String = PanelAppearance.dark.rawValue
     @AppStorage("soundFeedbackEnabled") var soundFeedbackEnabled: Bool = true
     @AppStorage("livePreviewEnabled") var livePreviewEnabled: Bool = false
@@ -629,6 +661,15 @@ final class AppState: ObservableObject {
     var selectedOverlaySize: OverlaySize {
         get { OverlaySize(rawValue: selectedOverlaySizeRaw) ?? .s100 }
         set { selectedOverlaySizeRaw = newValue.rawValue }
+    }
+
+    /// Computed property for type-safe overlay position mode access.
+    var overlayPositionMode: OverlayPositionMode {
+        get { OverlayPositionMode(rawValue: overlayPositionModeRaw) ?? .activeWindow }
+        set {
+            overlayPositionModeRaw = newValue.rawValue
+            showSettingsPreviewFor5Seconds()
+        }
     }
 
     /// Compensation multiplier for text/timers when the overlay panel is scaled down.
@@ -990,7 +1031,7 @@ final class AppState: ObservableObject {
             hasAIMode: hasAI
         )
 
-        panel.positionAtBottom()
+        panel.positionPanel(mode: overlayPositionMode)
 
         panel.orderFrontRegardless()
         recordingPanel = panel
@@ -1204,17 +1245,23 @@ final class AppState: ObservableObject {
         }
 
         // 4. Fallback: place on the side (right vs left) that has MORE available space
+        let rawOrigin: NSPoint
         if spaceRight >= spaceLeft {
-            let x = min(settingsFrame.maxX + padding, screenFrame.maxX - size.width - padding)
+            let x = settingsFrame.maxX + padding
             let preferredY = settingsFrame.midY - size.height / 2
             let y = max(screenFrame.minY + padding, min(preferredY, screenFrame.maxY - size.height - padding))
-            return NSPoint(x: max(screenFrame.minX + padding, x), y: y)
+            rawOrigin = NSPoint(x: x, y: y)
         } else {
-            let x = max(screenFrame.minX + padding, settingsFrame.minX - size.width - padding)
+            let x = settingsFrame.minX - size.width - padding
             let preferredY = settingsFrame.midY - size.height / 2
             let y = max(screenFrame.minY + padding, min(preferredY, screenFrame.maxY - size.height - padding))
-            return NSPoint(x: min(screenFrame.maxX - size.width - padding, x), y: y)
+            rawOrigin = NSPoint(x: x, y: y)
         }
+
+        // Final safety clamp: guarantee 100% visibility within screen bounds
+        let safeX = max(screenFrame.minX + padding, min(rawOrigin.x, screenFrame.maxX - size.width - padding))
+        let safeY = max(screenFrame.minY + padding, min(rawOrigin.y, screenFrame.maxY - size.height - padding))
+        return NSPoint(x: safeX, y: safeY)
     }
 
     func updateSettingsPreviewPanel(isDragging: Bool = false) {
