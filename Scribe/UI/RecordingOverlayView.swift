@@ -243,13 +243,16 @@ struct WaveformOverlay: View {
         let cardWidth = dynamicSize.width / appState.selectedOverlaySize.scale
         let cardHeight = dynamicSize.height / appState.selectedOverlaySize.scale
 
+        let isTimerVisible = appState.durationVisible && (appState.recordingStatus == .recording || appState.isShowingPreview)
+
         return VStack(spacing: 8) {
             HStack(alignment: .center, spacing: 6) {
                 // Left: status indicator centered in the left cap area
                 ZStack(alignment: .center) {
                     statusIndicator
                 }
-                .frame(width: 44, height: RecordingPanel.waveformSize.height)
+                .frame(width: 36, height: RecordingPanel.waveformSize.height)
+                .padding(.leading, 8)
 
                 // Center: dynamically expanding waveform bars
                 waveformBars
@@ -276,10 +279,10 @@ struct WaveformOverlay: View {
                             name: effectiveAppName,
                             icon: (appState.recordingStatus == .recording || appState.recordingStatus == .transcribing) ? appState.targetAppIcon : NSApp.applicationIconImage
                         )
-                        .padding(.trailing, 2)
+                        .padding(.trailing, isTimerVisible ? 2 : 10)
                     }
 
-                    if appState.durationVisible && (appState.recordingStatus == .recording || appState.isShowingPreview) {
+                    if isTimerVisible {
                         Text(appState.isShowingPreview ? "0:05" : appState.formattedDuration)
                             .font(.system(size: 14, weight: .medium, design: .rounded).monospacedDigit())
                             .foregroundStyle(.secondary)
