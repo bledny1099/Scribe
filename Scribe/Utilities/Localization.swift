@@ -576,7 +576,15 @@ enum Localization {
             "Mastery": "мастерства",
             "words to Level": "слов до ур.",
             "Words": "слов",
-            "Words remaining": "Осталось слов"
+            "Words remaining": "Осталось слов",
+            "Verify Transfer": "Подтвердить перевод",
+            "Enter sender wallet address or TxID": "Адрес кошелька отправителя или TxID",
+            "Checking blockchain...": "Проверка в блокчейне...",
+            "Donation verified!": "Донат подтвержден!",
+            "Thank you for supporting Scribe!": "Спасибо за поддержку Scribe!",
+            "Transaction not found yet. If sent recently, please wait 1-2 minutes for network confirmation and try again.": "Транзакция пока не найдена. Если перевод сделан недавно, подождите 1–2 минуты подтверждения сети и попробуйте снова.",
+            "HONOURED SCRIBE SUPPORTER": "ПОЧЁТНЫЙ МЕЦЕНАТ SCRIBE",
+            "You are a verified Scribe Supporter!": "Вы являетесь верифицированным меценатом Scribe!"
         ],
         "es": [
             "Start Dictation": "Iniciar dictado",

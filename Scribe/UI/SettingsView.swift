@@ -1273,6 +1273,7 @@ struct GoldCertificateCardView: View {
     @EnvironmentObject var appState: AppState
     @ObservedObject var history = TranscriptionHistory.shared
     @AppStorage("goldCertColorTheme") private var colorThemeRaw: String = CertificateColorTheme.levelColor.rawValue
+    @AppStorage("isScribeSupporter") private var isScribeSupporter: Bool = false
     var isPulsing: Bool
     var isShimmering: Bool
     @Binding var showTopWords: Bool
@@ -1307,6 +1308,23 @@ struct GoldCertificateCardView: View {
                     .tracking(2.5)
 
                 Spacer()
+
+                if isScribeSupporter {
+                    HStack(spacing: 4) {
+                        Image(systemName: "crown.fill")
+                            .font(.system(size: 8, weight: .bold))
+                        Text(appState.l("HONOURED SCRIBE SUPPORTER"))
+                            .font(.system(size: 8, weight: .bold, design: .serif))
+                    }
+                    .foregroundStyle(.yellow)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.yellow.opacity(0.15))
+                    .cornerRadius(4)
+                    .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.yellow.opacity(0.4), lineWidth: 0.5))
+
+                    Spacer()
+                }
 
                 Text("EST. 2026")
                     .font(.system(size: 8, weight: .bold, design: .serif))
@@ -2217,13 +2235,42 @@ struct ThemeSwatchButton: View {
 struct SupportDeveloperModal: View {
     @EnvironmentObject var appState: AppState
     @Environment(\.dismiss) var dismiss
-    
+
+    @AppStorage("isScribeSupporter") private var isScribeSupporter: Bool = false
+    @AppStorage("supporterDonationAmount") private var supporterDonationAmount: Double = 0
+    @AppStorage("supporterDonationCurrency") private var supporterDonationCurrency: String = ""
+    @AppStorage("supporterTxHash") private var supporterTxHash: String = ""
+
+    @State private var inputAddressOrTx: String = ""
+    @State private var isVerifying = false
+    @State private var verificationError: String? = nil
+    @State private var verifiedResult: DonationVerificationResult? = nil
+    @State private var showVerificationSuccess = false
+
     var body: some View {
         VStack(spacing: 0) {
             // Header
             HStack {
-                Text(appState.l("Support Scribe") + " ☕️")
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                HStack(spacing: 8) {
+                    Text(appState.l("Support Scribe"))
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                    if isScribeSupporter {
+                        HStack(spacing: 4) {
+                            Image(systemName: "crown.fill")
+                                .font(.system(size: 10, weight: .bold))
+                            Text("SUPPORTER")
+                                .font(.system(size: 9, weight: .bold, design: .rounded))
+                        }
+                        .foregroundStyle(.yellow)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.yellow.opacity(0.15))
+                        .cornerRadius(6)
+                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.yellow.opacity(0.3), lineWidth: 1))
+                    } else {
+                        Text("☕️")
+                    }
+                }
                 Spacer()
                 Button {
                     dismiss()
@@ -2235,33 +2282,233 @@ struct SupportDeveloperModal: View {
                 .buttonStyle(.plain)
             }
             .padding()
-            
+
             Divider()
-            
-            VStack(spacing: 16) {
-                Text(appState.l("Scribe is an independent project supported entirely by user donations. If you find it useful, consider supporting its development. Donations are completely optional. Thank you!"))
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
+
+            ScrollView(.vertical, showsIndicators: true) {
+                VStack(spacing: 16) {
+                    // Supporter Golden Gratitude Banner (if verified)
+                    if isScribeSupporter {
+                        VStack(spacing: 8) {
+                            HStack(spacing: 10) {
+                                ZStack {
+                                    Circle()
+                                        .fill(LinearGradient(colors: [.yellow, .orange], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                        .frame(width: 38, height: 38)
+                                    Image(systemName: "crown.fill")
+                                        .font(.system(size: 18, weight: .bold))
+                                        .foregroundStyle(.white)
+                                }
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(appState.l("HONOURED SCRIBE SUPPORTER") + " 🌟")
+                                        .font(.system(size: 12, weight: .bold, design: .serif))
+                                        .foregroundStyle(LinearGradient(colors: [.yellow, .orange], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                    Text(appState.l("Thank you for supporting Scribe!"))
+                                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                                        .foregroundStyle(.primary.opacity(0.9))
+                                }
+                                Spacer()
+                            }
+
+                            if supporterDonationAmount > 0 {
+                                HStack {
+                                    Text("\(String(format: "%.2f", supporterDonationAmount)) \(supporterDonationCurrency)")
+                                        .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                        .foregroundStyle(.yellow)
+                                    Spacer()
+                                    Text(appState.l("Donation verified!"))
+                                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                                        .foregroundStyle(.green)
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.yellow.opacity(0.08))
+                                .cornerRadius(6)
+                            }
+                        }
+                        .padding(12)
+                        .background(Color.yellow.opacity(0.12))
+                        .cornerRadius(12)
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.yellow.opacity(0.4), lineWidth: 1))
+                        .padding(.horizontal)
+                        .padding(.top, 10)
+                    }
+
+                    Text(appState.l("Scribe is an independent project supported entirely by user donations. If you find it useful, consider supporting its development. Donations are completely optional. Thank you!"))
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal)
+                        .padding(.top, isScribeSupporter ? 2 : 12)
+
+                    // Address Rows
+                    VStack(spacing: 10) {
+                        CopyAddressRow(title: "USDT (TRC20)", address: DonationVerificationService.trc20DepositAddress, icon: "t.circle.fill", color: .green)
+                        CopyAddressRow(title: "USDT (TON)", address: DonationVerificationService.tonDepositAddress, icon: "t.circle.fill", color: .blue)
+                        CopyAddressRow(title: "Bitcoin (BTC)", address: DonationVerificationService.btcDepositAddress, icon: "bitcoinsign.circle.fill", color: .orange)
+                        CopyAddressRow(title: "Ethereum (ERC20)", address: DonationVerificationService.ethDepositAddress, icon: "diamond.circle.fill", color: .purple)
+                    }
                     .padding(.horizontal)
-                    .padding(.top, 16)
-                    .padding(.bottom, 10)
-                
-                VStack(spacing: 10) {
-                    CopyAddressRow(title: "USDT (TRC20)", address: "TDxy3x7N33wCgyTCKzsNHnfPu5kAyqk4EX", icon: "t.circle.fill", color: .green)
-                    CopyAddressRow(title: "USDT (TON)", address: "UQDGb_rPU7i3gJ5mzrofTHxM13hEKAeoBRtZdCRRmb8UV6fE", icon: "t.circle.fill", color: .blue)
-                    CopyAddressRow(title: "Bitcoin (BTC)", address: "16L68nCPuXGUfecU6oxKGgmFPyvz2om5iT", icon: "bitcoinsign.circle.fill", color: .orange)
-                    CopyAddressRow(title: "Ethereum (ERC20)", address: "0x89bb769cc0636720f0544634bd6a3de33b73150f", icon: "diamond.circle.fill", color: .purple)
+
+                    Divider().padding(.horizontal)
+
+                    // On-Chain Donation Verification Form
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "checkmark.seal.fill")
+                                .foregroundStyle(Color.yellow)
+                            Text(appState.l("Verify Transfer"))
+                                .font(.system(size: 13, weight: .bold, design: .rounded))
+                        }
+
+                        Text(appState.l("Enter sender wallet address or TxID"))
+                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                            .foregroundStyle(.secondary)
+
+                        HStack(spacing: 8) {
+                            HStack {
+                                Image(systemName: "magnifyingglass")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.secondary)
+
+                                TextField("TDxy3x... / 0x... / TxID", text: $inputAddressOrTx)
+                                    .textFieldStyle(.plain)
+                                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+
+                                if !inputAddressOrTx.isEmpty {
+                                    Button(action: { inputAddressOrTx = "" }) {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .font(.system(size: 11))
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                            .padding(8)
+                            .background(Color.primary.opacity(0.04))
+                            .cornerRadius(8)
+                            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.primary.opacity(0.1), lineWidth: 1))
+
+                            Button(action: {
+                                if let str = NSPasteboard.general.string(forType: .string) {
+                                    inputAddressOrTx = str.trimmingCharacters(in: .whitespacesAndNewlines)
+                                }
+                            }) {
+                                Image(systemName: "doc.on.clipboard")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .padding(8)
+                                    .background(Color.primary.opacity(0.06))
+                                    .cornerRadius(8)
+                            }
+                            .buttonStyle(.plain)
+                            .help("Paste from clipboard")
+
+                            Button(action: {
+                                performVerification()
+                            }) {
+                                HStack(spacing: 5) {
+                                    if isVerifying {
+                                        ProgressView()
+                                            .controlSize(.mini)
+                                            .frame(width: 12, height: 12)
+                                    } else {
+                                        Image(systemName: "arrow.triangle.2.circlepath")
+                                            .font(.system(size: 11, weight: .bold))
+                                    }
+                                    Text(appState.l("Verify Transfer"))
+                                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 8)
+                                .background(Color.yellow.opacity(0.2))
+                                .foregroundStyle(Color.primary)
+                                .cornerRadius(8)
+                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.yellow.opacity(0.4), lineWidth: 1))
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(inputAddressOrTx.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isVerifying)
+                        }
+
+                        if let error = verificationError {
+                            HStack(alignment: .top, spacing: 6) {
+                                Image(systemName: "info.circle.fill")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.orange)
+                                Text(error)
+                                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.orange)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            .padding(8)
+                            .background(Color.orange.opacity(0.08))
+                            .cornerRadius(8)
+                        }
+
+                        if showVerificationSuccess, let res = verifiedResult {
+                            HStack(spacing: 8) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(.green)
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(appState.l("Donation verified!") + " 💛")
+                                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                                        .foregroundStyle(.green)
+                                    Text("\(String(format: "%.2f", res.amount)) \(res.currency) (\(res.network))")
+                                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                                        .foregroundStyle(.primary.opacity(0.85))
+                                }
+                                Spacer()
+                            }
+                            .padding(10)
+                            .background(Color.green.opacity(0.12))
+                            .cornerRadius(8)
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.green.opacity(0.35), lineWidth: 1))
+                        }
+                    }
+                    .padding(.horizontal)
+                    .padding(.bottom, 24)
                 }
-                .padding(.horizontal)
-                .padding(.bottom, 20)
             }
-            
-            Spacer(minLength: 0)
         }
-        .frame(width: 420, height: 500)
+        .frame(width: 440, height: 580)
         .background(.ultraThinMaterial)
+    }
+
+    private func performVerification() {
+        let input = inputAddressOrTx.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !input.isEmpty else { return }
+
+        isVerifying = true
+        verificationError = nil
+        showVerificationSuccess = false
+
+        Task {
+            do {
+                if let result = try await DonationVerificationService.shared.verifyDonation(input: input) {
+                    await MainActor.run {
+                        isVerifying = false
+                        verifiedResult = result
+                        isScribeSupporter = true
+                        supporterDonationAmount = result.amount
+                        supporterDonationCurrency = result.currency
+                        supporterTxHash = result.txHash
+                        showVerificationSuccess = true
+                    }
+                } else {
+                    await MainActor.run {
+                        isVerifying = false
+                        verificationError = appState.l("Transaction not found yet. If sent recently, please wait 1-2 minutes for network confirmation and try again.")
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    isVerifying = false
+                    verificationError = appState.l("Transaction not found yet. If sent recently, please wait 1-2 minutes for network confirmation and try again.")
+                }
+            }
+        }
     }
 }
 

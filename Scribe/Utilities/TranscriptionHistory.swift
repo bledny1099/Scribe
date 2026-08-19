@@ -376,3 +376,272 @@ final class TranscriptionHistory: ObservableObject {
         }
     }
 }
+
+// MARK: - Donation Verification Service
+
+/// Result of a verified donation
+struct DonationVerificationResult {
+    let network: String
+    let amount: Double
+    let currency: String
+    let txHash: String
+    let senderAddress: String
+    let date: Date?
+}
+
+/// Service that securely checks incoming donations across multiple public blockchain networks
+/// without embedding any private API keys or secret credentials.
+final class DonationVerificationService: @unchecked Sendable {
+    static let shared = DonationVerificationService()
+
+    // Scribe official deposit addresses
+    static let trc20DepositAddress = "TDxy3x7N33wCgyTCKzsNHnfPu5kAyqk4EX"
+    static let tonDepositAddress   = "UQDGb_rPU7i3gJ5mzrofTHxM13hEKAeoBRtZdCRRmb8UV6fE"
+    static let btcDepositAddress   = "16L68nCPuXGUfecU6oxKGgmFPyvz2om5iT"
+    static let ethDepositAddress   = "0x89bb769cc0636720f0544634bd6a3de33b73150f"
+
+    private init() {}
+
+    /// Checks if a given sender address or transaction hash corresponds to an incoming donation.
+    func verifyDonation(input: String) async throws -> DonationVerificationResult? {
+        let query = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return nil }
+
+        // Run verification checks across networks
+        // 1. Tron (USDT TRC20)
+        if query.hasPrefix("T") || query.count == 64 {
+            if let result = try? await checkTronTRC20(query: query) {
+                return result
+            }
+        }
+
+        // 2. TON (USDT TON / TON)
+        if query.hasPrefix("UQ") || query.hasPrefix("EQ") || query.hasPrefix("0:") || query.count == 64 {
+            if let result = try? await checkTon(query: query) {
+                return result
+            }
+        }
+
+        // 3. Ethereum (ERC20 / ETH)
+        if query.hasPrefix("0x") || query.count == 64 {
+            if let result = try? await checkEthereum(query: query) {
+                return result
+            }
+        }
+
+        // 4. Bitcoin (BTC)
+        if query.hasPrefix("1") || query.hasPrefix("3") || query.hasPrefix("bc1") || query.count == 64 {
+            if let result = try? await checkBitcoin(query: query) {
+                return result
+            }
+        }
+
+        // If not matched by prefix (e.g. bare 64-char hash), try all sequentially
+        if let result = try? await checkTronTRC20(query: query) { return result }
+        if let result = try? await checkTon(query: query) { return result }
+        if let result = try? await checkEthereum(query: query) { return result }
+        if let result = try? await checkBitcoin(query: query) { return result }
+
+        return nil
+    }
+
+    // MARK: - 1. Tron TRC-20 USDT
+
+    private func checkTronTRC20(query: String) async throws -> DonationVerificationResult? {
+        guard let url = URL(string: "https://apilist.tronscanapi.com/api/transfer/trc20?address=\(Self.trc20DepositAddress)&trc20Id=TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t&limit=50") else {
+            return nil
+        }
+
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 8
+        request.setValue("Mozilla/5.0", forHTTPHeaderField: "User-Agent")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let items = json["data"] as? [[String: Any]] else {
+            return nil
+        }
+
+        for item in items {
+            let fromAddr = item["from"] as? String ?? (item["from_address"] as? String ?? "")
+            let toAddr   = item["to"] as? String ?? (item["to_address"] as? String ?? "")
+            let hash     = item["hash"] as? String ?? (item["transaction_id"] as? String ?? "")
+            let rawAmount = item["amount"] as? String ?? "0"
+            let contractRet = item["contract_ret"] as? String ?? "SUCCESS"
+
+            guard toAddr.caseInsensitiveCompare(Self.trc20DepositAddress) == .orderedSame,
+                  contractRet.caseInsensitiveCompare("SUCCESS") == .orderedSame else {
+                continue
+            }
+
+            let matchesSender = fromAddr.caseInsensitiveCompare(query) == .orderedSame
+            let matchesHash   = hash.caseInsensitiveCompare(query) == .orderedSame
+
+            if matchesSender || matchesHash {
+                let amount = (Double(rawAmount) ?? 0) / 1_000_000.0
+                let timestamp = (item["block_timestamp"] as? Double).map { Date(timeIntervalSince1970: $0 / 1000.0) }
+                return DonationVerificationResult(
+                    network: "USDT (TRC20)",
+                    amount: max(amount, 1.0),
+                    currency: "USDT",
+                    txHash: hash,
+                    senderAddress: fromAddr,
+                    date: timestamp
+                )
+            }
+        }
+
+        return nil
+    }
+
+    // MARK: - 2. TON (USDT & TON Jettons)
+
+    private func checkTon(query: String) async throws -> DonationVerificationResult? {
+        guard let url = URL(string: "https://tonapi.io/v2/accounts/\(Self.tonDepositAddress)/jettons/history?limit=30") else {
+            return nil
+        }
+
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 8
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let operations = json["operations"] as? [[String: Any]] else {
+            return nil
+        }
+
+        for op in operations {
+            let txHash = op["transaction_hash"] as? String ?? ""
+            let source = op["source"] as? [String: Any]
+            let fromAddr = source?["address"] as? String ?? ""
+            let rawAmount = op["amount"] as? String ?? "0"
+            let decimals = (op["jetton"] as? [String: Any])?["decimals"] as? Int ?? 6
+
+            let matchesSender = !fromAddr.isEmpty && (fromAddr.caseInsensitiveCompare(query) == .orderedSame || query.contains(fromAddr) || fromAddr.contains(query))
+            let matchesHash   = !txHash.isEmpty && txHash.caseInsensitiveCompare(query) == .orderedSame
+
+            if matchesSender || matchesHash {
+                let divisor = pow(10.0, Double(decimals))
+                let amount = (Double(rawAmount) ?? 0) / divisor
+                let utime = op["utime"] as? Double
+                return DonationVerificationResult(
+                    network: "USDT (TON)",
+                    amount: max(amount, 1.0),
+                    currency: "USDT",
+                    txHash: txHash,
+                    senderAddress: fromAddr,
+                    date: utime.map { Date(timeIntervalSince1970: $0) }
+                )
+            }
+        }
+
+        return nil
+    }
+
+    // MARK: - 3. Ethereum ERC-20
+
+    private func checkEthereum(query: String) async throws -> DonationVerificationResult? {
+        guard let url = URL(string: "https://eth.blockscout.com/api/v2/addresses/\(Self.ethDepositAddress)/token-transfers") else {
+            return nil
+        }
+
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 8
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let items = json["items"] as? [[String: Any]] else {
+            return nil
+        }
+
+        for item in items {
+            let txHash = item["tx_hash"] as? String ?? (item["transaction_hash"] as? String ?? "")
+            let fromObj = item["from"] as? [String: Any]
+            let fromAddr = fromObj?["hash"] as? String ?? ""
+            let totalObj = item["total"] as? [String: Any]
+            let rawValue = totalObj?["value"] as? String ?? "0"
+            let decimalsStr = totalObj?["decimals"] as? String ?? "6"
+            let decimals = Int(decimalsStr) ?? 6
+
+            let matchesSender = !fromAddr.isEmpty && fromAddr.caseInsensitiveCompare(query) == .orderedSame
+            let matchesHash   = !txHash.isEmpty && txHash.caseInsensitiveCompare(query) == .orderedSame
+
+            if matchesSender || matchesHash {
+                let divisor = pow(10.0, Double(decimals))
+                let amount = (Double(rawValue) ?? 0) / divisor
+                return DonationVerificationResult(
+                    network: "Ethereum (ERC20)",
+                    amount: max(amount, 1.0),
+                    currency: "USDT",
+                    txHash: txHash,
+                    senderAddress: fromAddr,
+                    date: Date()
+                )
+            }
+        }
+
+        return nil
+    }
+
+    // MARK: - 4. Bitcoin
+
+    private func checkBitcoin(query: String) async throws -> DonationVerificationResult? {
+        guard let url = URL(string: "https://blockchain.info/rawaddr/\(Self.btcDepositAddress)?limit=20") else {
+            return nil
+        }
+
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 8
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let txs = json["txs"] as? [[String: Any]] else {
+            return nil
+        }
+
+        for tx in txs {
+            let hash = tx["hash"] as? String ?? ""
+            let inputs = tx["inputs"] as? [[String: Any]] ?? []
+
+            var matchedInput = false
+            var senderAddr = ""
+            for inp in inputs {
+                if let prevOut = inp["prev_out"] as? [String: Any],
+                   let addr = prevOut["addr"] as? String {
+                    if addr.caseInsensitiveCompare(query) == .orderedSame {
+                        matchedInput = true
+                        senderAddr = addr
+                        break
+                    }
+                }
+            }
+
+            let matchesHash = !hash.isEmpty && hash.caseInsensitiveCompare(query) == .orderedSame
+
+            if matchedInput || matchesHash {
+                let resultSat = tx["result"] as? Double ?? 0
+                let btcAmount = abs(resultSat) / 100_000_000.0
+                let time = (tx["time"] as? Double).map { Date(timeIntervalSince1970: $0) }
+                return DonationVerificationResult(
+                    network: "Bitcoin",
+                    amount: btcAmount > 0 ? btcAmount : 0.001,
+                    currency: "BTC",
+                    txHash: hash,
+                    senderAddress: senderAddr.isEmpty ? query : senderAddr,
+                    date: time
+                )
+            }
+        }
+
+        return nil
+    }
+}
