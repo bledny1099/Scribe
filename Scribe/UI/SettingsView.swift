@@ -594,11 +594,11 @@ struct SettingsHeaderView: View {
                         .resizable()
                         .renderingMode(.template)
                         .foregroundStyle(.primary)
-                        .frame(width: 14, height: 14)
+                        .frame(width: 17, height: 17)
 
                     Text("Scribe")
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
-                        .tracking(1.0)
+                        .font(.system(size: 19, weight: .bold, design: .rounded))
+                        .tracking(0.5)
                         .foregroundStyle(.primary)
                 }
 
@@ -676,9 +676,9 @@ struct SettingsHeaderView: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 22)
-        .padding(.top, 16)
-        .padding(.bottom, 14)
+        .padding(.horizontal, 16)
+        .padding(.top, 14)
+        .padding(.bottom, 12)
         .background(WindowDragView())
     }
 }

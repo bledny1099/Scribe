@@ -404,11 +404,12 @@ final class RecordingPanel: NSPanel {
                     // Center horizontally at the active target window
                     var x = windowFrame.midX - frame.width / 2
                     // Place near the bottom edge of the active window
-                    var y = windowFrame.minY + 32 + yOffset
+                    var y = windowFrame.minY + 36 + yOffset
 
-                    // Keep strictly inside the screen visible bounds
+                    // Keep strictly inside the screen visible bounds with room for subtitle below
+                    let minAllowedY = screenFrame.minY + 68
                     x = max(screenFrame.minX + 16, min(x, screenFrame.maxX - frame.width - 16))
-                    y = max(screenFrame.minY + 24, min(y, screenFrame.maxY - frame.height - 24))
+                    y = max(minAllowedY, min(y, screenFrame.maxY - frame.height - 24))
                     setFrameOrigin(NSPoint(x: x, y: y))
                 }
             } else {

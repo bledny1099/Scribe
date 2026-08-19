@@ -1078,25 +1078,27 @@ final class AppState: ObservableObject {
     }
 
     func updateSubtitlePanelFrame(for mainPanel: NSPanel, subPanel: NSPanel) {
-        let frame = mainPanel.frame
         let screen = mainPanel.screen ?? NSScreen.main ?? NSScreen.screens.first
         let screenFrame = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
 
         let subWidth: CGFloat = min(720, screenFrame.width - 48)
         let subHeight: CGFloat = 50
-        let subX = frame.midX - subWidth / 2
 
-        // If there is enough room below the main panel, place below; otherwise place above!
-        let subY: CGFloat
-        if frame.minY - subHeight - 6 >= screenFrame.minY {
-            subY = frame.minY - subHeight - 6
-        } else {
-            subY = frame.maxY + 8
+        // Ensure main panel is high enough so subtitle ALWAYS fits comfortably BELOW it
+        let minRequiredMainY = screenFrame.minY + subHeight + 14
+        if mainPanel.frame.minY < minRequiredMainY {
+            var adjustedFrame = mainPanel.frame
+            adjustedFrame.origin.y = minRequiredMainY
+            mainPanel.setFrame(adjustedFrame, display: true)
         }
+
+        let frame = mainPanel.frame
+        let subX = frame.midX - subWidth / 2
+        let subY = frame.minY - subHeight - 8
 
         let finalRect = NSRect(
             x: max(screenFrame.minX + 16, min(subX, screenFrame.maxX - subWidth - 16)),
-            y: min(screenFrame.maxY - subHeight - 16, max(screenFrame.minY + 16, subY)),
+            y: max(screenFrame.minY + 6, subY),
             width: subWidth,
             height: subHeight
         )

@@ -320,24 +320,43 @@ struct WaveformOverlay: View {
     // MARK: - Waveform Bars
 
     private var waveformBars: some View {
-        HStack(alignment: .center, spacing: 2) {
-            ForEach(0..<barCount, id: \.self) { i in
-                let level = CGFloat(levels[i])
-                let maxBarHeight: CGFloat = 44
-                let minBarHeight: CGFloat = 3
-                let barHeight = minBarHeight + level * (maxBarHeight - minBarHeight)
+        TimelineView(.animation) { timeline in
+            let time = timeline.date.timeIntervalSinceReferenceDate
+            let rawMic = audioRecorder.audioLevel
+            // If in preview mode, simulate active speech modulation
+            let effectiveLevel: Float = appState.isShowingPreview ?
+                Float(max(0.08, 0.45 + 0.35 * sin(time * 3.2) * cos(time * 1.7))) :
+                rawMic
 
-                RoundedRectangle(cornerRadius: 1.5)
-                    .fill(barGradient(for: level))
-                    .frame(width: 3.5, height: barHeight)
-                    .animation(.spring(response: 0.12, dampingFraction: 0.7), value: levels[i])
+            HStack(alignment: .center, spacing: 2.2) {
+                ForEach(0..<barCount, id: \.self) { i in
+                    let normPos = (Double(i) - Double(barCount) / 2.0) / (Double(barCount) / 2.0)
+                    let bell = max(0.22, cos(normPos * (.pi / 2.15)))
+
+                    // Organic multi-harmonic ripple
+                    let wave1 = sin(time * 4.8 + Double(i) * 0.42)
+                    let wave2 = cos(time * 3.2 + Double(i) * 0.28)
+                    let wave3 = sin(time * 6.5 - Double(i) * 0.35)
+                    let harmonic = (wave1 * 0.5 + wave2 * 0.3 + wave3 * 0.2 + 1.0) / 2.0 // 0...1
+
+                    // Dynamic height
+                    let speechAmp = CGFloat(effectiveLevel) * 38.0 * CGFloat(bell)
+                    let idlePulse = CGFloat(harmonic) * (effectiveLevel > 0.03 ? 4.5 : 3.0) + 3.0
+                    let barHeight = min(48.0, max(3.5, idlePulse + speechAmp * CGFloat(harmonic * 0.65 + 0.35)))
+
+                    let intensity = min(1.0, max(0.25, Double(effectiveLevel) * 1.6 + harmonic * 0.3))
+
+                    RoundedRectangle(cornerRadius: 1.75)
+                        .fill(barGradient(for: intensity))
+                        .frame(width: 3.2, height: barHeight)
+                }
             }
         }
     }
 
-    private func barGradient(for level: CGFloat) -> some ShapeStyle {
+    private func barGradient(for intensity: Double) -> some ShapeStyle {
         let colors = theme.gradientColors
-        let opacity = 0.3 + level * 0.7
+        let opacity = 0.35 + intensity * 0.65
         return LinearGradient(
             colors: [colors[0].opacity(opacity), colors[1].opacity(opacity)],
             startPoint: .bottom,
