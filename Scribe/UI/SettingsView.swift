@@ -67,15 +67,7 @@ struct SettingsView: View {
                 case .dark:
                     Color(red: 0.05, green: 0.05, blue: 0.07).opacity(0.85)
                 case .liquidGlass:
-                    LinearGradient(
-                        colors: [
-                            Color.white.opacity(0.16),
-                            Color.white.opacity(0.04),
-                            Color.clear
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
+                    Color.clear
                 case .light:
                     Color.white.opacity(0.85)
                 }
@@ -83,35 +75,39 @@ struct SettingsView: View {
             .ignoresSafeArea()
             .animation(.easeInOut(duration: 0.4), value: appState.selectedPanelAppearance)
 
-            // Complex Ambient Background Glow & Neon Mesh
-            ZStack {
-                RadialGradient(
-                    gradient: Gradient(colors: [
-                        appState.selectedTheme.glowColor.opacity(appState.selectedPanelAppearance == .liquidGlass ? 0.22 : 0.22),
-                        appState.selectedTheme.gradientColors[0].opacity(0.08),
-                        Color.clear
-                    ]),
-                    center: .topLeading,
-                    startRadius: 10,
-                    endRadius: 650
-                )
-                
-                RadialGradient(
-                    gradient: Gradient(colors: [
-                        appState.selectedTheme.gradientColors[1].opacity(0.12),
-                        Color.clear
-                    ]),
-                    center: .bottomTrailing,
-                    startRadius: 50,
-                    endRadius: 500
-                )
-            }
-            .ignoresSafeArea()
-            .animation(.easeInOut(duration: 0.6), value: appState.selectedTheme)
-
-            TranscriptionHistory.shared.currentLevelColor.opacity(selectedTab == .statistics ? 0.12 : 0)
+            // Complex Ambient Background Glow & Neon Mesh (disabled on Liquid Glass)
+            if appState.selectedPanelAppearance != .liquidGlass {
+                ZStack {
+                    RadialGradient(
+                        gradient: Gradient(colors: [
+                            appState.selectedTheme.glowColor.opacity(0.22),
+                            appState.selectedTheme.gradientColors[0].opacity(0.08),
+                            Color.clear
+                        ]),
+                        center: .topLeading,
+                        startRadius: 10,
+                        endRadius: 650
+                    )
+                    
+                    RadialGradient(
+                        gradient: Gradient(colors: [
+                            appState.selectedTheme.gradientColors[1].opacity(0.12),
+                            Color.clear
+                        ]),
+                        center: .bottomTrailing,
+                        startRadius: 50,
+                        endRadius: 500
+                    )
+                }
                 .ignoresSafeArea()
-                .animation(.easeInOut(duration: 0.5), value: selectedTab)
+                .animation(.easeInOut(duration: 0.6), value: appState.selectedTheme)
+            }
+
+            if appState.selectedPanelAppearance != .liquidGlass {
+                TranscriptionHistory.shared.currentLevelColor.opacity(selectedTab == .statistics ? 0.12 : 0)
+                    .ignoresSafeArea()
+                    .animation(.easeInOut(duration: 0.5), value: selectedTab)
+            }
             
             HStack(alignment: .top, spacing: 0) {
                 // Sidebar — Cyber Command Dock
@@ -137,7 +133,11 @@ struct SettingsView: View {
                             }
                             .padding(.horizontal, 10)
                             .padding(.vertical, 8)
-                            .background(selectedTab == tab ? appState.selectedTheme.gradientColors.first!.opacity(0.2) : Color.clear)
+                            .background(
+                                selectedTab == tab
+                                    ? (appState.selectedPanelAppearance == .liquidGlass ? Color.white.opacity(0.12) : appState.selectedTheme.gradientColors.first!.opacity(0.2))
+                                    : Color.clear
+                            )
                             .cornerRadius(8)
                         }
                         .buttonStyle(.plain)
@@ -168,7 +168,11 @@ struct SettingsView: View {
                         }
                         .padding(.horizontal, 10)
                         .padding(.vertical, 8)
-                        .background(selectedTab == .statistics ? appState.selectedTheme.gradientColors.first!.opacity(0.2) : Color.clear)
+                        .background(
+                            selectedTab == .statistics
+                                ? (appState.selectedPanelAppearance == .liquidGlass ? Color.white.opacity(0.12) : appState.selectedTheme.gradientColors.first!.opacity(0.2))
+                                : Color.clear
+                        )
                         .cornerRadius(8)
                     }
                     .buttonStyle(.plain)
