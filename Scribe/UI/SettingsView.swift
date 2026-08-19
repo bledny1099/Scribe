@@ -678,7 +678,8 @@ struct SettingsHeaderView: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.leading, 10)
+        .padding(.trailing, 16)
         .padding(.top, 14)
         .padding(.bottom, 12)
         .background(WindowDragView())

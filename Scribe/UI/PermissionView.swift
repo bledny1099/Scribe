@@ -312,57 +312,58 @@ struct PermissionWelcomeView: View {
                     let allGranted = permissionManager.isMicrophoneGranted && permissionManager.isAccessibilityGranted && permissionManager.isSpeechRecognitionGranted
                     Button(action: {
                         if allGranted {
-                            withAnimation {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                                 currentStep = .customization
                             }
                         }
                     }) {
                         HStack(spacing: 8) {
-                            Text("Continue")
-                                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                            Text(appState.l("Continue"))
+                                .font(.system(size: 14, weight: .bold, design: .rounded))
 
                             if allGranted {
                                 Image(systemName: "arrow.right")
                                     .font(.system(size: 12, weight: .bold))
                             }
                         }
-                        .foregroundStyle(.white)
+                        .foregroundStyle(allGranted ? Color(white: 0.12) : Color.primary.opacity(0.35))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 11)
                         .background(
                             ZStack {
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(
-                                        LinearGradient(
-                                            colors: allGranted
-                                                ? [Color.blue, Color.purple]
-                                                : [Color.primary.opacity(0.15), Color.primary.opacity(0.2)],
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        )
-                                    )
-
                                 if allGranted {
                                     RoundedRectangle(cornerRadius: 12)
                                         .fill(
                                             LinearGradient(
                                                 colors: [
-                                                    Color.white.opacity(0.25),
-                                                    Color.clear,
+                                                    Color.white,
+                                                    Color(white: 0.92)
                                                 ],
                                                 startPoint: .top,
                                                 endPoint: .bottom
                                             )
                                         )
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .stroke(Color.white.opacity(0.8), lineWidth: 1)
+                                        )
+                                } else {
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(Color.primary.opacity(0.06))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                                        )
                                 }
                             }
                         )
                         .shadow(
-                            color: allGranted ? .blue.opacity(0.3) : .clear,
-                            radius: 8, y: 4
+                            color: allGranted ? Color.white.opacity(0.45) : .clear,
+                            radius: 10, y: 3
                         )
                     }
                     .buttonStyle(.plain)
+                    .disabled(!allGranted)
                     .animation(.spring(response: 0.3, dampingFraction: 0.7), value: allGranted)
                     } // end permissions section
                     
@@ -374,8 +375,8 @@ struct PermissionWelcomeView: View {
                                     .foregroundStyle(.secondary)
                                     .multilineTextAlignment(.center)
                                 
-                                // Theme picker
-                                HStack(alignment: .top, spacing: 14) {
+                                // Theme picker (Clean 2-row grid)
+                                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 5), spacing: 12) {
                                     ForEach(AppTheme.allCases) { theme in
                                         ThemeSwatchButton(
                                             theme: theme,
@@ -388,7 +389,7 @@ struct PermissionWelcomeView: View {
                                         }
                                     }
                                 }
-                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 4)
                                 
                                 // Overlay style picker
                                 VStack(alignment: .leading, spacing: 8) {
@@ -402,6 +403,22 @@ struct PermissionWelcomeView: View {
                                             set: { appState.selectedOverlayStyle = $0; appState.showSettingsPreviewFor5Seconds() }
                                         ),
                                         label: { ("", $0.icon) }
+                                    )
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                                // Overlay size picker
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text(appState.l("Overlay Size"))
+                                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                                        .foregroundStyle(.primary)
+                                    LiquidGlassSegmentedPicker(
+                                        items: OverlaySize.allCases,
+                                        selection: Binding(
+                                            get: { appState.selectedOverlaySize },
+                                            set: { appState.selectedOverlaySize = $0; appState.showSettingsPreviewFor5Seconds() }
+                                        ),
+                                        label: { (appState.l($0.shortName), $0.icon) }
                                     )
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -489,24 +506,37 @@ struct PermissionWelcomeView: View {
                         }
                         
                         Button(action: {
-                            withAnimation {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                                 currentStep = .voiceTest
                             }
                         }) {
                             HStack(spacing: 8) {
                                 Text(appState.l("Continue"))
-                                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                                    .font(.system(size: 14, weight: .bold, design: .rounded))
                                 Image(systemName: "arrow.right")
                                     .font(.system(size: 12, weight: .bold))
                             }
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Color(white: 0.12))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 11)
                             .background(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .fill(themeGradient)
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [
+                                                Color.white,
+                                                Color(white: 0.92)
+                                            ],
+                                            startPoint: .top,
+                                            endPoint: .bottom
+                                        )
+                                    )
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(Color.white.opacity(0.8), lineWidth: 1)
+                                    )
                             )
-                            .shadow(color: themeGlow.opacity(0.35), radius: 8, y: 4)
+                            .shadow(color: Color.white.opacity(0.4), radius: 10, y: 3)
                         }
                         .buttonStyle(.plain)
                     }
@@ -536,6 +566,7 @@ struct PermissionWelcomeView: View {
                                     .foregroundStyle(.primary)
                                     .multilineTextAlignment(.center)
                                     .frame(minHeight: 40)
+                                    .padding(.horizontal, 12)
                                 
                                 if !voiceTestSuccess {
                                     Button(action: {
@@ -567,25 +598,50 @@ struct PermissionWelcomeView: View {
                             if isTestingVoice {
                                 stopVoiceTest()
                             }
-                            withAnimation {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                                 currentStep = .profile
                             }
                         }) {
                             HStack(spacing: 8) {
                                 Text(appState.l("Continue"))
-                                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                                Image(systemName: "arrow.right")
-                                    .font(.system(size: 12, weight: .bold))
+                                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                                if voiceTestSuccess {
+                                    Image(systemName: "arrow.right")
+                                        .font(.system(size: 12, weight: .bold))
+                                }
                             }
-                            .foregroundStyle(.white)
+                            .foregroundStyle(voiceTestSuccess ? Color(white: 0.12) : Color.primary.opacity(0.35))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 11)
                             .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(themeGradient)
+                                ZStack {
+                                    if voiceTestSuccess {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .fill(
+                                                LinearGradient(
+                                                    colors: [
+                                                        Color.white,
+                                                        Color(white: 0.92)
+                                                    ],
+                                                    startPoint: .top,
+                                                    endPoint: .bottom
+                                                )
+                                            )
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 12)
+                                                    .stroke(Color.white.opacity(0.8), lineWidth: 1)
+                                        )
+                                    } else {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .fill(Color.primary.opacity(0.06))
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 12)
+                                                    .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                                            )
+                                    }
+                                }
                             )
-                            .shadow(color: themeGlow.opacity(0.35), radius: 8, y: 4)
-                            .opacity(voiceTestSuccess ? 1.0 : 0.5)
+                            .shadow(color: voiceTestSuccess ? Color.white.opacity(0.4) : .clear, radius: 10, y: 3)
                         }
                         .buttonStyle(.plain)
                         .disabled(!voiceTestSuccess)
@@ -593,18 +649,56 @@ struct PermissionWelcomeView: View {
                     
                     if currentStep == .profile {
                         GlassSection(title: appState.l("Profile"), icon: "person.circle.fill") {
-                            VStack(spacing: 16) {
+                            VStack(spacing: 14) {
                                 Text(appState.l("What should we call you?"))
                                     .font(.system(size: 14, weight: .medium, design: .rounded))
                                     .foregroundStyle(.primary)
                                 
-                                TextField(appState.l("Your Name or Nickname"), text: $appState.userName)
-                                    .textFieldStyle(.roundedBorder)
-                                    .font(.system(size: 14, design: .rounded))
+                                // Liquid Glass Name Input Box
+                                HStack(spacing: 10) {
+                                    Image(systemName: "person.fill")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundStyle(appState.selectedTheme.gradientColors.first ?? .blue)
+
+                                    TextField(appState.l("Your Name or Nickname"), text: $appState.userName)
+                                        .textFieldStyle(.plain)
+                                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                                        .foregroundStyle(.primary)
+
+                                    if !appState.userName.isEmpty {
+                                        Button(action: { appState.userName = "" }) {
+                                            Image(systemName: "xmark.circle.fill")
+                                                .font(.system(size: 12))
+                                                .foregroundStyle(.secondary)
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 10)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(Color.primary.opacity(0.045))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .strokeBorder(
+                                            LinearGradient(
+                                                colors: [
+                                                    (appState.selectedTheme.gradientColors.first ?? .blue).opacity(0.45),
+                                                    Color.primary.opacity(0.12)
+                                                ],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            ),
+                                            lineWidth: 1
+                                        )
+                                )
                             }
-                            .padding(.vertical, 10)
+                            .padding(.vertical, 8)
                         }
                         
+                        let hasName = !appState.userName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                         Button(action: {
                             let clean = appState.userName.trimmingCharacters(in: .whitespacesAndNewlines)
                             if !clean.isEmpty {
@@ -623,20 +717,47 @@ struct PermissionWelcomeView: View {
                         }) {
                             HStack(spacing: 8) {
                                 Text(appState.l("Get Started"))
-                                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                                if hasName {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 12, weight: .bold))
+                                }
                             }
-                            .foregroundStyle(.white)
+                            .foregroundStyle(hasName ? Color(white: 0.12) : Color.primary.opacity(0.35))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 11)
                             .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(themeGradient)
+                                ZStack {
+                                    if hasName {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .fill(
+                                                LinearGradient(
+                                                    colors: [
+                                                        Color.white,
+                                                        Color(white: 0.92)
+                                                    ],
+                                                    startPoint: .top,
+                                                    endPoint: .bottom
+                                                )
+                                            )
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 12)
+                                                    .stroke(Color.white.opacity(0.8), lineWidth: 1)
+                                            )
+                                    } else {
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .fill(Color.primary.opacity(0.06))
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 12)
+                                                    .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+                                            )
+                                    }
+                                }
                             )
-                            .shadow(color: themeGlow.opacity(0.35), radius: 8, y: 4)
-                            .opacity(appState.userName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.5 : 1.0)
+                            .shadow(color: hasName ? Color.white.opacity(0.45) : .clear, radius: 10, y: 3)
                         }
                         .buttonStyle(.plain)
-                        .disabled(appState.userName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .disabled(!hasName)
                     }
                 }
                 .padding(.horizontal, 24)
