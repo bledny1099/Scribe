@@ -23,85 +23,118 @@ guard let context = CGContext(
 
 context.scaleBy(x: scale, y: scale)
 
-// 1. Draw Vertical Blue to White Gradient
-// Top (height): Soft sky blue (#C5E2F7 -> #DDF0FB -> #FFFFFF)
+// 1. Draw High-End Vertical Dark Grey to Clean White Gradient
+// CoreGraphics coordinates: (0,0) is bottom-left, (0, height) is top-left
 let colors = [
-    NSColor(red: 0.72, green: 0.86, blue: 0.97, alpha: 1.0).cgColor, // Soft sky blue top
-    NSColor(red: 0.86, green: 0.93, blue: 0.98, alpha: 1.0).cgColor, // Pale blue transition
-    NSColor(red: 0.95, green: 0.98, blue: 1.00, alpha: 1.0).cgColor, // Near white
+    NSColor(red: 0.11, green: 0.12, blue: 0.14, alpha: 1.0).cgColor, // Deep dark charcoal top (#1C1E24)
+    NSColor(red: 0.18, green: 0.20, blue: 0.23, alpha: 1.0).cgColor, // Slate dark grey (#2E333B)
+    NSColor(red: 0.38, green: 0.41, blue: 0.47, alpha: 1.0).cgColor, // Mid tone (#616978)
+    NSColor(red: 0.75, green: 0.78, blue: 0.83, alpha: 1.0).cgColor, // Light platinum (#C0C7D4)
+    NSColor(red: 0.94, green: 0.95, blue: 0.97, alpha: 1.0).cgColor, // Near white (#F0F2F7)
     NSColor(red: 1.00, green: 1.00, blue: 1.00, alpha: 1.0).cgColor  // Pure white bottom
 ] as CFArray
 
-let locations: [CGFloat] = [0.0, 0.35, 0.70, 1.0]
+let locations: [CGFloat] = [0.0, 0.22, 0.48, 0.72, 0.90, 1.0]
 
 guard let gradient = CGGradient(colorsSpace: colorSpace, colors: colors, locations: locations) else {
     fatalError("Could not create gradient")
 }
 
-// In CoreGraphics, (0,0) is bottom-left, (0, height) is top-left
-let startPoint = CGPoint(x: width / 2, y: height) // Top (sky blue)
-let endPoint = CGPoint(x: width / 2, y: 0)         // Bottom (white)
+let startPoint = CGPoint(x: width / 2, y: height) // Top (Dark Grey)
+let endPoint = CGPoint(x: width / 2, y: 0)         // Bottom (White)
 
 context.drawLinearGradient(gradient, start: startPoint, end: endPoint, options: [])
 
-// 2. Draw Subtle Radial Accent in top center
-let accentColors = [
-    NSColor(red: 0.40, green: 0.70, blue: 0.98, alpha: 0.25).cgColor,
-    NSColor(red: 0.70, green: 0.88, blue: 1.00, alpha: 0.0).cgColor
+// 2. Subtle radial ambient glow at the top center
+let ambientColors = [
+    NSColor(red: 1.0, green: 1.0, blue: 1.0, alpha: 0.08).cgColor,
+    NSColor(red: 1.0, green: 1.0, blue: 1.0, alpha: 0.0).cgColor
 ] as CFArray
 
-if let radialGrad = CGGradient(colorsSpace: colorSpace, colors: accentColors, locations: [0.0, 1.0]) {
+if let radialGrad = CGGradient(colorsSpace: colorSpace, colors: ambientColors, locations: [0.0, 1.0]) {
     context.drawRadialGradient(
         radialGrad,
-        startCenter: CGPoint(x: width / 2, y: height + 20),
+        startCenter: CGPoint(x: width / 2, y: height),
         startRadius: 0,
-        endCenter: CGPoint(x: width / 2, y: height + 20),
-        endRadius: 320,
+        endCenter: CGPoint(x: width / 2, y: height),
+        endRadius: 360,
         options: []
     )
 }
 
-// 3. Draw connecting directional arrow between Scribe icon (175, 180) and Applications (485, 180)
-// Center of arrow: X = 330, Y in Finder = 180 -> CG coords: 400 - 180 = 220
+// 3. Draw Connecting Directional Arrow & Pill Capsule
+// Scribe icon center: (X = 175, Finder Y = 180 -> CG Y = 220)
+// Applications folder center: (X = 485, Finder Y = 180 -> CG Y = 220)
 let arrowY: CGFloat = 220
 
+// Translucent glass track pill behind arrow
+let pillRect = CGRect(x: 270, y: arrowY - 20, width: 120, height: 40)
+let pillPath = CGPath(roundedRect: pillRect, cornerWidth: 20, cornerHeight: 20, transform: nil)
+
+context.saveGState()
+context.setFillColor(NSColor(red: 1.0, green: 1.0, blue: 1.0, alpha: 0.15).cgColor)
+context.addPath(pillPath)
+context.fillPath()
+
+context.setStrokeColor(NSColor(red: 1.0, green: 1.0, blue: 1.0, alpha: 0.35).cgColor)
+context.setLineWidth(1.0)
+context.addPath(pillPath)
+context.strokePath()
+context.restoreGState()
+
+// Sleek glowing arrow inside pill
 let arrowPath = CGMutablePath()
-// Shaft
-arrowPath.move(to: CGPoint(x: 270, y: arrowY))
-arrowPath.addLine(to: CGPoint(x: 385, y: arrowY))
+arrowPath.move(to: CGPoint(x: 290, y: arrowY))
+arrowPath.addLine(to: CGPoint(x: 368, y: arrowY))
 
-// Head
-arrowPath.move(to: CGPoint(x: 368, y: arrowY + 12))
-arrowPath.addLine(to: CGPoint(x: 388, y: arrowY))
-arrowPath.addLine(to: CGPoint(x: 368, y: arrowY - 12))
+// Chevron arrowhead
+arrowPath.move(to: CGPoint(x: 356, y: arrowY + 8))
+arrowPath.addLine(to: CGPoint(x: 370, y: arrowY))
+arrowPath.addLine(to: CGPoint(x: 356, y: arrowY - 8))
 
-context.setStrokeColor(NSColor(red: 0.28, green: 0.58, blue: 0.88, alpha: 0.55).cgColor)
-context.setLineWidth(3.5)
+context.saveGState()
+context.setStrokeColor(NSColor(red: 1.0, green: 1.0, blue: 1.0, alpha: 0.95).cgColor)
+context.setLineWidth(3.0)
 context.setLineCap(.round)
 context.setLineJoin(.round)
+context.setShadow(offset: CGSize(width: 0, height: 2), blur: 6, color: NSColor(red: 0, green: 0, blue: 0, alpha: 0.35).cgColor)
 context.addPath(arrowPath)
 context.strokePath()
+context.restoreGState()
 
-// 4. Draw Typography: "Drag Scribe to Applications to install"
-let text = "Drag Scribe to Applications to install"
-let font = NSFont.systemFont(ofSize: 13.5, weight: .semibold)
-let paragraphStyle = NSMutableParagraphStyle()
-paragraphStyle.alignment = .center
-
-let attributes: [NSAttributedString.Key: Any] = [
-    .font: font,
-    .foregroundColor: NSColor(red: 0.20, green: 0.45, blue: 0.72, alpha: 0.85),
-    .paragraphStyle: paragraphStyle
-]
-
-let attrString = NSAttributedString(string: text, attributes: attributes)
-let textRect = CGRect(x: 0, y: 38, width: width, height: 26)
-
-// Convert to NSGraphicsContext for string drawing
+// 4. Apple Typography at the bottom
+// Primary slogan: "One drag away from saving hours."
+// Sub-caption: "Drag Scribe to Applications to install"
 let nsContext = NSGraphicsContext(cgContext: context, flipped: false)
 NSGraphicsContext.saveGraphicsState()
 NSGraphicsContext.current = nsContext
-attrString.draw(in: textRect)
+
+let primaryParagraph = NSMutableParagraphStyle()
+primaryParagraph.alignment = .center
+
+let primaryFont = NSFont.systemFont(ofSize: 15.0, weight: .semibold)
+let primaryAttributes: [NSAttributedString.Key: Any] = [
+    .font: primaryFont,
+    .foregroundColor: NSColor(red: 0.15, green: 0.16, blue: 0.18, alpha: 0.92),
+    .paragraphStyle: primaryParagraph
+]
+
+let primaryString = NSAttributedString(string: "One drag away from saving hours.", attributes: primaryAttributes)
+primaryString.draw(in: CGRect(x: 0, y: 44, width: width, height: 24))
+
+let subParagraph = NSMutableParagraphStyle()
+subParagraph.alignment = .center
+
+let subFont = NSFont.systemFont(ofSize: 12.0, weight: .regular)
+let subAttributes: [NSAttributedString.Key: Any] = [
+    .font: subFont,
+    .foregroundColor: NSColor(red: 0.45, green: 0.48, blue: 0.53, alpha: 0.85),
+    .paragraphStyle: subParagraph
+]
+
+let subString = NSAttributedString(string: "Drag Scribe to Applications to install", attributes: subAttributes)
+subString.draw(in: CGRect(x: 0, y: 24, width: width, height: 20))
+
 NSGraphicsContext.restoreGraphicsState()
 
 // 5. Output image as PNG

@@ -52,6 +52,7 @@ if command -v create-dmg >/dev/null 2>&1; then
     echo "💿 Creating DMG with create-dmg and gradient background..."
     create-dmg \
         --volname "$APP_NAME Installer" \
+        --volicon "$ROOT_DIR/Scribe/AppIcon.icns" \
         --background "$BG_IMAGE" \
         --window-pos 200 120 \
         --window-size 660 400 \
@@ -61,6 +62,8 @@ if command -v create-dmg >/dev/null 2>&1; then
         --hide-extension "$APP_NAME.app" \
         --app-drop-link 485 180 \
         --no-internet-enable \
+        --applescript-sleep-duration 6 \
+        --overwrite \
         "$DIST_DIR/$DMG_NAME" \
         "$APP_PATH" || true
 fi
