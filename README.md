@@ -1,39 +1,61 @@
-# 🎙️ Scribe — Privacy-First Native Voice Dictation for macOS
+# Scribe
 
-**Scribe** is a native, high-performance macOS menu bar application designed for instant, effortless voice dictation. Powered by local OpenAI Whisper models, Scribe converts your spoken words into text in real-time and automatically pastes them into any active app on your Mac with a single hotkey.
+Privacy-focused, native voice dictation for macOS. Dictate anywhere with a single hotkey, transcribe locally using WhisperKit, and insert formatted text directly into your active application.
 
----
-
-## 🚀 Why Do You Need Scribe?
-
-### 1. ⚡ Effortless Dictation Anywhere (`Option + S`)
-Stop manually typing long emails, slack messages, documentation, or code comments. Press `Option + S` anywhere on your Mac, speak naturally, and Scribe will transcribe your speech and automatically paste it directly into your focused text field (VS Code, Slack, Telegram, Safari, Xcode, Notes, etc.).
-
-### 2. 🔒 100% Private & Fully Offline
-Unlike cloud-based dictation tools, Scribe runs local Whisper AI models directly on your Mac. Your voice recordings, audio data, and transcriptions never leave your device — guaranteeing 100% privacy, zero data leaks, and full functionality without requiring an internet connection.
-
-### 3. 🌐 Multilingual Dictation & Auto-Translation
-- **20+ Supported Languages:** Dictate in English, Russian, Spanish, German, French, Italian, Chinese, Japanese, Korean, Ukrainian, and more.
-- **On-the-Fly Translation:** Automatically translates your speech into your selected target language during transcription.
-
-### 4. ✨ Premium Liquid Glass Design System
-Built with modern macOS aesthetic standards:
-- **Audio-Reactive Overlays:** Choose between concentric rings (*Classic*), dynamic frequency bars (*Waveform*), a sleek minimal pill (*Minimal*), or an oscilloscope pulse (*Pulse*).
-- **Curated Themes:** Personalize your interface with themes like *Aurora*, *Ember*, *Ocean*, *Lumina*, *Midnight*, and *Emerald*.
-- **Translucent Glass Effects:** Dynamic Light & Dark HUD panel modes featuring native frosted glass blurring (`.regularMaterial`).
-
-### 5. 🛠️ Complete Customization
-- **Whisper Models:** Choose between *Small (Recommended)*, *Large V3 Turbo (Highest Quality)*, and *Base (Ultra-Fast)*.
-- **Paste Modes:** Easily switch between replacing clipboard content or appending dictations to your existing clipboard.
-- **Custom Hotkeys:** Customize global activation key combinations via `KeyboardShortcuts`.
+[**Download Scribe.dmg**](https://github.com/bledny1099/Scribe/releases/latest/download/Scribe.dmg) · [**View Releases**](https://github.com/bledny1099/Scribe/releases) · [**Report Issue**](https://github.com/bledny1099/Scribe/issues)
 
 ---
 
-## 🛠️ System Requirements
-- **macOS:** 14.0 (Sonoma) or newer
-- **Architecture:** Apple Silicon (M1/M2/M3/M4) recommended
+## Features
+
+- **Global Dictation (`⌥S`)**: Press `Option + S` anywhere on macOS to record and automatically paste transcriptions into your focused text field (Slack, Telegram, Xcode, VS Code, Notes, Browser, etc.).
+- **100% On-Device & Private**: Runs OpenAI Whisper locally via Apple Silicon Neural Engine (`WhisperKit`). Voice data never leaves your machine unless you enable optional cloud refinement.
+- **Audio-Reactive HUD**: Interactive Liquid Glass overlay with dynamic waveform visualization, recording timer, and compact status indicators.
+- **AI Refinement Modes**: Optional cloud post-processing (Clean Up, Grammar & Punctuation, Structured Notes, Executive Summary, or custom instructions).
+- **Multilingual Support**: Real-time speech recognition across 20+ languages with automatic language detection and optional English translation.
+- **Customizable Interface**: 5 HUD overlay styles (*Waveform*, *Classic*, *Minimal*, *ECG*, *Orb*) with curated color themes and light/dark appearance modes.
+- **Single-Key Control**: Cancel recordings instantly with `Escape` or the overlay stop button.
 
 ---
 
-## 📄 License
-Internal / Proprietary Software. All rights reserved.
+## Installation
+
+### Direct Download (Recommended)
+
+1. Download the latest **[Scribe.dmg](https://github.com/bledny1099/Scribe/releases/latest/download/Scribe.dmg)**.
+2. Open the disk image and drag **Scribe** into your **Applications** folder.
+3. Launch Scribe and grant the required permissions (Microphone and Accessibility for auto-pasting).
+
+### Building from Source
+
+Requirements:
+- macOS 14.0 (Sonoma) or newer
+- Xcode 15+ / 16+
+- Apple Silicon (M1/M2/M3/M4) recommended
+
+```bash
+# Clone the repository
+git clone https://github.com/bledny1099/Scribe.git
+cd Scribe
+
+# Build Release DMG
+./scripts/build_dmg.sh
+```
+
+The compiled application and installer disk image will be available in `dist/Scribe.dmg`.
+
+---
+
+## System Requirements
+
+| Requirement | Specification |
+|:---|:---|
+| Operating System | macOS 14.0 (Sonoma) or higher |
+| Architecture | Apple Silicon (M1, M2, M3, M4) / Intel |
+| Storage | ~500 MB for recommended Whisper base models |
+
+---
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
