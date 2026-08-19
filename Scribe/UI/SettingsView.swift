@@ -1301,34 +1301,37 @@ struct GoldCertificateCardView: View {
     var body: some View {
         VStack(spacing: 16) {
             // Filigree Header Line
-            HStack {
+            HStack(alignment: .center) {
                 Text("✦ \(appState.l("OFFICIAL RECORD").uppercased()) ✦")
-                    .font(.system(size: 8, weight: .black, design: .serif))
+                    .font(.system(size: 8.5, weight: .black, design: .serif))
                     .foregroundStyle(themeGradient)
-                    .tracking(2.5)
+                    .tracking(1.4)
+                    .lineLimit(1)
 
-                Spacer()
+                Spacer(minLength: 8)
 
-                if isScribeSupporter {
-                    HStack(spacing: 4) {
-                        Image(systemName: "crown.fill")
-                            .font(.system(size: 8, weight: .bold))
-                        Text(appState.l("HONOURED SCRIBE SUPPORTER"))
-                            .font(.system(size: 8, weight: .bold, design: .serif))
+                HStack(spacing: 8) {
+                    if isScribeSupporter {
+                        HStack(spacing: 4) {
+                            Image(systemName: "crown.fill")
+                                .font(.system(size: 8, weight: .bold))
+                            Text("SUPPORTER")
+                                .font(.system(size: 8, weight: .black, design: .rounded))
+                                .tracking(0.5)
+                        }
+                        .foregroundStyle(.yellow)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2.5)
+                        .background(Color.yellow.opacity(0.16))
+                        .cornerRadius(5)
+                        .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color.yellow.opacity(0.45), lineWidth: 0.8))
                     }
-                    .foregroundStyle(.yellow)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Color.yellow.opacity(0.15))
-                    .cornerRadius(4)
-                    .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.yellow.opacity(0.4), lineWidth: 0.5))
 
-                    Spacer()
+                    Text("EST. 2026")
+                        .font(.system(size: 8.5, weight: .bold, design: .serif))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
-
-                Text("EST. 2026")
-                    .font(.system(size: 8, weight: .bold, design: .serif))
-                    .foregroundStyle(.secondary)
             }
 
             // Header Section: Crown & Title & Wax Ribbon Seal
@@ -2234,6 +2237,7 @@ struct ThemeSwatchButton: View {
 
 struct SupportDeveloperModal: View {
     @EnvironmentObject var appState: AppState
+    @ObservedObject var authService = AuthService.shared
     @Environment(\.dismiss) var dismiss
 
     @AppStorage("isScribeSupporter") private var isScribeSupporter: Bool = false
@@ -2246,6 +2250,7 @@ struct SupportDeveloperModal: View {
     @State private var verificationError: String? = nil
     @State private var verifiedResult: DonationVerificationResult? = nil
     @State private var showVerificationSuccess = false
+    @State private var showTxIdHelp = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -2254,6 +2259,7 @@ struct SupportDeveloperModal: View {
                 HStack(spacing: 8) {
                     Text(appState.l("Support Scribe"))
                         .font(.system(size: 16, weight: .bold, design: .rounded))
+
                     if isScribeSupporter {
                         HStack(spacing: 4) {
                             Image(systemName: "crown.fill")
@@ -2262,16 +2268,19 @@ struct SupportDeveloperModal: View {
                                 .font(.system(size: 9, weight: .bold, design: .rounded))
                         }
                         .foregroundStyle(.yellow)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.yellow.opacity(0.15))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Color.yellow.opacity(0.18))
                         .cornerRadius(6)
-                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.yellow.opacity(0.3), lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.yellow.opacity(0.4), lineWidth: 1))
                     } else {
                         Text("☕️")
+                            .font(.system(size: 15))
                     }
                 }
+
                 Spacer()
+
                 Button {
                     dismiss()
                 } label: {
@@ -2281,28 +2290,31 @@ struct SupportDeveloperModal: View {
                 }
                 .buttonStyle(.plain)
             }
-            .padding()
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
 
-            Divider()
+            Divider().opacity(0.5)
 
             ScrollView(.vertical, showsIndicators: true) {
-                VStack(spacing: 16) {
+                VStack(spacing: 18) {
                     // Supporter Golden Gratitude Banner (if verified)
                     if isScribeSupporter {
-                        VStack(spacing: 8) {
-                            HStack(spacing: 10) {
+                        VStack(spacing: 10) {
+                            HStack(spacing: 12) {
                                 ZStack {
                                     Circle()
                                         .fill(LinearGradient(colors: [.yellow, .orange], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                        .frame(width: 38, height: 38)
+                                        .frame(width: 42, height: 42)
+                                        .shadow(color: Color.yellow.opacity(0.4), radius: 6)
+
                                     Image(systemName: "crown.fill")
-                                        .font(.system(size: 18, weight: .bold))
+                                        .font(.system(size: 20, weight: .bold))
                                         .foregroundStyle(.white)
                                 }
 
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(appState.l("HONOURED SCRIBE SUPPORTER") + " 🌟")
-                                        .font(.system(size: 12, weight: .bold, design: .serif))
+                                        .font(.system(size: 13, weight: .bold, design: .serif))
                                         .foregroundStyle(LinearGradient(colors: [.yellow, .orange], startPoint: .topLeading, endPoint: .bottomTrailing))
                                     Text(appState.l("Thank you for supporting Scribe!"))
                                         .font(.system(size: 11, weight: .medium, design: .rounded))
@@ -2317,19 +2329,29 @@ struct SupportDeveloperModal: View {
                                         .font(.system(size: 12, weight: .bold, design: .monospaced))
                                         .foregroundStyle(.yellow)
                                     Spacer()
-                                    Text(appState.l("Donation verified!"))
-                                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                                    if let email = authService.currentUser?.email, !email.isEmpty {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "checkmark.icloud.fill")
+                                                .font(.system(size: 10))
+                                            Text(appState.l("Synced with your account"))
+                                                .font(.system(size: 10, weight: .medium, design: .rounded))
+                                        }
                                         .foregroundStyle(.green)
+                                    } else {
+                                        Text(appState.l("Donation verified!"))
+                                            .font(.system(size: 10, weight: .semibold, design: .rounded))
+                                            .foregroundStyle(.green)
+                                    }
                                 }
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color.yellow.opacity(0.08))
-                                .cornerRadius(6)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(Color.yellow.opacity(0.09))
+                                .cornerRadius(8)
                             }
 
                             HStack {
                                 Button(action: {
-                                    withAnimation {
+                                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                                         isScribeSupporter = false
                                         supporterDonationAmount = 0
                                         supporterDonationCurrency = ""
@@ -2351,21 +2373,41 @@ struct SupportDeveloperModal: View {
                             }
                             .padding(.top, 2)
                         }
-                        .padding(12)
+                        .padding(14)
                         .background(Color.yellow.opacity(0.12))
-                        .cornerRadius(12)
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.yellow.opacity(0.4), lineWidth: 1))
-                        .padding(.horizontal)
-                        .padding(.top, 10)
+                        .cornerRadius(14)
+                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.yellow.opacity(0.4), lineWidth: 1))
+                        .padding(.horizontal, 18)
+                        .padding(.top, 8)
+                    }
+
+                    // Account Status Ribbon
+                    if let user = authService.currentUser {
+                        HStack(spacing: 6) {
+                            Image(systemName: "person.crop.circle.badge.checkmark")
+                                .font(.system(size: 11))
+                                .foregroundStyle(appState.selectedTheme.gradientColors.first ?? .blue)
+                            Text(user.email)
+                                .font(.system(size: 11, weight: .medium, design: .rounded))
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Text(isScribeSupporter ? "Supporter Активен" : "Аккаунт подключен")
+                                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                                .foregroundStyle(isScribeSupporter ? .yellow : .secondary)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.primary.opacity(0.03))
+                        .cornerRadius(8)
+                        .padding(.horizontal, 18)
                     }
 
                     Text(appState.l("Scribe is an independent project supported entirely by user donations. If you find it useful, consider supporting its development. Donations are completely optional. Thank you!"))
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .font(.system(size: 12.5, weight: .medium, design: .rounded))
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
-                        .padding(.horizontal)
-                        .padding(.top, isScribeSupporter ? 2 : 12)
+                        .padding(.horizontal, 18)
 
                     // Address Rows
                     VStack(spacing: 10) {
@@ -2374,9 +2416,63 @@ struct SupportDeveloperModal: View {
                         CopyAddressRow(title: "Bitcoin (BTC)", address: DonationVerificationService.btcDepositAddress, icon: "bitcoinsign.circle.fill", color: .orange)
                         CopyAddressRow(title: "Ethereum (ERC20)", address: DonationVerificationService.ethDepositAddress, icon: "diamond.circle.fill", color: .purple)
                     }
-                    .padding(.horizontal)
+                    .padding(.horizontal, 18)
 
-                    Divider().padding(.horizontal)
+                    // TxID Helper Accordion
+                    VStack(alignment: .leading, spacing: 8) {
+                        Button(action: {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                showTxIdHelp.toggle()
+                            }
+                        }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "questionmark.circle.fill")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(appState.selectedTheme.gradientColors.first ?? .blue)
+                                Text(appState.l("What is TxID?"))
+                                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(.primary.opacity(0.85))
+                                Spacer()
+                                Image(systemName: showTxIdHelp ? "chevron.up" : "chevron.down")
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color.primary.opacity(0.035))
+                            .cornerRadius(8)
+                        }
+                        .buttonStyle(.plain)
+
+                        if showTxIdHelp {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(appState.l("TxID (Transaction Hash) is the unique receipt ID of your crypto transfer. You can find it in your wallet or exchange withdrawal history (Bybit, Tonkeeper, Telegram Wallet) under transfer details."))
+                                    .font(.system(size: 11, weight: .regular, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+
+                                HStack(spacing: 8) {
+                                    HStack(spacing: 4) {
+                                        Circle().fill(Color.blue).frame(width: 5, height: 5)
+                                        Text("Bybit: История выводов → TxID")
+                                            .font(.system(size: 10, weight: .medium, design: .monospaced))
+                                    }
+                                    HStack(spacing: 4) {
+                                        Circle().fill(Color.cyan).frame(width: 5, height: 5)
+                                        Text("Tonkeeper: Детали → Хэш")
+                                            .font(.system(size: 10, weight: .medium, design: .monospaced))
+                                    }
+                                }
+                                .foregroundStyle(.secondary)
+                                .padding(.top, 2)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color.primary.opacity(0.02))
+                            .cornerRadius(8)
+                        }
+                    }
+                    .padding(.horizontal, 18)
 
                     // On-Chain Donation Verification Form
                     VStack(alignment: .leading, spacing: 10) {
@@ -2397,7 +2493,7 @@ struct SupportDeveloperModal: View {
                                     .font(.system(size: 11))
                                     .foregroundStyle(.secondary)
 
-                                TextField("TDxy3x... / 0x... / TxID", text: $inputAddressOrTx)
+                                TextField("TDxy3x... / fdd8d9... / TxID", text: $inputAddressOrTx)
                                     .textFieldStyle(.plain)
                                     .font(.system(size: 11, weight: .medium, design: .monospaced))
 
@@ -2411,9 +2507,9 @@ struct SupportDeveloperModal: View {
                                 }
                             }
                             .padding(8)
-                            .background(Color.primary.opacity(0.04))
+                            .background(Color.primary.opacity(0.05))
                             .cornerRadius(8)
-                            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.primary.opacity(0.1), lineWidth: 1))
+                            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.primary.opacity(0.12), lineWidth: 1))
 
                             Button(action: {
                                 if let str = NSPasteboard.general.string(forType: .string) {
@@ -2446,10 +2542,10 @@ struct SupportDeveloperModal: View {
                                 }
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 8)
-                                .background(Color.yellow.opacity(0.2))
+                                .background(LinearGradient(colors: [Color.yellow.opacity(0.25), Color.orange.opacity(0.2)], startPoint: .topLeading, endPoint: .bottomTrailing))
                                 .foregroundStyle(Color.primary)
                                 .cornerRadius(8)
-                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.yellow.opacity(0.4), lineWidth: 1))
+                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.yellow.opacity(0.45), lineWidth: 1))
                             }
                             .buttonStyle(.plain)
                             .disabled(inputAddressOrTx.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isVerifying)
@@ -2457,7 +2553,7 @@ struct SupportDeveloperModal: View {
 
                         if let error = verificationError {
                             HStack(alignment: .top, spacing: 6) {
-                                Image(systemName: "info.circle.fill")
+                                Image(systemName: "exclamationmark.triangle.fill")
                                     .font(.system(size: 11))
                                     .foregroundStyle(.orange)
                                 Text(error)
@@ -2465,15 +2561,15 @@ struct SupportDeveloperModal: View {
                                     .foregroundStyle(.orange)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
-                            .padding(8)
-                            .background(Color.orange.opacity(0.08))
+                            .padding(10)
+                            .background(Color.orange.opacity(0.09))
                             .cornerRadius(8)
                         }
 
                         if showVerificationSuccess, let res = verifiedResult {
-                            HStack(spacing: 8) {
+                            HStack(spacing: 10) {
                                 Image(systemName: "checkmark.circle.fill")
-                                    .font(.system(size: 14))
+                                    .font(.system(size: 16))
                                     .foregroundStyle(.green)
                                 VStack(alignment: .leading, spacing: 1) {
                                     Text(appState.l("Donation verified!") + " 💛")
@@ -2485,19 +2581,36 @@ struct SupportDeveloperModal: View {
                                 }
                                 Spacer()
                             }
-                            .padding(10)
+                            .padding(12)
                             .background(Color.green.opacity(0.12))
-                            .cornerRadius(8)
-                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.green.opacity(0.35), lineWidth: 1))
+                            .cornerRadius(10)
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.green.opacity(0.4), lineWidth: 1))
                         }
                     }
-                    .padding(.horizontal)
-                    .padding(.bottom, 24)
+                    .padding(.horizontal, 18)
+                    .padding(.bottom, 36) // Generous bottom spacing
                 }
             }
         }
-        .frame(width: 440, height: 580)
-        .background(.ultraThinMaterial)
+        .frame(width: 470, height: 630)
+        .background(
+            ZStack {
+                Color(nsColor: .windowBackgroundColor).opacity(0.82)
+                LinearGradient(
+                    colors: [
+                        (appState.selectedTheme.gradientColors.first ?? .blue).opacity(0.18),
+                        appState.selectedTheme.glowColor.opacity(0.10),
+                        Color.clear
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            }
+            .background(.ultraThinMaterial)
+        )
+        .onAppear {
+            AuthService.shared.syncSupporterStatusFromCloud()
+        }
     }
 
     private func performVerification() {
@@ -2511,6 +2624,16 @@ struct SupportDeveloperModal: View {
         Task {
             do {
                 if let result = try await DonationVerificationService.shared.verifyDonation(input: input) {
+                    // Check if already claimed by someone else
+                    let alreadyClaimed = await AuthService.shared.isTxAlreadyClaimed(txHash: result.txHash)
+                    if alreadyClaimed {
+                        await MainActor.run {
+                            isVerifying = false
+                            verificationError = appState.l("This transaction has already been claimed")
+                        }
+                        return
+                    }
+
                     await MainActor.run {
                         isVerifying = false
                         verifiedResult = result
@@ -2519,6 +2642,13 @@ struct SupportDeveloperModal: View {
                         supporterDonationCurrency = result.currency
                         supporterTxHash = result.txHash
                         showVerificationSuccess = true
+
+                        // Sync to Cloud Account if signed in
+                        AuthService.shared.saveSupporterStatusToCloud(
+                            amount: result.amount,
+                            currency: result.currency,
+                            txHash: result.txHash
+                        )
                     }
                 } else {
                     await MainActor.run {

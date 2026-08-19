@@ -583,9 +583,13 @@ enum Localization {
             "Donation verified!": "Донат подтвержден!",
             "Thank you for supporting Scribe!": "Спасибо за поддержку Scribe!",
             "Transaction not found yet. If sent recently, please wait 1-2 minutes for network confirmation and try again.": "Транзакция пока не найдена. Если перевод сделан недавно, подождите 1–2 минуты подтверждения сети и попробуйте снова.",
-            "HONOURED SCRIBE SUPPORTER": "ПОЧЁТНЫЙ МЕЦЕНАТ SCRIBE",
-            "You are a verified Scribe Supporter!": "Вы являетесь верифицированным меценатом Scribe!",
-            "Reset Supporter Status": "Сбросить статус мецената"
+            "HONOURED SCRIBE SUPPORTER": "SCRIBE SUPPORTER",
+            "You are a verified Scribe Supporter!": "Вы являетесь подтвержденным Scribe Supporter!",
+            "Reset Supporter Status": "Сбросить статус",
+            "This transaction has already been claimed": "Этот перевод уже был привязан к аккаунту",
+            "What is TxID?": "Что такое TxID (хэш перевода)?",
+            "TxID (Transaction Hash) is the unique receipt ID of your crypto transfer. You can find it in your wallet or exchange withdrawal history (Bybit, Tonkeeper, Telegram Wallet) under transfer details.": "TxID (хэш транзакции) — это уникальный идентификатор вашего перевода. Его можно скопировать в деталях вывода на бирже (Bybit) или в истории кошелька (Tonkeeper, Telegram Wallet).",
+            "Synced with your account": "Привязано к вашему аккаунту"
         ],
         "es": [
             "Start Dictation": "Iniciar dictado",

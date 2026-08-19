@@ -493,9 +493,17 @@ final class DonationVerificationService: @unchecked Sendable {
             let matchesSender = fromAddr.caseInsensitiveCompare(query) == .orderedSame
             let matchesHash   = hash.caseInsensitiveCompare(query) == .orderedSame
 
+            // Anti-spoofing: if searching only by public sender address (and not by exact private TxID),
+            // ensure the transfer occurred within the last 48 hours to prevent claiming ancient public ledger transfers.
+            let timestamp = (item["block_timestamp"] as? Double).map { Date(timeIntervalSince1970: $0 / 1000.0) }
+            if matchesSender && !matchesHash {
+                if let date = timestamp, Date().timeIntervalSince(date) > 48 * 3600 {
+                    continue
+                }
+            }
+
             if matchesSender || matchesHash {
                 let amount = (Double(rawAmount) ?? 0) / 1_000_000.0
-                let timestamp = (item["block_timestamp"] as? Double).map { Date(timeIntervalSince1970: $0 / 1000.0) }
                 return DonationVerificationResult(
                     network: "USDT (TRC20)",
                     amount: max(amount, 1.0),
@@ -539,17 +547,26 @@ final class DonationVerificationService: @unchecked Sendable {
             let matchesSender = !fromAddr.isEmpty && (fromAddr.caseInsensitiveCompare(query) == .orderedSame || query.contains(fromAddr) || fromAddr.contains(query))
             let matchesHash   = !txHash.isEmpty && txHash.caseInsensitiveCompare(query) == .orderedSame
 
+            let utime = op["utime"] as? Double
+            let txDate = utime.map { Date(timeIntervalSince1970: $0) }
+
+            // Anti-spoofing for public sender address without TxID
+            if matchesSender && !matchesHash {
+                if let date = txDate, Date().timeIntervalSince(date) > 48 * 3600 {
+                    continue
+                }
+            }
+
             if matchesSender || matchesHash {
                 let divisor = pow(10.0, Double(decimals))
                 let amount = (Double(rawAmount) ?? 0) / divisor
-                let utime = op["utime"] as? Double
                 return DonationVerificationResult(
                     network: "USDT (TON)",
                     amount: max(amount, 1.0),
                     currency: "USDT",
                     txHash: txHash,
                     senderAddress: fromAddr,
-                    date: utime.map { Date(timeIntervalSince1970: $0) }
+                    date: txDate
                 )
             }
         }

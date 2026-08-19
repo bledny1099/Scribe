@@ -66,6 +66,7 @@ public final class AuthService: NSObject, ObservableObject {
                         subscriptionTier: .pro,
                         subscriptionExpiresAt: Date.distantFuture
                     )
+                    self.syncSupporterStatusFromCloud()
                 } else if self.currentUser == nil {
                     self.currentUser = nil
                 }
@@ -86,6 +87,7 @@ public final class AuthService: NSObject, ObservableObject {
                         subscriptionTier: .pro,
                         subscriptionExpiresAt: Date.distantFuture
                     )
+                    self.syncSupporterStatusFromCloud()
                 } else {
                     self.currentUser = nil
                 }
@@ -610,6 +612,71 @@ final class SafeVoidContinuation: @unchecked Sendable {
             } else {
                 print("Stats successfully synced to Firebase")
             }
+        }
+    }
+
+    // MARK: - Supporter Status Cloud Sync
+
+    public func syncSupporterStatusFromCloud() {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+
+        db?.collection("users").document(userId).getDocument { [weak self] snapshot, error in
+            guard let data = snapshot?.data(), error == nil else { return }
+
+            if let isSupporter = data["isSupporter"] as? Bool, isSupporter {
+                UserDefaults.standard.set(true, forKey: "isScribeSupporter")
+                if let amount = data["supporterDonationAmount"] as? Double {
+                    UserDefaults.standard.set(amount, forKey: "supporterDonationAmount")
+                }
+                if let curr = data["supporterDonationCurrency"] as? String {
+                    UserDefaults.standard.set(curr, forKey: "supporterDonationCurrency")
+                }
+                if let hash = data["supporterTxHash"] as? String {
+                    UserDefaults.standard.set(hash, forKey: "supporterTxHash")
+                }
+            } else if UserDefaults.standard.bool(forKey: "isScribeSupporter") {
+                // If verified locally, sync up to account
+                let amount = UserDefaults.standard.double(forKey: "supporterDonationAmount")
+                let currency = UserDefaults.standard.string(forKey: "supporterDonationCurrency") ?? "USDT"
+                let txHash = UserDefaults.standard.string(forKey: "supporterTxHash") ?? ""
+                self?.saveSupporterStatusToCloud(amount: amount, currency: currency, txHash: txHash)
+            }
+        }
+    }
+
+    public func saveSupporterStatusToCloud(amount: Double, currency: String, txHash: String) {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+
+        db?.collection("users").document(userId).setData([
+            "isSupporter": true,
+            "supporterDonationAmount": amount,
+            "supporterDonationCurrency": currency,
+            "supporterTxHash": txHash,
+            "supporterVerifiedAt": FieldValue.serverTimestamp()
+        ], merge: true)
+
+        if !txHash.isEmpty && !txHash.hasPrefix("test_") {
+            db?.collection("claimed_donations").document(txHash).setData([
+                "uid": userId,
+                "amount": amount,
+                "currency": currency,
+                "claimedAt": FieldValue.serverTimestamp()
+            ], merge: true)
+        }
+    }
+
+    public func isTxAlreadyClaimed(txHash: String) async -> Bool {
+        guard !txHash.isEmpty, !txHash.hasPrefix("test_"), let db = self.db else { return false }
+        guard let currentUid = Auth.auth().currentUser?.uid else { return false }
+
+        do {
+            let doc = try await db.collection("claimed_donations").document(txHash).getDocument()
+            if let data = doc.data(), let claimedUid = data["uid"] as? String {
+                return claimedUid != currentUid
+            }
+            return false
+        } catch {
+            return false
         }
     }
 }
