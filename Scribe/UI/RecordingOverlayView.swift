@@ -760,7 +760,7 @@ struct SubtitleOverlayView: View {
                     .animation(.spring(response: 0.4, dampingFraction: 0.8), value: appState.livePreviewText)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 }
 

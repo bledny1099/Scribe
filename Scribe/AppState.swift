@@ -1068,14 +1068,36 @@ final class AppState: ObservableObject {
         host.layer?.backgroundColor = .clear
         subPanel.contentView = host
 
-        // Position it below the main panel (macOS Y=0 is bottom, so subtract height + margin)
-        let frame = panel.frame
-        let subY = frame.minY - 110 
-        let subX = frame.midX - 400
-        subPanel.setFrameOrigin(NSPoint(x: subX, y: subY))
+        updateSubtitlePanelFrame(for: panel, subPanel: subPanel)
 
-        panel.addChildWindow(subPanel, ordered: .below)
+        panel.addChildWindow(subPanel, ordered: .above)
         subtitlePanel = subPanel
+    }
+
+    func updateSubtitlePanelFrame(for mainPanel: NSPanel, subPanel: NSPanel) {
+        let frame = mainPanel.frame
+        let screen = mainPanel.screen ?? NSScreen.main ?? NSScreen.screens.first
+        let screenFrame = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+
+        let subWidth: CGFloat = min(720, screenFrame.width - 48)
+        let subHeight: CGFloat = 80
+        let subX = frame.midX - subWidth / 2
+
+        // If there is enough room below the main panel, place below; otherwise place above!
+        let subY: CGFloat
+        if frame.minY - subHeight - 12 >= screenFrame.minY {
+            subY = frame.minY - subHeight - 12
+        } else {
+            subY = frame.maxY + 12
+        }
+
+        let finalRect = NSRect(
+            x: max(screenFrame.minX + 16, min(subX, screenFrame.maxX - subWidth - 16)),
+            y: min(screenFrame.maxY - subHeight - 16, max(screenFrame.minY + 16, subY)),
+            width: subWidth,
+            height: subHeight
+        )
+        subPanel.setFrame(finalRect, display: true)
     }
 
     private func hidePanel() {
@@ -1376,9 +1398,12 @@ final class AppState: ObservableObject {
                 panel.animator().setFrameOrigin(targetOrigin)
             }
         }
-        
-        // Handle Subtitle Panel for external mode
-        if livePreviewEnabled && !livePreviewText.isEmpty {
+
+        // Handle Subtitle Panel for preview mode
+        if livePreviewEnabled {
+            if livePreviewText.isEmpty {
+                livePreviewText = l("Scribe transcribes your speech live…")
+            }
             if settingsSubtitlePanel == nil {
                 let subPanel = NSPanel(
                     contentRect: NSRect(x: 0, y: 0, width: 800, height: 100),
@@ -1397,28 +1422,25 @@ final class AppState: ObservableObject {
                 let host = NSHostingView(rootView: subView)
                 host.layer?.backgroundColor = .clear
                 subPanel.contentView = host
-                
+
                 settingsSubtitlePanel = subPanel
-                
+
                 // Animate entrance
                 subPanel.alphaValue = 0
-                settingsPreviewPanel?.addChildWindow(subPanel, ordered: .below)
-                
+                settingsPreviewPanel?.addChildWindow(subPanel, ordered: .above)
+
                 NSAnimationContext.runAnimationGroup { ctx in
                     ctx.duration = 0.35
                     ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
                     subPanel.animator().alphaValue = 1
                 }
             }
-            
-            // Position
+
+            // Position safely on-screen
             if let subPanel = settingsSubtitlePanel, let panel = settingsPreviewPanel {
-                let frame = panel.frame
-                let subY = frame.minY - 110
-                let subX = frame.midX - 400
-                subPanel.setFrameOrigin(NSPoint(x: subX, y: subY))
+                updateSubtitlePanelFrame(for: panel, subPanel: subPanel)
             }
-            
+
         } else {
             // Remove subtitle panel if no longer needed
             if let subPanel = settingsSubtitlePanel {
