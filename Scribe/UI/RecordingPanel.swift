@@ -27,28 +27,31 @@ final class RecordingPanel: NSPanel {
     ) -> NSSize {
         if isStatusMessage {
             let textWidth = CGFloat(max(statusTextLength, 6)) * 8.5
-            let width = min(max(32 + 16 + textWidth + 36, 160), 320)
+            let width = min(max(32 + 16 + textWidth + 36, 160), 340)
             return NSSize(width: width, height: 56)
         }
 
-        // Base width: Left dot cap (44) + Waveform visualizer (220) + Stop button cap (44) = 308 pt
-        var width: CGFloat = 308
+        // Base width: Left dot cap (48) + Waveform visualizer (230) + Stop button cap (48) = 326 pt
+        var width: CGFloat = 326
         
         if isTimerVisible {
-            width += 48 // Timer digits + spacing
+            width += 56 // Timer digits + margin
         }
         
         if !targetAppName.isEmpty {
-            let textWidth = CGFloat(targetAppName.count) * 7.0
-            let badgeWidth = max(min(34 + textWidth, 200), 50)
-            width += badgeWidth + 10 // badge width + spacing
+            let textWidth = CGFloat(targetAppName.count) * 7.5
+            let badgeWidth = max(min(38 + textWidth, 200), 54)
+            width += badgeWidth + 16 // badge width + margin
         }
         
         if hasAIMode {
-            width += 85 // AI refinement mode badge
+            width += 90 // AI refinement mode badge
         }
         
-        return NSSize(width: min(max(width, 308), 680), height: 72)
+        // Extra padding for the capsule rounded corners so buttons never touch edge
+        width += 20
+        
+        return NSSize(width: min(max(width, 346), 720), height: 72)
     }
 
     static func size(
