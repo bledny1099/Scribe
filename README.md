@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/icon.png" alt="Scribe" width="128" height="128">
+<img src="assets/scribe_icon.png" alt="Scribe" width="128" height="128">
 
 # Scribe
 
