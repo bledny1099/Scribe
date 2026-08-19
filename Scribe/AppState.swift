@@ -513,6 +513,16 @@ final class AppState: ObservableObject {
     @AppStorage("allowAnonymousVocabularyContribution") public var allowAnonymousVocabularyContribution: Bool = false
     @AppStorage("hasPromptedVocabularyDataSharing") public var hasPromptedVocabularyDataSharing: Bool = false
     @AppStorage("recognitionEngine") public var recognitionEngine: String = "Aether Hybrid (Recommended)"
+    
+    public var recognitionEngineDescription: String {
+        if recognitionEngine.contains("Instant") {
+            return l("Aether Instant uses Apple's built-in native speech engine with zero model downloads (~0 MB) and instant real-time transcription.")
+        } else if recognitionEngine.contains("Turbo") {
+            return l("Aether Turbo uses lightweight quantized Whisper models for fast, low-latency offline dictation.")
+        } else {
+            return l("Aether combines Audio VAD, dynamic app context conditioning, and lexical fuzzy matching for zero-hallucination, studio-grade speech transcription.")
+        }
+    }
     @AppStorage("recognitionMode") public var recognitionMode: String = "multilingual"
     @AppStorage("singleDictationLanguage") public var singleDictationLanguage: String = "ru"
     @AppStorage("multilingualLanguages") public var multilingualLanguages: [String] = ["ru", "en"]

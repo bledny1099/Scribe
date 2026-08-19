@@ -436,7 +436,7 @@ struct SettingsView: View {
                                     )
                                 }
                                 
-                                Text(appState.l("Aether combines Audio VAD, dynamic app context conditioning, and lexical fuzzy matching for zero-hallucination, studio-grade speech transcription."))
+                                Text(appState.recognitionEngineDescription)
                                     .font(.system(size: 11, weight: .regular))
                                     .foregroundStyle(.secondary)
                                     .lineLimit(3)

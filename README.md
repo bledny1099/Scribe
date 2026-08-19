@@ -67,8 +67,9 @@ There are plenty of voice-to-text tools for macOS, but most come with significan
 Scribe was built with a different architecture:
 
 1. **Hybrid Aether Engine**: Combines Apple's on-device Speech framework for zero-latency live visual feedback with WhisperKit compiled for Apple Neural Engine (ANE) to deliver studio-quality punctuation, formatting, and capitalization.
-2. **Context Biasing**: Intelligently identifies the active application and biases recognition toward technical terminology, developer jargon, and custom dictionary words.
-3. **100% On-Device & Open Source**: Native Swift, lightweight memory footprint, and zero analytics or telemetry.
+2. **Zero-Download Mode (Aether Instant)**: If you prefer not to download external models (~0 MB download, ~0 MB disk usage), switch the engine to **Aether Instant** in Settings to run purely on macOS's built-in native Apple Speech engine with instant speed and minimal CPU usage.
+3. **Context Biasing**: Intelligently identifies the active application and biases recognition toward technical terminology, developer jargon, and custom dictionary words.
+4. **100% On-Device & Open Source**: Native Swift, lightweight memory footprint, and zero analytics or telemetry.
 
 ---
 
@@ -76,6 +77,7 @@ Scribe was built with a different architecture:
 
 - **Global Hotkey (`⌥S`)**: Rebindable trigger with support for push-to-talk and single-key shortcuts.
 - **Universal Auto-Paste**: Direct text insertion into any focused input field.
+- **Zero-Download Mode**: Switch to *Aether Instant* for instant dictation using macOS's built-in speech engine with 0 MB model download.
 - **50+ Languages**: Full multilingual speech recognition with automatic language detection.
 - **Liquid Glass HUD**: 5 audio-reactive visualizer modes (*Waveform*, *Classic*, *Minimal*, *ECG*, *Orb*) with customizable color themes.
 - **Searchable Local History**: Full-text search and one-click copy across past recordings.

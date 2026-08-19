@@ -160,8 +160,9 @@ enum Localization {
             "3-Stage Pipeline Active": "3-Stage Pipeline Active",
             "Multilingual Mode": "Multilingual Mode",
             "Multilingual Mode (2-3 Languages)": "Multilingual Mode (2-3 Languages)",
-            "Single Language Mode": "Single Language Mode",
-            "Aether combines Audio VAD, dynamic app context conditioning, and lexical fuzzy matching for zero-hallucination, studio-grade speech transcription.": "Aether combines Audio VAD, dynamic app context conditioning, and lexical fuzzy matching for zero-hallucination, studio-grade speech transcription."
+            "Aether combines Audio VAD, dynamic app context conditioning, and lexical fuzzy matching for zero-hallucination, studio-grade speech transcription.": "Aether combines Audio VAD, dynamic app context conditioning, and lexical fuzzy matching for zero-hallucination, studio-grade speech transcription.",
+            "Aether Instant uses Apple's built-in native speech engine with zero model downloads (~0 MB) and instant real-time transcription.": "Aether Instant uses Apple's built-in native speech engine with zero model downloads (~0 MB) and instant real-time transcription.",
+            "Aether Turbo uses lightweight quantized Whisper models for fast, low-latency offline dictation.": "Aether Turbo uses lightweight quantized Whisper models for fast, low-latency offline dictation."
         ],
         "ru": [
             "Sign In": "Войти",
@@ -342,6 +343,8 @@ enum Localization {
             "Multilingual Mode (2-3 Languages)": "Многоязычный режим (2-3 языка)",
             "Single Language Mode": "Одноязычный режим",
             "Aether combines Audio VAD, dynamic app context conditioning, and lexical fuzzy matching for zero-hallucination, studio-grade speech transcription.": "Aether объединяет VAD-фильтрацию тишины, контекст активного приложения и нечеткий словарный матчер для точной диктовки без галлюцинаций.",
+            "Aether Instant uses Apple's built-in native speech engine with zero model downloads (~0 MB) and instant real-time transcription.": "Aether Instant использует встроенный системный движок Apple Speech без скачивания моделей (~0 МБ) и нагрузок на процессор.",
+            "Aether Turbo uses lightweight quantized Whisper models for fast, low-latency offline dictation.": "Aether Turbo использует легковесные квантованные модели Whisper для быстрой оффлайн-диктовки с низкой задержкой.",
             "Dictation Language(s)": "Язык(и) диктовки",
             "Select up to 3 languages": "Выберите до 3 языков",
             "Selected (%d)": "Выбрано (%d)",
