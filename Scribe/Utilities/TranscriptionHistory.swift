@@ -200,11 +200,11 @@ final class TranscriptionHistory: ObservableObject {
         "Typhoon", "Tidal Wave", "Tsunami", "Category 5", "Force of Nature"
     ]
     
-    /// Words required for a specific level using an arithmetic progression
+    /// Words required for a specific level using an engaging quadratic progression scaling up to ~283,000 words at level 50
     func requiredWords(for level: Int) -> Int {
         if level <= 1 { return 0 }
         let n = level - 1
-        return (n * (200 + (n - 1) * 50)) / 2
+        return n * 150 + Int(Double(n * n) * 115)
     }
     
     var currentLevel: Int {

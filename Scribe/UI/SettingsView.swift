@@ -744,25 +744,50 @@ struct SettingsBackgroundView: View {
             // Ambient Glow
             if selectedTab == .statistics {
                 // Level-Themed Ambient Glow (Only on Statistics tab) - active in ALL panel appearances!
+                // 1. Full-window atmospheric color wash
+                LinearGradient(
+                    colors: [
+                        levelColor.opacity(panelAppearance == .liquidGlass ? 0.38 : 0.30),
+                        levelColor.opacity(panelAppearance == .liquidGlass ? 0.16 : 0.12),
+                        Color.clear
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+
+                // 2. Powerful Top-Leading Bloom
                 RadialGradient(
                     gradient: Gradient(colors: [
-                        levelColor.opacity(panelAppearance == .liquidGlass ? 0.40 : 0.35),
-                        levelColor.opacity(panelAppearance == .liquidGlass ? 0.18 : 0.12),
+                        levelColor.opacity(panelAppearance == .liquidGlass ? 0.55 : 0.48),
+                        levelColor.opacity(panelAppearance == .liquidGlass ? 0.25 : 0.20),
                         Color.clear
                     ]),
                     center: .topLeading,
                     startRadius: 10,
-                    endRadius: 650
+                    endRadius: 750
                 )
 
+                // 3. Top-Trailing & Center Aura
                 RadialGradient(
                     gradient: Gradient(colors: [
-                        levelColor.opacity(panelAppearance == .liquidGlass ? 0.28 : 0.20),
+                        levelColor.opacity(panelAppearance == .liquidGlass ? 0.35 : 0.28),
+                        Color.clear
+                    ]),
+                    center: .topTrailing,
+                    startRadius: 20,
+                    endRadius: 600
+                )
+
+                // 4. Bottom-Trailing Depth Glow
+                RadialGradient(
+                    gradient: Gradient(colors: [
+                        levelColor.opacity(panelAppearance == .liquidGlass ? 0.40 : 0.32),
+                        levelColor.opacity(panelAppearance == .liquidGlass ? 0.15 : 0.10),
                         Color.clear
                     ]),
                     center: .bottomTrailing,
-                    startRadius: 50,
-                    endRadius: 500
+                    startRadius: 30,
+                    endRadius: 550
                 )
 
                 // Right-to-Left Level Up Sweep Transition
@@ -775,25 +800,35 @@ struct SettingsBackgroundView: View {
                 }
             } else if panelAppearance != .liquidGlass {
                 // Standard Theme Glow for other tabs
-                RadialGradient(
-                    gradient: Gradient(colors: [
-                        selectedTheme.glowColor.opacity(0.22),
+                LinearGradient(
+                    colors: [
+                        selectedTheme.glowColor.opacity(0.18),
                         selectedTheme.gradientColors[0].opacity(0.08),
                         Color.clear
-                    ]),
-                    center: .topLeading,
-                    startRadius: 10,
-                    endRadius: 650
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
                 )
 
                 RadialGradient(
                     gradient: Gradient(colors: [
-                        selectedTheme.gradientColors[1].opacity(0.12),
+                        selectedTheme.glowColor.opacity(0.38),
+                        selectedTheme.gradientColors[0].opacity(0.16),
+                        Color.clear
+                    ]),
+                    center: .topLeading,
+                    startRadius: 10,
+                    endRadius: 750
+                )
+
+                RadialGradient(
+                    gradient: Gradient(colors: [
+                        selectedTheme.gradientColors[1].opacity(0.24),
                         Color.clear
                     ]),
                     center: .bottomTrailing,
                     startRadius: 50,
-                    endRadius: 500
+                    endRadius: 550
                 )
             }
         }
@@ -1367,7 +1402,7 @@ struct GoldCertificateCardView: View {
                         Text(appState.l("STREAK HONOUR"))
                             .font(.system(size: 8, weight: .bold, design: .serif))
                             .foregroundStyle(.secondary)
-                        Text("\(history.dayStreak) \(appState.l("Active Days"))")
+                        Text("\(history.dayStreak) \(appState.l(history.dayStreak == 1 ? "Active Day" : "Active Days"))")
                             .font(.system(size: 11, weight: .bold, design: .serif))
                             .foregroundStyle(.orange)
                     }

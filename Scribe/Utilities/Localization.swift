@@ -167,7 +167,20 @@ enum Localization {
             "Aether Instant uses Apple's built-in native speech engine with zero model downloads (~0 MB) and instant real-time transcription.": "Aether Instant uses Apple's built-in native speech engine with zero model downloads (~0 MB) and instant real-time transcription.",
             "Aether Turbo uses lightweight quantized Whisper models for fast, low-latency offline dictation.": "Aether Turbo uses lightweight quantized Whisper models for fast, low-latency offline dictation.",
             "LEVEL UP!": "LEVEL UP!",
-            "Promoted to": "Promoted to"
+            "Promoted to": "Promoted to",
+            "RANK TIER": "RANK TIER",
+            "STREAK HONOUR": "STREAK HONOUR",
+            "Active Day": "Active Day",
+            "Active Days": "Active Days",
+            "VOLUME AWARD": "VOLUME AWARD",
+            "PROGRESS": "PROGRESS",
+            "Mastery": "Mastery",
+            "words to Level": "words to Level",
+            "Words": "Words",
+            "words": "words",
+            "Words remaining": "Words remaining",
+            "CERTIFICATE OF MASTERY": "CERTIFICATE OF MASTERY",
+            "Conferred for outstanding dedication and voice dictation mastery": "Conferred for outstanding dedication and voice dictation mastery"
         ],
         "ru": [
             "Sign In": "Войти",
@@ -553,7 +566,20 @@ enum Localization {
             "Confirm sign in in browser": "Подтвердите вход в браузере",
             "Waiting for browser sign in…": "Ожидание входа через браузер…",
             "Code copied to clipboard. Paste it in your browser.": "Код скопирован в буфер. Вставьте его в браузере.",
-            "Complete sign in in the opened browser window.": "Завершите авторизацию в открывшемся окне браузера."
+            "Complete sign in in the opened browser window.": "Завершите авторизацию в открывшемся окне браузера.",
+            "RANK TIER": "РАНГ",
+            "STREAK HONOUR": "СЕРИЯ ДНЕЙ",
+            "Active Day": "день подряд",
+            "Active Days": "дн. подряд",
+            "VOLUME AWARD": "ОБЪЁМ СЛОВ",
+            "PROGRESS": "ПРОГРЕСС",
+            "Mastery": "мастерства",
+            "words to Level": "слов до ур.",
+            "Words": "слов",
+            "words": "слов",
+            "Words remaining": "Осталось слов",
+            "CERTIFICATE OF MASTERY": "СЕРТИФИКАТ МАСТЕРСТВА",
+            "Conferred for outstanding dedication and voice dictation mastery": "За выдающуюся продуктивность и голосовое мастерство"
         ],
         "es": [
             "Start Dictation": "Iniciar dictado",
