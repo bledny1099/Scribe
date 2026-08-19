@@ -14,7 +14,7 @@ Press `⌥S`, talk, press it again. Your words land directly in whatever text fi
 
 <br><br>
 
-<img src="assets/scribe_demo.gif" alt="Scribe Demo" width="100%">
+https://github.com/bledny1099/Scribe/raw/main/assets/scribe_demo.mp4
 
 </div>
 
@@ -30,8 +30,8 @@ Release or press the shortcut again, and the transcribed text is automatically p
 
 ## Screenshots
 
-<details>
-<summary><b>Click to view Screenshots & Interface</b></summary>
+<details open>
+<summary><b>Screenshots & Interface</b> (click to collapse)</summary>
 
 <br>
 
