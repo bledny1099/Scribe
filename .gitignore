@@ -1,32 +1,77 @@
 # macOS
 .DS_Store
-claude.md
-ScribeWeb/
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
 
 # Xcode
 build/
+DerivedData/
 *.pbxuser
+!default.pbxuser
 *.mode1v3
+!default.mode1v3
 *.mode2v3
+!default.mode2v3
 *.perspectivev3
-*.xcuserdata
+!default.perspectivev3
+*.xcuserdatad
+*.xcuserstate
 *.xccheckout
 *.moved-aside
-DerivedData/
 *.hmap
 *.ipa
 *.dSYM.zip
 *.dSYM
+timeline.xctimeline
+playground.xcworkspace
 
 # Swift Package Manager
 .build/
 .swiftpm/
+Packages/
 
-# Logs & scratch files
+# Releases & Artifacts
+dist/
+*.dmg
+*.zip
+*.tar.gz
+
+# Logs & Temporary Files
 *.log
+*.tmp
+*.bak
+*.rej
+*.diff
+*.orig
+
+# Python
 *.py
-*Backup*.swift
-*_AnimatedStats.swift
-*_BeforeStatsRedesign.swift
-test_gradient.swift
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+
+# AI Assistants & Memory Files
+CLAUDE.md
+claude.md
+.claude/
+AGENTS.md
+.agents/
+.gemini/
 rules.md
+DESIGN.md
+.cursor/
+.windsurf/
+.copilot/
+
+# Web & Scratch Folders
+ScribeWeb/
+web/
+site/
+Site/
+scratch/

@@ -222,37 +222,42 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
 
         if let tokenizer = kit.tokenizer {
             let tokens = tokenizer.encode(text: promptText)
-            // WhisperKit prompt tokens must be less than 224 to avoid crashing
-            options.promptTokens = Array(tokens.suffix(min(tokens.count, 200)))
+            // WhisperKit prompt tokens: keep compact (max 100) for faster attention decoding
+            options.promptTokens = Array(tokens.suffix(min(tokens.count, 100)))
             // Must disable prefill cache when using promptTokens (WhisperKit limitation)
             options.usePrefillCache = false
-            logger.debug("Aether set initial prompt (\(tokens.count) tokens) for language '\(langKey)'")
+            logger.debug("Aether set initial prompt (\(options.promptTokens?.count ?? 0) tokens) for language '\(langKey)'")
         }
         
         // Custom Language Detection with Strict Preferred Languages Lock
         if options.detectLanguage, !preferredLanguages.isEmpty {
             let basePreferred = preferredLanguages.map { baseLanguageCode(for: $0) }
-            do {
-                let (detectedLang, langProbs) = try await kit.detectLanguage(audioPath: path)
-                let baseDetected = baseLanguageCode(for: detectedLang)
-                logger.info("Auto-detected language: \(detectedLang) (base: \(baseDetected)), preferred: \(basePreferred)")
-                
-                if basePreferred.contains(baseDetected) {
-                    logger.info("Using detected preferred language: \(baseDetected)")
-                    options.language = baseDetected
-                    options.detectLanguage = false
-                } else if let bestLang = basePreferred.max(by: { (langProbs[$0] ?? -Float.greatestFiniteMagnitude) < (langProbs[$1] ?? -Float.greatestFiniteMagnitude) }) {
-                    logger.info("Strict language lock: Overriding detected foreign language '\(baseDetected)' to preferred match '\(bestLang)'")
-                    options.language = bestLang
-                    options.detectLanguage = false
-                } else {
+            if basePreferred.count == 1, let singleLang = basePreferred.first {
+                options.language = singleLang
+                options.detectLanguage = false
+            } else {
+                do {
+                    let (detectedLang, langProbs) = try await kit.detectLanguage(audioPath: path)
+                    let baseDetected = baseLanguageCode(for: detectedLang)
+                    logger.info("Auto-detected language: \(detectedLang) (base: \(baseDetected)), preferred: \(basePreferred)")
+                    
+                    if basePreferred.contains(baseDetected) {
+                        logger.info("Using detected preferred language: \(baseDetected)")
+                        options.language = baseDetected
+                        options.detectLanguage = false
+                    } else if let bestLang = basePreferred.max(by: { (langProbs[$0] ?? -Float.greatestFiniteMagnitude) < (langProbs[$1] ?? -Float.greatestFiniteMagnitude) }) {
+                        logger.info("Strict language lock: Overriding detected foreign language '\(baseDetected)' to preferred match '\(bestLang)'")
+                        options.language = bestLang
+                        options.detectLanguage = false
+                    } else {
+                        options.language = basePreferred.first
+                        options.detectLanguage = false
+                    }
+                } catch {
+                    logger.warning("Custom language detection failed: \(error), defaulting to first preferred language: \(basePreferred.first ?? "ru")")
                     options.language = basePreferred.first
                     options.detectLanguage = false
                 }
-            } catch {
-                logger.warning("Custom language detection failed: \(error), defaulting to first preferred language: \(basePreferred.first ?? "ru")")
-                options.language = basePreferred.first
-                options.detectLanguage = false
             }
         }
         

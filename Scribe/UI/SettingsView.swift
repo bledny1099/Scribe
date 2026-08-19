@@ -310,6 +310,17 @@ struct SettingsView: View {
                                     .labelsHidden()
                             }
 
+                            // Show target application
+                            HStack {
+                                Text(appState.l("Show Target Application"))
+                                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                Toggle("", isOn: $appState.showTargetAppInOverlay)
+                                    .toggleStyle(.switch)
+                                    .labelsHidden()
+                            }
+
                             // Overlay style picker
                             HStack {
                                 Text(appState.l("Overlay Style"))

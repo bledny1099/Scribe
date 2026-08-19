@@ -230,15 +230,18 @@ struct WaveformOverlay: View {
     var body: some View {
         let isEmbeddedActive = false
         let isAIModeActive = appState.enableCloudAI && appState.selectedAIRefinementMode != .raw && (appState.recordingStatus == .recording || appState.recordingStatus == .transcribing)
-        let effectiveAppName = (appState.recordingStatus == .recording || appState.recordingStatus == .transcribing) ? appState.targetAppName : (appState.isShowingPreview ? "Scribe" : "")
-        
+        let isStatusMessage = appState.recordingStatus != .recording && !appState.isShowingPreview && !statusLabel.isEmpty
+        let effectiveAppName = appState.showTargetAppInOverlay ? ((appState.recordingStatus == .recording || appState.recordingStatus == .transcribing) ? appState.targetAppName : (appState.isShowingPreview ? "Scribe" : "")) : ""
+
         let dynamicSize = RecordingPanel.size(
             for: .waveform,
             overlaySize: appState.selectedOverlaySize,
             isEmbeddedPreviewActive: isEmbeddedActive,
             previewTextLength: appState.livePreviewText.count,
             targetAppName: effectiveAppName,
-            hasAIMode: isAIModeActive
+            hasAIMode: isAIModeActive,
+            isStatusMessage: isStatusMessage,
+            statusTextLength: statusLabel.count
         )
         let cardWidth = dynamicSize.width / appState.selectedOverlaySize.scale
         let cardHeight = dynamicSize.height / appState.selectedOverlaySize.scale
@@ -246,75 +249,81 @@ struct WaveformOverlay: View {
         let isTimerVisible = appState.durationVisible && (appState.recordingStatus == .recording || appState.isShowingPreview)
 
         return VStack(spacing: 8) {
-            HStack(alignment: .center, spacing: 6) {
-                // Left: status indicator centered in the left cap area
-                ZStack(alignment: .center) {
-                    statusIndicator
-                }
-                .frame(width: 36, height: RecordingPanel.waveformSize.height)
-                .padding(.leading, 8)
-
-                // Center: dynamically expanding waveform bars
-                waveformBars
-                    .frame(maxWidth: .infinity, maxHeight: RecordingPanel.waveformSize.height)
-
-                // Right: status label + target app badge + timer + stop button
+            if isStatusMessage {
                 HStack(spacing: 8) {
-                    if isAIModeActive {
-                        HStack(spacing: 4) {
-                            Image(systemName: appState.selectedAIRefinementMode.icon)
-                                .font(.system(size: 10, weight: .bold))
-                            Text(appState.selectedAIRefinementMode.displayName)
-                                .font(.system(size: 10, weight: .bold, design: .rounded))
-                        }
-                        .foregroundStyle(appState.selectedTheme.gradientColors.first!)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 3)
-                        .background(appState.selectedTheme.gradientColors.first!.opacity(0.12))
-                        .cornerRadius(6)
-                    }
+                    statusIndicator
 
-                    if !effectiveAppName.isEmpty {
-                        TargetAppBadgeView(
-                            name: effectiveAppName,
-                            icon: (appState.recordingStatus == .recording || appState.recordingStatus == .transcribing) ? appState.targetAppIcon : NSApp.applicationIconImage
-                        )
-                        .padding(.trailing, isTimerVisible ? 2 : 10)
-                    }
-
-                    if isTimerVisible {
-                        Text(appState.isShowingPreview ? "0:05" : appState.formattedDuration)
-                            .font(.system(size: 14, weight: .medium, design: .rounded).monospacedDigit())
-                            .foregroundStyle(.secondary)
-                            .frame(width: 42, alignment: .leading)
-                            .animation(.default, value: appState.recordingDuration)
-                    }
-
-                    if appState.recordingStatus != .recording && !appState.isShowingPreview {
-                        Text(statusLabel)
-                            .font(.system(size: 11 * appState.overlayTextCompensation, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.primary.opacity(0.6))
-                            .lineLimit(1)
-                    }
-
-                    if appState.recordingStatus == .recording || appState.isShowingPreview {
-                        Button(action: { appState.cancelRecording() }) {
-                            Image(systemName: "stop.fill")
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundStyle(.primary.opacity(0.6))
-                                .frame(width: 28, height: 28)
-                                .background(Circle().fill(Color.primary.opacity(0.1)))
-                        }
-                        .buttonStyle(.plain)
-                        .transition(.scale.combined(with: .opacity))
-                    }
+                    Text(statusLabel)
+                        .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.primary.opacity(0.85))
+                        .lineLimit(1)
                 }
-                .fixedSize(horizontal: true, vertical: false)
+                .padding(.horizontal, 14)
+                .frame(maxWidth: .infinity, maxHeight: cardHeight, alignment: .center)
+            } else {
+                HStack(alignment: .center, spacing: 6) {
+                    // Left: status indicator centered in the left cap area
+                    ZStack(alignment: .center) {
+                        statusIndicator
+                    }
+                    .frame(width: 36, height: RecordingPanel.waveformSize.height)
+                    .padding(.leading, 8)
+
+                    // Center: dynamically expanding waveform bars
+                    waveformBars
+                        .frame(maxWidth: .infinity, maxHeight: RecordingPanel.waveformSize.height)
+
+                    // Right: status label + target app badge + timer + stop button
+                    HStack(spacing: 8) {
+                        if isAIModeActive {
+                            HStack(spacing: 4) {
+                                Image(systemName: appState.selectedAIRefinementMode.icon)
+                                    .font(.system(size: 10, weight: .bold))
+                                Text(appState.selectedAIRefinementMode.displayName)
+                                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                            }
+                            .foregroundStyle(appState.selectedTheme.gradientColors.first!)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 3)
+                            .background(appState.selectedTheme.gradientColors.first!.opacity(0.12))
+                            .cornerRadius(6)
+                        }
+
+                        if !effectiveAppName.isEmpty {
+                            TargetAppBadgeView(
+                                name: effectiveAppName,
+                                icon: (appState.recordingStatus == .recording || appState.recordingStatus == .transcribing) ? appState.targetAppIcon : NSApp.applicationIconImage
+                            )
+                            .padding(.trailing, isTimerVisible ? 2 : 10)
+                        }
+
+                        if isTimerVisible {
+                            Text(appState.isShowingPreview ? "0:05" : appState.formattedDuration)
+                                .font(.system(size: 14, weight: .medium, design: .rounded).monospacedDigit())
+                                .foregroundStyle(.secondary)
+                                .frame(width: 42, alignment: .leading)
+                                .animation(.default, value: appState.recordingDuration)
+                        }
+
+                        if appState.recordingStatus == .recording || appState.isShowingPreview {
+                            Button(action: { appState.cancelRecording() }) {
+                                Image(systemName: "stop.fill")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundStyle(.primary.opacity(0.6))
+                                    .frame(width: 28, height: 28)
+                                    .background(Circle().fill(Color.primary.opacity(0.1)))
+                            }
+                            .buttonStyle(.plain)
+                            .transition(.scale.combined(with: .opacity))
+                        }
+                    }
+                    .fixedSize(horizontal: true, vertical: false)
+                    .frame(height: RecordingPanel.waveformSize.height)
+                    .padding(.trailing, 10)
+                    .animation(.easeInOut(duration: 0.2), value: appState.recordingStatus == .recording)
+                }
                 .frame(height: RecordingPanel.waveformSize.height)
-                .padding(.trailing, 10)
-                .animation(.easeInOut(duration: 0.2), value: appState.recordingStatus == .recording)
             }
-            .frame(height: RecordingPanel.waveformSize.height)
 
             if isEmbeddedActive {
                 Divider()

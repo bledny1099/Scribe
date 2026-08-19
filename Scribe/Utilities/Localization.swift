@@ -235,6 +235,7 @@ enum Localization {
             "Launch at Login": "Запускать при входе",
             "Sound Feedback": "Звуковой отклик",
             "Show Recording Timer": "Показывать таймер записи",
+            "Show Target Application": "Показывать целевое приложение",
             "Microphone": "Микрофон",
             "Accessibility": "Универсальный доступ",
             "Grant Access": "Предоставить доступ",

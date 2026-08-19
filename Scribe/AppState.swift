@@ -417,6 +417,7 @@ final class AppState: ObservableObject {
     @AppStorage("livePreviewEnabled") var livePreviewEnabled: Bool = false
     @AppStorage("livePreviewBackground") var livePreviewBackgroundRaw: String = SubtitleBackground.glass.rawValue
     @AppStorage("durationVisible") public var durationVisible: Bool = true
+    @AppStorage("showTargetAppInOverlay") public var showTargetAppInOverlay: Bool = true
     @AppStorage("autoTranslate") var autoTranslate: Bool = false
     @AppStorage("noteExportMode") public var noteExportMode: ExportMode = .append
     @AppStorage("appleNotesExportMode") public var appleNotesExportModeRaw: String = ExportMode.append.rawValue
@@ -939,13 +940,14 @@ final class AppState: ObservableObject {
 
         let isEmbedded = false
         let hasAI = enableCloudAI && selectedAIRefinementMode != .raw
+        let activeAppName = showTargetAppInOverlay ? targetAppName : ""
         let panel = RecordingPanel.make(
             style: selectedOverlayStyle,
             appearance: selectedPanelAppearance,
             size: selectedOverlaySize,
             isEmbeddedPreviewActive: isEmbedded,
             previewTextLength: livePreviewText.count,
-            targetAppName: targetAppName,
+            targetAppName: activeAppName,
             hasAIMode: hasAI
         )
         panel.setContent(
@@ -954,7 +956,7 @@ final class AppState: ObservableObject {
             overlaySize: selectedOverlaySize,
             isEmbeddedPreviewActive: isEmbedded,
             previewTextLength: livePreviewText.count,
-            targetAppName: targetAppName,
+            targetAppName: activeAppName,
             hasAIMode: hasAI
         )
 
@@ -1197,7 +1199,7 @@ final class AppState: ObservableObject {
 
         let isEmbeddedActive = false
         let hasAI = enableCloudAI && selectedAIRefinementMode != .raw
-        let previewAppName = "Scribe"
+        let previewAppName = showTargetAppInOverlay ? "Scribe" : ""
         let targetSize = RecordingPanel.size(
             for: selectedOverlayStyle,
             overlaySize: selectedOverlaySize,

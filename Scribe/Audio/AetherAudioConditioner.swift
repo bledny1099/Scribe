@@ -43,39 +43,37 @@ public final class AetherAudioConditioner: @unchecked Sendable {
             applyHighPassFilter(channelData: channelData, channelCount: channelCount, count: samplesPerChannel, sampleRate: sampleRate)
 
             // 2. VAD: Find speech boundaries (leading & trailing silence)
-            guard let (startFrame, endFrame) = detectSpeechBoundaries(
+            if let (startFrame, endFrame) = detectSpeechBoundaries(
                 channelData: channelData[0],
                 count: samplesPerChannel,
                 sampleRate: sampleRate
-            ) else {
-                logger.info("Aether VAD: No speech detected in audio file (\(samplesPerChannel) frames)")
-                return nil
+            ) {
+                let trimmedLength = max(1, endFrame - startFrame)
+                if let trimmedBuffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(trimmedLength)) {
+                    trimmedBuffer.frameLength = AVAudioFrameCount(trimmedLength)
+                    for ch in 0..<channelCount {
+                        let srcPtr = channelData[ch].advanced(by: startFrame)
+                        let dstPtr = trimmedBuffer.floatChannelData![ch]
+                        dstPtr.assign(from: srcPtr, count: trimmedLength)
+                    }
+                    normalizeLoudness(buffer: trimmedBuffer)
+
+                    let outputURL = FileManager.default.temporaryDirectory
+                        .appendingPathComponent("aether_conditioned_\(UUID().uuidString).wav")
+                    let outputFile = try AVAudioFile(forWriting: outputURL, settings: format.settings)
+                    try outputFile.write(from: trimmedBuffer)
+                    logger.debug("Aether conditioned audio: trimmed \(samplesPerChannel) -> \(trimmedLength) frames")
+                    return outputURL
+                }
             }
 
-            let trimmedLength = max(1, endFrame - startFrame)
-            guard let trimmedBuffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(trimmedLength)) else {
-                return audioURL
-            }
-            trimmedBuffer.frameLength = AVAudioFrameCount(trimmedLength)
-
-            for ch in 0..<channelCount {
-                let srcPtr = channelData[ch].advanced(by: startFrame)
-                let dstPtr = trimmedBuffer.floatChannelData![ch]
-                dstPtr.assign(from: srcPtr, count: trimmedLength)
-            }
-
-            // 3. Normalization (Target Peak to ~0.9)
-            normalizeLoudness(buffer: trimmedBuffer)
-
-            // Write conditioned audio to temp WAV
-            let outputURL = FileManager.default.temporaryDirectory
+            // Fallback: If VAD boundary detection was inconclusive, normalize the full audio and return it
+            normalizeLoudness(buffer: buffer)
+            let fallbackURL = FileManager.default.temporaryDirectory
                 .appendingPathComponent("aether_conditioned_\(UUID().uuidString).wav")
-
-            let outputFile = try AVAudioFile(forWriting: outputURL, settings: format.settings)
-            try outputFile.write(from: trimmedBuffer)
-
-            logger.debug("Aether conditioned audio: trimmed \(samplesPerChannel) -> \(trimmedLength) frames")
-            return outputURL
+            let fallbackFile = try AVAudioFile(forWriting: fallbackURL, settings: format.settings)
+            try fallbackFile.write(from: buffer)
+            return fallbackURL
         } catch {
             logger.warning("Aether audio conditioning failed: \(error.localizedDescription), using raw audio")
             return audioURL
@@ -111,7 +109,7 @@ public final class AetherAudioConditioner: @unchecked Sendable {
         let frameSize = Int(sampleRate * 0.02) // 20ms frame
         guard frameSize > 0, count > frameSize else { return (0, count) }
 
-        let silenceThresholdDb: Float = -40.0
+        let silenceThresholdDb: Float = -48.0
         let thresholdRMS = pow(10.0, silenceThresholdDb / 20.0)
 
         var firstSpeechFrame: Int?
@@ -134,13 +132,13 @@ public final class AetherAudioConditioner: @unchecked Sendable {
             }
         }
 
-        // Require at least 4 frames (~80ms) of audible speech to prevent random mic pops from triggering decoding
-        guard let first = firstSpeechFrame, let last = lastSpeechFrame, totalSpeechFrames >= 4 else {
+        // Require at least 2 frames (~40ms) of speech for single short words (e.g. "Да", "Ок")
+        guard let first = firstSpeechFrame, let last = lastSpeechFrame, totalSpeechFrames >= 2 else {
             return nil
         }
 
-        // Add 80ms padding around speech to prevent sharp clipping while eliminating tail silence
-        let paddingFrames = Int(sampleRate * 0.08)
+        // Add 150ms padding around speech to prevent sharp clipping while eliminating tail silence
+        let paddingFrames = Int(sampleRate * 0.15)
         let start = max(0, first - paddingFrames)
         let end = min(count, last + paddingFrames)
 

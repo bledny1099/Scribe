@@ -18,7 +18,18 @@ final class RecordingPanel: NSPanel {
     static let ecgSize      = NSSize(width: 260, height: 64)
     static let orbSize      = NSSize(width: 200, height: 200)
 
-    static func dynamicWaveformSize(targetAppName: String = "", hasAIMode: Bool = false) -> NSSize {
+    static func dynamicWaveformSize(
+        targetAppName: String = "",
+        hasAIMode: Bool = false,
+        isStatusMessage: Bool = false,
+        statusTextLength: Int = 0
+    ) -> NSSize {
+        if isStatusMessage {
+            let textWidth = CGFloat(max(statusTextLength, 6)) * 8.5
+            let width = min(max(32 + 16 + textWidth + 36, 160), 320)
+            return NSSize(width: width, height: 56)
+        }
+
         // Base width: Left dot (44) + Waveform visualizer (220) + Timer/Stop/Status (86) + paddings (30) = 380 pt
         var width: CGFloat = 380
         
@@ -44,12 +55,19 @@ final class RecordingPanel: NSPanel {
         isEmbeddedPreviewActive: Bool = false,
         previewTextLength: Int = 0,
         targetAppName: String = "",
-        hasAIMode: Bool = false
+        hasAIMode: Bool = false,
+        isStatusMessage: Bool = false,
+        statusTextLength: Int = 0
     ) -> NSSize {
         var base: NSSize
         switch style {
         case .classic:  base = classicSize
-        case .waveform: base = dynamicWaveformSize(targetAppName: targetAppName, hasAIMode: hasAIMode)
+        case .waveform: base = dynamicWaveformSize(
+            targetAppName: targetAppName,
+            hasAIMode: hasAIMode,
+            isStatusMessage: isStatusMessage,
+            statusTextLength: statusTextLength
+        )
         case .minimal:  base = minimalSize
         case .ecg:      base = ecgSize
         case .orb:      base = orbSize
@@ -75,10 +93,12 @@ final class RecordingPanel: NSPanel {
     static func radius(
         for style: OverlayStyle, 
         overlaySize: OverlaySize = .s100, 
-        isEmbeddedPreviewActive: Bool = false,
+        isEmbeddedPreviewActive: Bool = false, 
         previewTextLength: Int = 0,
         targetAppName: String = "",
-        hasAIMode: Bool = false
+        hasAIMode: Bool = false,
+        isStatusMessage: Bool = false,
+        statusTextLength: Int = 0
     ) -> CGFloat {
         let currentSize = self.size(
             for: style, 
@@ -86,7 +106,9 @@ final class RecordingPanel: NSPanel {
             isEmbeddedPreviewActive: isEmbeddedPreviewActive, 
             previewTextLength: previewTextLength,
             targetAppName: targetAppName,
-            hasAIMode: hasAIMode
+            hasAIMode: hasAIMode,
+            isStatusMessage: isStatusMessage,
+            statusTextLength: statusTextLength
         )
         switch style {
         case .classic:  return round(24 * overlaySize.scale)
