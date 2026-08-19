@@ -10,153 +10,22 @@ guard let srcImage = NSImage(contentsOfFile: srcPath),
     exit(1)
 }
 
-let width = cgImage.width
-let height = cgImage.height
 let colorSpace = CGColorSpaceCreateDeviceRGB()
-let bytesPerPixel = 4
-let bytesPerRow = bytesPerPixel * width
-let totalBytes = bytesPerRow * height
 
-var pixels = [UInt8](repeating: 0, count: totalBytes)
-guard let ctx = CGContext(
-    data: &pixels,
-    width: width,
-    height: height,
-    bitsPerComponent: 8,
-    bytesPerRow: bytesPerRow,
-    space: colorSpace,
-    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-) else {
-    print("❌ Failed to create context")
-    exit(1)
-}
-ctx.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
-
-// Find squircle bounding box and remove outer background
-// Outer background: r > 215, g > 215, b > 215 around outer edges
-// Flood-fill / corner wipe:
-var isOuter = [Bool](repeating: false, count: width * height)
-
-// BFS from 4 corners
-var queue = [(Int, Int)]()
-for x in 0..<width {
-    queue.append((x, 0))
-    queue.append((x, height - 1))
-}
-for y in 0..<height {
-    queue.append((0, y))
-    queue.append((width - 1, y))
-}
-
-var head = 0
-while head < queue.count {
-    let (cx, cy) = queue[head]
-    head += 1
-
-    let idx = cy * width + cx
-    if isOuter[idx] { continue }
-
-    let offset = cy * bytesPerRow + cx * bytesPerPixel
-    let r = Double(pixels[offset])
-    let g = Double(pixels[offset + 1])
-    let b = Double(pixels[offset + 2])
-    let lum = 0.299 * r + 0.587 * g + 0.114 * b
-
-    // Background threshold (light gray/white canvas)
-    if lum > 175 {
-        isOuter[idx] = true
-
-        let neighbors = [(cx + 1, cy), (cx - 1, cy), (cx, cy + 1), (cx, cy - 1)]
-        for (nx, ny) in neighbors {
-            if nx >= 0 && nx < width && ny >= 0 && ny < height {
-                let nidx = ny * width + nx
-                if !isOuter[nidx] {
-                    queue.append((nx, ny))
-                }
-            }
-        }
-    }
-}
-
-// Find squircle bounds
-var minX = width, maxX = 0, minY = height, maxY = 0
-for y in 0..<height {
-    for x in 0..<width {
-        let idx = y * width + x
-        if !isOuter[idx] {
-            minX = min(minX, x)
-            maxX = max(maxX, x)
-            minY = min(minY, y)
-            maxY = max(maxY, y)
-        }
-    }
-}
-
-print("Squircle bounds: [\(minX), \(minY)] to [\(maxX), \(maxY)], size: \(maxX - minX) x \(maxY - minY)")
-
-// Apply alpha transparency with smooth anti-aliased edge
-for y in 0..<height {
-    let rowStart = y * bytesPerRow
-    for x in 0..<width {
-        let idx = y * width + x
-        let offset = rowStart + x * bytesPerPixel
-
-        if isOuter[idx] {
-            pixels[offset + 3] = 0 // 100% transparent
-        } else {
-            // Check distance to closest outer pixel for smooth antialiasing (1-2px)
-            var hasOuterNeighbor = false
-            for dy in -1...1 {
-                for dx in -1...1 {
-                    let nx = x + dx
-                    let ny = y + dy
-                    if nx >= 0 && nx < width && ny >= 0 && ny < height {
-                        if isOuter[ny * width + nx] {
-                            hasOuterNeighbor = true
-                        }
-                    }
-                }
-            }
-            if hasOuterNeighbor {
-                let r = Double(pixels[offset])
-                let g = Double(pixels[offset + 1])
-                let b = Double(pixels[offset + 2])
-                let lum = 0.299 * r + 0.587 * g + 0.114 * b
-                // If it was slightly blended with white background, reduce alpha
-                if lum > 130 {
-                    pixels[offset + 3] = UInt8(max(0, min(255, (175 - lum) * 5)))
-                }
-            }
-        }
-    }
-}
-
-// Save clean 1024x1024 master icon
-guard let cleanCtx = CGContext(
-    data: &pixels,
-    width: width,
-    height: height,
-    bitsPerComponent: 8,
-    bytesPerRow: bytesPerRow,
-    space: colorSpace,
-    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-), let cleanCG = cleanCtx.makeImage() else {
-    print("❌ Failed to create clean image")
-    exit(1)
-}
-
-// Crop to exact squircle and center it cleanly
-let cropRect = CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
-guard let croppedCG = cleanCG.cropping(to: cropRect) else {
+// Clean bounds of the squircle inside the mockup image
+// Exactly within 180..844 in both X and Y
+let cropRect = CGRect(x: 180, y: 180, width: 664, height: 664)
+guard let croppedCG = cgImage.cropping(to: cropRect) else {
     print("❌ Failed to crop")
     exit(1)
 }
 
-// Create standard macOS 1024x1024 canvas with standard Apple icon padding (824x824 squircle centered)
 let standardSize = 1024
-let squircleTargetSize: CGFloat = 824
-let squircleTargetOrigin = (CGFloat(standardSize) - squircleTargetSize) / 2.0
-let targetRect = CGRect(x: squircleTargetOrigin, y: squircleTargetOrigin, width: squircleTargetSize, height: squircleTargetSize)
+// Slightly enlarged squircle icon size (880x880 inside 1024x1024 for a bold, prominent look)
+let targetIconSize: CGFloat = 880.0
+let targetOrigin = (CGFloat(standardSize) - targetIconSize) / 2.0
+let targetRect = CGRect(x: targetOrigin, y: targetOrigin, width: targetIconSize, height: targetIconSize)
+let cornerRadius: CGFloat = targetIconSize * 0.225 // Standard macOS squircle curvature (~198pt)
 
 guard let masterCtx = CGContext(
     data: nil,
@@ -171,6 +40,16 @@ guard let masterCtx = CGContext(
     exit(1)
 }
 
+// Clip to Apple squircle rounded rectangle with antialiasing
+let clipPath = CGPath(
+    roundedRect: targetRect,
+    cornerWidth: cornerRadius,
+    cornerHeight: cornerRadius,
+    transform: nil
+)
+
+masterCtx.addPath(clipPath)
+masterCtx.clip()
 masterCtx.interpolationQuality = .high
 masterCtx.draw(croppedCG, in: targetRect)
 
@@ -230,7 +109,7 @@ try! task.run()
 task.waitUntilExit()
 
 if task.terminationStatus == 0 {
-    print("🎉 Successfully compiled Scribe/AppIcon.icns without white borders!")
+    print("🎉 Successfully compiled enlarged Scribe/AppIcon.icns without edge artifacts!")
 } else {
     print("❌ iconutil failed with exit code \(task.terminationStatus)")
 }
