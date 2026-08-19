@@ -592,9 +592,16 @@ enum Localization {
             "Synced with your account": "Привязано к вашему аккаунту",
             "Go to Statistics": "Перейти в статистику",
             "Supporter Status Active": "Статус Supporter активен",
+            "Transfer Verification": "Перевод и подтверждение",
             "Want to claim Supporter status?": "Хотите получить статус Supporter?",
             "Specify your personal code in the Comment / Memo field during transfer (TON / Bybit) to protect against snipe and instantly link your account:": "Укажите ваш персональный код в поле Комментарий / Memo при переводе (TON / Bybit), чтобы защитить перевод и сразу связать его с вашим профилем:",
-            "Optional (anonymous donations require no memo)": "Опционально (для анонимного доната код не нужен)"
+            "Optional (anonymous donations require no memo)": "Опционально (для анонимного доната код не нужен)",
+            "Your Personal Memo Code:": "Ваш персональный Memo-код:",
+            "Fill in search": "Вставить в поле",
+            "How does verification work?": "Как работает подтверждение (Memo и TxID)?",
+            "1. By Memo Code: specify your code SCR-XXXX in the transfer comment (TON / Bybit). The blockchain records the comment and verifies instantly.": "1. По Memo-коду: укажите код SCR-XXXX в комментарии при переводе в TON или на бирже (Bybit). Сеть сохранит комментарий, и статус подтвердится мгновенно.",
+            "2. By TxID / Hash: if sent without memo, enter the unique transaction hash from your wallet withdrawal receipt.": "2. По TxID (хэшу): если перевод сделан без комментария, введите уникальный хэш транзакции из квитанции вывода в кошельке.",
+            "Enter Memo code, TxID, or sender address": "Введите ваш Memo-код, TxID или адрес..."
         ],
         "es": [
             "Start Dictation": "Iniciar dictado",

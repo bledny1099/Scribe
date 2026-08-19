@@ -2395,62 +2395,6 @@ struct SupportDeveloperModal: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.horizontal, 18)
 
-                    // Optional Supporter Memo Code Card
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "shield.lefthalf.filled.badge.checkmark")
-                                .font(.system(size: 11))
-                                .foregroundStyle(appState.selectedTheme.gradientColors.first ?? .blue)
-                            Text(appState.l("Want to claim Supporter status?"))
-                                .font(.system(size: 11, weight: .bold, design: .rounded))
-                                .foregroundStyle(.primary)
-                            Spacer()
-                        }
-
-                        Text(appState.l("Specify your personal code in the Comment / Memo field during transfer (TON / Bybit) to protect against snipe and instantly link your account:"))
-                            .font(.system(size: 10.5, weight: .medium, design: .rounded))
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-
-                        HStack(spacing: 8) {
-                            Text(personalMemoCode)
-                                .font(.system(size: 12, weight: .bold, design: .monospaced))
-                                .foregroundStyle(appState.selectedTheme.gradientColors.first ?? .blue)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color.primary.opacity(0.06))
-                                .cornerRadius(6)
-
-                            Button(action: {
-                                NSPasteboard.general.clearContents()
-                                NSPasteboard.general.setString(personalMemoCode, forType: .string)
-                            }) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "doc.on.clipboard")
-                                        .font(.system(size: 10))
-                                    Text(appState.l("Copy"))
-                                        .font(.system(size: 10, weight: .semibold, design: .rounded))
-                                }
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color.primary.opacity(0.06))
-                                .cornerRadius(6)
-                            }
-                            .buttonStyle(.plain)
-
-                            Spacer()
-
-                            Text(appState.l("Optional (anonymous donations require no memo)"))
-                                .font(.system(size: 9.5, weight: .medium, design: .rounded))
-                                .foregroundStyle(.secondary.opacity(0.8))
-                        }
-                    }
-                    .padding(10)
-                    .background(Color.primary.opacity(0.025))
-                    .cornerRadius(9)
-                    .overlay(RoundedRectangle(cornerRadius: 9).stroke(Color.primary.opacity(0.07), lineWidth: 1))
-                    .padding(.horizontal, 18)
-
                     // Address Rows
                     VStack(spacing: 10) {
                         CopyAddressRow(title: "USDT (TRC20)", address: DonationVerificationService.trc20DepositAddress, icon: "t.circle.fill", color: .green)
@@ -2460,26 +2404,87 @@ struct SupportDeveloperModal: View {
                     }
                     .padding(.horizontal, 18)
 
-                    // On-Chain Donation Verification Form
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "checkmark.seal.fill")
-                                .foregroundStyle(Color.yellow)
-                            Text(appState.l("Verify Transfer"))
+                    // MARK: - Dedicated Block: Transfer & Verification
+                    VStack(alignment: .leading, spacing: 12) {
+                        // Section Header
+                        HStack(spacing: 7) {
+                            Image(systemName: "arrow.triangle.2.circlepath.doc.on.clipboard")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(appState.selectedTheme.gradientColors.first ?? .blue)
+                            Text(appState.l("Transfer Verification"))
                                 .font(.system(size: 13, weight: .bold, design: .rounded))
+                            Spacer()
                         }
 
-                        Text(appState.l("Enter sender wallet address or TxID"))
-                            .font(.system(size: 11, weight: .medium, design: .rounded))
-                            .foregroundStyle(.secondary)
+                        // 1. Personal Memo Code Card
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(appState.l("Specify your personal code in the Comment / Memo field during transfer (TON / Bybit) to protect against snipe and instantly link your account:"))
+                                .font(.system(size: 10.5, weight: .regular, design: .rounded))
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
 
+                            HStack(spacing: 8) {
+                                Text(personalMemoCode)
+                                    .font(.system(size: 12, weight: .bold, design: .monospaced))
+                                    .foregroundStyle(appState.selectedTheme.gradientColors.first ?? .blue)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color.primary.opacity(0.05))
+                                    .cornerRadius(6)
+
+                                Button(action: {
+                                    NSPasteboard.general.clearContents()
+                                    NSPasteboard.general.setString(personalMemoCode, forType: .string)
+                                }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "doc.on.clipboard")
+                                            .font(.system(size: 10))
+                                        Text(appState.l("Copy"))
+                                            .font(.system(size: 10, weight: .semibold, design: .rounded))
+                                    }
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color.primary.opacity(0.06))
+                                    .cornerRadius(6)
+                                }
+                                .buttonStyle(.plain)
+
+                                Button(action: {
+                                    inputAddressOrTx = personalMemoCode
+                                }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "arrow.down.right.and.arrow.up.left")
+                                            .font(.system(size: 9))
+                                        Text(appState.l("Fill in search"))
+                                            .font(.system(size: 10, weight: .medium, design: .rounded))
+                                    }
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color.primary.opacity(0.04))
+                                    .cornerRadius(6)
+                                }
+                                .buttonStyle(.plain)
+
+                                Spacer()
+
+                                Text(appState.l("Optional (anonymous donations require no memo)"))
+                                    .font(.system(size: 9, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.secondary.opacity(0.7))
+                            }
+                        }
+                        .padding(10)
+                        .background(Color.primary.opacity(0.025))
+                        .cornerRadius(8)
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.07), lineWidth: 1))
+
+                        // 2. Verification Form Input
                         HStack(spacing: 8) {
                             HStack {
                                 Image(systemName: "magnifyingglass")
                                     .font(.system(size: 11))
                                     .foregroundStyle(.secondary)
 
-                                TextField("TDxy3x... / fdd8d9... / TxID", text: $inputAddressOrTx)
+                                TextField(appState.l("Enter Memo code, TxID, or sender address"), text: $inputAddressOrTx)
                                     .textFieldStyle(.plain)
                                     .font(.system(size: 11, weight: .medium, design: .monospaced))
 
@@ -2537,6 +2542,7 @@ struct SupportDeveloperModal: View {
                             .disabled(inputAddressOrTx.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isVerifying)
                         }
 
+                        // 3. Error Alert
                         if let error = verificationError {
                             HStack(alignment: .top, spacing: 6) {
                                 Image(systemName: "exclamationmark.triangle.fill")
@@ -2552,6 +2558,7 @@ struct SupportDeveloperModal: View {
                             .cornerRadius(8)
                         }
 
+                        // 4. Success Alert with Instant Stats Switch
                         if showVerificationSuccess, let res = verifiedResult {
                             HStack(spacing: 12) {
                                 Image(systemName: res.tier.icon)
@@ -2593,65 +2600,57 @@ struct SupportDeveloperModal: View {
                             .cornerRadius(10)
                             .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.green.opacity(0.4), lineWidth: 1))
                         }
-                    }
-                    .padding(.horizontal, 18)
 
-                    // TxID Helper Accordion (At the very end of the modal)
-                    VStack(alignment: .leading, spacing: 8) {
-                        Button(action: {
-                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                                showTxIdHelp.toggle()
-                            }
-                        }) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "questionmark.circle.fill")
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(appState.selectedTheme.gradientColors.first ?? .blue)
-                                Text(appState.l("What is TxID?"))
-                                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                                    .foregroundStyle(.primary.opacity(0.85))
-                                Spacer()
-                                Image(systemName: showTxIdHelp ? "chevron.up" : "chevron.down")
-                                    .font(.system(size: 10, weight: .semibold))
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(Color.primary.opacity(0.035))
-                            .cornerRadius(8)
-                        }
-                        .buttonStyle(.plain)
-
-                        if showTxIdHelp {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(appState.l("TxID (Transaction Hash) is the unique receipt ID of your crypto transfer. You can find it in your wallet or exchange withdrawal history (Bybit, Tonkeeper, Telegram Wallet) under transfer details."))
-                                    .font(.system(size: 11, weight: .regular, design: .rounded))
-                                    .foregroundStyle(.secondary)
-                                    .fixedSize(horizontal: false, vertical: true)
-
-                                HStack(spacing: 8) {
-                                    HStack(spacing: 4) {
-                                        Circle().fill(Color.blue).frame(width: 5, height: 5)
-                                        Text("Bybit: История выводов → TxID")
-                                            .font(.system(size: 10, weight: .medium, design: .monospaced))
-                                    }
-                                    HStack(spacing: 4) {
-                                        Circle().fill(Color.cyan).frame(width: 5, height: 5)
-                                        Text("Tonkeeper: Детали → Хэш")
-                                            .font(.system(size: 10, weight: .medium, design: .monospaced))
-                                    }
+                        // 5. Help / FAQ Accordion inside the block
+                        VStack(alignment: .leading, spacing: 6) {
+                            Button(action: {
+                                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                    showTxIdHelp.toggle()
                                 }
-                                .foregroundStyle(.secondary)
-                                .padding(.top, 2)
+                            }) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "questionmark.circle.fill")
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(appState.selectedTheme.gradientColors.first ?? .blue)
+                                    Text(appState.l("How does verification work?"))
+                                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                        .foregroundStyle(.primary.opacity(0.85))
+                                    Spacer()
+                                    Image(systemName: showTxIdHelp ? "chevron.up" : "chevron.down")
+                                        .font(.system(size: 10, weight: .semibold))
+                                        .foregroundStyle(.secondary)
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(Color.primary.opacity(0.03))
+                                .cornerRadius(7)
                             }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(Color.primary.opacity(0.02))
-                            .cornerRadius(8)
+                            .buttonStyle(.plain)
+
+                            if showTxIdHelp {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text(appState.l("1. By Memo Code: specify your code SCR-XXXX in the transfer comment (TON / Bybit). The blockchain records the comment and verifies instantly."))
+                                        .font(.system(size: 10.5, weight: .regular, design: .rounded))
+                                        .foregroundStyle(.secondary)
+                                        .fixedSize(horizontal: false, vertical: true)
+
+                                    Text(appState.l("2. By TxID / Hash: if sent without memo, enter the unique transaction hash from your wallet withdrawal receipt."))
+                                        .font(.system(size: 10.5, weight: .regular, design: .rounded))
+                                        .foregroundStyle(.secondary)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                                .padding(8)
+                                .background(Color.primary.opacity(0.02))
+                                .cornerRadius(7)
+                            }
                         }
                     }
+                    .padding(14)
+                    .background(Color.primary.opacity(0.03))
+                    .cornerRadius(12)
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.primary.opacity(0.08), lineWidth: 1))
                     .padding(.horizontal, 18)
-                    .padding(.bottom, 36) // Generous bottom spacing
+                    .padding(.bottom, 24)
                 }
                 .padding(.top, 14) // Top breathing room so content isn't cramped
             }

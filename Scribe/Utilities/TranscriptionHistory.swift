@@ -585,9 +585,17 @@ final class DonationVerificationService: @unchecked Sendable {
         return nil
     }
 
-    // MARK: - 2. TON (USDT & TON Jettons)
+    // MARK: - 2. TON (USDT, TON Jettons, & Native TON with Memo)
 
     private func checkTon(query: String) async throws -> DonationVerificationResult? {
+        let cleanQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // 1. Check TON Events API (includes TonTransfer & JettonTransfer with decoded comments)
+        if let eventsResult = try? await checkTonEvents(query: cleanQuery) {
+            return eventsResult
+        }
+
+        // 2. Check Jettons History
         guard let url = URL(string: "https://tonapi.io/v2/accounts/\(Self.tonDepositAddress)/jettons/history?limit=30") else {
             return nil
         }
@@ -610,31 +618,125 @@ final class DonationVerificationService: @unchecked Sendable {
             let fromAddr = source?["address"] as? String ?? ""
             let rawAmount = op["amount"] as? String ?? "0"
             let decimals = (op["jetton"] as? [String: Any])?["decimals"] as? Int ?? 6
+            let comment = (op["comment"] as? String) ?? (op["payload"] as? String ?? "")
 
-            let matchesSender = !fromAddr.isEmpty && (fromAddr.caseInsensitiveCompare(query) == .orderedSame || query.contains(fromAddr) || fromAddr.contains(query))
-            let matchesHash   = !txHash.isEmpty && txHash.caseInsensitiveCompare(query) == .orderedSame
+            let matchesSender = !fromAddr.isEmpty && (fromAddr.caseInsensitiveCompare(cleanQuery) == .orderedSame || cleanQuery.contains(fromAddr) || fromAddr.contains(cleanQuery))
+            let matchesHash   = !txHash.isEmpty && txHash.caseInsensitiveCompare(cleanQuery) == .orderedSame
+            let matchesComment = !comment.isEmpty && comment.localizedCaseInsensitiveContains(cleanQuery)
 
             let utime = op["utime"] as? Double
             let txDate = utime.map { Date(timeIntervalSince1970: $0) }
 
-            // Anti-spoofing for public sender address without TxID
-            if matchesSender && !matchesHash {
+            // Anti-spoofing for public sender address without TxID or Memo
+            if matchesSender && !matchesHash && !matchesComment {
                 if let date = txDate, Date().timeIntervalSince(date) > 48 * 3600 {
                     continue
                 }
             }
 
-            if matchesSender || matchesHash {
+            if matchesSender || matchesHash || matchesComment {
                 let divisor = pow(10.0, Double(decimals))
                 let amount = (Double(rawAmount) ?? 0) / divisor
                 return DonationVerificationResult(
                     network: "USDT (TON)",
                     amount: max(amount, 1.0),
                     currency: "USDT",
-                    txHash: txHash,
+                    txHash: txHash.isEmpty ? "ton_\(Int(utime ?? 0))" : txHash,
                     senderAddress: fromAddr,
                     date: txDate
                 )
+            }
+        }
+
+        return nil
+    }
+
+    private func checkTonEvents(query: String) async throws -> DonationVerificationResult? {
+        guard let url = URL(string: "https://tonapi.io/v2/accounts/\(Self.tonDepositAddress)/events?limit=30") else {
+            return nil
+        }
+
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 8
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let events = json["events"] as? [[String: Any]] else {
+            return nil
+        }
+
+        for event in events {
+            let eventId = event["event_id"] as? String ?? ""
+            let timestamp = (event["timestamp"] as? Double).map { Date(timeIntervalSince1970: $0) }
+            let actions = event["actions"] as? [[String: Any]] ?? []
+
+            for action in actions {
+                let status = action["status"] as? String ?? "ok"
+                guard status == "ok" else { continue }
+
+                // Check Jetton Transfer
+                if let jettonTransfer = action["JettonTransfer"] as? [String: Any] {
+                    let recipient = (jettonTransfer["recipient"] as? [String: Any])?["address"] as? String ?? ""
+                    let sender = (jettonTransfer["sender"] as? [String: Any])?["address"] as? String ?? ""
+                    let comment = jettonTransfer["comment"] as? String ?? ""
+                    let rawAmount = jettonTransfer["amount"] as? String ?? "0"
+                    let decimals = (jettonTransfer["jetton"] as? [String: Any])?["decimals"] as? Int ?? 6
+
+                    guard recipient.caseInsensitiveCompare(Self.tonDepositAddress) == .orderedSame ||
+                          recipient.contains(Self.tonDepositAddress) || Self.tonDepositAddress.contains(recipient) else {
+                        continue
+                    }
+
+                    let matchesHash = !eventId.isEmpty && eventId.caseInsensitiveCompare(query) == .orderedSame
+                    let matchesSender = !sender.isEmpty && sender.caseInsensitiveCompare(query) == .orderedSame
+                    let matchesComment = !comment.isEmpty && comment.localizedCaseInsensitiveContains(query)
+
+                    if matchesHash || matchesSender || matchesComment {
+                        let divisor = pow(10.0, Double(decimals))
+                        let amount = (Double(rawAmount) ?? 0) / divisor
+                        return DonationVerificationResult(
+                            network: "USDT (TON)",
+                            amount: max(amount, 1.0),
+                            currency: "USDT",
+                            txHash: eventId,
+                            senderAddress: sender,
+                            date: timestamp
+                        )
+                    }
+                }
+
+                // Check Native TON Transfer
+                if let tonTransfer = action["TonTransfer"] as? [String: Any] {
+                    let recipient = (tonTransfer["recipient"] as? [String: Any])?["address"] as? String ?? ""
+                    let sender = (tonTransfer["sender"] as? [String: Any])?["address"] as? String ?? ""
+                    let comment = tonTransfer["comment"] as? String ?? ""
+                    let rawAmount = tonTransfer["amount"] as? Double ?? Double(tonTransfer["amount"] as? String ?? "0") ?? 0
+
+                    guard recipient.caseInsensitiveCompare(Self.tonDepositAddress) == .orderedSame ||
+                          recipient.contains(Self.tonDepositAddress) || Self.tonDepositAddress.contains(recipient) else {
+                        continue
+                    }
+
+                    let matchesHash = !eventId.isEmpty && eventId.caseInsensitiveCompare(query) == .orderedSame
+                    let matchesSender = !sender.isEmpty && sender.caseInsensitiveCompare(query) == .orderedSame
+                    let matchesComment = !comment.isEmpty && comment.localizedCaseInsensitiveContains(query)
+
+                    if matchesHash || matchesSender || matchesComment {
+                        let tonAmount = rawAmount / 1_000_000_000.0
+                        let approxUsd = tonAmount * 3.0 // Approximate TON to USD
+                        return DonationVerificationResult(
+                            network: "TON (Native)",
+                            amount: max(approxUsd, 1.0),
+                            currency: "TON",
+                            txHash: eventId,
+                            senderAddress: sender,
+                            date: timestamp
+                        )
+                    }
+                }
             }
         }
 
