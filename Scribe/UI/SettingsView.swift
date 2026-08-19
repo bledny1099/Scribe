@@ -67,7 +67,17 @@ struct SettingsView: View {
                 case .dark:
                     Color(red: 0.05, green: 0.05, blue: 0.07).opacity(0.85)
                 case .liquidGlass:
-                    Color.clear
+                    ZStack {
+                        Color.white.opacity(0.22)
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.30),
+                                Color.white.opacity(0.12)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    }
                 case .light:
                     Color.white.opacity(0.85)
                 }
@@ -75,7 +85,7 @@ struct SettingsView: View {
             .ignoresSafeArea()
             .animation(.easeInOut(duration: 0.4), value: appState.selectedPanelAppearance)
 
-            // Complex Cyber Ambient Background Glow & Neon Mesh (disabled on Liquid Glass for 100% crystal transparency)
+            // Complex Ambient Background Glow & Light Refraction
             if appState.selectedPanelAppearance != .liquidGlass {
                 ZStack {
                     RadialGradient(
@@ -97,6 +107,33 @@ struct SettingsView: View {
                         center: .bottomTrailing,
                         startRadius: 50,
                         endRadius: 500
+                    )
+                }
+                .ignoresSafeArea()
+                .animation(.easeInOut(duration: 0.6), value: appState.selectedTheme)
+            } else {
+                // Crystal Luminous Sheen for Liquid Glass
+                ZStack {
+                    RadialGradient(
+                        gradient: Gradient(colors: [
+                            Color.white.opacity(0.35),
+                            appState.selectedTheme.glowColor.opacity(0.18),
+                            Color.clear
+                        ]),
+                        center: .topLeading,
+                        startRadius: 10,
+                        endRadius: 650
+                    )
+                    
+                    RadialGradient(
+                        gradient: Gradient(colors: [
+                            Color.white.opacity(0.20),
+                            appState.selectedTheme.gradientColors[1].opacity(0.10),
+                            Color.clear
+                        ]),
+                        center: .bottomTrailing,
+                        startRadius: 50,
+                        endRadius: 550
                     )
                 }
                 .ignoresSafeArea()
@@ -1364,6 +1401,7 @@ struct StatCard: View {
 // MARK: - Reusable Components
 
 struct GlassSection<Content: View>: View {
+    @EnvironmentObject var appState: AppState
     let title: String
     let icon: String
     let content: Content
@@ -1393,18 +1431,19 @@ struct GlassSection<Content: View>: View {
                         RoundedRectangle(cornerRadius: 16)
                             .fill(.ultraThinMaterial.opacity(0.6))
                         RoundedRectangle(cornerRadius: 16)
-                            .fill(Color.primary.opacity(0.06))
+                            .fill(appState.selectedPanelAppearance == .liquidGlass ? Color.white.opacity(0.25) : Color.primary.opacity(0.06))
                     }
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
-                        .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
+                        .strokeBorder(appState.selectedPanelAppearance == .liquidGlass ? Color.white.opacity(0.40) : Color.primary.opacity(0.12), lineWidth: 1)
                 )
         }
     }
 }
 
 struct GlassCollapsibleSection<Content: View>: View {
+    @EnvironmentObject var appState: AppState
     let title: String
     let icon: String
     @Binding var isExpanded: Bool
@@ -1432,7 +1471,7 @@ struct GlassCollapsibleSection<Content: View>: View {
                         .foregroundStyle(.primary)
                     Text(title.uppercased())
                         .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.primary.opacity(0.72))
 
                     Spacer()
 
@@ -1449,18 +1488,16 @@ struct GlassCollapsibleSection<Content: View>: View {
             content
                 .padding(16)
                 .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.primary.opacity(0.045), Color.primary.opacity(0.02)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(.ultraThinMaterial.opacity(0.6))
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(appState.selectedPanelAppearance == .liquidGlass ? Color.white.opacity(0.25) : Color.primary.opacity(0.06))
+                    }
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
-                        .strokeBorder(Color.primary.opacity(0.09), lineWidth: 1)
+                        .strokeBorder(appState.selectedPanelAppearance == .liquidGlass ? Color.white.opacity(0.40) : Color.primary.opacity(0.12), lineWidth: 1)
                 )
                 .background(
                     GeometryReader { geo in
