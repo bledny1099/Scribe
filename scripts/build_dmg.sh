@@ -30,16 +30,22 @@ fi
 echo "📦 Found App at: $APP_PATH"
 rm -f "$DIST_DIR/$DMG_NAME"
 
+BG_IMAGE="$DIST_DIR/dmg_background.png"
+echo "🎨 Generating installer gradient background..."
+swift "$SCRIPT_DIR/generate_dmg_background.swift" "$BG_IMAGE"
+
 if command -v create-dmg >/dev/null 2>&1; then
-    echo "💿 Creating DMG with create-dmg..."
+    echo "💿 Creating DMG with create-dmg and gradient background..."
     create-dmg \
         --volname "$APP_NAME Installer" \
+        --background "$BG_IMAGE" \
         --window-pos 200 120 \
         --window-size 660 400 \
         --icon-size 128 \
-        --icon "$APP_NAME.app" 180 170 \
+        --text-size 13 \
+        --icon "$APP_NAME.app" 175 180 \
         --hide-extension "$APP_NAME.app" \
-        --app-drop-link 480 170 \
+        --app-drop-link 485 180 \
         --no-internet-enable \
         "$DIST_DIR/$DMG_NAME" \
         "$APP_PATH" || true
