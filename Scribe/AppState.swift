@@ -446,7 +446,20 @@ final class AppState: ObservableObject {
 
     // MARK: App Storage Preferences
 
-    @AppStorage("selectedLanguage") var selectedLanguage: String = "auto"
+    public var selectedLanguage: String {
+        get {
+            if recognitionMode == "singleLanguage" {
+                return singleDictationLanguage
+            } else {
+                return "auto"
+            }
+        }
+        set {
+            if recognitionMode == "singleLanguage" {
+                singleDictationLanguage = newValue
+            }
+        }
+    }
     @AppStorage("selectedUILanguage") var selectedUILanguage: String = "auto"
     @AppStorage("selectedModel") var selectedModel: String = "openai_whisper-small" {
         didSet {
@@ -1589,9 +1602,9 @@ final class AppState: ObservableObject {
         defer { try? FileManager.default.removeItem(at: snapshotURL) }
 
         do {
-            let langParam = selectedLanguage == "auto" ? nil : selectedLanguage
-            let isSingle = self.recognitionMode == "single"
-            let preferredLangs: [String] = isSingle ? (selectedLanguage != "auto" ? [selectedLanguage] : []) : (self.multilingualLanguages.isEmpty ? ["ru", "en"] : self.multilingualLanguages)
+            let isSingle = self.recognitionMode == "singleLanguage"
+            let langParam: String? = isSingle ? (self.singleDictationLanguage == "auto" ? nil : self.singleDictationLanguage) : nil
+            let preferredLangs: [String] = isSingle ? [] : (self.multilingualLanguages.isEmpty ? ["ru", "en"] : self.multilingualLanguages)
             let text = try await transcriptionService.transcribe(
                 audioURL: snapshotURL,
                 modelName: selectedModel,
