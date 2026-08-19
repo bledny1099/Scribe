@@ -14,7 +14,7 @@ Press `⌥S`, talk, press it again. Your words land directly in whatever text fi
 
 <br><br>
 
-https://github.com/bledny1099/Scribe/raw/main/assets/scribe_demo.mp4
+<img src="assets/scribe_demo.gif" alt="Scribe Demo" width="100%">
 
 </div>
 
