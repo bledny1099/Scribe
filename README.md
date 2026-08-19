@@ -59,7 +59,7 @@ The compiled application and installer disk image will be available in `dist/Scr
 | Requirement | Specification |
 |:---|:---|
 | Operating System | macOS 14.0 (Sonoma) or higher |
-| Architecture | Apple Silicon (M1, M2, M3, M4) / Intel |
+| Architecture | Apple Silicon (M1, M2, M3, M4, M5) / Intel |
 | Storage | ~500 MB for recommended Whisper base models |
 
 ---
