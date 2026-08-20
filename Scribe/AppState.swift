@@ -479,13 +479,13 @@ final class AppState: ObservableObject {
     func l(_ key: String) -> String {
         key.loc(selectedUILanguage)
     }
-    @AppStorage("selectedTheme") var selectedThemeRaw: String = AppTheme.aurora.rawValue
+    @AppStorage("selectedTheme") var selectedThemeRaw: String = AppTheme.ocean.rawValue
     @AppStorage("selectedOverlayStyle") var selectedOverlayStyleRaw: String = OverlayStyle.waveform.rawValue
-    @AppStorage("selectedOverlaySize") var selectedOverlaySizeRaw: String = OverlaySize.s100.rawValue
-    @AppStorage("overlayPositionMode") var overlayPositionModeRaw: String = OverlayPositionMode.activeWindow.rawValue
-    @AppStorage("selectedPanelAppearance") var selectedPanelAppearanceRaw: String = PanelAppearance.dark.rawValue
+    @AppStorage("selectedOverlaySize") var selectedOverlaySizeRaw: String = OverlaySize.s90.rawValue
+    @AppStorage("overlayPositionMode") var overlayPositionModeRaw: String = OverlayPositionMode.screenBottom.rawValue
+    @AppStorage("selectedPanelAppearance") var selectedPanelAppearanceRaw: String = PanelAppearance.liquidGlass.rawValue
     @AppStorage("soundFeedbackEnabled") var soundFeedbackEnabled: Bool = true
-    @AppStorage("livePreviewEnabled") var livePreviewEnabled: Bool = false
+    @AppStorage("livePreviewEnabled") var livePreviewEnabled: Bool = true
     @AppStorage("livePreviewBackground") var livePreviewBackgroundRaw: String = SubtitleBackground.glass.rawValue
     @AppStorage("durationVisible") public var durationVisible: Bool = true
     @AppStorage("showTargetAppInOverlay") public var showTargetAppInOverlay: Bool = true
@@ -580,7 +580,7 @@ final class AppState: ObservableObject {
             return l("Aether combines Audio VAD, dynamic app context conditioning, and lexical fuzzy matching for zero-hallucination, studio-grade speech transcription.")
         }
     }
-    @AppStorage("recognitionMode") public var recognitionMode: String = "multilingual"
+    @AppStorage("recognitionMode") public var recognitionMode: String = "singleLanguage"
     @AppStorage("singleDictationLanguage") public var singleDictationLanguage: String = "ru"
     @AppStorage("multilingualLanguages") public var multilingualLanguages: [String] = ["ru", "en"]
 
@@ -670,7 +670,7 @@ final class AppState: ObservableObject {
 
     /// Computed property for type-safe theme access.
     var selectedTheme: AppTheme {
-        get { AppTheme(rawValue: selectedThemeRaw) ?? .aurora }
+        get { AppTheme(rawValue: selectedThemeRaw) ?? .ocean }
         set { selectedThemeRaw = newValue.rawValue }
     }
 
@@ -684,13 +684,13 @@ final class AppState: ObservableObject {
 
     /// Computed property for type-safe overlay size access.
     var selectedOverlaySize: OverlaySize {
-        get { OverlaySize(rawValue: selectedOverlaySizeRaw) ?? .s100 }
+        get { OverlaySize(rawValue: selectedOverlaySizeRaw) ?? .s90 }
         set { selectedOverlaySizeRaw = newValue.rawValue }
     }
 
     /// Computed property for type-safe overlay position mode access.
     var overlayPositionMode: OverlayPositionMode {
-        get { OverlayPositionMode(rawValue: overlayPositionModeRaw) ?? .activeWindow }
+        get { OverlayPositionMode(rawValue: overlayPositionModeRaw) ?? .screenBottom }
         set {
             overlayPositionModeRaw = newValue.rawValue
             showSettingsPreviewFor5Seconds()
@@ -705,7 +705,7 @@ final class AppState: ObservableObject {
 
     /// Computed property for type-safe panel appearance access.
     var selectedPanelAppearance: PanelAppearance {
-        get { PanelAppearance(rawValue: selectedPanelAppearanceRaw) ?? .dark }
+        get { PanelAppearance(rawValue: selectedPanelAppearanceRaw) ?? .liquidGlass }
         set {
             selectedPanelAppearanceRaw = newValue.rawValue
             SettingsWindowManager.shared.updateAppearance(newValue)
