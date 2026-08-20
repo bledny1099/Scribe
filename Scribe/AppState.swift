@@ -388,6 +388,7 @@ final class AppState: ObservableObject {
     @AppStorage("cleanFillerWords") var cleanFillerWords: Bool = true
     @Published var targetAppName: String = ""
     @Published var targetAppIcon: NSImage? = nil
+    public var targetRunningApplication: NSRunningApplication? = nil
 
     public func captureTargetApplication() {
         let scribeID = Bundle.main.bundleIdentifier
@@ -399,18 +400,23 @@ final class AppState: ObservableObject {
         if isScribeActive {
             targetAppName = "Scribe"
             targetAppIcon = NSApp.applicationIconImage ?? NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath)
+            targetRunningApplication = NSRunningApplication.current
         } else if let frontApp = NSWorkspace.shared.frontmostApplication, frontApp.bundleIdentifier != scribeID {
             targetAppName = frontApp.localizedName ?? ""
             targetAppIcon = frontApp.icon
+            targetRunningApplication = frontApp
         } else if let menuApp = NSWorkspace.shared.menuBarOwningApplication, menuApp.bundleIdentifier != scribeID {
             targetAppName = menuApp.localizedName ?? ""
             targetAppIcon = menuApp.icon
+            targetRunningApplication = menuApp
         } else if let activeApp = NSWorkspace.shared.runningApplications.first(where: { $0.isActive && $0.bundleIdentifier != scribeID }) {
             targetAppName = activeApp.localizedName ?? ""
             targetAppIcon = activeApp.icon
+            targetRunningApplication = activeApp
         } else {
             targetAppName = "Scribe"
             targetAppIcon = NSApp.applicationIconImage ?? NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath)
+            targetRunningApplication = NSRunningApplication.current
         }
     }
 
@@ -917,7 +923,8 @@ final class AppState: ObservableObject {
                             preferredLanguages: preferredLangs,
                             autoTranslate: self.autoTranslate,
                             customVocabulary: self.vocabulary,
-                            userLocation: self.effectiveUserLocation
+                            userLocation: self.effectiveUserLocation,
+                            targetApp: self.targetRunningApplication
                         )
                     }
                 } else {
@@ -928,15 +935,25 @@ final class AppState: ObservableObject {
                         preferredLanguages: preferredLangs,
                         autoTranslate: self.autoTranslate,
                         customVocabulary: self.vocabulary,
-                        userLocation: self.effectiveUserLocation
+                        userLocation: self.effectiveUserLocation,
+                        targetApp: self.targetRunningApplication
                     )
                 }
+
+                let effectiveBlocked = AetherContextEngine.shared.activeEffectiveBlockedWords(
+                    targetApp: self.targetRunningApplication,
+                    userBlockedWords: self.blockedWords
+                )
+                let effectiveVocab = AetherContextEngine.shared.activeEffectiveVocabulary(
+                    targetApp: self.targetRunningApplication,
+                    userVocabulary: self.vocabulary
+                )
 
                 text = TranscriptionService.removeFillerWordsAndDuplicates(text)
                 text = TextReplacer.apply(
                     replacements: self.textReplacements,
-                    vocabulary: self.vocabulary,
-                    blockedWords: self.blockedWords,
+                    vocabulary: effectiveVocab,
+                    blockedWords: effectiveBlocked,
                     blockedAction: self.blockedWordsActionRaw,
                     to: text
                 )

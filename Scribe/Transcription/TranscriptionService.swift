@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 import WhisperKit
 import os.log
 import Speech
@@ -88,7 +89,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
     // MARK: - Apple Speech (Streaming)
 
     @MainActor
-    func startStreaming(language: String?, customVocabulary: String = "", onUpdate: @escaping (String) -> Void) throws {
+    func startStreaming(language: String?, customVocabulary: String = "", targetApp: NSRunningApplication? = nil, onUpdate: @escaping (String) -> Void) throws {
         state = .transcribing
         currentStreamingText = ""
         
@@ -119,7 +120,8 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         }
         
         let strings = AetherContextEngine.shared.buildContextualStrings(
-            customVocabulary: customVocabulary
+            customVocabulary: customVocabulary,
+            targetApp: targetApp
         )
         request.contextualStrings = strings
         
@@ -174,7 +176,8 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         preferredLanguages: [String] = [],
         autoTranslate: Bool = false,
         customVocabulary: String = "",
-        userLocation: String = ""
+        userLocation: String = "",
+        targetApp: NSRunningApplication? = nil
     ) async throws -> String {
         logger.info("Aether Transcribing: \(audioURL.lastPathComponent), model: \(modelName), language: \(language ?? "auto-detect"), translate: \(autoTranslate)")
 
@@ -226,6 +229,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             basePrompt: basePrompt,
             customVocabulary: customVocabulary,
             userLocation: userLocation,
+            targetApp: targetApp,
             language: resolvedLang != "auto" ? resolvedLang : language
         )
 

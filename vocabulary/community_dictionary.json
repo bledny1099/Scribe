@@ -61,6 +61,11 @@
         { "term": "Firebase", "aliases": ["файрбейз", "файрбейс", "файербейз"] },
         { "term": "Firestore", "aliases": ["файрстор", "файерстор"] },
         { "term": "Xcode", "aliases": ["икскод", "экс код"] },
+        { "term": "Cursor", "aliases": ["курсор", "кёрсор"] },
+        { "term": "Windsurf", "aliases": ["виндсерф", "виндсёрф"] },
+        { "term": "Zed", "aliases": ["зед", "зэд"] },
+        { "term": "Ghostty", "aliases": ["гости", "гостти"] },
+        { "term": "vibe coding", "aliases": ["вайб кодинг", "вайбкодинг", "вайб кодингом", "vibe code"] },
         { "term": "IDE", "aliases": ["иде", "айди", "ай ди и"] },
         { "term": "Readme", "aliases": ["ридми", "рид ми", "readme md"] },
         { "term": "MCP", "aliases": ["эм си пи", "эмсипи", "mcp"] }

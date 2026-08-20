@@ -4293,6 +4293,7 @@ struct VocabularySettingsView: View {
     @State private var copiedActiveBlockedWordsFeedback: Bool = false
     @State private var presetToDelete: VocabularyPreset? = nil
     @State private var addedHallucinationsFeedback: Bool = false
+    @State private var previewSelectedDomain: AetherContextEngine.AppDomain = .ideAndCoding
 
     private var quickCityPresets: [String] {
         let isRussian = appState.selectedUILanguage == "ru" || (appState.selectedUILanguage == "auto" && Locale.current.language.languageCode?.identifier == "ru")
@@ -5444,6 +5445,166 @@ struct VocabularySettingsView: View {
                     }
                     .padding(14)
                 }
+            }
+
+            // SECTION: Dynamic App Context & Anti-Hallucination
+            GlassSection(title: appState.l("Dynamic App Context & Anti-Hallucination"), icon: "macwindow.badge.plus") {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(appState.l("Scribe automatically analyzes the destination application (IDE, Messenger, Notes, Browser, Design, Crypto) to inject relevant domain vocabulary and block out-of-context hallucinations."))
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .lineSpacing(2)
+
+                    // Live Active App Detection Card
+                    let detected = AetherContextEngine.shared.detectActiveAppDomain(targetApp: appState.targetRunningApplication)
+                    HStack(spacing: 12) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.accentColor.opacity(0.15))
+                                .frame(width: 36, height: 36)
+                            Image(systemName: detected.domain.icon)
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(Color.accentColor)
+                        }
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(appState.l("Active Application Detected"))
+                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                .foregroundStyle(.secondary)
+                            
+                            HStack(spacing: 6) {
+                                Text(detected.name)
+                                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                                    .foregroundStyle(.primary)
+
+                                Text("•")
+                                    .foregroundStyle(.secondary)
+
+                                Text(appState.l(detected.domain.displayName))
+                                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color.accentColor.opacity(0.12))
+                                    .foregroundStyle(Color.accentColor)
+                                    .cornerRadius(6)
+                            }
+                        }
+
+                        Spacer()
+
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(Color.green)
+                                .frame(width: 6, height: 6)
+                            Text(appState.l("Auto-Aligned"))
+                                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.green)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.green.opacity(0.1))
+                        .cornerRadius(8)
+                    }
+                    .padding(12)
+                    .background(Color.primary.opacity(0.03))
+                    .cornerRadius(12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+                    )
+
+                    // Domain Explorer Selector
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(appState.l("Explore Domain Biasing & Blocked Words:"))
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.secondary)
+
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 6) {
+                                ForEach(AetherContextEngine.AppDomain.allCases) { domain in
+                                    Button(action: { previewSelectedDomain = domain }) {
+                                        HStack(spacing: 5) {
+                                            Image(systemName: domain.icon)
+                                                .font(.system(size: 10, weight: .semibold))
+                                            Text(appState.l(domain.displayName))
+                                                .font(.system(size: 11, weight: previewSelectedDomain == domain ? .bold : .medium, design: .rounded))
+                                        }
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 5)
+                                        .background(previewSelectedDomain == domain ? Color.accentColor.opacity(0.2) : Color.primary.opacity(0.04))
+                                        .foregroundStyle(previewSelectedDomain == domain ? Color.accentColor : Color.primary)
+                                        .cornerRadius(8)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .strokeBorder(previewSelectedDomain == domain ? Color.accentColor.opacity(0.4) : Color.primary.opacity(0.06), lineWidth: 1)
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                        }
+                    }
+
+                    // Domain Preview Box
+                    VStack(alignment: .leading, spacing: 10) {
+                        let domainVocab = AetherContextEngine.shared.domainSpecificVocabulary(for: previewSelectedDomain)
+                        let domainBlocked = AetherContextEngine.shared.domainSpecificBlockedWords(for: previewSelectedDomain)
+
+                        if !domainVocab.isEmpty {
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack(spacing: 5) {
+                                    Image(systemName: "plus.circle.fill")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundStyle(.green)
+                                    Text(appState.l("Domain Biasing Vocabulary"))
+                                        .font(.system(size: 10.5, weight: .bold, design: .rounded))
+                                        .foregroundStyle(.secondary)
+                                }
+
+                                FlowLayout(spacing: 5) {
+                                    ForEach(domainVocab.prefix(16), id: \.self) { term in
+                                        Text(term)
+                                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                                            .padding(.horizontal, 7)
+                                            .padding(.vertical, 3)
+                                            .background(Color.green.opacity(0.1))
+                                            .foregroundStyle(Color.green)
+                                            .cornerRadius(6)
+                                    }
+                                }
+                            }
+                        }
+
+                        if !domainBlocked.isEmpty {
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack(spacing: 5) {
+                                    Image(systemName: "nosign")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundStyle(.red)
+                                    Text(appState.l("Blocked in this Domain"))
+                                        .font(.system(size: 10.5, weight: .bold, design: .rounded))
+                                        .foregroundStyle(.secondary)
+                                }
+
+                                FlowLayout(spacing: 5) {
+                                    ForEach(domainBlocked.prefix(10), id: \.self) { blocked in
+                                        Text(blocked)
+                                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                                            .padding(.horizontal, 7)
+                                            .padding(.vertical, 3)
+                                            .background(Color.red.opacity(0.1))
+                                            .foregroundStyle(Color.red)
+                                            .cornerRadius(6)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .padding(12)
+                    .background(Color.primary.opacity(0.02))
+                    .cornerRadius(10)
+                }
+                .padding(14)
             }
         }
         .alert(
