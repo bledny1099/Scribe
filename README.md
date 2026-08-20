@@ -4,7 +4,7 @@
 
 # Scribe
 
-**Fast, private voice dictation for macOS that works anywhere you can type.**
+**Fast, private voice dictation for macOS. On-device Scribe's Avalon model, app context awareness, smart vocabulary, and instant insertion anywhere you type.**
 
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-black.svg)](LICENSE) [![macOS 14+](https://img.shields.io/badge/macOS-14%2B-black.svg)](https://www.apple.com/macos/) [![Swift 6](https://img.shields.io/badge/Swift-6-black.svg)](https://swift.org) [![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-M1--M5-black.svg)](https://www.apple.com/mac/)
 
