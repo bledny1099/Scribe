@@ -1081,8 +1081,8 @@ final class AppState: ObservableObject {
         let screen = mainPanel.screen ?? NSScreen.main ?? NSScreen.screens.first
         let screenFrame = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
 
-        let subWidth: CGFloat = min(720, screenFrame.width - 48)
-        let subHeight: CGFloat = 34
+        let subWidth: CGFloat = min(740, screenFrame.width - 48)
+        let subHeight: CGFloat = 120
 
         // Ensure main panel is high enough so subtitle ALWAYS fits comfortably BELOW it
         let minRequiredMainY = screenFrame.minY + subHeight + 10
@@ -1094,7 +1094,7 @@ final class AppState: ObservableObject {
 
         let frame = mainPanel.frame
         let subX = frame.midX - subWidth / 2
-        let subY = frame.minY - subHeight - 4
+        let subY = frame.minY - subHeight - 6
 
         let finalRect = NSRect(
             x: max(screenFrame.minX + 16, min(subX, screenFrame.maxX - subWidth - 16)),

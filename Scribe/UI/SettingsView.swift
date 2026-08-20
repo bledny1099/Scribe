@@ -5157,20 +5157,129 @@ struct VocabularySettingsView: View {
                     .padding(14)
                 }
 
-                // SECTION 3: Community & Model Improvement
-                GlassSection(title: appState.l("Community Improvement"), icon: "network") {
-                    HStack(spacing: 12) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(appState.l("Contribute to Scribe Vocabulary"))
-                                .font(.system(size: 13, weight: .semibold))
-                            Text(appState.l("Anonymously share added vocabulary terms to expand the built-in library for everyone."))
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
+                // SECTION 3: Open Community Dictionary (GitHub Powered)
+                GlassSection(title: appState.l("Open Community Dictionary"), icon: "network") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack(alignment: .top, spacing: 12) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack(spacing: 6) {
+                                    Circle()
+                                        .fill(Color.green)
+                                        .frame(width: 7, height: 7)
+                                    Text("\(CommunityVocabularyService.shared.totalTermsCount)+ \(appState.l("community words active"))")
+                                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                                        .foregroundStyle(.primary)
+                                }
+
+                                Text(appState.l("Open-source dictionary synced directly from GitHub repository. Anyone can propose new brands, tech terms, or slang."))
+                                    .font(.system(size: 11.5, weight: .regular, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+
+                            Spacer()
+
+                            HStack(spacing: 8) {
+                                // Refresh Button
+                                Button(action: {
+                                    Task {
+                                        await CommunityVocabularyService.shared.refreshFromGitHub()
+                                    }
+                                }) {
+                                    HStack(spacing: 4) {
+                                        if CommunityVocabularyService.shared.isSyncing {
+                                            ProgressView()
+                                                .controlSize(.mini)
+                                                .frame(width: 11, height: 11)
+                                        } else {
+                                            Image(systemName: "arrow.triangle.2.circlepath")
+                                                .font(.system(size: 11, weight: .bold))
+                                        }
+                                        Text(appState.l("Sync"))
+                                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                    }
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                                    .background(Color.primary.opacity(0.06))
+                                    .foregroundStyle(.primary)
+                                    .cornerRadius(8)
+                                    .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.primary.opacity(0.12), lineWidth: 1))
+                                }
+                                .buttonStyle(.plain)
+                                .disabled(CommunityVocabularyService.shared.isSyncing)
+
+                                // View on GitHub Button
+                                Button(action: {
+                                    NSWorkspace.shared.open(CommunityVocabularyService.githubDictionaryPageURL)
+                                }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "doc.text.magnifyingglass")
+                                            .font(.system(size: 11, weight: .semibold))
+                                        Text(appState.l("View JSON on GitHub ↗"))
+                                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                    }
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                                    .background(Color.primary.opacity(0.06))
+                                    .foregroundStyle(.primary)
+                                    .cornerRadius(8)
+                                    .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.primary.opacity(0.12), lineWidth: 1))
+                                }
+                                .buttonStyle(.plain)
+                            }
                         }
-                        Spacer()
-                        Toggle("", isOn: $appState.allowAnonymousVocabularyContribution)
-                            .toggleStyle(.switch)
-                            .labelsHidden()
+
+                        if !CommunityVocabularyService.shared.categories.isEmpty {
+                            Divider().opacity(0.4)
+
+                            // Categories preview pills
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 8) {
+                                    ForEach(CommunityVocabularyService.shared.categories) { cat in
+                                        HStack(spacing: 5) {
+                                            Text(cat.name)
+                                                .font(.system(size: 11, weight: .medium, design: .rounded))
+                                                .foregroundStyle(.secondary)
+                                            Text("\(cat.terms.count)")
+                                                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                                .foregroundStyle(.primary)
+                                                .padding(.horizontal, 5)
+                                                .padding(.vertical, 1.5)
+                                                .background(Color.primary.opacity(0.08))
+                                                .cornerRadius(5)
+                                        }
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(Color.primary.opacity(0.04))
+                                        .cornerRadius(6)
+                                    }
+                                }
+                            }
+                        }
+
+                        // Propose new word link
+                        HStack {
+                            Button(action: {
+                                NSWorkspace.shared.open(CommunityVocabularyService.githubContributeURL)
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "plus.bubble.fill")
+                                        .font(.system(size: 10))
+                                    Text(appState.l("Propose new word or fix phonetic alias on GitHub ↗"))
+                                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                                }
+                                .foregroundStyle(appState.selectedTheme.gradientColors.first ?? .blue)
+                            }
+                            .buttonStyle(.plain)
+
+                            Spacer()
+
+                            if let lastSync = CommunityVocabularyService.shared.lastSyncDate {
+                                Text("\(appState.l("Last synced")): \(lastSync.formatted(date: .omitted, time: .shortened))")
+                                    .font(.system(size: 10, weight: .regular))
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
                     }
                     .padding(14)
                 }
@@ -7138,13 +7247,17 @@ struct AppleNotesPermissionModalView: View {
                         dismiss()
                     } label: {
                         Text(appState.l("Allow & Connect Apple Notes"))
-                            .font(.system(size: 14, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.white)
+                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .foregroundStyle(appState.selectedTheme.contrastTextColor)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 10)
                             .background(
                                 RoundedRectangle(cornerRadius: 10)
                                     .fill(appState.selectedTheme.accentGradient)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
                             )
                             .shadow(color: appState.selectedTheme.glowColor.opacity(0.3), radius: 6, y: 2)
                     }

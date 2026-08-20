@@ -654,7 +654,6 @@ struct OrbOverlay: View {
     }
 }
 
-/// A floating view to display live transcription preview below the main recording panel.
 struct SubtitleOverlayView: View {
     @EnvironmentObject var appState: AppState
 
@@ -664,26 +663,38 @@ struct SubtitleOverlayView: View {
                 Text(appState.livePreviewText)
                     .font(.system(size: 13.5, weight: .medium, design: .rounded))
                     .foregroundStyle(appState.livePreviewBackground == .dark ? Color.white : Color.primary)
+                    .multilineTextAlignment(.center)
                     .lineLimit(4)
-                    .minimumScaleFactor(0.75)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 6)
+                    .lineSpacing(3)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 9)
                     .background {
                         if appState.livePreviewBackground == .dark {
-                            Capsule()
-                                .fill(Color.black.opacity(0.78))
-                                .overlay(Capsule().strokeBorder(Color.white.opacity(0.15), lineWidth: 0.5))
+                            RoundedRectangle(cornerRadius: 15, style: .continuous)
+                                .fill(Color.black.opacity(0.82))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 15, style: .continuous)
+                                        .strokeBorder(Color.white.opacity(0.18), lineWidth: 0.8)
+                                )
                         } else {
-                            Capsule()
+                            RoundedRectangle(cornerRadius: 15, style: .continuous)
                                 .fill(.ultraThinMaterial)
-                                .overlay(Capsule().fill(Color.white.opacity(0.12)))
-                                .overlay(Capsule().strokeBorder(Color.white.opacity(0.25), lineWidth: 0.5))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 15, style: .continuous)
+                                        .fill(Color.white.opacity(0.15))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 15, style: .continuous)
+                                        .strokeBorder(Color.white.opacity(0.3), lineWidth: 0.8)
+                                )
                         }
                     }
-                    .clipShape(Capsule())
-                    .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 3)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-                    .animation(.spring(response: 0.35, dampingFraction: 0.8), value: appState.livePreviewText)
+                    .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+                    .shadow(color: Color.black.opacity(0.16), radius: 10, x: 0, y: 4)
+                    .frame(maxWidth: 680)
+                    .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                    .animation(.spring(response: 0.32, dampingFraction: 0.82), value: appState.livePreviewText)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

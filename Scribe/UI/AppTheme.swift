@@ -106,6 +106,16 @@ enum AppTheme: String, CaseIterable, Identifiable {
         }
     }
 
+    /// High-contrast text color when rendered on top of this theme's accent gradient.
+    var contrastTextColor: Color {
+        switch self {
+        case .whiteGlow:
+            return Color(white: 0.12)
+        default:
+            return Color.white
+        }
+    }
+
     /// Preview swatch colors for the theme picker (first, second).
     var swatchColors: (Color, Color) {
         (gradientColors[0], gradientColors[1])

@@ -107,8 +107,14 @@ public final class AetherFuzzyMatcher: @unchecked Sendable {
             }
         }
 
-        // 1. Direct Phonetic Transliteration Lookup
-        for (phonetic, canonical) in commonTransliterationMap {
+        // 1. Direct Phonetic Transliteration Lookup (Built-in + Community synced)
+        var fullTransliterationMap = commonTransliterationMap
+        let communityMap = CommunityVocabularyService.shared.transliterationMap
+        for (k, v) in communityMap {
+            fullTransliterationMap[k] = v
+        }
+
+        for (phonetic, canonical) in fullTransliterationMap {
             let pattern = "\\b\(NSRegularExpression.escapedPattern(for: phonetic))\\b"
             if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) {
                 result = regex.stringByReplacingMatches(

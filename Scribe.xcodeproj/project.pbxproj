@@ -44,6 +44,7 @@
 		A0010001 /* AetherAudioConditioner.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010001 /* AetherAudioConditioner.swift */; };
 		A0010002 /* AetherContextEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010002 /* AetherContextEngine.swift */; };
 		A0010003 /* AetherFuzzyMatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010003 /* AetherFuzzyMatcher.swift */; };
+		A0010005 /* CommunityVocabularyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010005 /* CommunityVocabularyService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -54,6 +55,7 @@
 		F0010001 /* AetherAudioConditioner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AetherAudioConditioner.swift; sourceTree = "<group>"; };
 		F0010002 /* AetherContextEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AetherContextEngine.swift; sourceTree = "<group>"; };
 		F0010003 /* AetherFuzzyMatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AetherFuzzyMatcher.swift; sourceTree = "<group>"; };
+		F0010005 /* CommunityVocabularyService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommunityVocabularyService.swift; sourceTree = "<group>"; };
 		11345C81116DC36BA7419B25 /* Scribe.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Scribe.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		12FECAADAC70A1B20BDAB73F /* PermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionManager.swift; sourceTree = "<group>"; };
 		15E2FB5F2EDF5D0662F04228 /* PermissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionView.swift; sourceTree = "<group>"; };
@@ -128,6 +130,7 @@
 			isa = PBXGroup;
 			children = (
 				F0010004 /* AppUpdateService.swift */,
+				F0010005 /* CommunityVocabularyService.swift */,
 				F0010003 /* AetherFuzzyMatcher.swift */,
 				8292B0055A0E08315F0E6894 /* FirebaseSyncService.swift */,
 				57EAB6F0DCC91FC7E7CD8CC2 /* Localization.swift */,
@@ -294,6 +297,7 @@
 				A0010002 /* AetherContextEngine.swift in Sources */,
 				A0010003 /* AetherFuzzyMatcher.swift in Sources */,
 				A0010004 /* AppUpdateService.swift in Sources */,
+				A0010005 /* CommunityVocabularyService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
