@@ -1,13 +1,31 @@
 import Foundation
 import SwiftUI
 import OSLog
+import FirebaseCore
+import FirebaseFirestore
 
 private let logger = Logger(subsystem: "com.aleksei.scribe", category: "CommunityVocabularyService")
 
 public struct CommunityTerm: Codable, Identifiable, Hashable, Sendable {
-    public var id: String { term }
+    public var id: String { term.lowercased() }
     public let term: String
     public let aliases: [String]
+
+    public init(term: String, aliases: [String]) {
+        self.term = term
+        // Strict deduplication of aliases: case-insensitive & trimmed
+        var seen = Set<String>()
+        var cleanAliases: [String] = []
+        for alias in aliases {
+            let trimmed = alias.trimmingCharacters(in: .whitespacesAndNewlines)
+            let lower = trimmed.lowercased()
+            if !trimmed.isEmpty && lower != term.lowercased() && !seen.contains(lower) {
+                seen.insert(lower)
+                cleanAliases.append(trimmed)
+            }
+        }
+        self.aliases = cleanAliases
+    }
 }
 
 public struct CommunityCategory: Codable, Identifiable, Hashable, Sendable {
@@ -15,6 +33,23 @@ public struct CommunityCategory: Codable, Identifiable, Hashable, Sendable {
     public let name: String
     public let languages: [String]?
     public let terms: [CommunityTerm]
+
+    public init(id: String, name: String, languages: [String]?, terms: [CommunityTerm]) {
+        self.id = id
+        self.name = name
+        self.languages = languages
+        // Deduplicate terms inside category
+        var seen = Set<String>()
+        var cleanTerms: [CommunityTerm] = []
+        for t in terms {
+            let lower = t.term.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if !lower.isEmpty && !seen.contains(lower) {
+                seen.insert(lower)
+                cleanTerms.append(t)
+            }
+        }
+        self.terms = cleanTerms
+    }
 }
 
 public struct CommunityDictionaryPayload: Codable, Sendable {
@@ -26,7 +61,7 @@ public struct CommunityDictionaryPayload: Codable, Sendable {
     public let categories: [CommunityCategory]
 }
 
-/// Manages loading and syncing the open community dictionary from GitHub.
+/// Manages 5-minute background bi-directional syncing of the open community dictionary from GitHub and Firestore.
 /// Thread-safe for audio worker pipelines.
 public final class CommunityVocabularyService: ObservableObject, @unchecked Sendable {
     public static let shared = CommunityVocabularyService()
@@ -44,8 +79,13 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
     private let lock = NSLock()
     private var _cachedAllTerms: [String] = []
     private var _cachedTransliterationMap: [String: String] = [:]
+    private var syncTask: Task<Void, Never>? = nil
 
     private let cacheFileName = "community_dictionary_cache.json"
+
+    private var db: Firestore? {
+        return FirebaseApp.app() != nil ? Firestore.firestore() : nil
+    }
 
     private var cacheFileURL: URL? {
         guard let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return nil }
@@ -56,14 +96,41 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
 
     private init() {
         loadCachedOrBundled()
-        Task { @MainActor in
-            await self.refreshFromGitHub()
+        startPeriodicSync()
+    }
+
+    deinit {
+        syncTask?.cancel()
+    }
+
+    // MARK: - 5-Minute Periodic Bi-Directional Sync
+
+    public func startPeriodicSync() {
+        syncTask?.cancel()
+        syncTask = Task { [weak self] in
+            // Initial sync on launch
+            await self?.performBiDirectionalSync()
+
+            // Recurring 5-minute loop (300 seconds)
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 300_000_000_000)
+                guard !Task.isCancelled else { break }
+                await self?.performBiDirectionalSync()
+            }
         }
+    }
+
+    public func performBiDirectionalSync() async {
+        // 1. Pull latest community dictionary from GitHub
+        await refreshFromGitHub()
+
+        // 2. Anonymously push unique new words to community pool if allowed
+        await pushLocalContributionsIfAllowed()
     }
 
     // MARK: - Thread-safe accessors for Audio & Transcription Pipelines
 
-    /// Thread-safe flattened list of all community terms
+    /// Thread-safe flattened list of all community terms (strictly deduplicated)
     public var allTerms: [String] {
         lock.lock()
         defer { lock.unlock() }
@@ -75,6 +142,19 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
         lock.lock()
         defer { lock.unlock() }
         return _cachedTransliterationMap
+    }
+
+    private func getCachedTermsSetLower() -> Set<String> {
+        lock.lock()
+        defer { lock.unlock() }
+        return Set(_cachedAllTerms.map { $0.lowercased() })
+    }
+
+    private func updateCache(terms: [String], map: [String: String]) {
+        lock.lock()
+        _cachedAllTerms = terms
+        _cachedTransliterationMap = map
+        lock.unlock()
     }
 
     // MARK: - Loading & Syncing
@@ -132,28 +212,117 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
         isSyncing = false
     }
 
-    private func applyPayload(_ payload: CommunityDictionaryPayload) {
-        var map: [String: String] = [:]
-        var terms: [String] = []
+    // MARK: - Anonymous Local Contributions Push
 
-        for cat in payload.categories {
-            for t in cat.terms {
-                terms.append(t.term)
-                for alias in t.aliases {
-                    map[alias.lowercased()] = t.term
+    public func pushLocalContributionsIfAllowed() async {
+        guard UserDefaults.standard.bool(forKey: "allowAnonymousVocabularyContribution") else { return }
+
+        // Gather all local words from active vocabulary
+        let rawVocab = UserDefaults.standard.string(forKey: "vocabulary") ?? ""
+        var localWords = rawVocab.components(separatedBy: CharacterSet(charactersIn: ",\n;"))
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { $0.count >= 2 }
+
+        // Also gather words from presets
+        if let presetsData = UserDefaults.standard.data(forKey: "customVocabularyPresets"),
+           let presets = try? JSONDecoder().decode([VocabularyPreset].self, from: presetsData) {
+            for preset in presets {
+                for w in preset.words {
+                    let trimmed = w.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if trimmed.count >= 2 {
+                        localWords.append(trimmed)
+                    }
                 }
-                map[t.term.lowercased()] = t.term
             }
         }
 
-        lock.lock()
-        _cachedAllTerms = terms
-        _cachedTransliterationMap = map
-        lock.unlock()
+        guard !localWords.isEmpty else { return }
+
+        // Deduplicate against existing community dictionary
+        let existingTermsLower = getCachedTermsSetLower()
+        var previouslySubmitted = Set(UserDefaults.standard.stringArray(forKey: "submittedCommunityWordsHistory") ?? [])
+
+        var wordsToSubmit: [String] = []
+        for word in localWords {
+            let lower = word.lowercased()
+            if !existingTermsLower.contains(lower) && !previouslySubmitted.contains(lower) {
+                wordsToSubmit.append(word)
+                previouslySubmitted.insert(lower)
+            }
+        }
+
+        guard !wordsToSubmit.isEmpty else { return }
+
+        // Save submitted history so we never send duplicates
+        UserDefaults.standard.set(Array(previouslySubmitted), forKey: "submittedCommunityWordsHistory")
+
+        // Push to Firestore community pool
+        if let firestore = self.db {
+            for word in wordsToSubmit {
+                let docId = word.lowercased().addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? UUID().uuidString
+                try? await firestore.collection("community_contributions").document(docId).setData([
+                    "term": word,
+                    "count": FieldValue.increment(Int64(1)),
+                    "lastSeen": FieldValue.serverTimestamp()
+                ], merge: true)
+            }
+            logger.info("Anonymously pushed \(wordsToSubmit.count) unique words to community dictionary pool")
+        }
+    }
+
+    // MARK: - Strict Deduplication & Payload Application
+
+    private func applyPayload(_ payload: CommunityDictionaryPayload) {
+        var map: [String: String] = [:]
+        var termsSeen = Set<String>()
+        var uniqueTerms: [String] = []
+        var cleanCategories: [CommunityCategory] = []
+
+        for cat in payload.categories {
+            var catTerms: [CommunityTerm] = []
+
+            for t in cat.terms {
+                let trimmed = t.term.trimmingCharacters(in: .whitespacesAndNewlines)
+                let lower = trimmed.lowercased()
+
+                if !trimmed.isEmpty && !termsSeen.contains(lower) {
+                    termsSeen.insert(lower)
+                    uniqueTerms.append(trimmed)
+
+                    // Deduplicate aliases for this term
+                    var cleanAliases: [String] = []
+                    var aliasSeen = Set<String>()
+
+                    for alias in t.aliases {
+                        let aTrimmed = alias.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let aLower = aTrimmed.lowercased()
+                        if !aTrimmed.isEmpty && aLower != lower && !aliasSeen.contains(aLower) {
+                            aliasSeen.insert(aLower)
+                            cleanAliases.append(aTrimmed)
+                            map[aLower] = trimmed
+                        }
+                    }
+
+                    map[lower] = trimmed
+                    catTerms.append(CommunityTerm(term: trimmed, aliases: cleanAliases))
+                }
+            }
+
+            if !catTerms.isEmpty {
+                cleanCategories.append(CommunityCategory(
+                    id: cat.id,
+                    name: cat.name,
+                    languages: cat.languages,
+                    terms: catTerms
+                ))
+            }
+        }
+
+        updateCache(terms: uniqueTerms, map: map)
 
         Task { @MainActor in
-            self.categories = payload.categories
-            self.totalTermsCount = terms.count
+            self.categories = cleanCategories
+            self.totalTermsCount = uniqueTerms.count
             if let savedDate = UserDefaults.standard.object(forKey: "communityDictionaryLastSync") as? Date {
                 self.lastSyncDate = savedDate
             } else {
