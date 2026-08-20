@@ -5161,74 +5161,43 @@ struct VocabularySettingsView: View {
 
                 // SECTION 3: Open Community Dictionary (GitHub Powered)
                 GlassSection(title: appState.l("Open Community Dictionary"), icon: "network") {
-                    VStack(alignment: .leading, spacing: 14) {
-                        HStack(alignment: .top, spacing: 12) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                HStack(spacing: 6) {
-                                    Circle()
-                                        .fill(Color.green)
-                                        .frame(width: 7, height: 7)
-                                    Text("\(communityVocab.totalTermsCount)+ \(appState.l("community words active"))")
-                                        .font(.system(size: 13, weight: .bold, design: .rounded))
-                                        .foregroundStyle(.primary)
-                                }
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack(alignment: .center, spacing: 10) {
+                            HStack(spacing: 6) {
+                                Circle()
+                                    .fill(Color.green)
+                                    .frame(width: 7, height: 7)
+                                Text("\(communityVocab.totalTermsCount)+ \(appState.l("community words active"))")
+                                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                                    .foregroundStyle(.primary)
 
-                                Text(appState.l("Open-source dictionary synced directly from GitHub repository. Automatically syncs every 5 minutes."))
-                                    .font(.system(size: 11.5, weight: .regular, design: .rounded))
-                                    .foregroundStyle(.secondary)
-                                    .fixedSize(horizontal: false, vertical: true)
+                                if let lastSync = communityVocab.lastSyncDate {
+                                    Text("• \(appState.l("Synced")) \(lastSync.formatted(date: .omitted, time: .shortened))")
+                                        .font(.system(size: 11, weight: .regular))
+                                        .foregroundStyle(.tertiary)
+                                }
                             }
 
                             Spacer()
 
-                            HStack(spacing: 8) {
-                                // Manual Sync & Upload Button
-                                Button(action: {
-                                    Task {
-                                        _ = await communityVocab.manualSyncAndContribute()
-                                    }
-                                }) {
-                                    HStack(spacing: 4) {
-                                        if communityVocab.isSyncing {
-                                            ProgressView()
-                                                .controlSize(.mini)
-                                                .frame(width: 11, height: 11)
-                                        } else {
-                                            Image(systemName: "arrow.triangle.2.circlepath")
-                                                .font(.system(size: 11, weight: .bold))
-                                        }
-                                        Text(appState.l("Sync & Upload"))
-                                            .font(.system(size: 11, weight: .semibold, design: .rounded))
-                                    }
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 6)
-                                    .background(Color.primary.opacity(0.06))
-                                    .foregroundStyle(.primary)
-                                    .cornerRadius(8)
-                                    .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.primary.opacity(0.12), lineWidth: 1))
+                            // View on GitHub Button
+                            Button(action: {
+                                NSWorkspace.shared.open(CommunityVocabularyService.githubDictionaryPageURL)
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "doc.text.magnifyingglass")
+                                        .font(.system(size: 11, weight: .semibold))
+                                    Text(appState.l("View JSON on GitHub ↗"))
+                                        .font(.system(size: 11, weight: .semibold, design: .rounded))
                                 }
-                                .buttonStyle(.plain)
-                                .disabled(communityVocab.isSyncing)
-
-                                // View on GitHub Button
-                                Button(action: {
-                                    NSWorkspace.shared.open(CommunityVocabularyService.githubDictionaryPageURL)
-                                }) {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "doc.text.magnifyingglass")
-                                            .font(.system(size: 11, weight: .semibold))
-                                        Text(appState.l("View JSON on GitHub ↗"))
-                                            .font(.system(size: 11, weight: .semibold, design: .rounded))
-                                    }
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 6)
-                                    .background(Color.primary.opacity(0.06))
-                                    .foregroundStyle(.primary)
-                                    .cornerRadius(8)
-                                    .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.primary.opacity(0.12), lineWidth: 1))
-                                }
-                                .buttonStyle(.plain)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5.5)
+                                .background(Color.primary.opacity(0.06))
+                                .foregroundStyle(.primary)
+                                .cornerRadius(8)
+                                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.primary.opacity(0.12), lineWidth: 1))
                             }
+                            .buttonStyle(.plain)
                         }
 
                         // Anonymous Contribution Toggle
@@ -5236,7 +5205,7 @@ struct VocabularySettingsView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(appState.l("Contribute New Words Anonymously"))
                                     .font(.system(size: 12, weight: .semibold, design: .rounded))
-                                Text(appState.l("Automatically uploads unique custom words and acronyms from your dictionary to the community pool every 5 minutes."))
+                                Text(appState.l("Syncs and uploads unique custom words to the global community dictionary every 5 minutes."))
                                     .font(.system(size: 10.5, weight: .regular))
                                     .foregroundStyle(.secondary)
                             }
@@ -5245,73 +5214,6 @@ struct VocabularySettingsView: View {
                         .padding(10)
                         .background(Color.primary.opacity(0.025))
                         .cornerRadius(8)
-
-                        if let feedback = communityVocab.lastContributionMessage {
-                            HStack(spacing: 6) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(.green)
-                                Text(feedback)
-                                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(Color.green.opacity(0.08))
-                            .cornerRadius(6)
-                        }
-
-                        if !communityVocab.categories.isEmpty {
-                            Divider().opacity(0.4)
-
-                            // Categories preview pills
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 8) {
-                                    ForEach(communityVocab.categories) { cat in
-                                        HStack(spacing: 5) {
-                                            Text(cat.name)
-                                                .font(.system(size: 11, weight: .medium, design: .rounded))
-                                                .foregroundStyle(.secondary)
-                                            Text("\(cat.terms.count)")
-                                                .font(.system(size: 10, weight: .bold, design: .monospaced))
-                                                .foregroundStyle(.primary)
-                                                .padding(.horizontal, 5)
-                                                .padding(.vertical, 1.5)
-                                                .background(Color.primary.opacity(0.08))
-                                                .cornerRadius(5)
-                                        }
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(Color.primary.opacity(0.04))
-                                        .cornerRadius(6)
-                                    }
-                                }
-                            }
-                        }
-
-                        // Propose new word link & Last sync info
-                        HStack {
-                            Button(action: {
-                                NSWorkspace.shared.open(CommunityVocabularyService.githubContributeURL)
-                            }) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "plus.bubble.fill")
-                                        .font(.system(size: 10))
-                                    Text(appState.l("Propose new word or fix phonetic alias on GitHub ↗"))
-                                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                                }
-                                .foregroundStyle(appState.selectedTheme.gradientColors.first ?? .blue)
-                            }
-                            .buttonStyle(.plain)
-
-                            Spacer()
-
-                            if let lastSync = communityVocab.lastSyncDate {
-                                Text("\(appState.l("Last synced")): \(lastSync.formatted(date: .omitted, time: .shortened))")
-                                    .font(.system(size: 10, weight: .regular))
-                                    .foregroundStyle(.tertiary)
-                            }
-                        }
                     }
                     .padding(14)
                 }
@@ -5576,65 +5478,23 @@ struct VocabularySettingsView: View {
                         }
                     }
 
-                    // Domain Description Box
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 8) {
-                            Image(systemName: previewSelectedDomain.icon)
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundStyle(Color.accentColor)
-
-                            Text(appState.l(previewSelectedDomain.displayName))
-                                .font(.system(size: 12.5, weight: .bold, design: .rounded))
-                                .foregroundStyle(.primary)
-
-                            Spacer()
-
-                            HStack(spacing: 4) {
-                                Circle().fill(Color.green).frame(width: 5, height: 5)
-                                Text(appState.l("Active Profile"))
-                                    .font(.system(size: 10, weight: .semibold, design: .rounded))
-                                    .foregroundStyle(.green)
-                            }
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 2.5)
-                            .background(Color.green.opacity(0.1))
-                            .cornerRadius(6)
-                        }
+                    // Domain Mini Description
+                    HStack(spacing: 8) {
+                        Image(systemName: previewSelectedDomain.icon)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(Color.accentColor)
 
                         Text(previewSelectedDomain.description)
-                            .font(.system(size: 11.5, weight: .regular, design: .rounded))
+                            .font(.system(size: 11, weight: .regular, design: .rounded))
                             .foregroundStyle(.secondary)
-                            .lineSpacing(3)
-                            .fixedSize(horizontal: false, vertical: true)
+                            .lineLimit(2)
 
-                        HStack(spacing: 14) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "waveform.badge.magnifyingglass")
-                                    .font(.system(size: 10))
-                                    .foregroundStyle(.blue)
-                                Text(appState.l("Domain Vocabulary Priming"))
-                                    .font(.system(size: 10, weight: .medium))
-                                    .foregroundStyle(.secondary)
-                            }
-
-                            HStack(spacing: 4) {
-                                Image(systemName: "nosign")
-                                    .font(.system(size: 10))
-                                    .foregroundStyle(.red)
-                                Text(appState.l("Out-of-Context Noise Filter"))
-                                    .font(.system(size: 10, weight: .medium))
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .padding(.top, 2)
+                        Spacer()
                     }
-                    .padding(12)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 7)
                     .background(Color.primary.opacity(0.025))
-                    .cornerRadius(10)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .strokeBorder(Color.primary.opacity(0.07), lineWidth: 1)
-                    )
+                    .cornerRadius(8)
                 }
                 .padding(14)
             }

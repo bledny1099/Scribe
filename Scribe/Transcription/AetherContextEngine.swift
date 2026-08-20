@@ -39,19 +39,19 @@ public final class AetherContextEngine: @unchecked Sendable {
         public var description: String {
             switch self {
             case .ideAndCoding:
-                return "Адаптирует контекст под разработку кода, терминал, фреймворки, Git-команды и вайб-кодинг. Автоматически подавляет остаточные субтитры и YouTube-шумы."
+                return "Optimized for coding agents, IDEs, Git, terminals & tech stacks."
             case .messengersAndChat:
-                return "Усиливает распознавание живой разговорной речи, сленга, естественной пунктуации и пауз. Блокирует случайную генерацию HTML-разметки и фрагментов кода."
+                return "Optimized for quick messaging, chat slang & natural punctuation."
             case .notesAndWriting:
-                return "Оптимизирует форматирование заголовков, структурированных списков, заметок и разметки Markdown. Фильтрует стриминговый шум и посторонние призывы."
+                return "Optimized for documents, structured lists & Markdown notes."
             case .browsersAndResearch:
-                return "Ориентирован на поисковые запросы, названия сайтов, статьи, документацию и интернет-навигацию."
+                return "Optimized for web searches, documentation & articles."
             case .designAndCreative:
-                return "Настроен на UI/UX дизайн, автолейаут, компоненты, слои, шрифты, макеты и творческие инструменты."
+                return "Optimized for UI/UX, layouts, design tokens & typography."
             case .cryptoAndTrading:
-                return "Специализируется на криптовалютах, токенах, блокчейн-протоколах, кошельках, стейкинге и биржевом трейдинге."
+                return "Optimized for web3, tokens, blockchain protocols & trading."
             case .general:
-                return "Сбалансированный системный режим с естественной пунктуацией и автоматической расстановкой заглавных букв."
+                return "Balanced system-wide dictation with smart auto-casing."
             }
         }
 
