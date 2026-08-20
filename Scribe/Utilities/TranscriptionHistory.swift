@@ -474,20 +474,6 @@ final class DonationVerificationService: @unchecked Sendable {
         let query = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { return nil }
 
-        // Test key for development & verification preview
-        let upper = query.uppercased()
-        if upper == "TEST-SUPPORTER" || upper == "TEST-DONATION" || upper == "TEST" {
-            try? await Task.sleep(nanoseconds: 600_000_000) // Brief realistic animation
-            return DonationVerificationResult(
-                network: "USDT (TRC20)",
-                amount: 25.0,
-                currency: "USDT",
-                txHash: "7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b",
-                senderAddress: "TDxy3x7N_TEST_SUPPORTER_WALLET",
-                date: Date()
-            )
-        }
-
         // Run verification checks across networks
         // 1. Tron (USDT TRC20)
         if query.hasPrefix("T") || query.count == 64 {
