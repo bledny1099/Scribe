@@ -123,6 +123,20 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
         return recordingURL
     }
 
+    /// Securely wipes memory buffers containing recorded audio samples.
+    func purgeMemory() {
+        samplesLock.lock()
+        if !recordedSamples.isEmpty {
+            recordedSamples.withUnsafeMutableBufferPointer { ptr in
+                if let base = ptr.baseAddress {
+                    base.initialize(repeating: 0, count: ptr.count)
+                }
+            }
+            recordedSamples.removeAll(keepingCapacity: false)
+        }
+        samplesLock.unlock()
+    }
+
     /// Creates a valid WAV file from the currently recorded samples.
     func createSnapshot() -> URL? {
         samplesLock.lock()

@@ -57,64 +57,72 @@ class NoteExporter {
         
         // Export to Notion if explicitly enabled OR if triggered via Direct Note Hotkey with target Notion
         if state.enableNotion || (isDirect && directApps.contains(.notion)) {
-            exportToNotion(text: text, mode: state.noteExportMode, integrationToken: state.notionIntegrationToken, pageId: state.notionPageId, state: state)
+            let token = KeychainHelper.shared.getNotionToken()
+            exportToNotion(text: text, mode: state.noteExportMode, integrationToken: token, pageId: state.notionPageId, state: state)
         }
     }
     
-    // MARK: - Apple Notes
+    // MARK: - Apple Notes (Hardened AppleScript)
     
     @MainActor
     private static func exportToAppleNotes(text: String, mode: ExportMode, targetNote: String, state: AppState) {
-        let escapedText = text
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "\"", with: "\\\"")
-            .replacingOccurrences(of: "\n", with: "<br>")
-
         let dateString = DateFormatter.localizedString(from: Date(), dateStyle: .medium, timeStyle: .short)
         
+        // Sanitize text: HTML entity escaping + AppleScript string escaping
+        let sanitizedText = text
+            .replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+            .replacingOccurrences(of: "\n", with: "<br>")
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+
         let words = text.split { $0.isWhitespace || $0.isNewline }
-        let smartTitle = words.count <= 6 ? text : words.prefix(6).joined(separator: " ") + "..."
-        let escapedTitle = smartTitle
+        let rawTitle = words.count <= 6 ? text : words.prefix(6).joined(separator: " ") + "..."
+        let sanitizedTitle = rawTitle
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "\"", with: "\\\"")
         
-        let tagsText = state.defaultNoteTags.isEmpty ? "" : "<br><br>\(state.defaultNoteTags)"
+        let tagsText = state.defaultNoteTags.isEmpty ? "" : "<br><br>\(state.defaultNoteTags.replacingOccurrences(of: "\"", with: "\\\""))"
         let dateHeader = state.appendDateToNotes ? "<p><b>\(dateString):</b></p>" : ""
         
         let scriptSource: String
         if mode == .newNote {
             scriptSource = """
             tell application "Notes"
-                make new note with properties {name:"\(escapedTitle)", body:"<h1>\(escapedTitle)</h1>\(dateHeader)<p>\(escapedText)\(tagsText)</p>"}
+                make new note with properties {name:"\(sanitizedTitle)", body:"<h1>\(sanitizedTitle)</h1>\(dateHeader)<p>\(sanitizedText)\(tagsText)</p>"}
             end tell
             """
         } else {
             let noteName = targetNote.isEmpty ? "Scribe Transcriptions" : targetNote
-            let escapedNoteName = noteName
+            let sanitizedNoteName = noteName
                 .replacingOccurrences(of: "\\", with: "\\\\")
                 .replacingOccurrences(of: "\"", with: "\\\"")
             scriptSource = """
             tell application "Notes"
-                if not (exists note "\(escapedNoteName)") then
-                    make new note with properties {name:"\(escapedNoteName)", body:"<h1>\(escapedNoteName)</h1>"}
+                if not (exists note "\(sanitizedNoteName)") then
+                    make new note with properties {name:"\(sanitizedNoteName)", body:"<h1>\(sanitizedNoteName)</h1>"}
                 end if
-                make new paragraph at end of text of note "\(escapedNoteName)" with data "\(dateHeader)<p>\(escapedText)\(tagsText)</p>"
+                make new paragraph at end of text of note "\(sanitizedNoteName)" with data "\(dateHeader)<p>\(sanitizedText)\(tagsText)</p>"
             end tell
             """
         }
         
-        var error: NSDictionary?
-        if let scriptObject = NSAppleScript(source: scriptSource) {
-            scriptObject.executeAndReturnError(&error)
-            if let error = error {
-                logger.error("Apple Notes Export AppleScript Error: \(error)")
-            } else {
-                logger.info("Successfully exported transcript to Apple Notes")
+        // Execute asynchronously off the main actor to prevent blocking UI
+        DispatchQueue.global(qos: .userInitiated).async {
+            var error: NSDictionary?
+            if let scriptObject = NSAppleScript(source: scriptSource) {
+                scriptObject.executeAndReturnError(&error)
+                if let error = error {
+                    logger.error("Apple Notes Export AppleScript Error: \(error)")
+                } else {
+                    logger.info("Successfully exported transcript to Apple Notes")
+                }
             }
         }
     }
     
-    // MARK: - Obsidian
+    // MARK: - Obsidian (Path Traversal Hardening)
     
     @MainActor
     private static func exportToObsidian(text: String, mode: ExportMode, vaultURLString: String, targetNote: String, state: AppState) {
@@ -127,14 +135,24 @@ class NoteExporter {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd_HH-mm-ss"
         
-        let noteName: String
+        // Sanitize filename to prevent path traversal
+        let rawNoteName: String
         if mode == .newNote {
-            noteName = "Scribe_\(dateFormatter.string(from: Date())).md"
+            rawNoteName = "Scribe_\(dateFormatter.string(from: Date())).md"
         } else {
-            noteName = (targetNote.isEmpty ? "Scribe Transcriptions" : targetNote) + ".md"
+            let base = targetNote.isEmpty ? "Scribe Transcriptions" : targetNote
+            // Strip any illegal filesystem characters or ../ attempts
+            let cleanBase = base.components(separatedBy: CharacterSet(charactersIn: "/\\:?%*|\"<>")).joined(separator: "_")
+            rawNoteName = "\(cleanBase).md"
         }
         
-        let fileURL = vaultURL.appendingPathComponent(noteName)
+        let fileURL = vaultURL.appendingPathComponent(rawNoteName).standardizedFileURL
+        
+        // Security check: Ensure fileURL is within vault directory
+        guard fileURL.path.hasPrefix(vaultURL.standardizedFileURL.path) else {
+            logger.error("Obsidian Export Error: Path traversal attempt detected.")
+            return
+        }
         
         let smartTitle: String
         let words = text.split { $0.isWhitespace || $0.isNewline }
@@ -145,28 +163,29 @@ class NoteExporter {
         }
         
         let tagsText = state.defaultNoteTags.isEmpty ? "" : "\n\n\(state.defaultNoteTags)"
-        
         let contentToAppend = (state.appendDateToNotes ? "\n\n### \(dateString)\n\(text)" : "\n\n\(text)") + tagsText
         
-        do {
-            if FileManager.default.fileExists(atPath: fileURL.path) {
-                let fileHandle = try FileHandle(forWritingTo: fileURL)
-                fileHandle.seekToEndOfFile()
-                if let data = contentToAppend.data(using: .utf8) {
-                    fileHandle.write(data)
+        DispatchQueue.global(qos: .userInitiated).async {
+            do {
+                if FileManager.default.fileExists(atPath: fileURL.path) {
+                    let fileHandle = try FileHandle(forWritingTo: fileURL)
+                    fileHandle.seekToEndOfFile()
+                    if let data = contentToAppend.data(using: .utf8) {
+                        fileHandle.write(data)
+                    }
+                    fileHandle.closeFile()
+                } else {
+                    let initialContent = "# \(smartTitle)\n" + contentToAppend
+                    try initialContent.write(to: fileURL, atomically: true, encoding: .utf8)
                 }
-                fileHandle.closeFile()
-            } else {
-                let initialContent = "# \(smartTitle)\n" + contentToAppend
-                try initialContent.write(to: fileURL, atomically: true, encoding: .utf8)
+                logger.info("Successfully exported transcript to Obsidian (\(fileURL.lastPathComponent))")
+            } catch {
+                logger.error("Obsidian Export Error: \(error.localizedDescription)")
             }
-            logger.info("Successfully exported transcript to Obsidian (\(fileURL.lastPathComponent))")
-        } catch {
-            logger.error("Obsidian Export Error: \(error.localizedDescription)")
         }
     }
     
-    // MARK: - Notion
+    // MARK: - Notion (HTTPS & Bearer Header)
     
     @MainActor
     private static func exportToNotion(text: String, mode: ExportMode, integrationToken: String, pageId: String, state: AppState) {
@@ -175,7 +194,7 @@ class NoteExporter {
             return
         }
         
-        let cleanPageId = pageId.replacingOccurrences(of: "-", with: "")
+        let cleanPageId = pageId.replacingOccurrences(of: "-", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
         guard let url = URL(string: "https://api.notion.com/v1/blocks/\(cleanPageId)/children") else { return }
         
         var request = URLRequest(url: url)
@@ -183,6 +202,7 @@ class NoteExporter {
         request.addValue("Bearer \(integrationToken)", forHTTPHeaderField: "Authorization")
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
         request.addValue("2022-06-28", forHTTPHeaderField: "Notion-Version")
+        request.timeoutInterval = 10
         
         let dateString = DateFormatter.localizedString(from: Date(), dateStyle: .medium, timeStyle: .short)
         let tagsText = state.defaultNoteTags.isEmpty ? "" : "\n\n\(state.defaultNoteTags)"

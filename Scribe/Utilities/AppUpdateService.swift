@@ -208,6 +208,17 @@ public final class AppUpdateService: ObservableObject {
     /// Downloads and automatically triggers update installation.
     private func downloadAndInstall(from url: URL) {
         guard !isDownloading else { return }
+        
+        // Security check: Only allow downloads from official GitHub domain
+        guard let host = url.host?.lowercased(),
+              host == "github.com" || host.hasSuffix(".github.com") || host.hasSuffix(".githubusercontent.com") else {
+            statusMessage = "Untrusted update source"
+            if let page = self.releasePageURL {
+                NSWorkspace.shared.open(page)
+            }
+            return
+        }
+
         isDownloading = true
         downloadProgress = 0.0
         statusMessage = "Downloading update..."

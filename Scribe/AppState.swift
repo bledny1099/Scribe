@@ -498,7 +498,13 @@ final class AppState: ObservableObject {
     @AppStorage("obsidianVaultURL") public var obsidianVaultURL: String = ""
     @AppStorage("obsidianTargetNote") public var obsidianTargetNote: String = "Scribe Notes"
     @AppStorage("enableNotion") public var enableNotion: Bool = false
-    @AppStorage("notionIntegrationToken") public var notionIntegrationToken: String = ""
+    public var notionIntegrationToken: String {
+        get { KeychainHelper.shared.getNotionToken() }
+        set {
+            objectWillChange.send()
+            KeychainHelper.shared.setNotionToken(newValue)
+        }
+    }
     @AppStorage("notionPageId") public var notionPageId: String = ""
     @AppStorage("integrationExportMode") public var integrationExportMode: String = "both" // "both", "notesOnly", "windowOnly"
     @AppStorage("vocabulary") public var vocabulary: String = ""
@@ -1010,7 +1016,8 @@ final class AppState: ObservableObject {
 
             isTranscribing = false
 
-            // Clean up temp file
+            // Securely wipe audio RAM buffers and clean up temp file
+            self.audioRecorder.purgeMemory()
             try? FileManager.default.removeItem(at: audioURL)
         }
     }
