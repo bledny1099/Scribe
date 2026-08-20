@@ -4279,6 +4279,7 @@ enum VocabularyTab: String, CaseIterable, Identifiable {
 
 struct VocabularySettingsView: View {
     @EnvironmentObject var appState: AppState
+    @ObservedObject private var communityVocab = CommunityVocabularyService.shared
     @State private var selectedTab: VocabularyTab = .vocabulary
     @State private var newWord: String = ""
     @State private var newBlockedWord: String = ""
@@ -5167,7 +5168,7 @@ struct VocabularySettingsView: View {
                                     Circle()
                                         .fill(Color.green)
                                         .frame(width: 7, height: 7)
-                                    Text("\(CommunityVocabularyService.shared.totalTermsCount)+ \(appState.l("community words active"))")
+                                    Text("\(communityVocab.totalTermsCount)+ \(appState.l("community words active"))")
                                         .font(.system(size: 13, weight: .bold, design: .rounded))
                                         .foregroundStyle(.primary)
                                 }
@@ -5184,11 +5185,11 @@ struct VocabularySettingsView: View {
                                 // Manual Sync & Upload Button
                                 Button(action: {
                                     Task {
-                                        _ = await CommunityVocabularyService.shared.manualSyncAndContribute()
+                                        _ = await communityVocab.manualSyncAndContribute()
                                     }
                                 }) {
                                     HStack(spacing: 4) {
-                                        if CommunityVocabularyService.shared.isSyncing {
+                                        if communityVocab.isSyncing {
                                             ProgressView()
                                                 .controlSize(.mini)
                                                 .frame(width: 11, height: 11)
@@ -5207,7 +5208,7 @@ struct VocabularySettingsView: View {
                                     .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.primary.opacity(0.12), lineWidth: 1))
                                 }
                                 .buttonStyle(.plain)
-                                .disabled(CommunityVocabularyService.shared.isSyncing)
+                                .disabled(communityVocab.isSyncing)
 
                                 // View on GitHub Button
                                 Button(action: {
@@ -5245,13 +5246,28 @@ struct VocabularySettingsView: View {
                         .background(Color.primary.opacity(0.025))
                         .cornerRadius(8)
 
-                        if !CommunityVocabularyService.shared.categories.isEmpty {
+                        if let feedback = communityVocab.lastContributionMessage {
+                            HStack(spacing: 6) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.green)
+                                Text(feedback)
+                                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(Color.green.opacity(0.08))
+                            .cornerRadius(6)
+                        }
+
+                        if !communityVocab.categories.isEmpty {
                             Divider().opacity(0.4)
 
                             // Categories preview pills
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 8) {
-                                    ForEach(CommunityVocabularyService.shared.categories) { cat in
+                                    ForEach(communityVocab.categories) { cat in
                                         HStack(spacing: 5) {
                                             Text(cat.name)
                                                 .font(.system(size: 11, weight: .medium, design: .rounded))
@@ -5290,7 +5306,7 @@ struct VocabularySettingsView: View {
 
                             Spacer()
 
-                            if let lastSync = CommunityVocabularyService.shared.lastSyncDate {
+                            if let lastSync = communityVocab.lastSyncDate {
                                 Text("\(appState.l("Last synced")): \(lastSync.formatted(date: .omitted, time: .shortened))")
                                     .font(.system(size: 10, weight: .regular))
                                     .foregroundStyle(.tertiary)

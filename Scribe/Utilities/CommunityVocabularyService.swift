@@ -182,9 +182,17 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
             return
         }
 
-        // 2. Fallback to bundled json if present in Bundle or project directory
+        // 2. Fallback to bundled json in App bundle
         if let bundleURL = Bundle.main.url(forResource: "community_dictionary", withExtension: "json"),
            let data = try? Data(contentsOf: bundleURL),
+           let payload = try? JSONDecoder().decode(CommunityDictionaryPayload.self, from: data) {
+            applyPayload(payload)
+            return
+        }
+
+        // 3. Fallback to local repository path if accessible
+        let devURL = URL(fileURLWithPath: "/Users/aleksei/Documents/Scribe/vocabulary/community_dictionary.json")
+        if let data = try? Data(contentsOf: devURL),
            let payload = try? JSONDecoder().decode(CommunityDictionaryPayload.self, from: data) {
             applyPayload(payload)
             return
@@ -290,20 +298,24 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
            let fileData = try? Data(contentsOf: localRepoURL),
            var payload = try? JSONDecoder().decode(CommunityDictionaryPayload.self, from: fileData) {
             var updatedCategories = payload.categories
-            if let firstCatIndex = updatedCategories.firstIndex(where: { $0.id == "dev_tech_ai" || $0.id == "general_modern" }) {
-                var terms = updatedCategories[firstCatIndex].terms
+            let targetCatIndex = updatedCategories.firstIndex(where: { 
+                $0.id == "ai_machine_learning" || $0.id == "developer_tools" || $0.id == "productivity_design" 
+            }) ?? updatedCategories.indices.first
+
+            if let idx = targetCatIndex {
+                var terms = updatedCategories[idx].terms
                 for w in wordsToSubmit {
                     if !terms.contains(where: { $0.term.caseInsensitiveCompare(w) == .orderedSame }) {
                         terms.append(CommunityTerm(term: w, aliases: []))
                     }
                 }
                 let updatedCat = CommunityCategory(
-                    id: updatedCategories[firstCatIndex].id,
-                    name: updatedCategories[firstCatIndex].name,
-                    languages: updatedCategories[firstCatIndex].languages,
+                    id: updatedCategories[idx].id,
+                    name: updatedCategories[idx].name,
+                    languages: updatedCategories[idx].languages,
                     terms: terms
                 )
-                updatedCategories[firstCatIndex] = updatedCat
+                updatedCategories[idx] = updatedCat
 
                 let newPayload = CommunityDictionaryPayload(
                     version: payload.version + 1,
@@ -375,7 +387,7 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
 
         updateCache(terms: uniqueTerms, map: map)
 
-        Task { @MainActor in
+        DispatchQueue.main.async {
             self.categories = cleanCategories
             self.totalTermsCount = uniqueTerms.count
             if let savedDate = UserDefaults.standard.object(forKey: "communityDictionaryLastSync") as? Date {

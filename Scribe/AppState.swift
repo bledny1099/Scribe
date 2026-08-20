@@ -581,7 +581,7 @@ final class AppState: ObservableObject {
         }
     }
     @AppStorage("recognitionMode") public var recognitionMode: String = "singleLanguage"
-    @AppStorage("singleDictationLanguage") public var singleDictationLanguage: String = "ru"
+    @AppStorage("singleDictationLanguage") public var singleDictationLanguage: String = "en"
     @AppStorage("multilingualLanguages") public var multilingualLanguages: [String] = ["ru", "en"]
 
     public func toggleMultilingualLanguage(_ langId: String) {

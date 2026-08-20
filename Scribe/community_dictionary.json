@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": 2,
+  "lastUpdated": "2026-08-20",
+  "description": "Scribe Multilingual Open Community Vocabulary — Curated dictionary of tech stacks, AI platforms, modern slang, music, crypto, and productivity terms with phonetic auto-casing across English, Russian, and international speech.",
+  "repository": "https://github.com/bledny1099/Scribe",
+  "contributing": "To propose new words or aliases, open an issue or PR at https://github.com/bledny1099/Scribe",
+  "categories": [
+    {
+      "id": "ai_machine_learning",
+      "name": "AI & Machine Learning",
+      "languages": ["en", "ru"],
+      "terms": [
+        { "term": "ChatGPT", "aliases": ["чат гпт", "чатгпт", "chat gpt", "джипити", "chatgpt"] },
+        { "term": "OpenAI", "aliases": ["опенаи", "опен аи", "опенэй", "open ai"] },
+        { "term": "Claude Code", "aliases": ["клод код", "клауд код", "claude code"] },
+        { "term": "Claude", "aliases": ["клод", "клауд"] },
+        { "term": "Gemini", "aliases": ["джеминай", "гемнай", "джемини"] },
+        { "term": "DeepSeek", "aliases": ["дипсик", "дип сик", "deep seek"] },
+        { "term": "Perplexity", "aliases": ["перплексити", "перплексити аи", "perplexity ai"] },
+        { "term": "Midjourney", "aliases": ["миджорни", "мидджорни", "mid journey"] },
+        { "term": "Ollama", "aliases": ["оллама", "olama"] },
+        { "term": "WhisperKit", "aliases": ["виперкит", "уисперкит", "whisper kit"] },
+        { "term": "PyTorch", "aliases": ["пайторч", "питорч", "питч", "py torch"] },
+        { "term": "TensorFlow", "aliases": ["тензорфлоу", "тензорфло", "tensor flow"] },
+        { "term": "HuggingFace", "aliases": ["хаггинг фейс", "хаггингфейс", "hugging face"] },
+        { "term": "Antigravity", "aliases": ["антигравити", "анти-гравити", "анти гравити", "anti gravity", "антиградик"] },
+        { "term": "Antigravity 2.0", "aliases": ["антигравити 2 0", "антигравити два ноль", "antigravity 2.0"] },
+        { "term": "LangChain", "aliases": ["лэнгчейн", "лангчейн", "lang chain"] },
+        { "term": "Llama", "aliases": ["лама", "ллама"] },
+        { "term": "LLM", "aliases": ["элэлэм", "ллм", "л л м"] },
+        { "term": "ИИ", "aliases": ["и и", "иишка"] },
+        { "term": "AI", "aliases": ["эй ай", "аи"] },
+        { "term": "Mistral", "aliases": ["мистраль"] },
+        { "term": "Qwen", "aliases": ["квен"] },
+        { "term": "Anthropic", "aliases": ["антропик"] },
+        { "term": "Groq", "aliases": ["грок"] },
+        { "term": "ElevenLabs", "aliases": ["элевенлабс", "элевен лабс"] }
+      ]
+    },
+    {
+      "id": "developer_tools",
+      "name": "Developer Tools & Tech Stacks",
+      "languages": ["en", "ru"],
+      "terms": [
+        { "term": "TypeScript", "aliases": ["тайпскрипт", "тайп скрипт", "type script"] },
+        { "term": "JavaScript", "aliases": ["джаваскрипт", "яваскрипт", "java script"] },
+        { "term": "SwiftUI", "aliases": ["свифт юай", "свифтюай", "swift ui"] },
+        { "term": "SwiftData", "aliases": ["свифт дата", "свифтдата", "swift data"] },
+        { "term": "TailwindCSS", "aliases": ["тайлвинд", "тейлвинд", "тайлвиндксс", "тейлвинд цсс", "tailwind"] },
+        { "term": "PostgreSQL", "aliases": ["постгрес", "постгре", "постгрескл", "постгрес скл", "postgres"] },
+        { "term": "Supabase", "aliases": ["супабейс", "супабейз", "supa base"] },
+        { "term": "Kubernetes", "aliases": ["кубернетес", "кубер", "к8с", "k8s"] },
+        { "term": "Docker", "aliases": ["докер"] },
+        { "term": "Next.js", "aliases": ["некст", "некстджс", "некст джс", "nextjs"] },
+        { "term": "Rust", "aliases": ["раст", "раста"] },
+        { "term": "GraphQL", "aliases": ["графкл", "графкьюэл", "graph ql"] },
+        { "term": "Vercel", "aliases": ["версель", "версел"] },
+        { "term": "GitHub", "aliases": ["гитхаб", "гит хаб", "git hub"] },
+        { "term": "GitLab", "aliases": ["гитлаб", "гит лаб"] },
+        { "term": "Firebase", "aliases": ["файрбейз", "файрбейс", "файербейз"] },
+        { "term": "Firestore", "aliases": ["файрстор", "файерстор"] },
+        { "term": "Xcode", "aliases": ["икскод", "экс код"] },
+        { "term": "Cursor", "aliases": ["курсор", "кёрсор"] },
+        { "term": "Windsurf", "aliases": ["виндсерф", "виндсёрф"] },
+        { "term": "Zed", "aliases": ["зед", "зэд"] },
+        { "term": "Ghostty", "aliases": ["гости", "гостти"] },
+        { "term": "vibe coding", "aliases": ["вайб кодинг", "вайбкодинг", "вайб кодингом", "vibe code"] },
+        { "term": "IDE", "aliases": ["иде", "айди", "ай ди и"] },
+        { "term": "Readme", "aliases": ["ридми", "рид ми", "readme md"] },
+        { "term": "MCP", "aliases": ["эм си пи", "эмсипи", "mcp"] }
+      ]
+    },
+    {
+      "id": "scribe_ecosystem",
+      "name": "Scribe & Dictation Workflow",
+      "languages": ["en", "ru"],
+      "terms": [
+        { "term": "Scribe", "aliases": ["скрайб", "скриб"] },
+        { "term": "транскрибатор", "aliases": ["аджанскребатор", "транскребатор", "тридцать кибаксов", "транскриптор"] },
+        { "term": "транскрибация", "aliases": ["транскребация", "скребация", "трескребация", "раскребация"] },
+        { "term": "транскрибировать", "aliases": ["трескребаться", "транскрибить"] },
+        { "term": "Aether", "aliases": ["эфир", "эйтер", "аэтер"] },
+        { "term": "Paperclip", "aliases": ["пейпер клип", "пейперклип", "скрепка"] },
+        { "term": "Floating Pill", "aliases": ["флотинг пил", "уфлотинг пил"] },
+        { "term": "Liquid Glass", "aliases": ["ликвит глаз", "ликвид глаз"] },
+        { "term": "Live Preview", "aliases": ["лайф привью", "лайфпривью", "лайв превью"] },
+        { "term": "Preview", "aliases": ["превью", "привью"] },
+        { "term": "Overlay", "aliases": ["оверлей", "оверлэй"] },
+        { "term": "Buzz", "aliases": ["базз", "баз"] }
+      ]
+    },
+    {
+      "id": "slang_and_culture",
+      "name": "Modern Slang & Pop Culture",
+      "languages": ["en", "ru"],
+      "terms": [
+        { "term": "топчик", "aliases": ["top chick", "top chic", "топ чик", "topchik"] },
+        { "term": "swag", "aliases": ["свэг", "свэгг", "swagg"] },
+        { "term": "анскилл", "aliases": ["ан скилл", "ан скил", "анскил", "unskill"] },
+        { "term": "skill", "aliases": ["скилл", "скил"] },
+        { "term": "вайп", "aliases": ["wipe"] },
+        { "term": "вайб", "aliases": ["vibe", "вайбик"] },
+        { "term": "кринж", "aliases": ["cringe", "кринжа", "кринжуха"] },
+        { "term": "хайп", "aliases": ["hype"] },
+        { "term": "краш", "aliases": ["crush"] },
+        { "term": "чилл", "aliases": ["chill", "чилить"] },
+        { "term": "флекс", "aliases": ["flex", "флексить"] },
+        { "term": "рофл", "aliases": ["rofl", "рофлить"] },
+        { "term": "пруф", "aliases": ["proof", "пруфы"] },
+        { "term": "пофикси", "aliases": ["пофиксить", "зафикси"] },
+        { "term": "найс", "aliases": ["nice"] },
+        { "term": "топ", "aliases": ["top"] }
+      ]
+    },
+    {
+      "id": "music_artists",
+      "name": "Music & Artists",
+      "languages": ["en", "ru"],
+      "terms": [
+        { "term": "viperr", "aliases": ["вайпер", "вайперр", "viper", "Viperr"] },
+        { "term": "Kai Angel", "aliases": ["кай энджел", "кай ангел", "кайэнджел", "kai angel"] },
+        { "term": "9mice", "aliases": ["девять майс", "9 майс", "nine mice"] }
+      ]
+    },
+    {
+      "id": "crypto_web3",
+      "name": "Crypto & Web3",
+      "languages": ["en", "ru"],
+      "terms": [
+        { "term": "Bitcoin", "aliases": ["биткоин", "биток", "btc"] },
+        { "term": "Ethereum", "aliases": ["эфириум", "эфир", "eth"] },
+        { "term": "Solana", "aliases": ["солана", "сол", "sol"] },
+        { "term": "TON", "aliases": ["тон", "тонкоин", "toncoin"] },
+        { "term": "Bybit", "aliases": ["байбит", "бай бит"] },
+        { "term": "Binance", "aliases": ["бинанс", "бинансе"] },
+        { "term": "MetaMask", "aliases": ["метамаск", "мета маск"] },
+        { "term": "Tether", "aliases": ["тезер", "тетер", "usdt"] },
+        { "term": "TRC20", "aliases": ["трц20", "трц 20"] },
+        { "term": "ERC20", "aliases": ["ерц20", "ерц 20"] },
+        { "term": "Tonkeeper", "aliases": ["тонkeeper", "тон кипер"] },
+        { "term": "Uniswap", "aliases": ["юнисвоп", "юнисвап"] }
+      ]
+    },
+    {
+      "id": "social_media_services",
+      "name": "Apps, Notes & Platforms",
+      "languages": ["en", "ru", "de", "es", "fr"],
+      "terms": [
+        { "term": "Telegram", "aliases": ["телеграм", "телега"] },
+        { "term": "YouTube", "aliases": ["ютуб", "ютьюб"] },
+        { "term": "TikTok", "aliases": ["тикток", "тик ток"] },
+        { "term": "Instagram", "aliases": ["инстаграм", "инста"] },
+        { "term": "Discord", "aliases": ["дискорд"] },
+        { "term": "Reddit", "aliases": ["реддит"] },
+        { "term": "Spotify", "aliases": ["спотифай"] },
+        { "term": "Twitch", "aliases": ["твич"] },
+        { "term": "LinkedIn", "aliases": ["линкедин"] },
+        { "term": "Notion", "aliases": ["ноушен", "ношен"] },
+        { "term": "Obsidian", "aliases": ["обсидиан"] },
+        { "term": "Figma", "aliases": ["фигма"] },
+        { "term": "Apple Notes", "aliases": ["эппл ноутс", "эппл заметки"] }
+      ]
+    }
+  ]
+}
