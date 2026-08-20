@@ -5547,8 +5547,11 @@ struct VocabularySettingsView: View {
 
                     // Domain Preview Box
                     VStack(alignment: .leading, spacing: 10) {
+                        let activeLangs: [String] = appState.recognitionMode == "singleLanguage"
+                            ? [appState.singleDictationLanguage]
+                            : (appState.multilingualLanguages.isEmpty ? ["ru", "en"] : appState.multilingualLanguages)
                         let domainVocab = AetherContextEngine.shared.domainSpecificVocabulary(for: previewSelectedDomain)
-                        let domainBlocked = AetherContextEngine.shared.domainSpecificBlockedWords(for: previewSelectedDomain)
+                        let domainBlocked = AetherContextEngine.shared.domainSpecificBlockedWords(for: previewSelectedDomain, recognitionLanguages: activeLangs)
 
                         if !domainVocab.isEmpty {
                             VStack(alignment: .leading, spacing: 6) {

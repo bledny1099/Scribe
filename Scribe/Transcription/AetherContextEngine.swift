@@ -4,9 +4,9 @@ import OSLog
 
 private let logger = Logger(subsystem: "com.aleksei.scribe", category: "AetherContextEngine")
 
-/// Aether Context Biasing & Anti-Hallucination Engine (Stage A):
+/// Aether Context Biasing & Multilingual Anti-Hallucination Engine (Stage A):
 /// Captures active target application context, dynamically biases acoustic and language models,
-/// and applies context-aware blocked word lists to eliminate out-of-domain hallucinations.
+/// and applies language-filtered, context-aware blocked word lists to eliminate out-of-domain hallucinations.
 public final class AetherContextEngine: @unchecked Sendable {
 
     public static let shared = AetherContextEngine()
@@ -47,6 +47,124 @@ public final class AetherContextEngine: @unchecked Sendable {
             case .general: return "macwindow"
             }
         }
+    }
+
+    // MARK: - Multilingual Subtitle & Outro Hallucination Matrix
+
+    public static let multilingualHallucinationsByLanguage: [String: [String]] = [
+        "ru": [
+            "Субтитры создал", "Субтитры создавал", "Субтитры создавала", "Субтитры добавил",
+            "Редактор субтитров", "Корректор", "Продолжение следует", "Спасибо за просмотр",
+            "Ставьте лайки", "Подписывайтесь на канал", "Поставьте лайк и колокольчик",
+            "До новых встреч в эфире", "Всем пока-пока", "Приятного аппетита",
+            "Озвучено специально для", "Ссылка в описании под видео", "Донаты на стриме",
+            "Смотрите в следующей серии", "Переведено и озвучено", "Ставьте лайк"
+        ],
+        "en": [
+            "Subtitles by", "Subtitle by", "Subtitles created by", "Translated by",
+            "Thank you for watching", "Thanks for watching", "Please subscribe",
+            "Like and subscribe", "Don't forget to like and subscribe", "Hit the bell icon",
+            "See you in the next video", "To be continued", "Closed captions by",
+            "Captions by", "Amara.org", "Next episode", "Link in the description",
+            "Support on Patreon", "Thanks for tuning in"
+        ],
+        "es": [
+            "Subtítulos por", "Subtítulos creados por", "Subtítulos realizados por", "Traducido por",
+            "Gracias por ver", "Gracias por ver el video", "Muchas gracias por ver",
+            "Suscríbete al canal", "Suscríbete", "Dale like y suscríbete",
+            "No olvides suscribirte", "Activa la campanita", "Nos vemos en el próximo video",
+            "Continuará", "Enlace en la descripción"
+        ],
+        "de": [
+            "Untertitel von", "Untertitel erstellt von", "Übersetzt von",
+            "Vielen Dank fürs Zuschauen", "Danke fürs Zuschauen", "Vielen Dank fürs Zusehen",
+            "Kanal abonnieren", "Bitte abonnieren", "Glocke aktivieren", "Daumen nach oben",
+            "Bis zum nächsten Video", "Fortsetzung folgt", "Link in der Beschreibung"
+        ],
+        "fr": [
+            "Sous-titres par", "Sous-titres réalisés par", "Traduit par",
+            "Merci d'avoir regardé", "Merci d'avoir regardé la vidéo", "Merci de votre attention",
+            "Abonnez-vous à la chaîne", "N'oubliez pas de vous abonner", "Activez la cloche",
+            "À bientôt pour une nouvelle vidéo", "À suivre", "Lien dans la description"
+        ],
+        "it": [
+            "Sottotitoli di", "Sottotitoli a cura di", "Tradotto da",
+            "Grazie per la visione", "Grazie per aver guardato", "Grazie di aver visto il video",
+            "Iscriviti al canale", "Lascia un like e iscriviti", "Attiva la campanella",
+            "Ci vediamo nel prossimo video", "Continua...", "Link in descrizione"
+        ],
+        "pt": [
+            "Legendas por", "Legendas criadas por", "Traduzido por",
+            "Obrigado por assistir", "Obrigado por assistir ao vídeo", "Valeu por assistir",
+            "Inscreva-se no canal", "Deixe o seu like e se inscreva", "Ative o sininho",
+            "Nos vemos no próximo vídeo", "Continua...", "Link na descrição"
+        ],
+        "zh": [
+            "字幕由", "字幕制作", "翻译自", "感谢观看", "感谢收看", "非常感谢您的收看",
+            "请订阅频道", "点赞并订阅", "开启小铃铛", "下期再见", "未完待续", "敬请期待"
+        ],
+        "ja": [
+            "字幕作成", "翻訳者", "ご視聴ありがとうございました", "最後までご視聴いただき",
+            "チャンネル登録お願いします", "高評価とチャンネル登録", "ベルマークを押して",
+            "また次回の動画で", "つづく", "続く", "次回もお楽しみに"
+        ],
+        "uk": [
+            "Субтитри створив", "Субтитри додано", "Перекладено", "Озвучено",
+            "Дякую за перегляд", "Дякуємо за перегляд", "Підписуйтесь на канал",
+            "Ставте лайки", "Тисніть на дзвіночок", "До зустрічі в наступному відео",
+            "Далі буде", "Посилання в описі"
+        ],
+        "pl": [
+            "Napisy stworzone przez", "Przetłumaczone przez", "Dziękuję za oglądanie",
+            "Dzięki za obejrzenie", "Subskrybuj kanał", "Zostaw łapkę w górę",
+            "Kliknij dzwoneczek", "Do zobaczenia w kolejnym filmie", "Ciąg dalszy nastąpi"
+        ],
+        "tr": [
+            "Altyazı", "Altyazı hazırlayan", "Çeviren", "İzlediğiniz için teşekkürler",
+            "İzlediğiniz için teşekkür ederiz", "Kanala abone olmayı unutmayın",
+            "Beğenmeyi ve abone olmayı", "Bildirimleri açmayı unutmayın",
+            "Bir sonraki videoda görüşmek üzere", "Devam edecek"
+        ],
+        "ko": [
+            "자막 제작", "번역", "시청해 주셔서 감사합니다", "시청해주셔서 감사합니다",
+            "구독과 좋아요", "알림 설정", "다음 영상에서 만나요", "계속됩니다"
+        ],
+        "ar": [
+            "ترجمة", "شكرا للمشاهدة", "شكرا على المشاهدة", "اشترك в القناة",
+            "لا تنسى الإعجاب والاشتراك", "تفعيل جرس التنبيهات", "إلى اللقاء في الفيديو القادم", "يتبع"
+        ],
+        "hi": [
+            "सबटाइटल", "अनुवाद", "देखने के लिए धन्यवाद", "वीडियो देखने के लिए धन्यवाद",
+            "चैनल को सब्सक्राइब करें", "लाइक और सब्सक्राइब करें", "अगले видео में मिलते हैं"
+        ]
+    ]
+
+    /// Resolves and collects subtitle & video hallucination phrases ONLY for the requested recognition languages
+    public func multilingualHallucinations(for recognitionLanguages: [String]) -> [String] {
+        var normalizedCodes: Set<String> = []
+        for lang in recognitionLanguages {
+            let code = lang.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if code == "auto" || code.isEmpty {
+                normalizedCodes.insert("ru")
+                normalizedCodes.insert("en")
+            } else if let prefix = code.split(separator: "-").first {
+                normalizedCodes.insert(String(prefix))
+            } else {
+                normalizedCodes.insert(code)
+            }
+        }
+
+        if normalizedCodes.isEmpty {
+            normalizedCodes = ["ru", "en"]
+        }
+
+        var results: [String] = []
+        for code in normalizedCodes {
+            if let list = Self.multilingualHallucinationsByLanguage[code] {
+                results.append(contentsOf: list)
+            }
+        }
+        return Array(Set(results))
     }
 
     // MARK: - App Domain Detection
@@ -209,34 +327,41 @@ public final class AetherContextEngine: @unchecked Sendable {
 
     // MARK: - Domain-Specific Blocked Words (Anti-Hallucination Matrix)
 
-    /// Words and phrases that should NEVER be used or hallucinated in the given domain
-    public func domainSpecificBlockedWords(for domain: AppDomain) -> [String] {
-        // Universal Whisper subtitle hallucination artifacts
-        let universalHallucinations = [
-            "Субтитры сделал", "Субтитры создавал", "Субтитры добавил", "Редактор субтитров",
-            "Корректор", "Продолжение следует", "Спасибо за просмотр", "Ставьте лайки",
-            "Подписывайтесь на канал", "Amara.org", "Subtitles by", "Thank you for watching",
-            "Translated by", "Next episode", "Смотрите в следующей серии", "Озвучено специально для"
-        ]
+    /// Words and phrases that should NEVER be used or hallucinated in the given domain, filtered strictly for active languages
+    public func domainSpecificBlockedWords(for domain: AppDomain, recognitionLanguages: [String] = []) -> [String] {
+        let languageHallucinations = multilingualHallucinations(for: recognitionLanguages)
 
         switch domain {
         case .ideAndCoding:
-            // In IDEs & coding, block generic YouTube/streaming outro noise and conversational spam
-            return universalHallucinations + [
-                "Поставьте лайк и колокольчик", "До новых встреч в эфире", "Всем пока-пока", "Приятного аппетита"
-            ]
+            // In IDEs & coding, block language-filtered outro noise and streaming greetings
+            var domainNoise: [String] = []
+            if recognitionLanguages.contains(where: { $0.starts(with: "ru") }) || recognitionLanguages.isEmpty {
+                domainNoise.append(contentsOf: ["Поставьте лайк и колокольчик", "До новых встреч в эфире", "Всем пока-пока", "Приятного аппетита"])
+            }
+            if recognitionLanguages.contains(where: { $0.starts(with: "en") }) || recognitionLanguages.isEmpty {
+                domainNoise.append(contentsOf: ["Smash that like button", "See you next time", "Have a great day everyone"])
+            }
+            return languageHallucinations + domainNoise
+
         case .messengersAndChat:
             // In Messengers, block accidental code boilerplate hallucinations
-            return universalHallucinations + [
+            return languageHallucinations + [
                 "<!DOCTYPE html>", "public static void main", "SELECT * FROM", "return 0;", "console.log"
             ]
+
         case .notesAndWriting:
             // In Notes, block streaming & chat spam
-            return universalHallucinations + [
-                "Ставьте лайк", "Донаты на стриме", "Ссылка в описании под видео"
-            ]
+            var streamSpam: [String] = []
+            if recognitionLanguages.contains(where: { $0.starts(with: "ru") }) || recognitionLanguages.isEmpty {
+                streamSpam.append(contentsOf: ["Донаты на стриме", "Ссылка в описании под видео"])
+            }
+            if recognitionLanguages.contains(where: { $0.starts(with: "en") }) || recognitionLanguages.isEmpty {
+                streamSpam.append(contentsOf: ["Donate on stream", "Check the link in the bio"])
+            }
+            return languageHallucinations + streamSpam
+
         case .browsersAndResearch, .designAndCreative, .cryptoAndTrading, .general:
-            return universalHallucinations
+            return languageHallucinations
         }
     }
 
@@ -260,10 +385,14 @@ public final class AetherContextEngine: @unchecked Sendable {
         return combined.joined(separator: ", ")
     }
 
-    /// Merges user blocked words with domain-specific anti-hallucination lists
-    public func activeEffectiveBlockedWords(targetApp: NSRunningApplication? = nil, userBlockedWords: String) -> String {
+    /// Merges user blocked words with domain-specific anti-hallucination lists for the given recognition languages
+    public func activeEffectiveBlockedWords(
+        targetApp: NSRunningApplication? = nil,
+        userBlockedWords: String,
+        recognitionLanguages: [String] = []
+    ) -> String {
         let (_, domain, _) = detectActiveAppDomain(targetApp: targetApp)
-        let domainBlocked = domainSpecificBlockedWords(for: domain)
+        let domainBlocked = domainSpecificBlockedWords(for: domain, recognitionLanguages: recognitionLanguages)
 
         let userBlocked = userBlockedWords.components(separatedBy: CharacterSet(charactersIn: ",\n;"))
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }

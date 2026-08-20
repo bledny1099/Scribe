@@ -942,7 +942,8 @@ final class AppState: ObservableObject {
 
                 let effectiveBlocked = AetherContextEngine.shared.activeEffectiveBlockedWords(
                     targetApp: self.targetRunningApplication,
-                    userBlockedWords: self.blockedWords
+                    userBlockedWords: self.blockedWords,
+                    recognitionLanguages: isSingle ? [self.singleDictationLanguage] : preferredLangs
                 )
                 let effectiveVocab = AetherContextEngine.shared.activeEffectiveVocabulary(
                     targetApp: self.targetRunningApplication,
