@@ -5160,7 +5160,7 @@ struct VocabularySettingsView: View {
 
                 // SECTION 3: Open Community Dictionary (GitHub Powered)
                 GlassSection(title: appState.l("Open Community Dictionary"), icon: "network") {
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 14) {
                         HStack(alignment: .top, spacing: 12) {
                             VStack(alignment: .leading, spacing: 4) {
                                 HStack(spacing: 6) {
@@ -5172,7 +5172,7 @@ struct VocabularySettingsView: View {
                                         .foregroundStyle(.primary)
                                 }
 
-                                Text(appState.l("Open-source dictionary synced directly from GitHub repository. Anyone can propose new brands, tech terms, or slang."))
+                                Text(appState.l("Open-source dictionary synced directly from GitHub repository. Automatically syncs every 5 minutes."))
                                     .font(.system(size: 11.5, weight: .regular, design: .rounded))
                                     .foregroundStyle(.secondary)
                                     .fixedSize(horizontal: false, vertical: true)
@@ -5181,10 +5181,10 @@ struct VocabularySettingsView: View {
                             Spacer()
 
                             HStack(spacing: 8) {
-                                // Refresh Button
+                                // Manual Sync & Upload Button
                                 Button(action: {
                                     Task {
-                                        await CommunityVocabularyService.shared.refreshFromGitHub()
+                                        _ = await CommunityVocabularyService.shared.manualSyncAndContribute()
                                     }
                                 }) {
                                     HStack(spacing: 4) {
@@ -5196,7 +5196,7 @@ struct VocabularySettingsView: View {
                                             Image(systemName: "arrow.triangle.2.circlepath")
                                                 .font(.system(size: 11, weight: .bold))
                                         }
-                                        Text(appState.l("Sync"))
+                                        Text(appState.l("Sync & Upload"))
                                             .font(.system(size: 11, weight: .semibold, design: .rounded))
                                     }
                                     .padding(.horizontal, 10)
@@ -5230,6 +5230,21 @@ struct VocabularySettingsView: View {
                             }
                         }
 
+                        // Anonymous Contribution Toggle
+                        Toggle(isOn: $appState.allowAnonymousVocabularyContribution) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(appState.l("Contribute New Words Anonymously"))
+                                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                Text(appState.l("Automatically uploads unique custom words and acronyms from your dictionary to the community pool every 5 minutes."))
+                                    .font(.system(size: 10.5, weight: .regular))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .toggleStyle(SwitchToggleStyle(tint: appState.selectedTheme.gradientColors.first ?? .blue))
+                        .padding(10)
+                        .background(Color.primary.opacity(0.025))
+                        .cornerRadius(8)
+
                         if !CommunityVocabularyService.shared.categories.isEmpty {
                             Divider().opacity(0.4)
 
@@ -5258,7 +5273,7 @@ struct VocabularySettingsView: View {
                             }
                         }
 
-                        // Propose new word link
+                        // Propose new word link & Last sync info
                         HStack {
                             Button(action: {
                                 NSWorkspace.shared.open(CommunityVocabularyService.githubContributeURL)
@@ -5545,67 +5560,65 @@ struct VocabularySettingsView: View {
                         }
                     }
 
-                    // Domain Preview Box
-                    VStack(alignment: .leading, spacing: 10) {
-                        let activeLangs: [String] = appState.recognitionMode == "singleLanguage"
-                            ? [appState.singleDictationLanguage]
-                            : (appState.multilingualLanguages.isEmpty ? ["ru", "en"] : appState.multilingualLanguages)
-                        let domainVocab = AetherContextEngine.shared.domainSpecificVocabulary(for: previewSelectedDomain)
-                        let domainBlocked = AetherContextEngine.shared.domainSpecificBlockedWords(for: previewSelectedDomain, recognitionLanguages: activeLangs)
+                    // Domain Description Box
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 8) {
+                            Image(systemName: previewSelectedDomain.icon)
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundStyle(Color.accentColor)
 
-                        if !domainVocab.isEmpty {
-                            VStack(alignment: .leading, spacing: 6) {
-                                HStack(spacing: 5) {
-                                    Image(systemName: "plus.circle.fill")
-                                        .font(.system(size: 10, weight: .bold))
-                                        .foregroundStyle(.green)
-                                    Text(appState.l("Domain Biasing Vocabulary"))
-                                        .font(.system(size: 10.5, weight: .bold, design: .rounded))
-                                        .foregroundStyle(.secondary)
-                                }
+                            Text(appState.l(previewSelectedDomain.displayName))
+                                .font(.system(size: 12.5, weight: .bold, design: .rounded))
+                                .foregroundStyle(.primary)
 
-                                FlowLayout(spacing: 5) {
-                                    ForEach(domainVocab.prefix(16), id: \.self) { term in
-                                        Text(term)
-                                            .font(.system(size: 11, weight: .medium, design: .rounded))
-                                            .padding(.horizontal, 7)
-                                            .padding(.vertical, 3)
-                                            .background(Color.green.opacity(0.1))
-                                            .foregroundStyle(Color.green)
-                                            .cornerRadius(6)
-                                    }
-                                }
+                            Spacer()
+
+                            HStack(spacing: 4) {
+                                Circle().fill(Color.green).frame(width: 5, height: 5)
+                                Text(appState.l("Active Profile"))
+                                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(.green)
                             }
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 2.5)
+                            .background(Color.green.opacity(0.1))
+                            .cornerRadius(6)
                         }
 
-                        if !domainBlocked.isEmpty {
-                            VStack(alignment: .leading, spacing: 6) {
-                                HStack(spacing: 5) {
-                                    Image(systemName: "nosign")
-                                        .font(.system(size: 10, weight: .bold))
-                                        .foregroundStyle(.red)
-                                    Text(appState.l("Blocked in this Domain"))
-                                        .font(.system(size: 10.5, weight: .bold, design: .rounded))
-                                        .foregroundStyle(.secondary)
-                                }
+                        Text(previewSelectedDomain.description)
+                            .font(.system(size: 11.5, weight: .regular, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .lineSpacing(3)
+                            .fixedSize(horizontal: false, vertical: true)
 
-                                FlowLayout(spacing: 5) {
-                                    ForEach(domainBlocked.prefix(10), id: \.self) { blocked in
-                                        Text(blocked)
-                                            .font(.system(size: 11, weight: .medium, design: .rounded))
-                                            .padding(.horizontal, 7)
-                                            .padding(.vertical, 3)
-                                            .background(Color.red.opacity(0.1))
-                                            .foregroundStyle(Color.red)
-                                            .cornerRadius(6)
-                                    }
-                                }
+                        HStack(spacing: 14) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "waveform.badge.magnifyingglass")
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(.blue)
+                                Text(appState.l("Domain Vocabulary Priming"))
+                                    .font(.system(size: 10, weight: .medium))
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            HStack(spacing: 4) {
+                                Image(systemName: "nosign")
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(.red)
+                                Text(appState.l("Out-of-Context Noise Filter"))
+                                    .font(.system(size: 10, weight: .medium))
+                                    .foregroundStyle(.secondary)
                             }
                         }
+                        .padding(.top, 2)
                     }
                     .padding(12)
-                    .background(Color.primary.opacity(0.02))
+                    .background(Color.primary.opacity(0.025))
                     .cornerRadius(10)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .strokeBorder(Color.primary.opacity(0.07), lineWidth: 1)
+                    )
                 }
                 .padding(14)
             }

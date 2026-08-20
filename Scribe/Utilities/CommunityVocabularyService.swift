@@ -75,6 +75,7 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
     @Published public var lastSyncDate: Date? = nil
     @Published public var isSyncing: Bool = false
     @Published public var syncError: String? = nil
+    @Published public var lastContributionMessage: String? = nil
 
     private let lock = NSLock()
     private var _cachedAllTerms: [String] = []
@@ -125,7 +126,20 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
         await refreshFromGitHub()
 
         // 2. Anonymously push unique new words to community pool if allowed
-        await pushLocalContributionsIfAllowed()
+        _ = await pushLocalContributionsIfAllowed()
+    }
+
+    /// Triggers manual sync and returns count of downloaded terms and newly uploaded words
+    @MainActor
+    public func manualSyncAndContribute() async -> (downloaded: Int, uploaded: Int) {
+        await refreshFromGitHub()
+        let uploadedCount = await pushLocalContributionsIfAllowed()
+        if uploadedCount > 0 {
+            lastContributionMessage = "Uploaded \(uploadedCount) new terms to community pool"
+        } else {
+            lastContributionMessage = "Dictionary up to date (\(totalTermsCount) active words)"
+        }
+        return (totalTermsCount, uploadedCount)
     }
 
     // MARK: - Thread-safe accessors for Audio & Transcription Pipelines
@@ -214,8 +228,9 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
 
     // MARK: - Anonymous Local Contributions Push
 
-    public func pushLocalContributionsIfAllowed() async {
-        guard UserDefaults.standard.bool(forKey: "allowAnonymousVocabularyContribution") else { return }
+    @discardableResult
+    public func pushLocalContributionsIfAllowed() async -> Int {
+        guard UserDefaults.standard.bool(forKey: "allowAnonymousVocabularyContribution") else { return 0 }
 
         // Gather all local words from active vocabulary
         let rawVocab = UserDefaults.standard.string(forKey: "vocabulary") ?? ""
@@ -236,7 +251,7 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
             }
         }
 
-        guard !localWords.isEmpty else { return }
+        guard !localWords.isEmpty else { return 0 }
 
         // Deduplicate against existing community dictionary
         let existingTermsLower = getCachedTermsSetLower()
@@ -251,12 +266,12 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
             }
         }
 
-        guard !wordsToSubmit.isEmpty else { return }
+        guard !wordsToSubmit.isEmpty else { return 0 }
 
         // Save submitted history so we never send duplicates
         UserDefaults.standard.set(Array(previouslySubmitted), forKey: "submittedCommunityWordsHistory")
 
-        // Push to Firestore community pool
+        // 1. Push to Firestore community contributions pool
         if let firestore = self.db {
             for word in wordsToSubmit {
                 let docId = word.lowercased().addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? UUID().uuidString
@@ -266,8 +281,48 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
                     "lastSeen": FieldValue.serverTimestamp()
                 ], merge: true)
             }
-            logger.info("Anonymously pushed \(wordsToSubmit.count) unique words to community dictionary pool")
         }
+
+        // 2. Also append directly to local dev repository dictionary if accessible
+        let localRepoPath = "/Users/aleksei/Documents/Scribe/vocabulary/community_dictionary.json"
+        let localRepoURL = URL(fileURLWithPath: localRepoPath)
+        if FileManager.default.fileExists(atPath: localRepoPath),
+           let fileData = try? Data(contentsOf: localRepoURL),
+           var payload = try? JSONDecoder().decode(CommunityDictionaryPayload.self, from: fileData) {
+            var updatedCategories = payload.categories
+            if let firstCatIndex = updatedCategories.firstIndex(where: { $0.id == "dev_tech_ai" || $0.id == "general_modern" }) {
+                var terms = updatedCategories[firstCatIndex].terms
+                for w in wordsToSubmit {
+                    if !terms.contains(where: { $0.term.caseInsensitiveCompare(w) == .orderedSame }) {
+                        terms.append(CommunityTerm(term: w, aliases: []))
+                    }
+                }
+                let updatedCat = CommunityCategory(
+                    id: updatedCategories[firstCatIndex].id,
+                    name: updatedCategories[firstCatIndex].name,
+                    languages: updatedCategories[firstCatIndex].languages,
+                    terms: terms
+                )
+                updatedCategories[firstCatIndex] = updatedCat
+
+                let newPayload = CommunityDictionaryPayload(
+                    version: payload.version + 1,
+                    lastUpdated: ISO8601DateFormatter().string(from: Date()),
+                    description: payload.description,
+                    repository: payload.repository,
+                    contributing: payload.contributing,
+                    categories: updatedCategories
+                )
+                let encoder = JSONEncoder()
+                encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+                if let encoded = try? encoder.encode(newPayload) {
+                    try? encoded.write(to: localRepoURL, options: .atomic)
+                }
+            }
+        }
+
+        logger.info("Successfully pushed \(wordsToSubmit.count) unique words to community dictionary pool")
+        return wordsToSubmit.count
     }
 
     // MARK: - Strict Deduplication & Payload Application
