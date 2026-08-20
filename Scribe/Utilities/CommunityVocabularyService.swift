@@ -13,6 +13,7 @@ public struct CommunityTerm: Codable, Identifiable, Hashable, Sendable {
 public struct CommunityCategory: Codable, Identifiable, Hashable, Sendable {
     public let id: String
     public let name: String
+    public let languages: [String]?
     public let terms: [CommunityTerm]
 }
 
