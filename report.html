@@ -232,6 +232,33 @@
       color: rgba(255, 255, 255, 0.75);
     }
 
+    /* Outdated Version Warning */
+    .version-warning {
+      display: none;
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 18px;
+      font-size: 13px;
+      color: rgba(253, 230, 138, 0.95);
+      line-height: 1.5;
+    }
+
+    .version-warning.active {
+      display: block;
+    }
+
+    .version-warning a {
+      color: #34d399;
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    .version-warning a:hover {
+      text-decoration: underline;
+    }
+
     /* Form Fields */
     .form-group {
       margin-bottom: 16px;
@@ -543,27 +570,42 @@
           <input type="text" id="reportTitle" class="form-input" placeholder="Brief summary of the issue..." required>
         </div>
 
-        <div class="form-row">
-          <div class="form-group">
+        <!-- Outdated Version Warning -->
+        <div id="versionWarning" class="version-warning">
+          <strong>⚠️ Upgrade Recommended (Latest: v2.4.2):</strong>
+          <p style="margin-top: 4px;">Bug reports are primarily reviewed for the latest release (v2.4.2). Many issues are resolved in newer builds. Please update to <a href="https://github.com/bledny1099/Scribe/releases/latest" target="_blank">Scribe v2.4.2</a> and verify if the issue still reproduces.</p>
+        </div>
+
+        <div class="form-row" style="margin-bottom: 16px;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label" for="reportVersion">Scribe Version</label>
+            <select id="reportVersion" class="form-select" onchange="onVersionChange()">
+              <option value="v2.4.2" selected>v2.4.2 (Latest Release)</option>
+              <option value="v2.4.1">v2.4.1</option>
+              <option value="v2.4.0">v2.4.0</option>
+              <option value="< v2.4.0">&lt; v2.4.0 (Outdated)</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
             <label class="form-label" for="reportOS">macOS Version</label>
             <select id="reportOS" class="form-select">
               <option value="macOS 14 Sonoma">macOS 14 Sonoma</option>
               <option value="macOS 15 Sequoia">macOS 15 Sequoia</option>
               <option value="macOS 26 Tahoe" selected>macOS 26 Tahoe</option>
               <option value="macOS 27 Golden Gate Beta">macOS 27 Golden Gate Beta</option>
-              <option value="Other">Other</option>
             </select>
           </div>
-          <div class="form-group">
-            <label class="form-label" for="reportArch">Apple Silicon Chip</label>
-            <select id="reportArch" class="form-select">
-              <option value="Apple Silicon M1">Apple Silicon M1</option>
-              <option value="Apple Silicon M2" selected>Apple Silicon M2</option>
-              <option value="Apple Silicon M3">Apple Silicon M3</option>
-              <option value="Apple Silicon M4">Apple Silicon M4</option>
-              <option value="Apple Silicon M5">Apple Silicon M5</option>
-            </select>
-          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="reportArch">Apple Silicon Chip</label>
+          <select id="reportArch" class="form-select">
+            <option value="Apple Silicon M1">Apple Silicon M1</option>
+            <option value="Apple Silicon M2" selected>Apple Silicon M2</option>
+            <option value="Apple Silicon M3">Apple Silicon M3</option>
+            <option value="Apple Silicon M4">Apple Silicon M4</option>
+            <option value="Apple Silicon M5">Apple Silicon M5</option>
+          </select>
         </div>
 
         <div class="form-group">
@@ -651,6 +693,29 @@
       }
     }
 
+      // Pre-select Version if passed
+      const verParam = params.get('version');
+      if (verParam) {
+        const verSelect = document.getElementById('reportVersion');
+        if (verParam.includes('2.4.2')) verSelect.value = 'v2.4.2';
+        else if (verParam.includes('2.4.1')) verSelect.value = 'v2.4.1';
+        else if (verParam.includes('2.4.0')) verSelect.value = 'v2.4.0';
+        else verSelect.value = '< v2.4.0';
+      }
+
+      onVersionChange();
+    }
+
+    function onVersionChange() {
+      const ver = document.getElementById('reportVersion').value;
+      const warn = document.getElementById('versionWarning');
+      if (ver !== 'v2.4.2' && currentType === 'bug') {
+        warn.classList.add('active');
+      } else {
+        warn.classList.remove('active');
+      }
+    }
+
     function switchType(type) {
       currentType = type;
       const tabSec = document.getElementById('tabSecurity');
@@ -684,17 +749,20 @@
         descInput.placeholder = '1. Steps to reproduce\n2. Expected behavior\n3. Actual behavior';
         submitLabel.textContent = 'Submit Bug Report';
       }
+
+      onVersionChange();
     }
 
     function buildMarkdown() {
       const email = document.getElementById('reportEmail').value.trim();
       const title = document.getElementById('reportTitle').value.trim() || 'Scribe Report';
+      const ver = document.getElementById('reportVersion').value;
       const os = document.getElementById('reportOS').value;
       const arch = document.getElementById('reportArch').value;
       const desc = document.getElementById('reportDesc').value.trim();
 
       let md = `### [${currentType.toUpperCase()}] ${title}\n\n`;
-      md += `### Environment\n- **OS**: ${os}\n- **Hardware**: ${arch}\n- **Version**: Scribe v2.4.2\n`;
+      md += `### Environment\n- **Scribe Version**: ${ver}\n- **OS**: ${os}\n- **Hardware**: ${arch}\n`;
       if (email) {
         md += `- **Reporter Email**: ${email}\n`;
       }
