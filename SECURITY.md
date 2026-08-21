@@ -11,29 +11,21 @@ Only the version(s) below are currently supported with security updates and patc
 
 ## Reporting a Vulnerability
 
-We take the security of Scribe and user privacy seriously. Scribe is engineered to run 100% locally on Apple Silicon with zero audio leaving your machine. Any potential security vulnerability, memory safety issue, or unintended network transmission is treated with the highest priority.
+We take the security of Scribe and user privacy seriously. Scribe is engineered to run 100% locally on Apple Silicon with zero audio leaving your Mac.
 
-### Disclosure Process
+To report a vulnerability, memory safety issue, or security concern, please submit a report directly through our website:
 
-1. **Private Reporting (Preferred)**:
-   Submit reports privately through [GitHub Private Vulnerability Reporting](https://github.com/bledny1099/Scribe/security/advisories/new). This enables us to coordinate a fix in private prior to public release.
-
-2. **Web Form**:
-   You can also submit reports via the Report Form on the [Scribe Website](https://bledny1099.github.io/Scribe/#report).
-
-3. **Public Issues & General Bugs**:
-   For non-sensitive bugs, crashes, or feature requests, open a public ticket on [GitHub Issues](https://github.com/bledny1099/Scribe/issues/new).
+👉 **[Submit a Security Report](https://bledny1099.github.io/Scribe/report.html?type=security)**
 
 ### What to Include in Your Report
 
-To help us triage and reproduce the issue quickly, please include:
-- Type and impact of the vulnerability.
-- Detailed steps to reproduce (or proof-of-concept code).
-- macOS version and Apple Silicon hardware model (e.g. macOS 14.5 Sonoma on M2).
-- Any proposed mitigations or patch suggestions.
+Please provide as much detail as possible to help us reproduce and resolve the issue:
+- Clear description of the vulnerability and its potential impact.
+- Steps to reproduce or proof-of-concept.
+- Affected macOS version and Apple Silicon hardware model (e.g. macOS 14 Sonoma on M2).
+- Your contact email if you would like to receive follow-up communication.
 
-### Response Timelines
+### Response Time
 
 - **Initial acknowledgment**: Within 24–48 hours.
-- **Assessment & Triage**: Within 3–5 business days.
-- **Fix & Disclosure**: We will provide updates throughout the remediation process and credit security researchers who report responsibly.
+- **Triage & patch**: Confirmed vulnerabilities are prioritized for immediate patch release.

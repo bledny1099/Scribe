@@ -598,10 +598,14 @@
     let currentType = 'bug';
 
     function initFromHash() {
-      const hash = window.location.hash.toLowerCase();
-      if (hash === '#security') {
+      const params = new URLSearchParams(window.location.search);
+      const queryType = (params.get('type') || '').toLowerCase();
+      const hash = (window.location.hash || '').replace('#', '').toLowerCase();
+
+      const target = queryType || hash || 'bug';
+      if (target === 'security') {
         switchType('security');
-      } else if (hash === '#support') {
+      } else if (target === 'support') {
         switchType('support');
       } else {
         switchType('bug');
