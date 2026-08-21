@@ -32,7 +32,7 @@ public struct CommunityCategory: Codable, Identifiable, Hashable, Sendable {
     public let id: String
     public let name: String
     public let languages: [String]?
-    public let terms: [CommunityTerm]
+    public var terms: [CommunityTerm]
 
     public init(id: String, name: String, languages: [String]?, terms: [CommunityTerm]) {
         self.id = id
@@ -236,17 +236,15 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
 
     // MARK: - Anonymous Local Contributions Push
 
-    @discardableResult
-    public func pushLocalContributionsIfAllowed() async -> Int {
-        guard UserDefaults.standard.bool(forKey: "allowAnonymousVocabularyContribution") else { return 0 }
+    // MARK: - Local & Anonymous Community Synchronization
 
-        // Gather all local words from active vocabulary
-        let rawVocab = UserDefaults.standard.string(forKey: "vocabulary") ?? ""
+    @discardableResult
+    public func syncLocalWordsToDictionary(rawVocabulary: String? = nil) -> Int {
+        let rawVocab = rawVocabulary ?? UserDefaults.standard.string(forKey: "vocabulary") ?? ""
         var localWords = rawVocab.components(separatedBy: CharacterSet(charactersIn: ",\n;"))
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { $0.count >= 2 }
 
-        // Also gather words from presets
         if let presetsData = UserDefaults.standard.data(forKey: "customVocabularyPresets"),
            let presets = try? JSONDecoder().decode([VocabularyPreset].self, from: presetsData) {
             for preset in presets {
@@ -261,14 +259,172 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
 
         guard !localWords.isEmpty else { return 0 }
 
-        // Deduplicate against existing community dictionary
+        let localRepoPath = "/Users/aleksei/Documents/Scribe/vocabulary/community_dictionary.json"
+        let bundledPath = "/Users/aleksei/Documents/Scribe/Scribe/community_dictionary.json"
+        let localRepoURL = URL(fileURLWithPath: localRepoPath)
+        let bundledURL = URL(fileURLWithPath: bundledPath)
+
+        // Read current dictionary from repo file, cache, or bundle
+        var currentData: Data? = nil
+        if FileManager.default.fileExists(atPath: localRepoPath), let data = try? Data(contentsOf: localRepoURL) {
+            currentData = data
+        } else if let cacheURL = cacheFileURL, let data = try? Data(contentsOf: cacheURL) {
+            currentData = data
+        } else if let bundleURL = Bundle.main.url(forResource: "community_dictionary", withExtension: "json"), let data = try? Data(contentsOf: bundleURL) {
+            currentData = data
+        }
+
+        guard let data = currentData,
+              var payload = try? JSONDecoder().decode(CommunityDictionaryPayload.self, from: data) else {
+            return 0
+        }
+
+        var allExistingTermsLower = Set<String>()
+        for cat in payload.categories {
+            for t in cat.terms {
+                allExistingTermsLower.insert(t.term.lowercased())
+                for a in t.aliases {
+                    allExistingTermsLower.insert(a.lowercased())
+                }
+            }
+        }
+
+        var newWordsAdded = 0
+        var updatedCategories = payload.categories
+
+        for word in localWords {
+            let lower = word.lowercased()
+            if !allExistingTermsLower.contains(lower) {
+                let aliases = generatePhoneticAliases(for: word)
+                let termObj = CommunityTerm(term: word, aliases: aliases)
+
+                // Pick best category
+                let catIndex: Int
+                let wordLower = lower
+                if wordLower.contains("хоккей") || wordLower.contains("мам") || wordLower.contains("пап") || wordLower.contains("бат") || wordLower.contains("мих") {
+                    if let idx = updatedCategories.firstIndex(where: { $0.id == "slang_and_culture" || $0.id == "social_media_services" }) {
+                        catIndex = idx
+                    } else {
+                        catIndex = 0
+                    }
+                } else if wordLower.contains("push") || wordLower.contains("пуш") || wordLower.contains("фикс") || wordLower.contains("code") || wordLower.contains("ide") {
+                    catIndex = updatedCategories.firstIndex(where: { $0.id == "developer_tools" }) ?? 0
+                } else if wordLower.contains("scribe") || wordLower.contains("aether") || wordLower.contains("транскриб") {
+                    catIndex = updatedCategories.firstIndex(where: { $0.id == "scribe_ecosystem" }) ?? 0
+                } else {
+                    catIndex = updatedCategories.firstIndex(where: { $0.id == "slang_and_culture" }) ?? 0
+                }
+
+                updatedCategories[catIndex].terms.append(termObj)
+                allExistingTermsLower.insert(lower)
+                for a in aliases {
+                    allExistingTermsLower.insert(a.lowercased())
+                }
+                newWordsAdded += 1
+            }
+        }
+
+        guard newWordsAdded > 0 else { return 0 }
+
+        let newPayload = CommunityDictionaryPayload(
+            version: payload.version + 1,
+            lastUpdated: ISO8601DateFormatter().string(from: Date()),
+            description: payload.description,
+            repository: payload.repository,
+            contributing: payload.contributing,
+            categories: updatedCategories
+        )
+
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        if let encoded = try? encoder.encode(newPayload) {
+            try? encoded.write(to: localRepoURL, options: .atomic)
+            try? encoded.write(to: bundledURL, options: .atomic)
+            if let cacheURL = cacheFileURL {
+                try? encoded.write(to: cacheURL, options: .atomic)
+            }
+        }
+
+        applyPayload(newPayload)
+        logger.info("Successfully synced \(newWordsAdded) new local words into community dictionary")
+        return newWordsAdded
+    }
+
+    public func generatePhoneticAliases(for term: String) -> [String] {
+        var aliases: [String] = []
+        let lower = term.lowercased()
+        
+        switch lower {
+        case "хоккей":
+            aliases = ["hockey", "хакей"]
+        case "миха":
+            aliases = ["мих", "михаил"]
+        case "мам":
+            aliases = ["мама", "мамка"]
+        case "пап":
+            aliases = ["папа", "папка"]
+        case "батя":
+            aliases = ["батяня", "бать"]
+        case "пуш":
+            aliases = ["push", "пушить", "пушнуть"]
+        case "пофикси":
+            aliases = ["фикси", "пофиксить", "зафикси"]
+        case "транскрибатор":
+            aliases = ["транскриптор", "транскрибация", "transcriber"]
+        case "aether":
+            aliases = ["эфир", "эйтер", "аэтер"]
+        case "readme":
+            aliases = ["ридми", "редми", "read me"]
+        case "buzz":
+            aliases = ["базз", "баз"]
+        case "paperclip":
+            aliases = ["пейперклип", "скрепка", "paper clip"]
+        case "kai angel":
+            aliases = ["кай энжел", "кай ангел", "кайэнджел"]
+        case "9mice":
+            aliases = ["девять майс", "9 майс", "найнмайс"]
+        case "viperr":
+            aliases = ["вайпер", "вайперр"]
+        default:
+            break
+        }
+        return aliases
+    }
+
+    @discardableResult
+    public func pushLocalContributionsIfAllowed() async -> Int {
+        // First sync to local dictionary files
+        _ = syncLocalWordsToDictionary()
+
+        guard UserDefaults.standard.bool(forKey: "allowAnonymousVocabularyContribution") else { return 0 }
+
+        // Gather all local words from active vocabulary
+        let rawVocab = UserDefaults.standard.string(forKey: "vocabulary") ?? ""
+        var localWords = rawVocab.components(separatedBy: CharacterSet(charactersIn: ",\n;"))
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { $0.count >= 2 }
+
+        if let presetsData = UserDefaults.standard.data(forKey: "customVocabularyPresets"),
+           let presets = try? JSONDecoder().decode([VocabularyPreset].self, from: presetsData) {
+            for preset in presets {
+                for w in preset.words {
+                    let trimmed = w.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if trimmed.count >= 2 {
+                        localWords.append(trimmed)
+                    }
+                }
+            }
+        }
+
+        guard !localWords.isEmpty else { return 0 }
+
         let existingTermsLower = getCachedTermsSetLower()
         var previouslySubmitted = Set(UserDefaults.standard.stringArray(forKey: "submittedCommunityWordsHistory") ?? [])
 
         var wordsToSubmit: [String] = []
         for word in localWords {
             let lower = word.lowercased()
-            if !existingTermsLower.contains(lower) && !previouslySubmitted.contains(lower) {
+            if !previouslySubmitted.contains(lower) {
                 wordsToSubmit.append(word)
                 previouslySubmitted.insert(lower)
             }
@@ -276,10 +432,9 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
 
         guard !wordsToSubmit.isEmpty else { return 0 }
 
-        // Save submitted history so we never send duplicates
         UserDefaults.standard.set(Array(previouslySubmitted), forKey: "submittedCommunityWordsHistory")
 
-        // 1. Push to Firestore community contributions pool
+        // Push to Firestore community contributions pool
         if let firestore = self.db {
             for word in wordsToSubmit {
                 let docId = word.lowercased().addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? UUID().uuidString
@@ -288,48 +443,6 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
                     "count": FieldValue.increment(Int64(1)),
                     "lastSeen": FieldValue.serverTimestamp()
                 ], merge: true)
-            }
-        }
-
-        // 2. Also append directly to local dev repository dictionary if accessible
-        let localRepoPath = "/Users/aleksei/Documents/Scribe/vocabulary/community_dictionary.json"
-        let localRepoURL = URL(fileURLWithPath: localRepoPath)
-        if FileManager.default.fileExists(atPath: localRepoPath),
-           let fileData = try? Data(contentsOf: localRepoURL),
-           var payload = try? JSONDecoder().decode(CommunityDictionaryPayload.self, from: fileData) {
-            var updatedCategories = payload.categories
-            let targetCatIndex = updatedCategories.firstIndex(where: { 
-                $0.id == "ai_machine_learning" || $0.id == "developer_tools" || $0.id == "productivity_design" 
-            }) ?? updatedCategories.indices.first
-
-            if let idx = targetCatIndex {
-                var terms = updatedCategories[idx].terms
-                for w in wordsToSubmit {
-                    if !terms.contains(where: { $0.term.caseInsensitiveCompare(w) == .orderedSame }) {
-                        terms.append(CommunityTerm(term: w, aliases: []))
-                    }
-                }
-                let updatedCat = CommunityCategory(
-                    id: updatedCategories[idx].id,
-                    name: updatedCategories[idx].name,
-                    languages: updatedCategories[idx].languages,
-                    terms: terms
-                )
-                updatedCategories[idx] = updatedCat
-
-                let newPayload = CommunityDictionaryPayload(
-                    version: payload.version + 1,
-                    lastUpdated: ISO8601DateFormatter().string(from: Date()),
-                    description: payload.description,
-                    repository: payload.repository,
-                    contributing: payload.contributing,
-                    categories: updatedCategories
-                )
-                let encoder = JSONEncoder()
-                encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-                if let encoded = try? encoder.encode(newPayload) {
-                    try? encoded.write(to: localRepoURL, options: .atomic)
-                }
             }
         }
 

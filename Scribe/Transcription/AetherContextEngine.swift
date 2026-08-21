@@ -189,11 +189,12 @@ public final class AetherContextEngine: @unchecked Sendable {
     // MARK: - App Domain Detection
 
     /// Determines the domain of the target or frontmost application
-    public func detectActiveAppDomain(targetApp: NSRunningApplication? = nil) -> (name: String, domain: AppDomain, bundleId: String) {
+    public func detectActiveAppDomain(targetApp: NSRunningApplication? = nil) -> (name: String, domain: AppDomain, bundleId: String, icon: NSImage?) {
         let app = targetApp ?? NSWorkspace.shared.frontmostApplication
         let name = app?.localizedName ?? "General"
         let bundleId = (app?.bundleIdentifier ?? "").lowercased()
         let nameLower = name.lowercased()
+        let icon: NSImage? = app?.icon ?? (app?.bundleURL != nil ? NSWorkspace.shared.icon(forFile: app!.bundleURL!.path) : nil)
 
         // 1. IDEs, Terminals & Code Editors
         if bundleId.contains("xcode") ||
@@ -217,7 +218,7 @@ public final class AetherContextEngine: @unchecked Sendable {
            nameLower.contains("cursor") ||
            nameLower.contains("xcode") ||
            nameLower.contains("terminal") {
-            return (name, .ideAndCoding, bundleId)
+            return (name, .ideAndCoding, bundleId, icon)
         }
 
         // 2. Messengers, Social & Team Chat
@@ -234,7 +235,7 @@ public final class AetherContextEngine: @unchecked Sendable {
            nameLower.contains("telegram") ||
            nameLower.contains("slack") ||
            nameLower.contains("discord") {
-            return (name, .messengersAndChat, bundleId)
+            return (name, .messengersAndChat, bundleId, icon)
         }
 
         // 3. Notes, Documents & Writing
@@ -251,7 +252,7 @@ public final class AetherContextEngine: @unchecked Sendable {
            nameLower.contains("notion") ||
            nameLower.contains("obsidian") ||
            nameLower.contains("notes") {
-            return (name, .notesAndWriting, bundleId)
+            return (name, .notesAndWriting, bundleId, icon)
         }
 
         // 4. Browsers & Research
@@ -267,7 +268,7 @@ public final class AetherContextEngine: @unchecked Sendable {
            nameLower.contains("safari") ||
            nameLower.contains("chrome") ||
            nameLower.contains("arc") {
-            return (name, .browsersAndResearch, bundleId)
+            return (name, .browsersAndResearch, bundleId, icon)
         }
 
         // 5. Design & Creative Tools
@@ -281,7 +282,7 @@ public final class AetherContextEngine: @unchecked Sendable {
            bundleId.contains("davinci") ||
            bundleId.contains("canva") ||
            nameLower.contains("figma") {
-            return (name, .designAndCreative, bundleId)
+            return (name, .designAndCreative, bundleId, icon)
         }
 
         // 6. Crypto & Web3 Trading
@@ -293,10 +294,10 @@ public final class AetherContextEngine: @unchecked Sendable {
            bundleId.contains("phantom") ||
            nameLower.contains("tradingview") ||
            nameLower.contains("binance") {
-            return (name, .cryptoAndTrading, bundleId)
+            return (name, .cryptoAndTrading, bundleId, icon)
         }
 
-        return (name, .general, bundleId)
+        return (name, .general, bundleId, icon)
     }
 
     // MARK: - Domain-Specific Vocabulary Biasing
@@ -388,7 +389,7 @@ public final class AetherContextEngine: @unchecked Sendable {
 
     /// Merges user custom vocabulary with target application domain vocabulary
     public func activeEffectiveVocabulary(targetApp: NSRunningApplication? = nil, userVocabulary: String) -> String {
-        let (_, domain, _) = detectActiveAppDomain(targetApp: targetApp)
+        let (_, domain, _, _) = detectActiveAppDomain(targetApp: targetApp)
         let domainWords = domainSpecificVocabulary(for: domain)
         
         let userWords = userVocabulary.components(separatedBy: CharacterSet(charactersIn: ",\n;"))
@@ -410,7 +411,7 @@ public final class AetherContextEngine: @unchecked Sendable {
         userBlockedWords: String,
         recognitionLanguages: [String] = []
     ) -> String {
-        let (_, domain, _) = detectActiveAppDomain(targetApp: targetApp)
+        let (_, domain, _, _) = detectActiveAppDomain(targetApp: targetApp)
         let domainBlocked = domainSpecificBlockedWords(for: domain, recognitionLanguages: recognitionLanguages)
 
         let userBlocked = userBlockedWords.components(separatedBy: CharacterSet(charactersIn: ",\n;"))
@@ -502,7 +503,7 @@ public final class AetherContextEngine: @unchecked Sendable {
         targetApp: NSRunningApplication? = nil,
         language: String?
     ) -> String {
-        let (appName, domain, _) = detectActiveAppDomain(targetApp: targetApp)
+        let (appName, domain, _, _) = detectActiveAppDomain(targetApp: targetApp)
         let domainHint = domainContextPrompt(for: domain, language: language)
 
         var components: [String] = []

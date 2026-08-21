@@ -523,36 +523,7 @@ final class AppState: ObservableObject {
     @AppStorage("userCityLocation") public var userCityLocation: String = ""
     @AppStorage("smartCasingEnabled") public var smartCasingEnabled: Bool = true
 
-    public static let defaultLocationPresets: [VocabularyPreset] = [
-        VocabularyPreset(
-            name: "European Capitals & Hubs",
-            description: "London, Paris, Berlin, Amsterdam, Rome, Madrid, Zurich, Vienna, Prague, Warsaw, Barcelona, Milan, Munich, Lisbon, Geneva, Stockholm, Dublin",
-            words: ["London", "Paris", "Berlin", "Amsterdam", "Rome", "Madrid", "Zurich", "Vienna", "Prague", "Warsaw", "Barcelona", "Milan", "Munich", "Lisbon", "Geneva", "Stockholm", "Dublin"],
-            shareCode: "scr_loc_europe_hubs",
-            category: "location"
-        ),
-        VocabularyPreset(
-            name: "US Major Metros",
-            description: "New York, San Francisco, Los Angeles, Miami, Chicago, Austin, Seattle, Boston",
-            words: ["New York", "San Francisco", "Los Angeles", "Miami", "Chicago", "Austin", "Seattle", "Boston"],
-            shareCode: "scr_loc_usa_cities",
-            category: "location"
-        ),
-        VocabularyPreset(
-            name: "UAE & Middle East Hubs",
-            description: "Dubai, Abu Dhabi, Doha, Riyadh",
-            words: ["Dubai", "Abu Dhabi", "Doha", "Riyadh", "UAE", "United Arab Emirates"],
-            shareCode: "scr_loc_uae_middle_east",
-            category: "location"
-        ),
-        VocabularyPreset(
-            name: "Global Countries & Capitals",
-            description: "USA, United Kingdom, Germany, France, UAE, Switzerland, Netherlands, Spain, Italy, Japan, Canada, Australia, Singapore",
-            words: ["USA", "United Kingdom", "Germany", "France", "UAE", "Dubai", "Abu Dhabi", "Switzerland", "Netherlands", "Spain", "Italy", "Japan", "Canada", "Australia", "Singapore"],
-            shareCode: "scr_loc_countries_world",
-            category: "location"
-        )
-    ]
+    public static let defaultLocationPresets: [VocabularyPreset] = []
 
     public var effectiveUserLocation: String {
         var items: [String] = []
@@ -770,10 +741,25 @@ final class AppState: ObservableObject {
         preloadModel()
         checkFirstLaunchPermissions()
         
-        if customLocationPresets.isEmpty || customLocationPresets.contains(where: { $0.shareCode == "scr_loc_cis_capitals" }) {
-            customLocationPresets = Self.defaultLocationPresets
-            activeLocationPresetIds = customLocationPresets.map { $0.id.uuidString }
+        // Remove old pre-seeded location presets if present
+        if customLocationPresets.contains(where: { 
+            $0.shareCode == "scr_loc_cis_capitals" || 
+            $0.shareCode == "scr_loc_europe_hubs" || 
+            $0.shareCode == "scr_loc_usa_cities" || 
+            $0.shareCode == "scr_loc_uae_middle_east" || 
+            $0.shareCode == "scr_loc_countries_world" 
+        }) {
+            customLocationPresets.removeAll { 
+                $0.shareCode == "scr_loc_cis_capitals" || 
+                $0.shareCode == "scr_loc_europe_hubs" || 
+                $0.shareCode == "scr_loc_usa_cities" || 
+                $0.shareCode == "scr_loc_uae_middle_east" || 
+                $0.shareCode == "scr_loc_countries_world" 
+            }
         }
+        
+        // Sync local active words into community dictionary
+        CommunityVocabularyService.shared.syncLocalWordsToDictionary(rawVocabulary: self.vocabulary)
         
         if CommandLine.arguments.contains("--settings") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {

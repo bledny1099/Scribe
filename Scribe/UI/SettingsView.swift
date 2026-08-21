@@ -4340,8 +4340,10 @@ struct VocabularySettingsView: View {
                 current.append(w)
             }
         }
-        appState.vocabulary = current.joined(separator: ", ")
+        let joined = current.joined(separator: ", ")
+        appState.vocabulary = joined
         newWord = ""
+        CommunityVocabularyService.shared.syncLocalWordsToDictionary(rawVocabulary: joined)
     }
 
     private func removeWord(_ word: String) {
@@ -5331,16 +5333,24 @@ struct VocabularySettingsView: View {
                     // Live Active App Detection Card
                     let detected = AetherContextEngine.shared.detectActiveAppDomain(targetApp: appState.targetRunningApplication)
                     HStack(spacing: 12) {
-                        ZStack {
-                            Circle()
-                                .fill(Color.accentColor.opacity(0.15))
-                                .frame(width: 36, height: 36)
-                            Image(systemName: detected.domain.icon)
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundStyle(Color.accentColor)
+                        if let icon = detected.icon {
+                            Image(nsImage: icon)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 32, height: 32)
+                                .cornerRadius(7)
+                        } else {
+                            ZStack {
+                                Circle()
+                                    .fill(Color.accentColor.opacity(0.15))
+                                    .frame(width: 32, height: 32)
+                                Image(systemName: detected.domain.icon)
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundStyle(Color.accentColor)
+                            }
                         }
 
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: 3) {
                             Text(appState.l("Active Application Detected"))
                                 .font(.system(size: 10, weight: .bold, design: .rounded))
                                 .foregroundStyle(.secondary)
@@ -5349,34 +5359,24 @@ struct VocabularySettingsView: View {
                                 Text(detected.name)
                                     .font(.system(size: 13, weight: .bold, design: .rounded))
                                     .foregroundStyle(.primary)
+                                    .lineLimit(1)
 
                                 Text("•")
                                     .foregroundStyle(.secondary)
 
                                 Text(appState.l(detected.domain.displayName))
                                     .font(.system(size: 11, weight: .semibold, design: .rounded))
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
+                                    .padding(.horizontal, 7)
+                                    .padding(.vertical, 2.5)
                                     .background(Color.accentColor.opacity(0.12))
                                     .foregroundStyle(Color.accentColor)
                                     .cornerRadius(6)
+                                    .lineLimit(1)
+                                    .fixedSize(horizontal: true, vertical: false)
                             }
                         }
 
                         Spacer()
-
-                        HStack(spacing: 4) {
-                            Circle()
-                                .fill(Color.green)
-                                .frame(width: 6, height: 6)
-                            Text(appState.l("Auto-Aligned"))
-                                .font(.system(size: 11, weight: .semibold, design: .rounded))
-                                .foregroundStyle(.green)
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.green.opacity(0.1))
-                        .cornerRadius(8)
                     }
                     .padding(12)
                     .background(Color.primary.opacity(0.03))
@@ -5393,19 +5393,14 @@ struct VocabularySettingsView: View {
             GlassSection(title: appState.l("Open Community Dictionary"), icon: "network") {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(alignment: .center, spacing: 10) {
-                        HStack(spacing: 6) {
-                            Circle()
-                                .fill(Color.green)
-                                .frame(width: 7, height: 7)
-                            Text("\(communityVocab.totalTermsCount)+ \(appState.l("community words active"))")
-                                .font(.system(size: 13, weight: .bold, design: .rounded))
-                                .foregroundStyle(.primary)
-
-                            if let lastSync = communityVocab.lastSyncDate {
-                                Text("• \(appState.l("Synced")) \(lastSync.formatted(date: .omitted, time: .shortened))")
-                                    .font(.system(size: 11, weight: .regular))
-                                    .foregroundStyle(.tertiary)
-                            }
+                        if let lastSync = communityVocab.lastSyncDate {
+                            Text("\(appState.l("Synced")): \(lastSync.formatted(date: .omitted, time: .shortened))")
+                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text(appState.l("Synced"))
+                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                                .foregroundStyle(.secondary)
                         }
 
                         Spacer()

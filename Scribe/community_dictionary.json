@@ -68,6 +68,7 @@
         { "term": "vibe coding", "aliases": ["вайб кодинг", "вайбкодинг", "вайб кодингом", "vibe code"] },
         { "term": "IDE", "aliases": ["иде", "айди", "ай ди и"] },
         { "term": "Readme", "aliases": ["ридми", "рид ми", "readme md"] },
+        { "term": "Пуш", "aliases": ["push", "пушить", "пушнуть"] },
         { "term": "MCP", "aliases": ["эм си пи", "эмсипи", "mcp"] }
       ]
     },
@@ -109,6 +110,11 @@
         { "term": "рофл", "aliases": ["rofl", "рофлить"] },
         { "term": "пруф", "aliases": ["proof", "пруфы"] },
         { "term": "пофикси", "aliases": ["пофиксить", "зафикси"] },
+        { "term": "хоккей", "aliases": ["hockey", "хакей"] },
+        { "term": "Миха", "aliases": ["мих", "михаил"] },
+        { "term": "Мам", "aliases": ["мама", "мамка"] },
+        { "term": "Пап", "aliases": ["папа", "папка"] },
+        { "term": "Батя", "aliases": ["батяня", "бать"] },
         { "term": "найс", "aliases": ["nice"] },
         { "term": "топ", "aliases": ["top"] }
       ]
