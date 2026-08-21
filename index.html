@@ -20,7 +20,7 @@
     }
 
     body {
-      background-color: #0f121a;
+      background-color: #0b0f0d;
       color: #ffffff;
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
       line-height: 1.5;
@@ -28,15 +28,17 @@
       overflow-x: hidden;
     }
 
-    /* Ambient Background Effects */
+    /* Ambient Mountain Mist & Tender Green Background Effects */
     .ambient-radial {
       position: absolute;
       top: 0;
       left: 50%;
       transform: translateX(-50%);
       width: 100vw;
-      height: 650px;
-      background: radial-gradient(46% 36% at 50% -4%, rgba(1, 94, 251, 0.22), transparent 70%);
+      height: 720px;
+      background: 
+        radial-gradient(50% 40% at 50% -2%, rgba(255, 255, 255, 0.14) 0%, rgba(52, 211, 153, 0.18) 36%, rgba(16, 185, 129, 0.06) 65%, transparent 100%),
+        radial-gradient(35% 25% at 50% 12%, rgba(255, 255, 255, 0.08) 0%, rgba(167, 243, 208, 0.08) 45%, transparent 85%);
       pointer-events: none;
       z-index: 0;
     }
@@ -44,14 +46,14 @@
     .ambient-grid {
       position: absolute;
       inset: 0;
-      height: 700px;
+      height: 750px;
       opacity: 0.35;
       background-image: 
-        linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+        linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
       background-size: 44px 44px;
-      mask-image: linear-gradient(180deg, transparent, #000 20%, #000 80%, transparent);
-      -webkit-mask-image: linear-gradient(180deg, transparent, #000 20%, #000 80%, transparent);
+      mask-image: linear-gradient(180deg, transparent, #000 15%, #000 80%, transparent);
+      -webkit-mask-image: linear-gradient(180deg, transparent, #000 15%, #000 80%, transparent);
       pointer-events: none;
       z-index: 0;
     }
@@ -89,7 +91,6 @@
       width: 58px;
       height: 58px;
       border-radius: 14px;
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.2);
       display: block;
     }
 
@@ -239,9 +240,11 @@
       position: relative;
       border-radius: 16px;
       overflow: hidden;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      background: rgba(0, 0, 0, 0.5);
-      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(11, 15, 13, 0.6);
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.7), 0 0 50px rgba(52, 211, 153, 0.08);
+      cursor: pointer;
+      user-select: none;
     }
 
     .video-card video {
@@ -251,107 +254,431 @@
       border-radius: 16px;
     }
 
-    /* Features Grid (Yap-style 3-column minimalist layout) */
-    .features-section {
-      border-top: 1px solid rgba(255, 255, 255, 0.08);
-      background: rgba(255, 255, 255, 0.015);
-      margin-top: 80px;
-      padding: 80px 0;
+    /* Big Center Play Button */
+    .video-center-btn {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(1);
+      width: 68px;
+      height: 68px;
+      border-radius: 50%;
+      background: rgba(11, 15, 13, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 24px rgba(52, 211, 153, 0.15);
+      cursor: pointer;
+      opacity: 1;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 5;
     }
 
-    .features-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 40px 32px;
+    .video-center-btn svg {
+      margin-left: 3px;
     }
 
-    @media (min-width: 640px) {
-      .features-grid {
-        grid-template-columns: repeat(2, 1fr);
-      }
+    .video-card.playing .video-center-btn {
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, -50%) scale(0.85);
     }
 
-    @media (min-width: 860px) {
-      .features-grid {
-        grid-template-columns: repeat(3, 1fr);
-      }
+    .video-center-btn:hover {
+      transform: translate(-50%, -50%) scale(1.08);
+      background: rgba(16, 185, 129, 0.85);
+      border-color: rgba(255, 255, 255, 0.4);
     }
 
-    .feature-item {
+    /* Control Bar Overlay */
+    .video-controls {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 20px 20px 14px;
+      background: linear-gradient(to top, rgba(11, 15, 13, 0.95) 0%, rgba(11, 15, 13, 0.6) 70%, transparent 100%);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
       display: flex;
       flex-direction: column;
+      gap: 10px;
+      opacity: 1;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      z-index: 6;
+      cursor: default;
     }
 
-    .feature-icon-box {
-      width: 40px;
-      height: 40px;
-      border-radius: 11px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
+    .video-card.playing.hide-controls .video-controls {
+      opacity: 0;
+      transform: translateY(8px);
+      pointer-events: none;
+    }
+
+    /* Progress Scrubber */
+    .video-progress-wrapper {
+      position: relative;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.18);
+      border-radius: 999px;
+      cursor: pointer;
+      transition: height 0.15s ease;
+    }
+
+    .video-progress-wrapper:hover {
+      height: 8px;
+    }
+
+    .video-progress-buffered {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 0%;
+      background: rgba(255, 255, 255, 0.28);
+      border-radius: 999px;
+    }
+
+    .video-progress-bar {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 0%;
+      background: linear-gradient(90deg, #10b981 0%, #6ee7b7 100%);
+      border-radius: 999px;
+      box-shadow: 0 0 10px rgba(52, 211, 153, 0.5);
+    }
+
+    .video-progress-thumb {
+      position: absolute;
+      top: 50%;
+      left: 0%;
+      transform: translate(-50%, -50%) scale(0);
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #ffffff;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+      transition: transform 0.15s ease;
+      pointer-events: none;
+    }
+
+    .video-progress-wrapper:hover .video-progress-thumb {
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    /* Control Buttons Row */
+    .video-controls-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .video-controls-left, .video-controls-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .v-btn {
+      background: none;
+      border: none;
+      color: rgba(255, 255, 255, 0.85);
+      cursor: pointer;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+    }
+
+    .v-btn:hover {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .v-btn-text {
+      width: auto;
+      padding: 0 8px;
+      font-size: 11.5px;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .video-time {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11.5px;
+      color: rgba(255, 255, 255, 0.7);
+      margin-left: 6px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .video-time-sep {
+      color: rgba(255, 255, 255, 0.35);
+    }
+
+    /* Features Bento Showcase (Anti-Slop Bento Architecture) */
+    .features-section {
+      margin-top: 96px;
+      padding: 40px 0 80px;
+    }
+
+    .features-header {
+      margin-bottom: 32px;
+      max-width: 600px;
+    }
+
+    .features-section-title {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+      color: #ffffff;
+      margin-bottom: 8px;
+    }
+
+    .features-section-desc {
+      font-size: 14.5px;
+      line-height: 1.5;
+      color: rgba(255, 255, 255, 0.55);
+    }
+
+    .bento-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    @media (min-width: 768px) {
+      .bento-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      .bento-col-span-2 {
+        grid-column: span 2;
+      }
+    }
+
+    .bento-card {
+      position: relative;
+      background: rgba(255, 255, 255, 0.025);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 18px;
+      padding: 26px 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+      transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .bento-card:hover {
+      background: rgba(255, 255, 255, 0.038);
+      border-color: rgba(52, 211, 153, 0.35);
+      transform: translateY(-2px);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45), 0 0 32px rgba(52, 211, 153, 0.08);
+    }
+
+    .bento-badge-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .bento-icon-box {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
       background: rgba(255, 255, 255, 0.05);
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      color: rgba(255, 255, 255, 0.9);
-      margin-bottom: 14px;
+      color: #6ee7b7;
     }
 
-    .feature-title {
-      font-size: 15px;
+    .bento-pill-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      color: #6ee7b7;
+      background: rgba(52, 211, 153, 0.1);
+      border: 1px solid rgba(52, 211, 153, 0.25);
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+
+    .bento-content {
+      margin-top: auto;
+    }
+
+    .bento-title {
+      font-size: 16.5px;
       font-weight: 600;
-      letter-spacing: -0.01em;
+      letter-spacing: -0.015em;
       color: #ffffff;
       margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
-    .feature-desc {
+    .bento-desc {
       font-size: 13.5px;
-      line-height: 1.6;
-      color: rgba(255, 255, 255, 0.55);
+      line-height: 1.55;
+      color: rgba(255, 255, 255, 0.58);
     }
 
-    /* Story Section (Why We Built Scribe) */
+    /* Live Visual Widgets inside Bento Cards */
+    .bento-widget-aether {
+      margin: 14px 0 18px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .aether-waveform {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      height: 22px;
+    }
+
+    .aether-bar {
+      width: 3px;
+      border-radius: 2px;
+      background: #34d399;
+      animation: wavePulse 1.4s ease-in-out infinite alternate;
+    }
+    .aether-bar:nth-child(1) { height: 8px; animation-delay: 0.1s; }
+    .aether-bar:nth-child(2) { height: 16px; animation-delay: 0.3s; }
+    .aether-bar:nth-child(3) { height: 22px; animation-delay: 0.2s; }
+    .aether-bar:nth-child(4) { height: 12px; animation-delay: 0.4s; }
+    .aether-bar:nth-child(5) { height: 20px; animation-delay: 0.15s; }
+    .aether-bar:nth-child(6) { height: 14px; animation-delay: 0.35s; }
+    .aether-bar:nth-child(7) { height: 9px; animation-delay: 0.05s; }
+
+    @keyframes wavePulse {
+      0% { transform: scaleY(0.4); opacity: 0.6; }
+      100% { transform: scaleY(1.1); opacity: 1; }
+    }
+
+    .aether-metrics {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .aether-metrics span strong {
+      color: #6ee7b7;
+      font-weight: 600;
+    }
+
+    .bento-widget-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 12px 0 16px;
+    }
+
+    .bento-chip {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      padding: 4px 9px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: rgba(255, 255, 255, 0.85);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .bento-chip-arrow {
+      color: #34d399;
+      opacity: 0.7;
+    }
+
+    .bento-keycap {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.04) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+      padding: 4px 10px;
+      border-radius: 7px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: #ffffff;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      margin: 12px 0;
+      width: fit-content;
+    }
+
+    /* Story Section (Why We Built Scribe) - Seamless Mountain Glow */
     .story-section {
-      border-top: 1px solid rgba(255, 255, 255, 0.08);
-      background: linear-gradient(180deg, #0f121a 0%, #141821 100%);
-      padding: 90px 0;
+      margin-top: 40px;
+      padding: 90px 0 110px;
       text-align: center;
       position: relative;
-      overflow: hidden;
     }
 
     .story-glow {
       position: absolute;
-      inset: 0;
-      bottom: 0;
-      height: 220px;
-      background: radial-gradient(44% 100% at 50% 100%, rgba(1, 94, 251, 0.16), transparent 74%);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 700px;
+      height: 360px;
+      background: radial-gradient(ellipse at center, rgba(52, 211, 153, 0.13) 0%, rgba(16, 185, 129, 0.03) 45%, transparent 70%);
       pointer-events: none;
+      filter: blur(20px);
     }
 
     .story-tag {
       font-size: 11px;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.16em;
-      color: #3b82f6;
+      letter-spacing: 0.18em;
+      color: #34d399;
       margin-bottom: 14px;
     }
 
     .story-title {
-      font-size: 32px;
+      font-size: 34px;
       font-weight: 700;
-      letter-spacing: -0.02em;
+      letter-spacing: -0.025em;
       line-height: 1.15;
       color: #ffffff;
       margin-bottom: 18px;
     }
 
     .story-body {
-      font-size: 16px;
-      line-height: 1.65;
-      color: rgba(255, 255, 255, 0.6);
+      font-size: 15.5px;
+      line-height: 1.7;
+      color: rgba(255, 255, 255, 0.65);
       max-width: 620px;
-      margin: 0 auto 32px;
+      margin: 0 auto 34px;
     }
 
     .story-cta {
@@ -360,18 +687,22 @@
       gap: 8px;
       padding: 10px 22px;
       border-radius: 999px;
-      background: rgba(59, 130, 246, 0.12);
-      border: 1px solid rgba(59, 130, 246, 0.3);
+      background: rgba(52, 211, 153, 0.1);
+      border: 1px solid rgba(52, 211, 153, 0.3);
       color: #ffffff;
       font-size: 13.5px;
       font-weight: 500;
       text-decoration: none;
-      box-shadow: 0 12px 34px -14px rgba(1, 94, 251, 0.7);
-      transition: background 0.15s ease;
+      box-shadow: 0 12px 34px -14px rgba(16, 185, 129, 0.5);
+      transition: all 0.18s ease;
+      position: relative;
+      z-index: 2;
     }
 
     .story-cta:hover {
-      background: rgba(59, 130, 246, 0.2);
+      background: rgba(52, 211, 153, 0.2);
+      border-color: rgba(52, 211, 153, 0.5);
+      transform: translateY(-1px);
     }
 
     /* Footer */
@@ -452,7 +783,7 @@
         <img src="assets/scribe_icon_v2.png" alt="Scribe" class="brand-icon">
         <div>
           <div class="brand-title">Scribe</div>
-          <div class="brand-subtitle">Fast, private, <strong>open-source</strong> dictation for macOS.</div>
+          <div class="brand-subtitle">Fast, private, customizable, <strong>open-source</strong> dictation for macOS.</div>
         </div>
       </div>
 
@@ -470,82 +801,236 @@
           </a>
         </div>
 
-        <div class="cmd-pill" onclick="copyCommand()">
-          <span class="cmd-prompt">$</span>
-          <span>curl -sL https://git.new/scribe-app | bash</span>
-          <svg class="cmd-copy-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
+        <div class="cmd-group">
+          <div class="cmd-pill" onclick="copyBrewCommand()" title="Click to copy Homebrew install command">
+            <span class="cmd-prompt">$</span>
+            <span>brew install --cask bledny1099/scribe/scribe</span>
+            <svg class="cmd-copy-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
+          </div>
+          <div class="cmd-pill" onclick="copyCurlCommand()" title="Click to copy curl install command" style="opacity: 0.85;">
+            <span class="cmd-prompt">$</span>
+            <span>curl -sL https://git.new/scribe-app | bash</span>
+            <svg class="cmd-copy-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
+          </div>
         </div>
 
         <p class="platform-tag">macOS 14+ (Sonoma, Sequoia) · Apple Silicon & Intel</p>
       </div>
     </div>
 
-    <!-- Video Showcase Card -->
+    <!-- Video Showcase Card with Custom Video Player -->
     <div class="video-section">
-      <div class="video-card">
-        <video autoplay loop muted playsinline poster="assets/appearance.jpeg">
+      <div class="video-card" id="videoContainer">
+        <video id="scribeVideo" playsinline preload="metadata" poster="assets/appearance.jpeg">
           <source src="assets/scribe_demo.mp4" type="video/mp4">
         </video>
+
+        <!-- Big Center Play/Pause Button -->
+        <button class="video-center-btn" id="centerPlayBtn" aria-label="Play Video">
+          <svg id="centerPlayIcon" width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>
+        </button>
+
+        <!-- Custom Player Control Bar -->
+        <div class="video-controls" id="videoControls">
+          <!-- Timeline / Progress Bar -->
+          <div class="video-progress-wrapper" id="progressWrapper">
+            <div class="video-progress-buffered" id="progressBuffered"></div>
+            <div class="video-progress-bar" id="progressBar"></div>
+            <div class="video-progress-thumb" id="progressThumb"></div>
+          </div>
+
+          <div class="video-controls-row">
+            <div class="video-controls-left">
+              <!-- Play/Pause Button -->
+              <button class="v-btn" id="playBtn" aria-label="Play/Pause">
+                <svg id="playIcon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>
+                <svg id="pauseIcon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="display:none;"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+              </button>
+
+              <!-- Rewind 5s -->
+              <button class="v-btn" id="rewindBtn" title="Rewind 5s (←)" aria-label="Rewind 5 seconds">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m11 17-5-5 5-5"></path><path d="m18 17-5-5 5-5"></path></svg>
+              </button>
+
+              <!-- Forward 5s -->
+              <button class="v-btn" id="forwardBtn" title="Forward 5s (→)" aria-label="Forward 5 seconds">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 17 5-5-5-5"></path><path d="m13 17 5-5-5-5"></path></svg>
+              </button>
+
+              <!-- Volume Button -->
+              <button class="v-btn" id="muteBtn" title="Mute/Unmute (M)" aria-label="Mute/Unmute">
+                <svg id="volumeHighIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>
+                <svg id="volumeMutedIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
+              </button>
+
+              <!-- Time display -->
+              <div class="video-time">
+                <span id="currentTime">0:00</span>
+                <span class="video-time-sep">/</span>
+                <span id="durationTime">0:00</span>
+              </div>
+            </div>
+
+            <div class="video-controls-right">
+              <!-- Playback Speed -->
+              <button class="v-btn v-btn-text" id="speedBtn" title="Playback Speed">1x</button>
+
+              <!-- Fullscreen Button -->
+              <button class="v-btn" id="fullscreenBtn" title="Fullscreen (F)" aria-label="Fullscreen">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M21 8V5a2 2 0 0 0-2-2h-3"></path><path d="M3 16v3a2 2 0 0 0 2 2h3"></path><path d="M16 21h3a2 2 0 0 0 2-2v-3"></path></svg>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Features Grid -->
+  <!-- Features Bento Showcase (Anti-Slop Bento Architecture) -->
   <section class="features-section">
     <div class="page-wrapper" style="padding-top: 0; padding-bottom: 0;">
-      <div class="features-grid">
-        <!-- 1. On-device -->
-        <div class="feature-item">
-          <div class="feature-icon-box">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20v2"></path><path d="M12 2v2"></path><path d="M17 20v2"></path><path d="M17 2v2"></path><path d="M2 12h2"></path><path d="M2 17h2"></path><path d="M2 7h2"></path><path d="M20 12h2"></path><path d="M20 17h2"></path><path d="M20 7h2"></path><path d="M7 20v2"></path><path d="M7 2v2"></path><rect x="4" y="4" width="16" height="16" rx="2"></rect><rect x="8" y="8" width="8" height="8" rx="1"></rect></svg>
+      <div class="features-header">
+        <h2 class="features-section-title">Engineered for deep flow</h2>
+        <p class="features-section-desc">Designed from the metal up for prompt engineering, agentic coding, and private macOS workflow.</p>
+      </div>
+
+      <div class="bento-grid">
+        <!-- 1. Hero Bento Card: Aether Engine -->
+        <div class="bento-card bento-col-span-2">
+          <div class="bento-badge-row">
+            <div class="bento-icon-box">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+            </div>
+            <span class="bento-pill-tag">Apple Neural Engine</span>
           </div>
-          <h3 class="feature-title">On-device</h3>
-          <p class="feature-desc">Runs entirely on Apple Neural Engine & local WhisperKit. Zero cloud latency.</p>
+
+          <div class="bento-widget-aether">
+            <div class="aether-waveform">
+              <div class="aether-bar"></div>
+              <div class="aether-bar"></div>
+              <div class="aether-bar"></div>
+              <div class="aether-bar"></div>
+              <div class="aether-bar"></div>
+              <div class="aether-bar"></div>
+              <div class="aether-bar"></div>
+            </div>
+            <div class="aether-metrics">
+              <span>Latency: <strong>0ms cloud</strong></span>
+              <span>Execution: <strong>On-Device</strong></span>
+              <span>Model: <strong>Whisper Large-v3</strong></span>
+            </div>
+          </div>
+
+          <div class="bento-content">
+            <h3 class="bento-title">Aether Engine™ Architecture</h3>
+            <p class="bento-desc">Runs entirely on Aether Engine & local WhisperKit. Audio processes directly on the Apple Neural Engine with zero cloud latency and zero telemetry.</p>
+          </div>
         </div>
 
-        <!-- 2. One shortcut -->
-        <div class="feature-item">
-          <div class="feature-icon-box">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 8h.01"></path><path d="M12 12h.01"></path><path d="M14 8h.01"></path><path d="M16 12h.01"></path><path d="M18 8h.01"></path><path d="M6 8h.01"></path><path d="M7 16h10"></path><path d="M8 12h.01"></path><rect width="20" height="16" x="2" y="4" rx="2"></rect></svg>
+        <!-- 2. One Shortcut Bento Card -->
+        <div class="bento-card">
+          <div class="bento-badge-row">
+            <div class="bento-icon-box">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"></rect><path d="m10 8 4 4-4 4"></path></svg>
+            </div>
+            <span class="bento-pill-tag">Global Trigger</span>
           </div>
-          <h3 class="feature-title">One shortcut</h3>
-          <p class="feature-desc">Press <code style="font-family:'JetBrains Mono';color:#93c5fd;">⌥S</code> to start, press to stop. Rebind it to any key you like.</p>
+
+          <div class="bento-keycap">⌥ Option + S</div>
+
+          <div class="bento-content">
+            <h3 class="bento-title">One Global Shortcut</h3>
+            <p class="bento-desc">Tap once to speak, tap again to transcribe and insert instantly. Fully rebindable to any physical modifier or key.</p>
+          </div>
         </div>
 
-        <!-- 3. Pastes anywhere -->
-        <div class="feature-item">
-          <div class="feature-icon-box">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path></svg>
+        <!-- 3. Dynamic App Context Bento Card -->
+        <div class="bento-card">
+          <div class="bento-badge-row">
+            <div class="bento-icon-box">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h7"></path><path d="m15 15 3 3 5-5"></path></svg>
+            </div>
+            <span class="bento-pill-tag">Adaptive Prompting</span>
           </div>
-          <h3 class="feature-title">Pastes anywhere</h3>
-          <p class="feature-desc">Text lands in whatever field you were in, Cursor to Telegram, terminal to browser.</p>
+
+          <div class="bento-widget-chips">
+            <span class="bento-chip">Cursor IDE</span>
+            <span class="bento-chip">Xcode</span>
+            <span class="bento-chip">Terminal</span>
+            <span class="bento-chip">Obsidian</span>
+          </div>
+
+          <div class="bento-content">
+            <h3 class="bento-title">Dynamic App Context</h3>
+            <p class="bento-desc">Instantly identifies active frontmost window and primes vocabulary specifically for IDE vibe coding, agents, or chatting.</p>
+          </div>
         </div>
 
-        <!-- 4. Private by default -->
-        <div class="feature-item">
-          <div class="feature-icon-box">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+        <!-- 4. Open Community Vocabulary Bento Card -->
+        <div class="bento-card bento-col-span-2">
+          <div class="bento-badge-row">
+            <div class="bento-icon-box">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path></svg>
+            </div>
+            <span class="bento-pill-tag">Phonetic Sync</span>
           </div>
-          <h3 class="feature-title">Private by default</h3>
-          <p class="feature-desc">No account, no API key, no telemetry. Audio never leaves your Mac.</p>
+
+          <div class="bento-widget-chips">
+            <span class="bento-chip">PyTorch <span class="bento-chip-arrow">→</span> пайторч</span>
+            <span class="bento-chip">DeepSeek <span class="bento-chip-arrow">→</span> дипсик</span>
+            <span class="bento-chip">vibe coding <span class="bento-chip-arrow">→</span> вайб кодинг</span>
+            <span class="bento-chip">Paperclip <span class="bento-chip-arrow">→</span> пейперклип</span>
+          </div>
+
+          <div class="bento-content">
+            <h3 class="bento-title">Open Community Vocabulary</h3>
+            <p class="bento-desc">Crowdsourced real-time phonetic dictionary and auto-generated phonetic aliases ensuring high-speed slang, tech jargon, and names are recognized flawlessly.</p>
+          </div>
         </div>
 
-        <!-- 5. App-aware context -->
-        <div class="feature-item">
-          <div class="feature-icon-box">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h7"></path><path d="m15 15 3 3 5-5"></path></svg>
+        <!-- 5. Pastes Anywhere -->
+        <div class="bento-card">
+          <div class="bento-badge-row">
+            <div class="bento-icon-box">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path></svg>
+            </div>
+            <span class="bento-pill-tag">Universal Paste</span>
           </div>
-          <h3 class="feature-title">Context-aware</h3>
-          <p class="feature-desc">Dynamically primes vocabulary for IDEs, coding agents, notes, chat, and crypto apps.</p>
+
+          <div class="bento-content">
+            <h3 class="bento-title">Pastes Anywhere</h3>
+            <p class="bento-desc">Direct accessibility API injection pastes output into whatever application has focus without polluting your system clipboard.</p>
+          </div>
         </div>
 
-        <!-- 6. Works offline -->
-        <div class="feature-item">
-          <div class="feature-icon-box">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01"></path><path d="M8.5 16.429a5 5 0 0 1 7 0"></path><path d="M5 12.859a10 10 0 0 1 5.17-2.69"></path><path d="M19 12.859a10 10 0 0 0-2.007-1.523"></path><path d="M2 8.82a15 15 0 0 1 4.177-2.643"></path><path d="M22 8.82a15 15 0 0 0-11.288-3.764"></path><path d="m2 2 20 20"></path></svg>
+        <!-- 6. Works 100% Offline -->
+        <div class="bento-card">
+          <div class="bento-badge-row">
+            <div class="bento-icon-box">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01"></path><path d="M8.5 16.429a5 5 0 0 1 7 0"></path><path d="M5 12.859a10 10 0 0 1 5.17-2.69"></path><path d="M19 12.859a10 10 0 0 0-2.007-1.523"></path><path d="M2 8.82a15 15 0 0 1 4.177-2.643"></path><path d="M22 8.82a15 15 0 0 0-11.288-3.764"></path><path d="m2 2 20 20"></path></svg>
+            </div>
+            <span class="bento-pill-tag">Zero Signal</span>
           </div>
-          <h3 class="feature-title">Works offline</h3>
-          <p class="feature-desc">No network connection required. Dictate on a plane or train with zero signal.</p>
+
+          <div class="bento-content">
+            <h3 class="bento-title">Works 100% Offline</h3>
+            <p class="bento-desc">Zero network connectivity required. Dictate seamlessly mid-flight, on a subway, or in high-security air-gapped environments.</p>
+          </div>
+        </div>
+
+        <!-- 7. Privacy & Open Source -->
+        <div class="bento-card">
+          <div class="bento-badge-row">
+            <div class="bento-icon-box">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            </div>
+            <span class="bento-pill-tag">GPL-3.0</span>
+          </div>
+
+          <div class="bento-content">
+            <h3 class="bento-title">Private & Open Source</h3>
+            <p class="bento-desc">No accounts, no user analytics, no telemetry. 100% auditable code published openly on GitHub.</p>
+          </div>
         </div>
       </div>
     </div>
@@ -557,7 +1042,7 @@
     <div class="page-wrapper" style="padding-top: 0; padding-bottom: 0;">
       <p class="story-tag">Why we built Scribe</p>
       <h2 class="story-title">We dictate all day</h2>
-      <p class="story-body">Mostly for prompting coding agents, vibe coding in Cursor & Xcode, drafting documents, and sending quick chat replies. Nothing out there was fast, private, and contextual enough, so we built Scribe and open sourced it.</p>
+      <p class="story-body">Mostly for prompting coding agents, drafting documents, and sending quick chat replies. Nothing out there was fast, private, and customizable enough, so we built Scribe and open sourced it.</p>
       <a href="https://github.com/bledny1099/Scribe" target="_blank" class="story-cta">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
         Explore on GitHub
@@ -586,14 +1071,239 @@
   <div id="toast" class="toast">Copied to clipboard!</div>
 
   <script>
-    function copyCommand() {
+    function copyBrewCommand() {
+      navigator.clipboard.writeText('brew install --cask bledny1099/scribe/scribe');
+      showToast('Copied Homebrew command!');
+    }
+
+    function copyCurlCommand() {
       navigator.clipboard.writeText('curl -sL https://github.com/bledny1099/Scribe/releases/latest/download/Scribe.dmg -o Scribe.dmg && open Scribe.dmg');
+      showToast('Copied curl command!');
+    }
+
+    function showToast(msg) {
       const toast = document.getElementById('toast');
+      toast.textContent = msg || 'Copied to clipboard!';
       toast.classList.add('show');
       setTimeout(() => {
         toast.classList.remove('show');
       }, 2000);
     }
+
+    // Video Player Logic
+    document.addEventListener('DOMContentLoaded', () => {
+      const video = document.getElementById('scribeVideo');
+      const container = document.getElementById('videoContainer');
+      const centerPlayBtn = document.getElementById('centerPlayBtn');
+      const playBtn = document.getElementById('playBtn');
+      const playIcon = document.getElementById('playIcon');
+      const pauseIcon = document.getElementById('pauseIcon');
+      const rewindBtn = document.getElementById('rewindBtn');
+      const forwardBtn = document.getElementById('forwardBtn');
+      const muteBtn = document.getElementById('muteBtn');
+      const volumeHighIcon = document.getElementById('volumeHighIcon');
+      const volumeMutedIcon = document.getElementById('volumeMutedIcon');
+      const progressWrapper = document.getElementById('progressWrapper');
+      const progressBar = document.getElementById('progressBar');
+      const progressBuffered = document.getElementById('progressBuffered');
+      const progressThumb = document.getElementById('progressThumb');
+      const currentTimeEl = document.getElementById('currentTime');
+      const durationTimeEl = document.getElementById('durationTime');
+      const speedBtn = document.getElementById('speedBtn');
+      const fullscreenBtn = document.getElementById('fullscreenBtn');
+
+      if (!video) return;
+
+      const speeds = [1, 1.25, 1.5, 2];
+      let currentSpeedIdx = 0;
+      let hideControlsTimeout = null;
+      let isScrubbing = false;
+
+      function formatTime(seconds) {
+        if (isNaN(seconds) || seconds < 0) return '0:00';
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+      }
+
+      function updatePlayState() {
+        if (video.paused || video.ended) {
+          container.classList.remove('playing');
+          container.classList.remove('hide-controls');
+          playIcon.style.display = 'block';
+          pauseIcon.style.display = 'none';
+        } else {
+          container.classList.add('playing');
+          playIcon.style.display = 'none';
+          pauseIcon.style.display = 'block';
+          resetHideControlsTimer();
+        }
+      }
+
+      function togglePlay(e) {
+        if (e) e.stopPropagation();
+        if (video.paused || video.ended) {
+          video.play().catch(() => {});
+        } else {
+          video.pause();
+        }
+        updatePlayState();
+      }
+
+      function resetHideControlsTimer() {
+        container.classList.remove('hide-controls');
+        clearTimeout(hideControlsTimeout);
+        if (!video.paused) {
+          hideControlsTimeout = setTimeout(() => {
+            if (!video.paused && !isScrubbing) {
+              container.classList.add('hide-controls');
+            }
+          }, 2400);
+        }
+      }
+
+      // Event Listeners
+      centerPlayBtn.addEventListener('click', togglePlay);
+      playBtn.addEventListener('click', togglePlay);
+      
+      container.addEventListener('click', (e) => {
+        if (!e.target.closest('.video-controls') && !e.target.closest('.video-center-btn')) {
+          togglePlay();
+        }
+      });
+
+      container.addEventListener('mousemove', resetHideControlsTimer);
+      container.addEventListener('mouseleave', () => {
+        if (!video.paused) {
+          container.classList.add('hide-controls');
+        }
+      });
+
+      rewindBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        video.currentTime = Math.max(0, video.currentTime - 5);
+        resetHideControlsTimer();
+      });
+
+      forwardBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        video.currentTime = Math.min(video.duration || 0, video.currentTime + 5);
+        resetHideControlsTimer();
+      });
+
+      muteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        video.muted = !video.muted;
+        volumeHighIcon.style.display = video.muted ? 'none' : 'block';
+        volumeMutedIcon.style.display = video.muted ? 'block' : 'none';
+        resetHideControlsTimer();
+      });
+
+      speedBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        currentSpeedIdx = (currentSpeedIdx + 1) % speeds.length;
+        video.playbackRate = speeds[currentSpeedIdx];
+        speedBtn.textContent = `${speeds[currentSpeedIdx]}x`;
+        resetHideControlsTimer();
+      });
+
+      fullscreenBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!document.fullscreenElement) {
+          if (container.requestFullscreen) {
+            container.requestFullscreen();
+          } else if (video.webkitEnterFullscreen) {
+            video.webkitEnterFullscreen();
+          }
+        } else {
+          if (document.exitFullscreen) {
+            document.exitFullscreen();
+          }
+        }
+        resetHideControlsTimer();
+      });
+
+      video.addEventListener('timeupdate', () => {
+        if (!isScrubbing && video.duration) {
+          const percent = (video.currentTime / video.duration) * 100;
+          progressBar.style.width = `${percent}%`;
+          progressThumb.style.left = `${percent}%`;
+          currentTimeEl.textContent = formatTime(video.currentTime);
+        }
+      });
+
+      video.addEventListener('progress', () => {
+        if (video.buffered.length > 0 && video.duration) {
+          const bufferedEnd = video.buffered.end(video.buffered.length - 1);
+          const percent = (bufferedEnd / video.duration) * 100;
+          progressBuffered.style.width = `${percent}%`;
+        }
+      });
+
+      video.addEventListener('loadedmetadata', () => {
+        durationTimeEl.textContent = formatTime(video.duration);
+        currentTimeEl.textContent = formatTime(video.currentTime);
+      });
+
+      video.addEventListener('play', updatePlayState);
+      video.addEventListener('pause', updatePlayState);
+      video.addEventListener('ended', () => {
+        updatePlayState();
+        progressBar.style.width = '0%';
+        progressThumb.style.left = '0%';
+      });
+
+      // Scrubbing on Progress Bar
+      function seek(e) {
+        const rect = progressWrapper.getBoundingClientRect();
+        const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        const newTime = pos * (video.duration || 0);
+        progressBar.style.width = `${pos * 100}%`;
+        progressThumb.style.left = `${pos * 100}%`;
+        currentTimeEl.textContent = formatTime(newTime);
+        video.currentTime = newTime;
+      }
+
+      progressWrapper.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+        isScrubbing = true;
+        seek(e);
+        const onMouseMove = (moveEvent) => seek(moveEvent);
+        const onMouseUp = () => {
+          isScrubbing = false;
+          window.removeEventListener('mousemove', onMouseMove);
+          window.removeEventListener('mouseup', onMouseUp);
+          resetHideControlsTimer();
+        };
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+      });
+
+      // Keyboard Controls when page is focused
+      window.addEventListener('keydown', (e) => {
+        if (['input', 'textarea'].includes(document.activeElement.tagName.toLowerCase())) return;
+        if (e.code === 'Space') {
+          e.preventDefault();
+          togglePlay();
+        } else if (e.code === 'ArrowLeft') {
+          e.preventDefault();
+          video.currentTime = Math.max(0, video.currentTime - 5);
+        } else if (e.code === 'ArrowRight') {
+          e.preventDefault();
+          video.currentTime = Math.min(video.duration || 0, video.currentTime + 5);
+        } else if (e.key.toLowerCase() === 'm') {
+          video.muted = !video.muted;
+          volumeHighIcon.style.display = video.muted ? 'none' : 'block';
+          volumeMutedIcon.style.display = video.muted ? 'block' : 'none';
+        } else if (e.key.toLowerCase() === 'f') {
+          if (!document.fullscreenElement) {
+            container.requestFullscreen().catch(() => {});
+          } else {
+            document.exitFullscreen().catch(() => {});
+          }
+        }
+      });
+    });
   </script>
 </body>
 </html>
