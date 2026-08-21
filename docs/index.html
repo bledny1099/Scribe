@@ -91,7 +91,6 @@
       width: 58px;
       height: 58px;
       border-radius: 14px;
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.2);
       display: block;
     }
 
@@ -489,7 +488,7 @@
     /* Story Section (Why We Built Scribe) */
     .story-section {
       border-top: 1px solid rgba(255, 255, 255, 0.08);
-      background: linear-gradient(180deg, #0f121a 0%, #141821 100%);
+      background: linear-gradient(180deg, #0b0f0d 0%, #0d1310 100%);
       padding: 90px 0;
       text-align: center;
       position: relative;
@@ -500,8 +499,8 @@
       position: absolute;
       inset: 0;
       bottom: 0;
-      height: 220px;
-      background: radial-gradient(44% 100% at 50% 100%, rgba(1, 94, 251, 0.16), transparent 74%);
+      height: 240px;
+      background: radial-gradient(50% 100% at 50% 100%, rgba(52, 211, 153, 0.16) 0%, rgba(16, 185, 129, 0.05) 50%, transparent 80%);
       pointer-events: none;
     }
 
@@ -510,7 +509,7 @@
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.16em;
-      color: #3b82f6;
+      color: #34d399;
       margin-bottom: 14px;
     }
 
@@ -526,8 +525,8 @@
     .story-body {
       font-size: 16px;
       line-height: 1.65;
-      color: rgba(255, 255, 255, 0.6);
-      max-width: 620px;
+      color: rgba(255, 255, 255, 0.65);
+      max-width: 640px;
       margin: 0 auto 32px;
     }
 
@@ -537,18 +536,20 @@
       gap: 8px;
       padding: 10px 22px;
       border-radius: 999px;
-      background: rgba(59, 130, 246, 0.12);
-      border: 1px solid rgba(59, 130, 246, 0.3);
+      background: rgba(52, 211, 153, 0.1);
+      border: 1px solid rgba(52, 211, 153, 0.3);
       color: #ffffff;
       font-size: 13.5px;
       font-weight: 500;
       text-decoration: none;
-      box-shadow: 0 12px 34px -14px rgba(1, 94, 251, 0.7);
-      transition: background 0.15s ease;
+      box-shadow: 0 12px 34px -14px rgba(16, 185, 129, 0.5);
+      transition: all 0.15s ease;
     }
 
     .story-cta:hover {
-      background: rgba(59, 130, 246, 0.2);
+      background: rgba(52, 211, 153, 0.18);
+      border-color: rgba(52, 211, 153, 0.5);
+      transform: scale(1.02);
     }
 
     /* Footer */
@@ -629,7 +630,7 @@
         <img src="assets/scribe_icon_v2.png" alt="Scribe" class="brand-icon">
         <div>
           <div class="brand-title">Scribe</div>
-          <div class="brand-subtitle">Fast, private, <strong>open-source</strong> dictation for macOS.</div>
+          <div class="brand-subtitle">Fast, private, customizable, <strong>open-source</strong> dictation for macOS.</div>
         </div>
       </div>
 
@@ -647,10 +648,17 @@
           </a>
         </div>
 
-        <div class="cmd-pill" onclick="copyCommand()">
-          <span class="cmd-prompt">$</span>
-          <span>curl -sL https://git.new/scribe-app | bash</span>
-          <svg class="cmd-copy-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
+        <div class="cmd-group">
+          <div class="cmd-pill" onclick="copyBrewCommand()" title="Click to copy Homebrew install command">
+            <span class="cmd-prompt">$</span>
+            <span>brew install --cask bledny1099/scribe/scribe</span>
+            <svg class="cmd-copy-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
+          </div>
+          <div class="cmd-pill" onclick="copyCurlCommand()" title="Click to copy curl install command" style="opacity: 0.85;">
+            <span class="cmd-prompt">$</span>
+            <span>curl -sL https://git.new/scribe-app | bash</span>
+            <svg class="cmd-copy-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
+          </div>
         </div>
 
         <p class="platform-tag">macOS 14+ (Sonoma, Sequoia) · Apple Silicon & Intel</p>
@@ -792,7 +800,7 @@
     <div class="page-wrapper" style="padding-top: 0; padding-bottom: 0;">
       <p class="story-tag">Why we built Scribe</p>
       <h2 class="story-title">We dictate all day</h2>
-      <p class="story-body">Mostly for prompting coding agents, vibe coding in Cursor & Xcode, drafting documents, and sending quick chat replies. Nothing out there was fast, private, and contextual enough, so we built Scribe and open sourced it.</p>
+      <p class="story-body">Mostly for prompting coding agents, drafting documents, and sending quick chat replies. Nothing out there was fast, private, and customizable enough, so we built Scribe and open sourced it.</p>
       <a href="https://github.com/bledny1099/Scribe" target="_blank" class="story-cta">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
         Explore on GitHub
@@ -821,9 +829,19 @@
   <div id="toast" class="toast">Copied to clipboard!</div>
 
   <script>
-    function copyCommand() {
+    function copyBrewCommand() {
+      navigator.clipboard.writeText('brew install --cask bledny1099/scribe/scribe');
+      showToast('Copied Homebrew command!');
+    }
+
+    function copyCurlCommand() {
       navigator.clipboard.writeText('curl -sL https://github.com/bledny1099/Scribe/releases/latest/download/Scribe.dmg -o Scribe.dmg && open Scribe.dmg');
+      showToast('Copied curl command!');
+    }
+
+    function showToast(msg) {
       const toast = document.getElementById('toast');
+      toast.textContent = msg || 'Copied to clipboard!';
       toast.classList.add('show');
       setTimeout(() => {
         toast.classList.remove('show');
