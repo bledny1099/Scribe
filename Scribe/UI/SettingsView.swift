@@ -4294,7 +4294,6 @@ struct VocabularySettingsView: View {
     @State private var copiedActiveBlockedWordsFeedback: Bool = false
     @State private var presetToDelete: VocabularyPreset? = nil
     @State private var addedHallucinationsFeedback: Bool = false
-    @State private var previewSelectedDomain: AetherContextEngine.AppDomain = .ideAndCoding
 
     private var quickCityPresets: [String] {
         let isRussian = appState.selectedUILanguage == "ru" || (appState.selectedUILanguage == "auto" && Locale.current.language.languageCode?.identifier == "ru")
@@ -5158,65 +5157,6 @@ struct VocabularySettingsView: View {
                     }
                     .padding(14)
                 }
-
-                // SECTION 3: Open Community Dictionary (GitHub Powered)
-                GlassSection(title: appState.l("Open Community Dictionary"), icon: "network") {
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack(alignment: .center, spacing: 10) {
-                            HStack(spacing: 6) {
-                                Circle()
-                                    .fill(Color.green)
-                                    .frame(width: 7, height: 7)
-                                Text("\(communityVocab.totalTermsCount)+ \(appState.l("community words active"))")
-                                    .font(.system(size: 13, weight: .bold, design: .rounded))
-                                    .foregroundStyle(.primary)
-
-                                if let lastSync = communityVocab.lastSyncDate {
-                                    Text("• \(appState.l("Synced")) \(lastSync.formatted(date: .omitted, time: .shortened))")
-                                        .font(.system(size: 11, weight: .regular))
-                                        .foregroundStyle(.tertiary)
-                                }
-                            }
-
-                            Spacer()
-
-                            // View on GitHub Button
-                            Button(action: {
-                                NSWorkspace.shared.open(CommunityVocabularyService.githubDictionaryPageURL)
-                            }) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "doc.text.magnifyingglass")
-                                        .font(.system(size: 11, weight: .semibold))
-                                    Text(appState.l("View JSON on GitHub ↗"))
-                                        .font(.system(size: 11, weight: .semibold, design: .rounded))
-                                }
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 5.5)
-                                .background(Color.primary.opacity(0.06))
-                                .foregroundStyle(.primary)
-                                .cornerRadius(8)
-                                .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.primary.opacity(0.12), lineWidth: 1))
-                            }
-                            .buttonStyle(.plain)
-                        }
-
-                        // Anonymous Contribution Toggle
-                        Toggle(isOn: $appState.allowAnonymousVocabularyContribution) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(appState.l("Contribute New Words Anonymously"))
-                                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                                Text(appState.l("Syncs and uploads unique custom words to the global community dictionary every 5 minutes."))
-                                    .font(.system(size: 10.5, weight: .regular))
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .toggleStyle(SwitchToggleStyle(tint: appState.selectedTheme.gradientColors.first ?? .blue))
-                        .padding(10)
-                        .background(Color.primary.opacity(0.025))
-                        .cornerRadius(8)
-                    }
-                    .padding(14)
-                }
             } else {
                 // SECTION 2: Custom Presets (Blocked Words)
                 GlassSection(title: appState.l("Blocked Words Presets"), icon: "square.grid.2x2.fill") {
@@ -5445,54 +5385,63 @@ struct VocabularySettingsView: View {
                         RoundedRectangle(cornerRadius: 12)
                             .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
                     )
+                }
+                .padding(14)
+            }
 
-                    // Domain Explorer Selector
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(appState.l("Explore Domain Biasing & Blocked Words:"))
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(.secondary)
+            // SECTION: Open Community Dictionary (GitHub Powered)
+            GlassSection(title: appState.l("Open Community Dictionary"), icon: "network") {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(alignment: .center, spacing: 10) {
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(Color.green)
+                                .frame(width: 7, height: 7)
+                            Text("\(communityVocab.totalTermsCount)+ \(appState.l("community words active"))")
+                                .font(.system(size: 13, weight: .bold, design: .rounded))
+                                .foregroundStyle(.primary)
 
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 6) {
-                                ForEach(AetherContextEngine.AppDomain.allCases) { domain in
-                                    Button(action: { previewSelectedDomain = domain }) {
-                                        HStack(spacing: 5) {
-                                            Image(systemName: domain.icon)
-                                                .font(.system(size: 10, weight: .semibold))
-                                            Text(appState.l(domain.displayName))
-                                                .font(.system(size: 11, weight: previewSelectedDomain == domain ? .bold : .medium, design: .rounded))
-                                        }
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 5)
-                                        .background(previewSelectedDomain == domain ? Color.accentColor.opacity(0.2) : Color.primary.opacity(0.04))
-                                        .foregroundStyle(previewSelectedDomain == domain ? Color.accentColor : Color.primary)
-                                        .cornerRadius(8)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 8)
-                                                .strokeBorder(previewSelectedDomain == domain ? Color.accentColor.opacity(0.4) : Color.primary.opacity(0.06), lineWidth: 1)
-                                        )
-                                    }
-                                    .buttonStyle(.plain)
-                                }
+                            if let lastSync = communityVocab.lastSyncDate {
+                                Text("• \(appState.l("Synced")) \(lastSync.formatted(date: .omitted, time: .shortened))")
+                                    .font(.system(size: 11, weight: .regular))
+                                    .foregroundStyle(.tertiary)
                             }
                         }
-                    }
-
-                    // Domain Mini Description
-                    HStack(spacing: 8) {
-                        Image(systemName: previewSelectedDomain.icon)
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(Color.accentColor)
-
-                        Text(previewSelectedDomain.description)
-                            .font(.system(size: 11, weight: .regular, design: .rounded))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
 
                         Spacer()
+
+                        // View on GitHub Button
+                        Button(action: {
+                            NSWorkspace.shared.open(CommunityVocabularyService.githubDictionaryPageURL)
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "doc.text.magnifyingglass")
+                                    .font(.system(size: 11, weight: .semibold))
+                                Text(appState.l("View JSON on GitHub ↗"))
+                                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5.5)
+                            .background(Color.primary.opacity(0.06))
+                            .foregroundStyle(.primary)
+                            .cornerRadius(8)
+                            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.primary.opacity(0.12), lineWidth: 1))
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 7)
+
+                    // Anonymous Contribution Toggle
+                    Toggle(isOn: $appState.allowAnonymousVocabularyContribution) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(appState.l("Contribute New Words Anonymously"))
+                                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                            Text(appState.l("Syncs and uploads unique custom words to the global community dictionary every 5 minutes."))
+                                .font(.system(size: 10.5, weight: .regular))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .toggleStyle(SwitchToggleStyle(tint: appState.selectedTheme.gradientColors.first ?? .blue))
+                    .padding(10)
                     .background(Color.primary.opacity(0.025))
                     .cornerRadius(8)
                 }
@@ -5595,12 +5544,13 @@ struct AppUpdatesView: View {
                                 .foregroundStyle(.secondary)
                                 .cornerRadius(4)
                         }
+                        if !updateService.statusMessage.isEmpty {
+                            Text(updateService.statusMessage)
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
                     }
-
-                    Text(updateService.statusMessage.isEmpty ? appState.l("Auto-checks GitHub every 30s") : updateService.statusMessage)
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
                 }
 
                 Spacer()
