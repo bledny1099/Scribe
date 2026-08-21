@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scribe — Report an Issue or Vulnerability</title>
+  <meta name="description" content="Report bugs, request support, or privately disclose security vulnerabilities for Scribe on macOS.">
+  <link rel="icon" type="image/png" href="assets/scribe_icon_v2.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: #0b0f0d;
+      color: #ffffff;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    /* Ambient Background Effects */
+    .ambient-radial {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100vw;
+      height: 600px;
+      background: 
+        radial-gradient(50% 40% at 50% -2%, rgba(255, 255, 255, 0.12) 0%, rgba(52, 211, 153, 0.16) 36%, rgba(16, 185, 129, 0.05) 65%, transparent 100%),
+        radial-gradient(35% 25% at 50% 12%, rgba(255, 255, 255, 0.06) 0%, rgba(167, 243, 208, 0.06) 45%, transparent 85%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .ambient-grid {
+      position: absolute;
+      inset: 0;
+      height: 650px;
+      opacity: 0.3;
+      background-image: 
+        linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+      background-size: 44px 44px;
+      mask-image: linear-gradient(180deg, transparent, #000 15%, #000 80%, transparent);
+      -webkit-mask-image: linear-gradient(180deg, transparent, #000 15%, #000 80%, transparent);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .page-wrapper {
+      position: relative;
+      z-index: 1;
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+    }
+
+    /* Top Navigation */
+    .nav-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 40px;
+    }
+
+    .nav-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: rgba(255, 255, 255, 0.7);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 6px 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      transition: all 0.15s ease;
+    }
+
+    .nav-back:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 16px;
+    }
+
+    .nav-links a {
+      color: rgba(255, 255, 255, 0.6);
+      text-decoration: none;
+      font-size: 13px;
+      transition: color 0.15s ease;
+    }
+
+    .nav-links a:hover {
+      color: #fff;
+    }
+
+    /* Header */
+    .header-section {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    .header-icon {
+      width: 64px;
+      height: 64px;
+      object-fit: contain;
+      margin: 0 auto 16px;
+      display: block;
+      filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.4));
+    }
+
+    .header-title {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+
+    .header-desc {
+      font-size: 15px;
+      color: rgba(255, 255, 255, 0.6);
+      max-width: 520px;
+      margin: 0 auto;
+      line-height: 1.5;
+    }
+
+    /* Form Container */
+    .form-card {
+      background: rgba(18, 24, 21, 0.7);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+      margin-bottom: 36px;
+    }
+
+    /* Type Switcher */
+    .type-switcher {
+      display: flex;
+      gap: 6px;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 5px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      margin-bottom: 24px;
+    }
+
+    .type-btn {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 13px;
+      font-weight: 500;
+      padding: 10px 12px;
+      border-radius: 7px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.15s ease;
+      font-family: inherit;
+    }
+
+    .type-btn.active {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+      font-weight: 600;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Security Notice & Table */
+    .security-block {
+      display: none;
+      background: rgba(234, 179, 8, 0.07);
+      border: 1px solid rgba(234, 179, 8, 0.2);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 24px;
+      font-size: 13px;
+      color: rgba(253, 224, 71, 0.95);
+      line-height: 1.5;
+    }
+
+    .security-block.active {
+      display: block;
+    }
+
+    .version-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: 12px;
+    }
+
+    .version-table th, .version-table td {
+      padding: 6px 10px;
+      text-align: left;
+      border-bottom: 1px solid rgba(234, 179, 8, 0.15);
+    }
+
+    .version-table th {
+      color: rgba(255, 255, 255, 0.85);
+      font-weight: 600;
+    }
+
+    .version-table td {
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    /* Form Fields */
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.85);
+      margin-bottom: 6px;
+    }
+
+    .form-input, .form-textarea, .form-select {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: #fff;
+      font-family: inherit;
+      font-size: 14px;
+      outline: none;
+      transition: all 0.15s ease;
+    }
+
+    .form-input:focus, .form-textarea:focus, .form-select:focus {
+      border-color: rgba(52, 211, 153, 0.6);
+      background: rgba(0, 0, 0, 0.45);
+      box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.12);
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .form-textarea {
+      min-height: 120px;
+      resize: vertical;
+      line-height: 1.5;
+    }
+
+    /* Actions */
+    .form-actions {
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    @media (min-width: 520px) {
+      .form-actions {
+        flex-direction: row;
+        align-items: center;
+      }
+    }
+
+    .btn-submit {
+      flex: 1;
+      background: #ffffff;
+      color: #0b0f0d;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 12px 20px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: opacity 0.15s ease;
+      font-family: inherit;
+    }
+
+    .btn-submit:hover {
+      opacity: 0.9;
+    }
+
+    .btn-copy {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #fff;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 12px 18px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.15s ease;
+      font-family: inherit;
+    }
+
+    .btn-copy:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    /* FAQ / Info Cards */
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+      margin-bottom: 40px;
+    }
+
+    @media (min-width: 640px) {
+      .info-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    .info-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 12px;
+      padding: 18px;
+    }
+
+    .info-card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .info-card-desc {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.6);
+      line-height: 1.4;
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      padding-top: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      color: rgba(255, 255, 255, 0.45);
+      font-size: 13px;
+    }
+
+    @media (min-width: 640px) {
+      footer {
+        flex-direction: row;
+      }
+    }
+
+    footer a {
+      color: rgba(255, 255, 255, 0.6);
+      text-decoration: none;
+      transition: color 0.15s ease;
+    }
+
+    footer a:hover {
+      color: #fff;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: #ffffff;
+      color: #0b0d14;
+      padding: 9px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      opacity: 0;
+      transition: all 0.2s ease;
+      pointer-events: none;
+      z-index: 100;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="ambient-radial"></div>
+  <div class="ambient-grid"></div>
+
+  <div class="page-wrapper">
+    <!-- Nav -->
+    <div class="nav-bar">
+      <a href="index.html" class="nav-back">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        Back to Scribe
+      </a>
+      <div class="nav-links">
+        <a href="https://github.com/bledny1099/Scribe" target="_blank">GitHub</a>
+        <a href="https://github.com/bledny1099/Scribe/releases" target="_blank">Releases</a>
+        <a href="https://github.com/bledny1099/Scribe/blob/main/SECURITY.md" target="_blank">Security Policy</a>
+      </div>
+    </div>
+
+    <!-- Header -->
+    <div class="header-section">
+      <img src="assets/scribe_icon_v2.png" alt="Scribe" class="header-icon">
+      <h1 class="header-title">Report an Issue or Vulnerability</h1>
+      <p class="header-desc">Help us make Scribe faster, more reliable, and secure. Submit bug reports, feature requests, or confidential security disclosures.</p>
+    </div>
+
+    <!-- Form Card -->
+    <div class="form-card">
+      <!-- Switcher -->
+      <div class="type-switcher">
+        <button type="button" class="type-btn" id="tabSecurity" onclick="switchType('security')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+          Security Vulnerability
+        </button>
+        <button type="button" class="type-btn active" id="tabBug" onclick="switchType('bug')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 2 1.88 1.88"></path><path d="M14.12 3.88 16 2"></path><path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"></path><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6"></path><path d="M12 20v-9"></path><path d="M6.53 9C4.6 8.8 3 7.1 3 5"></path><path d="M6 13H2"></path><path d="M3 21c0-2.1 1.7-3.9 3.8-4"></path><path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"></path><path d="M22 13h-4"></path><path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"></path></svg>
+          Bug / Crash Report
+        </button>
+        <button type="button" class="type-btn" id="tabSupport" onclick="switchType('support')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+          Support / Feature
+        </button>
+      </div>
+
+      <!-- Security Notice -->
+      <div id="securityNotice" class="security-block">
+        <strong>🔒 Confidential Security Disclosure:</strong>
+        <p style="margin-top: 4px;">Security reports are routed directly to GitHub Private Vulnerability Advisories so we can triage and patch the issue in private before public release.</p>
+        <table class="version-table">
+          <thead>
+            <tr>
+              <th>Version</th>
+              <th>Supported</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>v2.4.2</td>
+              <td>✅ Supported</td>
+            </tr>
+            <tr>
+              <td>&lt; v2.4.2</td>
+              <td>🚫 Unsupported</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Form Inputs -->
+      <div class="form-group">
+        <label class="form-label" for="reportTitle">Summary / Title</label>
+        <input type="text" id="reportTitle" class="form-input" placeholder="Brief summary of the issue...">
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="reportOS">macOS Version</label>
+          <select id="reportOS" class="form-select">
+            <option value="macOS 15 Sequoia">macOS 15 Sequoia</option>
+            <option value="macOS 14 Sonoma" selected>macOS 14 Sonoma</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="reportArch">Hardware</label>
+          <select id="reportArch" class="form-select">
+            <option value="Apple Silicon (M1 / M2 / M3 / M4 / M5)" selected>Apple Silicon (M-series)</option>
+            <option value="Intel Mac (Unsupported)">Intel Mac (Unsupported)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="reportDesc">Description & Steps</label>
+        <textarea id="reportDesc" class="form-textarea" placeholder="1. Steps to reproduce&#10;2. Expected behavior&#10;3. Actual behavior"></textarea>
+      </div>
+
+      <!-- Actions -->
+      <div class="form-actions">
+        <button type="button" class="btn-copy" onclick="copyReportMarkdown()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
+          Copy Markdown
+        </button>
+        <button type="button" class="btn-submit" onclick="submitToGitHub()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+          <span id="submitLabel">Submit on GitHub</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Info Cards -->
+    <div class="info-grid">
+      <div class="info-card">
+        <div class="info-card-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+          100% On-Device Privacy
+        </div>
+        <div class="info-card-desc">
+          Scribe runs offline on Apple Silicon Neural Engine. No speech or audio is ever transmitted across the internet.
+        </div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          Rapid Triage
+        </div>
+        <div class="info-card-desc">
+          Security reports are acknowledged within 24–48 hours. Validated bugs are prioritized for immediate patch release.
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+      <span>Scribe · GPL-3.0 Licensed · macOS 14+ (Sonoma, Sequoia) · Apple Silicon</span>
+      <div>
+        <a href="index.html">Home</a> · 
+        <a href="https://github.com/bledny1099/Scribe" target="_blank">GitHub</a> · 
+        <a href="https://github.com/bledny1099/Scribe/issues" target="_blank">Issues</a>
+      </div>
+    </footer>
+  </div>
+
+  <div id="toast" class="toast">Copied to clipboard!</div>
+
+  <script>
+    let currentType = 'bug';
+
+    function initFromHash() {
+      const hash = window.location.hash.toLowerCase();
+      if (hash === '#security') {
+        switchType('security');
+      } else if (hash === '#support') {
+        switchType('support');
+      } else {
+        switchType('bug');
+      }
+    }
+
+    function switchType(type) {
+      currentType = type;
+      const tabSec = document.getElementById('tabSecurity');
+      const tabBug = document.getElementById('tabBug');
+      const tabSup = document.getElementById('tabSupport');
+      const notice = document.getElementById('securityNotice');
+      const titleInput = document.getElementById('reportTitle');
+      const descInput = document.getElementById('reportDesc');
+      const submitLabel = document.getElementById('submitLabel');
+
+      tabSec.classList.remove('active');
+      tabBug.classList.remove('active');
+      tabSup.classList.remove('active');
+
+      if (type === 'security') {
+        tabSec.classList.add('active');
+        notice.classList.add('active');
+        titleInput.placeholder = 'e.g. Vulnerability in local audio buffer handling...';
+        descInput.placeholder = 'Describe the vulnerability, reproduction steps, proof-of-concept, and impact...';
+        submitLabel.textContent = 'Submit Private Advisory';
+      } else if (type === 'support') {
+        tabSup.classList.add('active');
+        notice.classList.remove('active');
+        titleInput.placeholder = 'e.g. Feature request: add custom keybinding profile...';
+        descInput.placeholder = 'Describe your workflow improvement, question, or idea...';
+        submitLabel.textContent = 'Submit Issue';
+      } else {
+        tabBug.classList.add('active');
+        notice.classList.remove('active');
+        titleInput.placeholder = 'e.g. Overlay freezes after waking from sleep...';
+        descInput.placeholder = '1. Steps to reproduce\n2. Expected behavior\n3. Actual behavior';
+        submitLabel.textContent = 'Submit Bug Report';
+      }
+    }
+
+    function buildMarkdown() {
+      const title = document.getElementById('reportTitle').value.trim() || 'Scribe Report';
+      const os = document.getElementById('reportOS').value;
+      const arch = document.getElementById('reportArch').value;
+      const desc = document.getElementById('reportDesc').value.trim();
+
+      return `### Summary\n${title}\n\n### Environment\n- **OS**: ${os}\n- **Hardware**: ${arch}\n- **Version**: Scribe v2.4.2\n\n### Details\n${desc || 'No additional details provided.'}`;
+    }
+
+    function copyReportMarkdown() {
+      const md = buildMarkdown();
+      navigator.clipboard.writeText(md);
+      showToast('Copied formatted markdown report!');
+    }
+
+    function submitToGitHub() {
+      const title = document.getElementById('reportTitle').value.trim();
+      const body = encodeURIComponent(buildMarkdown());
+      const encodedTitle = encodeURIComponent(title ? `[${currentType.toUpperCase()}] ${title}` : `[${currentType.toUpperCase()}]`);
+
+      if (currentType === 'security') {
+        window.open('https://github.com/bledny1099/Scribe/security/advisories/new', '_blank');
+      } else {
+        window.open(`https://github.com/bledny1099/Scribe/issues/new?title=${encodedTitle}&body=${body}`, '_blank');
+      }
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg || 'Copied to clipboard!';
+      toast.classList.add('show');
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 2000);
+    }
+
+    document.addEventListener('DOMContentLoaded', initFromHash);
+  </script>
+</body>
+</html>
