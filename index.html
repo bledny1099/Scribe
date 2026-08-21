@@ -749,9 +749,221 @@
       box-shadow: 0 10px 25px rgba(0,0,0,0.5);
     }
 
-    .toast.show {
+    /* Report & Support Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.78);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+
+    .modal-backdrop.active {
       opacity: 1;
-      transform: translateX(-50%) translateY(0);
+      pointer-events: auto;
+    }
+
+    .modal-dialog {
+      background: #11141c;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 540px;
+      padding: 24px;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.05);
+      transform: scale(0.96) translateY(10px);
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal-backdrop.active .modal-dialog {
+      transform: scale(1) translateY(0);
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+
+    .modal-subtitle {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.55);
+      line-height: 1.4;
+    }
+
+    .modal-close-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.6);
+      border-radius: 8px;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.15s ease;
+      flex-shrink: 0;
+    }
+
+    .modal-close-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+    }
+
+    .type-switcher {
+      display: flex;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 4px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      margin-bottom: 18px;
+    }
+
+    .type-btn {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 8px 10px;
+      border-radius: 7px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+
+    .type-btn.active {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+      font-weight: 600;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.75);
+      margin-bottom: 6px;
+    }
+
+    .form-input, .form-textarea, .form-select {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 9px 12px;
+      color: #fff;
+      font-family: inherit;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+
+    .form-input:focus, .form-textarea:focus, .form-select:focus {
+      border-color: rgba(255, 255, 255, 0.35);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .form-textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    .security-notice {
+      background: rgba(234, 179, 8, 0.08);
+      border: 1px solid rgba(234, 179, 8, 0.2);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 16px;
+      font-size: 12px;
+      color: rgba(253, 224, 71, 0.9);
+      line-height: 1.4;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .btn-submit-report {
+      flex: 1;
+      background: #ffffff;
+      color: #0b0d14;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 10px 16px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: opacity 0.15s ease;
+    }
+
+    .btn-submit-report:hover {
+      opacity: 0.9;
+    }
+
+    .btn-copy-report {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #fff;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 10px 14px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: background 0.15s ease;
+    }
+
+    .btn-copy-report:hover {
+      background: rgba(255, 255, 255, 0.1);
     }
   </style>
 </head>
@@ -985,14 +1197,89 @@
             GitHub
           </a>
           <a href="https://github.com/bledny1099/Scribe/releases" target="_blank">Releases</a>
-          <a href="https://github.com/bledny1099/Scribe/issues" target="_blank">Report Bug</a>
-          <a href="https://github.com/bledny1099/Scribe/security/advisories/new" target="_blank">Security</a>
+          <a href="javascript:void(0)" onclick="openReportModal('bug')">Report Bug</a>
+          <a href="javascript:void(0)" onclick="openReportModal('security')">Security</a>
         </div>
       </div>
     </div>
   </footer>
 
   <div id="toast" class="toast">Copied to clipboard!</div>
+
+  <!-- Report / Security / Support Modal -->
+  <div id="reportModal" class="modal-backdrop" onclick="onModalBackdropClick(event)">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title" id="modalTitle">Report an Issue</h3>
+          <p class="modal-subtitle" id="modalSubtitle">Submit feedback, report a bug, or privately disclose a security vulnerability.</p>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeReportModal()" aria-label="Close">✕</button>
+      </div>
+
+      <div class="type-switcher">
+        <button type="button" class="type-btn" id="tabSecurity" onclick="switchReportType('security')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+          Security
+        </button>
+        <button type="button" class="type-btn active" id="tabBug" onclick="switchReportType('bug')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 2 1.88 1.88"></path><path d="M14.12 3.88 16 2"></path><path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"></path><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6"></path><path d="M12 20v-9"></path><path d="M6.53 9C4.6 8.8 3 7.1 3 5"></path><path d="M6 13H2"></path><path d="M3 21c0-2.1 1.7-3.9 3.8-4"></path><path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"></path><path d="M22 13h-4"></path><path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"></path></svg>
+          Bug / Crash
+        </button>
+        <button type="button" class="type-btn" id="tabSupport" onclick="switchReportType('support')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+          Support / Idea
+        </button>
+      </div>
+
+      <div id="securityNotice" class="security-notice" style="display: none;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0; margin-top:2px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+        <div>
+          <strong>Confidential Disclosure:</strong> Security vulnerabilities are routed through GitHub Private Advisories to keep your report confidential until patched.
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="reportTitle">Summary / Title</label>
+        <input type="text" id="reportTitle" class="form-input" placeholder="Brief summary of the issue...">
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="reportOS">macOS Version</label>
+          <select id="reportOS" class="form-select">
+            <option value="macOS 15 Sequoia">macOS 15 Sequoia</option>
+            <option value="macOS 14 Sonoma" selected>macOS 14 Sonoma</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="reportArch">Hardware</label>
+          <select id="reportArch" class="form-select">
+            <option value="Apple Silicon (M1/M2/M3/M4/M5)" selected>Apple Silicon (M-series)</option>
+            <option value="Intel Mac (Unsupported)">Intel Mac (Unsupported)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="reportDesc">Description & Steps</label>
+        <textarea id="reportDesc" class="form-textarea" placeholder="Detailed steps to reproduce, expected vs actual behavior, or security impact..."></textarea>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-copy-report" onclick="copyReportData()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
+          Copy Markdown
+        </button>
+        <button type="button" class="btn-submit-report" onclick="submitReportToGitHub()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+          <span id="submitBtnText">Submit on GitHub</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg>
+        </button>
+      </div>
+    </div>
+  </div>
 
   <script>
     function copyBrewCommand() {
@@ -1028,6 +1315,100 @@
       setTimeout(() => {
         toast.classList.remove('show');
       }, 2000);
+    }
+
+    // Report / Security / Support Modal Logic
+    let currentReportType = 'bug';
+
+    function openReportModal(type) {
+      const modal = document.getElementById('reportModal');
+      if (!modal) return;
+      modal.classList.add('active');
+      document.body.style.overflow = 'hidden';
+      switchReportType(type || 'bug');
+    }
+
+    function closeReportModal() {
+      const modal = document.getElementById('reportModal');
+      if (!modal) return;
+      modal.classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    function onModalBackdropClick(e) {
+      if (e.target.id === 'reportModal') {
+        closeReportModal();
+      }
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeReportModal();
+      }
+    });
+
+    function switchReportType(type) {
+      currentReportType = type;
+      const tabSec = document.getElementById('tabSecurity');
+      const tabBug = document.getElementById('tabBug');
+      const tabSup = document.getElementById('tabSupport');
+      const notice = document.getElementById('securityNotice');
+      const titleInput = document.getElementById('reportTitle');
+      const descInput = document.getElementById('reportDesc');
+      const submitText = document.getElementById('submitBtnText');
+
+      if (!tabSec || !tabBug || !tabSup) return;
+
+      tabSec.classList.remove('active');
+      tabBug.classList.remove('active');
+      tabSup.classList.remove('active');
+
+      if (type === 'security') {
+        tabSec.classList.add('active');
+        notice.style.display = 'flex';
+        titleInput.placeholder = 'e.g. Memory corruption or unauthorized network behavior...';
+        descInput.placeholder = 'Please describe the vulnerability, reproduction steps, proof-of-concept, and expected impact...';
+        submitText.textContent = 'Submit Private Advisory';
+      } else if (type === 'support') {
+        tabSup.classList.add('active');
+        notice.style.display = 'none';
+        titleInput.placeholder = 'e.g. Feature request: add Obsidian daily note sync...';
+        descInput.placeholder = 'Describe your idea, workflow enhancement, or question...';
+        submitText.textContent = 'Submit Issue';
+      } else {
+        tabBug.classList.add('active');
+        notice.style.display = 'none';
+        titleInput.placeholder = 'e.g. Waveform freezes when switching audio inputs...';
+        descInput.placeholder = '1. Steps to reproduce\n2. Expected behavior\n3. Actual behavior';
+        submitText.textContent = 'Submit Bug Report';
+      }
+    }
+
+    function buildMarkdownReport() {
+      const title = document.getElementById('reportTitle').value.trim() || 'Scribe Report';
+      const os = document.getElementById('reportOS').value;
+      const arch = document.getElementById('reportArch').value;
+      const desc = document.getElementById('reportDesc').value.trim();
+
+      return `### Summary\n${title}\n\n### Environment\n- **OS**: ${os}\n- **Hardware**: ${arch}\n- **Version**: Scribe v2.4.2\n\n### Details\n${desc || 'No additional details provided.'}`;
+    }
+
+    function copyReportData() {
+      const md = buildMarkdownReport();
+      navigator.clipboard.writeText(md);
+      showToast('Copied formatted markdown report!');
+    }
+
+    function submitReportToGitHub() {
+      const title = document.getElementById('reportTitle').value.trim();
+      const body = encodeURIComponent(buildMarkdownReport());
+      const encodedTitle = encodeURIComponent(title ? `[${currentReportType.toUpperCase()}] ${title}` : `[${currentReportType.toUpperCase()}]`);
+
+      if (currentReportType === 'security') {
+        window.open('https://github.com/bledny1099/Scribe/security/advisories/new', '_blank');
+      } else {
+        window.open(`https://github.com/bledny1099/Scribe/issues/new?title=${encodedTitle}&body=${body}`, '_blank');
+      }
     }
 
     // Video Player Logic

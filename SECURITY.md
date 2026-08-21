@@ -2,37 +2,38 @@
 
 ## Supported Versions
 
-We actively provide security patches and bug fixes for the latest release:
+Only the version(s) below are currently supported with security updates and patches:
 
 | Version | Supported |
-| :--- | :--- |
-| >= 2.4.2 | :white_check_mark: |
-| < 2.4.2 | :x: |
-
----
+| ------- | ------------------ |
+| v2.4.2  | :white_check_mark: |
+| < v2.4.2 | 🚫 |
 
 ## Reporting a Vulnerability
 
-We take the security of Scribe and our users' privacy seriously. Because Scribe is designed to run 100% on-device with zero audio leaving your Mac, any potential security vulnerability, memory safety issue, or unintended network transmission will be investigated promptly.
+We take the security of Scribe and user privacy seriously. Scribe is engineered to run 100% locally on Apple Silicon with zero audio leaving your machine. Any potential security vulnerability, memory safety issue, or unintended network transmission is treated with the highest priority.
 
-### How to Report
+### Disclosure Process
 
-1. **GitHub Security Advisory (Recommended)**:
-   Please report security vulnerabilities privately using [GitHub Private Vulnerability Reporting](https://github.com/bledny1099/Scribe/security/advisories/new). This allows us to work on a fix in a private workspace before publicly disclosing the issue.
+1. **Private Reporting (Preferred)**:
+   Submit reports privately through [GitHub Private Vulnerability Reporting](https://github.com/bledny1099/Scribe/security/advisories/new). This enables us to coordinate a fix in private prior to public release.
 
-2. **Public Bug Reports**:
-   For non-security bugs, crash reports, and feature requests, open a regular issue on [GitHub Issues](https://github.com/bledny1099/Scribe/issues/new).
+2. **Web Form**:
+   You can also submit reports via the Report Form on the [Scribe Website](https://bledny1099.github.io/Scribe/#report).
 
-### What to Include
+3. **Public Issues & General Bugs**:
+   For non-sensitive bugs, crashes, or feature requests, open a public ticket on [GitHub Issues](https://github.com/bledny1099/Scribe/issues/new).
 
-Please provide as much detail as possible to help us reproduce and resolve the issue:
-- Clear description of the vulnerability or unexpected behavior.
-- Steps to reproduce, sample inputs, or proof-of-concept.
-- Affected macOS version and hardware architecture (e.g. macOS 14.5 Sonoma on M2).
-- Potential impact and suggested remediations if known.
+### What to Include in Your Report
 
-### Response Time
+To help us triage and reproduce the issue quickly, please include:
+- Type and impact of the vulnerability.
+- Detailed steps to reproduce (or proof-of-concept code).
+- macOS version and Apple Silicon hardware model (e.g. macOS 14.5 Sonoma on M2).
+- Any proposed mitigations or patch suggestions.
 
-- **Initial acknowledgment**: Within 48 hours.
-- **Triage & validation**: Within 5 business days.
-- **Patch release**: We strive to publish patch releases promptly after a security issue is confirmed.
+### Response Timelines
+
+- **Initial acknowledgment**: Within 24–48 hours.
+- **Assessment & Triage**: Within 3–5 business days.
+- **Fix & Disclosure**: We will provide updates throughout the remediation process and credit security researchers who report responsibly.
