@@ -548,11 +548,11 @@
             </thead>
             <tbody>
               <tr>
-                <td>v2.4.2</td>
+                <td id="securitySupportedVer">v2.4.2</td>
                 <td>✅ Supported</td>
               </tr>
               <tr>
-                <td>&lt; v2.4.2</td>
+                <td id="securityUnsupportedVer">&lt; v2.4.2</td>
                 <td>🚫 Unsupported</td>
               </tr>
             </tbody>
@@ -572,15 +572,15 @@
 
         <!-- Outdated Version Warning -->
         <div id="versionWarning" class="version-warning">
-          <strong>⚠️ Upgrade Recommended (Latest: v2.4.2):</strong>
-          <p style="margin-top: 4px;">Bug reports are primarily reviewed for the latest release (v2.4.2). Many issues are resolved in newer builds. Please update to <a href="https://github.com/bledny1099/Scribe/releases/latest" target="_blank">Scribe v2.4.2</a> and verify if the issue still reproduces.</p>
+          <strong>⚠️ Upgrade Required:</strong>
+          <p style="margin-top: 4px;">Bug reports are strictly accepted only for the latest release. Many issues are already resolved in newer builds. Please update Scribe and verify if the issue persists.</p>
         </div>
 
         <div class="form-row" style="margin-bottom: 16px;">
           <div class="form-group" style="margin-bottom: 0;">
             <label class="form-label" for="reportVersion">Scribe Version</label>
             <select id="reportVersion" class="form-select" onchange="onVersionChange()">
-              <option value="v2.4.2" selected>v2.4.2 (Latest Release)</option>
+              <option id="optLatestVersion" value="v2.4.2" selected>v2.4.2 (Latest Release)</option>
               <option value="v2.4.1">v2.4.1</option>
               <option value="v2.4.0">v2.4.0</option>
               <option value="< v2.4.0">&lt; v2.4.0 (Outdated)</option>
@@ -651,6 +651,39 @@
 
   <script>
     let currentType = 'bug';
+    let latestSupportedVersion = 'v2.4.2';
+
+    async function syncLatestReleaseFromGitHub() {
+      try {
+        const res = await fetch('https://api.github.com/repos/bledny1099/Scribe/releases/latest');
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.tag_name) {
+            latestSupportedVersion = data.tag_name;
+            updateVersionUI();
+          }
+        }
+      } catch (err) {
+        console.log('Using default release version:', latestSupportedVersion);
+      }
+    }
+
+    function updateVersionUI() {
+      const verTableLatest = document.getElementById('securitySupportedVer');
+      if (verTableLatest) {
+        verTableLatest.textContent = latestSupportedVersion;
+      }
+      const verTableOld = document.getElementById('securityUnsupportedVer');
+      if (verTableOld) {
+        verTableOld.textContent = '< ' + latestSupportedVersion;
+      }
+      const topOpt = document.getElementById('optLatestVersion');
+      if (topOpt) {
+        topOpt.value = latestSupportedVersion;
+        topOpt.textContent = `${latestSupportedVersion} (Latest Release)`;
+      }
+      onVersionChange();
+    }
 
     function initFromParams() {
       const params = new URLSearchParams(window.location.search);
@@ -691,7 +724,6 @@
         else if (archParam.includes('M4')) archSelect.value = 'Apple Silicon M4';
         else if (archParam.includes('M5')) archSelect.value = 'Apple Silicon M5';
       }
-    }
 
       // Pre-select Version if passed
       const verParam = params.get('version');
@@ -703,16 +735,44 @@
         else verSelect.value = '< v2.4.0';
       }
 
+      syncLatestReleaseFromGitHub();
       onVersionChange();
     }
 
     function onVersionChange() {
       const ver = document.getElementById('reportVersion').value;
       const warn = document.getElementById('versionWarning');
-      if (ver !== 'v2.4.2' && currentType === 'bug') {
-        warn.classList.add('active');
+      const submitBtn = document.getElementById('submitBtn');
+      const submitLabel = document.getElementById('submitLabel');
+
+      if (currentType === 'bug') {
+        const isLatest = (ver === latestSupportedVersion || ver === 'v2.4.2');
+        if (!isLatest) {
+          warn.innerHTML = `
+            <strong>⛔ Unsupported Version for Bug Reports:</strong>
+            <p style="margin-top: 4px;">Bug reports are only accepted for the latest release (<strong>${latestSupportedVersion}</strong>). Many issues are already resolved in newer builds. Please update Scribe and check if the issue persists.</p>
+            <div style="margin-top: 10px;">
+              <a href="https://github.com/bledny1099/Scribe/releases/latest" target="_blank" style="display: inline-block; padding: 7px 14px; background: rgba(52, 211, 153, 0.15); border: 1px solid rgba(52, 211, 153, 0.35); border-radius: 6px; color: #34d399; text-decoration: none; font-weight: 600;">Download ${latestSupportedVersion}</a>
+            </div>
+          `;
+          warn.classList.add('active');
+          submitBtn.disabled = true;
+          submitBtn.style.opacity = '0.45';
+          submitBtn.style.cursor = 'not-allowed';
+          submitLabel.textContent = 'Update Scribe to Submit Bug Report';
+        } else {
+          warn.classList.remove('active');
+          submitBtn.disabled = false;
+          submitBtn.style.opacity = '1';
+          submitBtn.style.cursor = 'pointer';
+          submitLabel.textContent = 'Submit Bug Report';
+        }
       } else {
         warn.classList.remove('active');
+        submitBtn.disabled = false;
+        submitBtn.style.opacity = '1';
+        submitBtn.style.cursor = 'pointer';
+        submitLabel.textContent = (currentType === 'security') ? 'Submit Security Report' : 'Submit Feedback';
       }
     }
 
@@ -724,7 +784,6 @@
       const notice = document.getElementById('securityNotice');
       const titleInput = document.getElementById('reportTitle');
       const descInput = document.getElementById('reportDesc');
-      const submitLabel = document.getElementById('submitLabel');
 
       tabSec.classList.remove('active');
       tabBug.classList.remove('active');
@@ -735,19 +794,16 @@
         notice.classList.add('active');
         titleInput.placeholder = 'e.g. Memory safety or unexpected network attempt...';
         descInput.placeholder = 'Please describe the vulnerability, reproduction steps, proof-of-concept, and expected impact...';
-        submitLabel.textContent = 'Submit Security Report';
       } else if (type === 'support') {
         tabSup.classList.add('active');
         notice.classList.remove('active');
         titleInput.placeholder = 'e.g. Feature request: custom dictionary hotkey...';
         descInput.placeholder = 'Describe your workflow improvement, question, or idea...';
-        submitLabel.textContent = 'Submit Feedback';
       } else {
         tabBug.classList.add('active');
         notice.classList.remove('active');
         titleInput.placeholder = 'e.g. Overlay freezes after waking from sleep...';
         descInput.placeholder = '1. Steps to reproduce\n2. Expected behavior\n3. Actual behavior';
-        submitLabel.textContent = 'Submit Bug Report';
       }
 
       onVersionChange();
