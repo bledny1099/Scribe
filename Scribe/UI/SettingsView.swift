@@ -5517,12 +5517,25 @@ struct AppUpdatesView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
+                    HStack(spacing: 8) {
                         Text("Scribe v\(updateService.currentVersion)")
                             .font(.system(size: 14, weight: .bold, design: .rounded))
                             .foregroundStyle(.primary)
 
-                        if updateService.updateAvailable {
+                        if updateService.isChecking {
+                            HStack(spacing: 5) {
+                                ProgressView()
+                                    .scaleEffect(0.55)
+                                    .frame(width: 12, height: 12)
+                                Text(appState.l("Checking for updates..."))
+                                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .transition(.asymmetric(
+                                insertion: .opacity.combined(with: .move(edge: .leading)),
+                                removal: .opacity.combined(with: .scale(scale: 0.95))
+                            ))
+                        } else if updateService.updateAvailable {
                             Text("UPDATE AVAILABLE")
                                 .font(.system(size: 9, weight: .black))
                                 .padding(.horizontal, 6)
@@ -5530,6 +5543,7 @@ struct AppUpdatesView: View {
                                 .background(Color.green.opacity(0.2))
                                 .foregroundStyle(.green)
                                 .cornerRadius(4)
+                                .transition(.opacity.combined(with: .scale(scale: 0.95)))
                         } else {
                             Text(appState.l("Up to date"))
                                 .font(.system(size: 9, weight: .bold))
@@ -5538,14 +5552,13 @@ struct AppUpdatesView: View {
                                 .background(Color.primary.opacity(0.06))
                                 .foregroundStyle(.secondary)
                                 .cornerRadius(4)
-                        }
-                        if !updateService.statusMessage.isEmpty {
-                            Text(updateService.statusMessage)
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
+                                .transition(.asymmetric(
+                                    insertion: .opacity.combined(with: .move(edge: .leading)),
+                                    removal: .opacity.combined(with: .scale(scale: 0.95))
+                                ))
                         }
                     }
+                    .animation(.spring(response: 0.35, dampingFraction: 0.8), value: updateService.isChecking)
                 }
 
                 Spacer()
@@ -5577,6 +5590,9 @@ struct AppUpdatesView: View {
                 } else {
                     Button(action: {
                         Task {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                updateService.isChecking = true
+                            }
                             await updateService.checkForUpdates(silent: false)
                         }
                     }) {

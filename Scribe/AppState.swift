@@ -1289,64 +1289,25 @@ final class AppState: ObservableObject {
 
         guard let settingsFrame = activeFrame else {
             let x = screenFrame.midX - size.width / 2
-            let y = screenFrame.minY + 160
+            let y = screenFrame.minY + 40
             return NSPoint(x: x, y: y)
         }
-
-        let spaceRight = screenFrame.maxX - settingsFrame.maxX
-        let spaceLeft = settingsFrame.minX - screenFrame.minX
-        let spaceBelow = settingsFrame.minY - screenFrame.minY
-        let spaceAbove = screenFrame.maxY - settingsFrame.maxY
 
         let padding: CGFloat = 16
 
-        // 1. If enough space on the right, place on the right
-        if spaceRight >= size.width + padding {
-            let x = settingsFrame.maxX + padding
-            let preferredY = settingsFrame.midY - size.height / 2
-            let y = max(screenFrame.minY + padding, min(preferredY, screenFrame.maxY - size.height - padding))
-            return NSPoint(x: x, y: y)
-        }
-
-        // 2. If enough space on the left, place on the left
-        if spaceLeft >= size.width + padding {
-            let x = settingsFrame.minX - size.width - padding
-            let preferredY = settingsFrame.midY - size.height / 2
-            let y = max(screenFrame.minY + padding, min(preferredY, screenFrame.maxY - size.height - padding))
-            return NSPoint(x: x, y: y)
-        }
-
-        // 3. If neither side fits fully, check if bottom or top has enough space
-        if spaceBelow >= size.height + padding {
-            let x = max(screenFrame.minX + padding, min(settingsFrame.midX - size.width / 2, screenFrame.maxX - size.width - padding))
-            let y = settingsFrame.minY - size.height - padding
-            return NSPoint(x: x, y: y)
-        }
-
-        if spaceAbove >= size.height + padding {
-            let x = max(screenFrame.minX + padding, min(settingsFrame.midX - size.width / 2, screenFrame.maxX - size.width - padding))
-            let y = settingsFrame.maxY + padding
-            return NSPoint(x: x, y: y)
-        }
-
-        // 4. Fallback: place on the side (right vs left) that has MORE available space
-        let rawOrigin: NSPoint
-        if spaceRight >= spaceLeft {
-            let x = settingsFrame.maxX + padding
-            let preferredY = settingsFrame.midY - size.height / 2
-            let y = max(screenFrame.minY + padding, min(preferredY, screenFrame.maxY - size.height - padding))
-            rawOrigin = NSPoint(x: x, y: y)
+        // Position directly BELOW the settings window, centered horizontally
+        let centeredX = settingsFrame.midX - size.width / 2
+        let clampedX = max(screenFrame.minX + padding, min(centeredX, screenFrame.maxX - size.width - padding))
+        
+        let preferredY = settingsFrame.minY - size.height - padding
+        let clampedY: CGFloat
+        if preferredY >= screenFrame.minY + padding {
+            clampedY = preferredY
         } else {
-            let x = settingsFrame.minX - size.width - padding
-            let preferredY = settingsFrame.midY - size.height / 2
-            let y = max(screenFrame.minY + padding, min(preferredY, screenFrame.maxY - size.height - padding))
-            rawOrigin = NSPoint(x: x, y: y)
+            clampedY = max(screenFrame.minY + 8, settingsFrame.minY - size.height - 6)
         }
 
-        // Final safety clamp: guarantee 100% visibility within screen bounds
-        let safeX = max(screenFrame.minX + padding, min(rawOrigin.x, screenFrame.maxX - size.width - padding))
-        let safeY = max(screenFrame.minY + padding, min(rawOrigin.y, screenFrame.maxY - size.height - padding))
-        return NSPoint(x: safeX, y: safeY)
+        return NSPoint(x: clampedX, y: clampedY)
     }
 
     func updateSettingsPreviewPanel(isDragging: Bool = false) {

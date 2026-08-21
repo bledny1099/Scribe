@@ -31,11 +31,11 @@ final class RecordingPanel: NSPanel {
             return NSSize(width: width, height: 56)
         }
 
-        // Base width: Left dot cap (48) + Waveform visualizer (230) + Stop button cap (48) = 326 pt
-        var width: CGFloat = 326
+        // Base width: Left dot cap (52) + Generous Waveform visualizer (280) + Stop button cap (52) = 384 pt
+        var width: CGFloat = 384
         
         if isTimerVisible {
-            width += 56 // Timer digits + margin
+            width += 52 // Timer digits + margin
         }
         
         if !targetAppName.isEmpty {
@@ -49,9 +49,9 @@ final class RecordingPanel: NSPanel {
         }
         
         // Extra padding for the capsule rounded corners so buttons never touch edge
-        width += 20
+        width += 26
         
-        return NSSize(width: min(max(width, 346), 720), height: 72)
+        return NSSize(width: min(max(width, 410), 740), height: 72)
     }
 
     static func size(
