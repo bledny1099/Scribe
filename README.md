@@ -58,6 +58,12 @@ Release or press the shortcut again, and the transcribed text is automatically p
 
 ## Install
 
+### Homebrew (Recommended)
+
+```bash
+brew install --cask bledny1099/scribe/scribe
+```
+
 ### Direct download
 
 Download the latest **[Scribe.dmg](https://github.com/bledny1099/Scribe/releases/latest/download/Scribe.dmg)** from the Releases page, open the disk image, and drag **Scribe** into your **Applications** folder.
@@ -123,10 +129,11 @@ Scribe was built with a different architecture:
 ## Requirements
 
 | Component | Minimum Specification |
+|:---|:---|
 | **OS** | macOS 14.0 (Sonoma) or later |
 | **Hardware** | Apple Silicon (M1, M2, M3, M4, M5) or Intel 64-bit |
 | **Permissions** | Microphone (audio capture), Accessibility (auto-paste) |
-| **Storage** | ~500 MB for recommended local Whisper models |
+| **Storage** | ~500 MB for recommended local Whisper models (~0 MB with Aether Instant) |
 
 ---
 

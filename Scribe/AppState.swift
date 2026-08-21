@@ -551,7 +551,7 @@ final class AppState: ObservableObject {
             return l("Aether combines Audio VAD, dynamic app context conditioning, and lexical fuzzy matching for zero-hallucination, studio-grade speech transcription.")
         }
     }
-    @AppStorage("recognitionMode") public var recognitionMode: String = "singleLanguage"
+    @AppStorage("recognitionMode") public var recognitionMode: String = "multilingual"
     @AppStorage("singleDictationLanguage") public var singleDictationLanguage: String = "en"
     @AppStorage("multilingualLanguages") public var multilingualLanguages: [String] = ["ru", "en"]
 
@@ -728,6 +728,7 @@ final class AppState: ObservableObject {
     private var localEscMonitor: Any?
     private var durationTimer: Timer?
     private var livePreviewTimer: Timer?
+    private var periodicSyncTimer: Timer?
     private var isLiveTranscribing = false
 
     // MARK: Init
@@ -738,6 +739,7 @@ final class AppState: ObservableObject {
         setupEscHandler()
         setupAudioLevelForwarding()
         setupLivePreviewResizing()
+        setupPeriodicAutoSync()
         preloadModel()
         checkFirstLaunchPermissions()
         
@@ -772,6 +774,38 @@ final class AppState: ObservableObject {
                 PermissionWindowManager.shared.showWindow(appState: self)
             }
         }
+    }
+
+    // MARK: - 5-Minute Background Periodic Sync
+    private func setupPeriodicAutoSync() {
+        periodicSyncTimer?.invalidate()
+        
+        // Immediate launch sync
+        Task.detached(priority: .background) {
+            await CommunityVocabularyService.shared.performBiDirectionalSync()
+            await MainActor.run {
+                if AuthService.shared.currentUser != nil {
+                    AuthService.shared.syncRecords(TranscriptionHistory.shared.records)
+                    AuthService.shared.syncSupporterStatusFromCloud()
+                }
+            }
+        }
+        
+        // 5-minute recurring timer (300 seconds)
+        let timer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            Task.detached(priority: .background) {
+                await CommunityVocabularyService.shared.performBiDirectionalSync()
+                await MainActor.run {
+                    if AuthService.shared.currentUser != nil {
+                        AuthService.shared.syncRecords(TranscriptionHistory.shared.records)
+                        AuthService.shared.syncSupporterStatusFromCloud()
+                    }
+                }
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        self.periodicSyncTimer = timer
     }
 
     // MARK: - Onboarding
