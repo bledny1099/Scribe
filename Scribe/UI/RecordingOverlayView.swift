@@ -200,8 +200,8 @@ struct WaveformOverlay: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var audioRecorder: AudioRecorder
 
-    private let barCount = 44
-    @State private var levels: [Float] = Array(repeating: 0, count: 44)
+    private let barCount = 52
+    @State private var levels: [Float] = Array(repeating: 0, count: 52)
     @State private var spinAngle: Double = 0
 
     private var theme: AppTheme { appState.selectedTheme }
@@ -345,11 +345,11 @@ struct WaveformOverlay: View {
     // MARK: - Waveform Bars
 
     private var waveformBars: some View {
-        HStack(alignment: .center, spacing: 2.2) {
+        HStack(alignment: .center, spacing: 2.4) {
             ForEach(0..<barCount, id: \.self) { i in
                 let level = CGFloat(levels[i])
                 let maxBarHeight: CGFloat = 44
-                let minBarHeight: CGFloat = 3.5
+                let minBarHeight: CGFloat = 3.6
                 let barHeight = minBarHeight + level * (maxBarHeight - minBarHeight)
 
                 RoundedRectangle(cornerRadius: 1.6)
