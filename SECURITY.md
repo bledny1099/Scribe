@@ -6,8 +6,8 @@ Only the version(s) below are currently supported with security updates and patc
 
 | Version | Supported |
 | ------- | ------------------ |
-| v2.4.2  | :white_check_mark: |
-| < v2.4.2 | 🚫 |
+| v2.4.3  | :white_check_mark: |
+| < v2.4.3 | 🚫 |
 
 ## Reporting a Vulnerability
 
