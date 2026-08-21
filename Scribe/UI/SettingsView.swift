@@ -591,18 +591,10 @@ struct SettingsHeaderView: View {
     var body: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 5) {
-                HStack(spacing: 6) {
-                    Image("MenuBarIcon")
-                        .resizable()
-                        .renderingMode(.template)
-                        .foregroundStyle(.primary)
-                        .frame(width: 16, height: 16)
-
-                    Text("Scribe")
-                        .font(.system(size: 18, weight: .bold, design: .rounded))
-                        .tracking(0.3)
-                        .foregroundStyle(.primary)
-                }
+                Text("Scribe")
+                    .font(.system(size: 19, weight: .bold, design: .rounded))
+                    .tracking(0.3)
+                    .foregroundStyle(.primary)
 
                 if updateService.updateAvailable {
                     Button(action: {
@@ -695,7 +687,7 @@ struct SettingsHeaderView: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(.leading, 10)
+        .padding(.leading, 14)
         .padding(.trailing, 16)
         .padding(.top, 14)
         .padding(.bottom, 12)
