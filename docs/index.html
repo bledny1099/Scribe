@@ -480,139 +480,139 @@
       color: rgba(255, 255, 255, 0.35);
     }
 
-    /* Features Bento Showcase (Anti-Slop Bento Architecture) */
+    /* Features Showcase - Wide & Compact 2x3 Grid */
     .features-section {
-      margin-top: 96px;
-      padding: 40px 0 80px;
+      margin-top: 56px;
+      padding: 20px 0 50px;
     }
 
     .features-header {
-      margin-bottom: 32px;
+      margin-bottom: 22px;
       max-width: 600px;
     }
 
     .features-section-title {
-      font-size: 26px;
+      font-size: 24px;
       font-weight: 700;
       letter-spacing: -0.02em;
       line-height: 1.2;
       color: #ffffff;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
 
     .features-section-desc {
-      font-size: 14.5px;
-      line-height: 1.5;
+      font-size: 13.5px;
+      line-height: 1.45;
       color: rgba(255, 255, 255, 0.55);
     }
 
     .bento-grid {
       display: grid;
       grid-template-columns: 1fr;
-      gap: 16px;
+      gap: 12px;
     }
 
-    @media (min-width: 768px) {
+    @media (min-width: 680px) {
+      .bento-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (min-width: 880px) {
       .bento-grid {
         grid-template-columns: repeat(3, 1fr);
-      }
-
-      .bento-col-span-2 {
-        grid-column: span 2;
       }
     }
 
     .bento-card {
       position: relative;
-      background: rgba(255, 255, 255, 0.025);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 18px;
-      padding: 26px 24px;
+      background: rgba(255, 255, 255, 0.022);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 14px;
+      padding: 16px 18px;
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
+      justify-content: flex-start;
+      gap: 8px;
       overflow: hidden;
-      transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     .bento-card:hover {
       background: rgba(255, 255, 255, 0.038);
-      border-color: rgba(52, 211, 153, 0.35);
-      transform: translateY(-2px);
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.45), 0 0 32px rgba(52, 211, 153, 0.08);
+      border-color: rgba(52, 211, 153, 0.32);
+      transform: translateY(-1px);
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4), 0 0 24px rgba(52, 211, 153, 0.06);
     }
 
     .bento-badge-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 16px;
+      gap: 8px;
+      margin-bottom: 2px;
     }
 
     .bento-icon-box {
-      width: 38px;
-      height: 38px;
-      border-radius: 10px;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      background: rgba(255, 255, 255, 0.05);
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.04);
       display: inline-flex;
       align-items: center;
       justify-content: center;
       color: #6ee7b7;
+      flex-shrink: 0;
     }
 
     .bento-pill-tag {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 11px;
+      font-size: 10.5px;
       font-weight: 500;
       color: #6ee7b7;
-      background: rgba(52, 211, 153, 0.1);
-      border: 1px solid rgba(52, 211, 153, 0.25);
-      padding: 3px 8px;
-      border-radius: 6px;
-    }
-
-    .bento-content {
-      margin-top: auto;
+      background: rgba(52, 211, 153, 0.08);
+      border: 1px solid rgba(52, 211, 153, 0.2);
+      padding: 2px 7px;
+      border-radius: 5px;
+      white-space: nowrap;
     }
 
     .bento-title {
-      font-size: 16.5px;
+      font-size: 15px;
       font-weight: 600;
       letter-spacing: -0.015em;
       color: #ffffff;
-      margin-bottom: 6px;
+      margin-bottom: 3px;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
 
     .bento-desc {
-      font-size: 13.5px;
-      line-height: 1.55;
-      color: rgba(255, 255, 255, 0.58);
+      font-size: 12.5px;
+      line-height: 1.5;
+      color: rgba(255, 255, 255, 0.55);
     }
-
-    /* Live Visual Widgets inside Bento Cards */
 
     .bento-widget-chips {
       display: flex;
       flex-wrap: wrap;
-      gap: 6px;
-      margin: 12px 0 16px;
+      gap: 5px;
+      margin-top: 4px;
     }
 
     .bento-chip {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 11px;
-      padding: 4px 9px;
-      border-radius: 6px;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      color: rgba(255, 255, 255, 0.85);
+      font-size: 10.5px;
+      padding: 2px 7px;
+      border-radius: 5px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.8);
       display: inline-flex;
       align-items: center;
-      gap: 5px;
+      gap: 4px;
     }
 
     .bento-chip-arrow {
@@ -624,16 +624,16 @@
       display: inline-flex;
       align-items: center;
       gap: 4px;
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.04) 100%);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-bottom: 2px solid rgba(255, 255, 255, 0.3);
-      padding: 4px 10px;
-      border-radius: 7px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.03) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-bottom: 2px solid rgba(255, 255, 255, 0.28);
+      padding: 2px 7px;
+      border-radius: 5px;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 12px;
+      font-size: 11px;
       color: #ffffff;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-      margin: 12px 0;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+      margin-top: 4px;
       width: fit-content;
     }
 
@@ -888,7 +888,7 @@
     </div>
   </div>
 
-  <!-- Features Bento Showcase (Anti-Slop Bento Architecture) -->
+  <!-- Features Showcase (Wide & Compact 2x3 Grid) -->
   <section class="features-section">
     <div class="page-wrapper" style="padding-top: 0; padding-bottom: 0;">
       <div class="features-header">
@@ -897,79 +897,70 @@
       </div>
 
       <div class="bento-grid">
-        <!-- 1. Hero Bento Card: Aether Engine -->
-        <div class="bento-card bento-col-span-2">
+        <!-- 1. Aether Engine -->
+        <div class="bento-card">
           <div class="bento-badge-row">
             <div class="bento-icon-box">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
             </div>
             <span class="bento-pill-tag">Apple Neural Engine</span>
           </div>
-
-          <div class="bento-content">
-            <h3 class="bento-title">Aether Engine™ Architecture</h3>
-            <p class="bento-desc">Runs entirely on Aether Engine & local WhisperKit. Audio processes directly on the Apple Neural Engine with zero cloud latency and zero telemetry.</p>
+          <div>
+            <h3 class="bento-title">Aether Engine™</h3>
+            <p class="bento-desc">Runs entirely on Aether Engine & local WhisperKit. Audio processes directly on the Apple Neural Engine with zero cloud latency.</p>
           </div>
         </div>
 
-        <!-- 2. One Shortcut Bento Card -->
+        <!-- 2. One Shortcut -->
         <div class="bento-card">
           <div class="bento-badge-row">
             <div class="bento-icon-box">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"></rect><path d="m10 8 4 4-4 4"></path></svg>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"></rect><path d="m10 8 4 4-4 4"></path></svg>
             </div>
             <span class="bento-pill-tag">Global Trigger</span>
           </div>
-
-          <div class="bento-keycap">⌥ Option + S</div>
-
-          <div class="bento-content">
+          <div>
             <h3 class="bento-title">One Global Shortcut</h3>
             <p class="bento-desc">Tap once to speak, tap again to transcribe and insert instantly. Fully rebindable to any physical modifier or key.</p>
+            <div class="bento-keycap">⌥ Option + S</div>
           </div>
         </div>
 
-        <!-- 3. Dynamic App Context Bento Card -->
+        <!-- 3. Dynamic App Context -->
         <div class="bento-card">
           <div class="bento-badge-row">
             <div class="bento-icon-box">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h7"></path><path d="m15 15 3 3 5-5"></path></svg>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h7"></path><path d="m15 15 3 3 5-5"></path></svg>
             </div>
-            <span class="bento-pill-tag">Adaptive Prompting</span>
+            <span class="bento-pill-tag">Adaptive Context</span>
           </div>
-
-          <div class="bento-widget-chips">
-            <span class="bento-chip">Cursor IDE</span>
-            <span class="bento-chip">Xcode</span>
-            <span class="bento-chip">Terminal</span>
-            <span class="bento-chip">Obsidian</span>
-          </div>
-
-          <div class="bento-content">
+          <div>
             <h3 class="bento-title">Dynamic App Context</h3>
-            <p class="bento-desc">Instantly identifies active frontmost window and primes vocabulary specifically for IDE vibe coding, agents, or chatting.</p>
+            <p class="bento-desc">Identifies active frontmost window and primes vocabulary specifically for IDE vibe coding, agents, or chatting.</p>
+            <div class="bento-widget-chips">
+              <span class="bento-chip">Cursor IDE</span>
+              <span class="bento-chip">Xcode</span>
+              <span class="bento-chip">Terminal</span>
+              <span class="bento-chip">Obsidian</span>
+            </div>
           </div>
         </div>
 
-        <!-- 4. Open Community Vocabulary Bento Card -->
-        <div class="bento-card bento-col-span-2">
+        <!-- 4. Open Community Vocabulary -->
+        <div class="bento-card">
           <div class="bento-badge-row">
             <div class="bento-icon-box">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path></svg>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path></svg>
             </div>
             <span class="bento-pill-tag">Phonetic Sync</span>
           </div>
-
-          <div class="bento-widget-chips">
-            <span class="bento-chip">PyTorch <span class="bento-chip-arrow">→</span> пайторч</span>
-            <span class="bento-chip">DeepSeek <span class="bento-chip-arrow">→</span> дипсик</span>
-            <span class="bento-chip">vibe coding <span class="bento-chip-arrow">→</span> вайб кодинг</span>
-            <span class="bento-chip">Paperclip <span class="bento-chip-arrow">→</span> пейперклип</span>
-          </div>
-
-          <div class="bento-content">
-            <h3 class="bento-title">Open Community Vocabulary</h3>
-            <p class="bento-desc">Crowdsourced real-time phonetic dictionary and auto-generated phonetic aliases ensuring high-speed slang, tech jargon, and names are recognized flawlessly.</p>
+          <div>
+            <h3 class="bento-title">Community Vocabulary</h3>
+            <p class="bento-desc">Crowdsourced real-time phonetic dictionary and auto-generated phonetic aliases for tech jargon and slang.</p>
+            <div class="bento-widget-chips">
+              <span class="bento-chip">PyTorch <span class="bento-chip-arrow">→</span> пайторч</span>
+              <span class="bento-chip">DeepSeek <span class="bento-chip-arrow">→</span> дипсик</span>
+            </div>
           </div>
         </div>
 
@@ -977,44 +968,27 @@
         <div class="bento-card">
           <div class="bento-badge-row">
             <div class="bento-icon-box">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path></svg>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path></svg>
             </div>
             <span class="bento-pill-tag">Universal Paste</span>
           </div>
-
-          <div class="bento-content">
+          <div>
             <h3 class="bento-title">Pastes Anywhere</h3>
-            <p class="bento-desc">Direct accessibility API injection pastes output into whatever application has focus without polluting your system clipboard.</p>
+            <p class="bento-desc">Direct accessibility API injection pastes output into whatever application has focus without clipboard pollution.</p>
           </div>
         </div>
 
-        <!-- 6. Works 100% Offline -->
+        <!-- 6. Works 100% Offline & Private -->
         <div class="bento-card">
           <div class="bento-badge-row">
             <div class="bento-icon-box">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01"></path><path d="M8.5 16.429a5 5 0 0 1 7 0"></path><path d="M5 12.859a10 10 0 0 1 5.17-2.69"></path><path d="M19 12.859a10 10 0 0 0-2.007-1.523"></path><path d="M2 8.82a15 15 0 0 1 4.177-2.643"></path><path d="M22 8.82a15 15 0 0 0-11.288-3.764"></path><path d="m2 2 20 20"></path></svg>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01"></path><path d="M8.5 16.429a5 5 0 0 1 7 0"></path><path d="M5 12.859a10 10 0 0 1 5.17-2.69"></path><path d="M19 12.859a10 10 0 0 0-2.007-1.523"></path><path d="M2 8.82a15 15 0 0 1 4.177-2.643"></path><path d="M22 8.82a15 15 0 0 0-11.288-3.764"></path><path d="m2 2 20 20"></path></svg>
             </div>
-            <span class="bento-pill-tag">Zero Signal</span>
+            <span class="bento-pill-tag">100% Offline · GPL-3.0</span>
           </div>
-
-          <div class="bento-content">
-            <h3 class="bento-title">Works 100% Offline</h3>
-            <p class="bento-desc">Zero network connectivity required. Dictate seamlessly mid-flight, on a subway, or in high-security air-gapped environments.</p>
-          </div>
-        </div>
-
-        <!-- 7. Privacy & Open Source -->
-        <div class="bento-card">
-          <div class="bento-badge-row">
-            <div class="bento-icon-box">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-            </div>
-            <span class="bento-pill-tag">GPL-3.0</span>
-          </div>
-
-          <div class="bento-content">
-            <h3 class="bento-title">Private & Open Source</h3>
-            <p class="bento-desc">No accounts, no user analytics, no telemetry. 100% auditable code published openly on GitHub.</p>
+          <div>
+            <h3 class="bento-title">Private & Offline</h3>
+            <p class="bento-desc">Zero network connectivity required. No accounts, no user analytics, no telemetry. 100% auditable open source code.</p>
           </div>
         </div>
       </div>
