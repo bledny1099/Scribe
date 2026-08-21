@@ -547,9 +547,10 @@
           <div class="form-group">
             <label class="form-label" for="reportOS">macOS Version</label>
             <select id="reportOS" class="form-select">
+              <option value="macOS 14 Sonoma">macOS 14 Sonoma</option>
               <option value="macOS 15 Sequoia">macOS 15 Sequoia</option>
-              <option value="macOS 14 Sonoma" selected>macOS 14 Sonoma</option>
-              <option value="macOS 16 Tahoe / Golden Gate Beta">macOS 16 Tahoe / Golden Gate Beta</option>
+              <option value="macOS 26 Tahoe" selected>macOS 26 Tahoe</option>
+              <option value="macOS 27 Golden Gate Beta">macOS 27 Golden Gate Beta</option>
               <option value="Other">Other</option>
             </select>
           </div>
@@ -627,12 +628,14 @@
       const osParam = params.get('os');
       if (osParam) {
         const osSelect = document.getElementById('reportOS');
-        if (osParam.includes('15') || osParam.toLowerCase().includes('sequoia')) {
-          osSelect.value = 'macOS 15 Sequoia';
-        } else if (osParam.includes('14') || osParam.toLowerCase().includes('sonoma')) {
+        if (osParam.includes('14') || osParam.toLowerCase().includes('sonoma')) {
           osSelect.value = 'macOS 14 Sonoma';
-        } else if (osParam.includes('16') || osParam.toLowerCase().includes('tahoe')) {
-          osSelect.value = 'macOS 16 Tahoe / Golden Gate Beta';
+        } else if (osParam.includes('15') || osParam.toLowerCase().includes('sequoia')) {
+          osSelect.value = 'macOS 15 Sequoia';
+        } else if (osParam.includes('26') || osParam.toLowerCase().includes('tahoe')) {
+          osSelect.value = 'macOS 26 Tahoe';
+        } else if (osParam.includes('27') || osParam.toLowerCase().includes('golden gate')) {
+          osSelect.value = 'macOS 27 Golden Gate Beta';
         }
       }
 
