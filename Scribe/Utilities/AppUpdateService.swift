@@ -23,11 +23,14 @@ public final class AppUpdateService: ObservableObject {
     @Published public var statusMessage: String = ""
     @Published public var lastCheckTime: Date? = nil
 
+    @Published public var justCheckedUpToDate: Bool = false
+    private var feedbackResetTask: Task<Void, Never>? = nil
+
     private var timer: Timer?
     private let checkInterval: TimeInterval = 30.0
 
     private init() {
-        self.currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.1.0"
+        self.currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.4.3"
         startPeriodicChecks()
     }
 
@@ -56,6 +59,8 @@ public final class AppUpdateService: ObservableObject {
         guard !isChecking else { return }
         isChecking = true
         if !silent {
+            feedbackResetTask?.cancel()
+            justCheckedUpToDate = false
             statusMessage = "Checking for updates..."
         }
 
@@ -72,9 +77,10 @@ public final class AppUpdateService: ObservableObject {
 
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
+        request.cachePolicy = .reloadIgnoringLocalCacheData
         request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
         request.setValue("ScribeApp-UpdateChecker", forHTTPHeaderField: "User-Agent")
-        request.timeoutInterval = 15
+        request.timeoutInterval = 6
 
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
@@ -117,11 +123,20 @@ public final class AppUpdateService: ObservableObject {
 
                 if isNewerVersion(remote: tagName, current: currentVersion) {
                     self.updateAvailable = true
+                    self.justCheckedUpToDate = false
                     self.statusMessage = "Update available: v\(tagName)"
                 } else {
                     self.updateAvailable = false
                     if !silent {
                         self.statusMessage = "Scribe is up to date (v\(currentVersion))"
+                        self.justCheckedUpToDate = true
+                        feedbackResetTask?.cancel()
+                        feedbackResetTask = Task { @MainActor [weak self] in
+                            try? await Task.sleep(nanoseconds: 2_500_000_000)
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                self?.justCheckedUpToDate = false
+                            }
+                        }
                     }
                 }
             } else if httpResponse.statusCode == 404 {

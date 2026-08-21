@@ -5531,20 +5531,7 @@ struct AppUpdatesView: View {
                             .font(.system(size: 14, weight: .bold, design: .rounded))
                             .foregroundStyle(.primary)
 
-                        if updateService.isChecking {
-                            HStack(spacing: 5) {
-                                ProgressView()
-                                    .scaleEffect(0.55)
-                                    .frame(width: 12, height: 12)
-                                Text(appState.l("Checking for updates..."))
-                                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.secondary)
-                            }
-                            .transition(.asymmetric(
-                                insertion: .opacity.combined(with: .move(edge: .leading)),
-                                removal: .opacity.combined(with: .scale(scale: 0.95))
-                            ))
-                        } else if updateService.updateAvailable {
+                        if updateService.updateAvailable {
                             Text("UPDATE AVAILABLE")
                                 .font(.system(size: 9, weight: .black))
                                 .padding(.horizontal, 6)
@@ -5553,7 +5540,7 @@ struct AppUpdatesView: View {
                                 .foregroundStyle(.green)
                                 .cornerRadius(4)
                                 .transition(.opacity.combined(with: .scale(scale: 0.95)))
-                        } else {
+                        } else if !updateService.isChecking && !updateService.justCheckedUpToDate {
                             Text(appState.l("Up to date"))
                                 .font(.system(size: 9, weight: .bold))
                                 .padding(.horizontal, 6)
@@ -5562,12 +5549,13 @@ struct AppUpdatesView: View {
                                 .foregroundStyle(.secondary)
                                 .cornerRadius(4)
                                 .transition(.asymmetric(
-                                    insertion: .opacity.combined(with: .move(edge: .leading)),
-                                    removal: .opacity.combined(with: .scale(scale: 0.95))
+                                    insertion: .opacity.combined(with: .scale(scale: 0.95)),
+                                    removal: .opacity.combined(with: .scale(scale: 0.85))
                                 ))
                         }
                     }
                     .animation(.spring(response: 0.35, dampingFraction: 0.8), value: updateService.isChecking)
+                    .animation(.spring(response: 0.35, dampingFraction: 0.8), value: updateService.justCheckedUpToDate)
                 }
 
                 Spacer()
@@ -5599,9 +5587,6 @@ struct AppUpdatesView: View {
                 } else {
                     Button(action: {
                         Task {
-                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                                updateService.isChecking = true
-                            }
                             await updateService.checkForUpdates(silent: false)
                         }
                     }) {
@@ -5610,25 +5595,45 @@ struct AppUpdatesView: View {
                                 ProgressView()
                                     .scaleEffect(0.6)
                                     .frame(width: 12, height: 12)
+                                Text(appState.l("Checking..."))
+                                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            } else if updateService.justCheckedUpToDate {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundStyle(.green)
+                                Text(appState.l("Scribe is up to date"))
+                                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(.green)
                             } else {
                                 Image(systemName: "arrow.clockwise")
                                     .font(.system(size: 11, weight: .bold))
+                                Text(appState.l("Check for Updates"))
+                                    .font(.system(size: 11, weight: .semibold, design: .rounded))
                             }
-                            Text(appState.l("Check for Updates"))
-                                .font(.system(size: 11, weight: .semibold, design: .rounded))
                         }
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
-                        .background(Color.primary.opacity(0.06))
-                        .foregroundStyle(.primary)
+                        .background(
+                            updateService.justCheckedUpToDate
+                                ? Color.green.opacity(0.12)
+                                : Color.primary.opacity(0.06)
+                        )
+                        .foregroundStyle(updateService.justCheckedUpToDate ? Color.green : Color.primary)
                         .cornerRadius(8)
                         .overlay(
                             RoundedRectangle(cornerRadius: 8)
-                                .strokeBorder(Color.primary.opacity(0.1), lineWidth: 1)
+                                .strokeBorder(
+                                    updateService.justCheckedUpToDate
+                                        ? Color.green.opacity(0.35)
+                                        : Color.primary.opacity(0.1),
+                                    lineWidth: 1
+                                )
                         )
                     }
                     .buttonStyle(.plain)
                     .disabled(updateService.isChecking)
+                    .animation(.spring(response: 0.35, dampingFraction: 0.8), value: updateService.isChecking)
+                    .animation(.spring(response: 0.35, dampingFraction: 0.8), value: updateService.justCheckedUpToDate)
                 }
             }
 
