@@ -545,18 +545,10 @@
       box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4), 0 0 24px rgba(52, 211, 153, 0.06);
     }
 
-    .bento-badge-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      margin-bottom: 2px;
-    }
-
     .bento-icon-box {
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
+      width: 30px;
+      height: 30px;
+      border-radius: 7px;
       border: 1px solid rgba(255, 255, 255, 0.1);
       background: rgba(255, 255, 255, 0.04);
       display: inline-flex;
@@ -564,18 +556,7 @@
       justify-content: center;
       color: #6ee7b7;
       flex-shrink: 0;
-    }
-
-    .bento-pill-tag {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 10.5px;
-      font-weight: 500;
-      color: #6ee7b7;
-      background: rgba(52, 211, 153, 0.08);
-      border: 1px solid rgba(52, 211, 153, 0.2);
-      padding: 2px 7px;
-      border-radius: 5px;
-      white-space: nowrap;
+      margin-bottom: 2px;
     }
 
     .bento-title {
@@ -897,27 +878,21 @@
       </div>
 
       <div class="bento-grid">
-        <!-- 1. Aether Engine -->
+        <!-- 1. Whisper & Aether Engine -->
         <div class="bento-card">
-          <div class="bento-badge-row">
-            <div class="bento-icon-box">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
-            </div>
-            <span class="bento-pill-tag">Apple Neural Engine</span>
+          <div class="bento-icon-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
           </div>
           <div>
-            <h3 class="bento-title">Aether Engine™</h3>
-            <p class="bento-desc">Runs entirely on Aether Engine & local WhisperKit. Audio processes directly on the Apple Neural Engine with zero cloud latency.</p>
+            <h3 class="bento-title">Whisper & Aether Engine</h3>
+            <p class="bento-desc">Powered by OpenAI Whisper (WhisperKit) and Aether Engine. Runs 100% on Apple Neural Engine with zero cloud latency.</p>
           </div>
         </div>
 
         <!-- 2. One Shortcut -->
         <div class="bento-card">
-          <div class="bento-badge-row">
-            <div class="bento-icon-box">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"></rect><path d="m10 8 4 4-4 4"></path></svg>
-            </div>
-            <span class="bento-pill-tag">Global Trigger</span>
+          <div class="bento-icon-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"></rect><path d="m10 8 4 4-4 4"></path></svg>
           </div>
           <div>
             <h3 class="bento-title">One Global Shortcut</h3>
@@ -928,11 +903,8 @@
 
         <!-- 3. Dynamic App Context -->
         <div class="bento-card">
-          <div class="bento-badge-row">
-            <div class="bento-icon-box">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h7"></path><path d="m15 15 3 3 5-5"></path></svg>
-            </div>
-            <span class="bento-pill-tag">Adaptive Context</span>
+          <div class="bento-icon-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h7"></path><path d="m15 15 3 3 5-5"></path></svg>
           </div>
           <div>
             <h3 class="bento-title">Dynamic App Context</h3>
@@ -948,11 +920,8 @@
 
         <!-- 4. Open Community Vocabulary -->
         <div class="bento-card">
-          <div class="bento-badge-row">
-            <div class="bento-icon-box">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path></svg>
-            </div>
-            <span class="bento-pill-tag">Phonetic Sync</span>
+          <div class="bento-icon-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path></svg>
           </div>
           <div>
             <h3 class="bento-title">Community Vocabulary</h3>
@@ -966,11 +935,8 @@
 
         <!-- 5. Pastes Anywhere -->
         <div class="bento-card">
-          <div class="bento-badge-row">
-            <div class="bento-icon-box">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path></svg>
-            </div>
-            <span class="bento-pill-tag">Universal Paste</span>
+          <div class="bento-icon-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path></svg>
           </div>
           <div>
             <h3 class="bento-title">Pastes Anywhere</h3>
@@ -980,11 +946,8 @@
 
         <!-- 6. Works 100% Offline & Private -->
         <div class="bento-card">
-          <div class="bento-badge-row">
-            <div class="bento-icon-box">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01"></path><path d="M8.5 16.429a5 5 0 0 1 7 0"></path><path d="M5 12.859a10 10 0 0 1 5.17-2.69"></path><path d="M19 12.859a10 10 0 0 0-2.007-1.523"></path><path d="M2 8.82a15 15 0 0 1 4.177-2.643"></path><path d="M22 8.82a15 15 0 0 0-11.288-3.764"></path><path d="m2 2 20 20"></path></svg>
-            </div>
-            <span class="bento-pill-tag">100% Offline · GPL-3.0</span>
+          <div class="bento-icon-box">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01"></path><path d="M8.5 16.429a5 5 0 0 1 7 0"></path><path d="M5 12.859a10 10 0 0 1 5.17-2.69"></path><path d="M19 12.859a10 10 0 0 0-2.007-1.523"></path><path d="M2 8.82a15 15 0 0 1 4.177-2.643"></path><path d="M22 8.82a15 15 0 0 0-11.288-3.764"></path><path d="m2 2 20 20"></path></svg>
           </div>
           <div>
             <h3 class="bento-title">Private & Offline</h3>
