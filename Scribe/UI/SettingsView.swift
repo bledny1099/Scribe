@@ -590,17 +590,17 @@ struct SettingsHeaderView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 6) {
                     Image("MenuBarIcon")
                         .resizable()
                         .renderingMode(.template)
                         .foregroundStyle(.primary)
-                        .frame(width: 17, height: 17)
+                        .frame(width: 16, height: 16)
 
                     Text("Scribe")
-                        .font(.system(size: 19, weight: .bold, design: .rounded))
-                        .tracking(0.5)
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .tracking(0.3)
                         .foregroundStyle(.primary)
                 }
 

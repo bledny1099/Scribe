@@ -324,42 +324,110 @@ final class RecordingPanel: NSPanel {
     public static func getActiveWindowFrame() -> NSRect? {
         let scribeBundleID = Bundle.main.bundleIdentifier ?? "com.alexey.scribe"
         let scribePID = ProcessInfo.processInfo.processIdentifier
+        guard let primaryScreen = NSScreen.screens.first else { return nil }
+        let primaryHeight = primaryScreen.frame.height
 
-        // 1. Try frontmost application if it's not Scribe
-        if let frontApp = NSWorkspace.shared.frontmostApplication,
-           frontApp.processIdentifier != scribePID,
-           frontApp.bundleIdentifier != scribeBundleID {
-            let pid = frontApp.processIdentifier
-            let appElement = AXUIElementCreateApplication(pid)
-            var focusedWindow: AnyObject?
-            if AXUIElementCopyAttributeValue(appElement, kAXFocusedWindowAttribute as CFString, &focusedWindow) == .success,
-               let win = focusedWindow as! AXUIElement? {
-                var positionVal: AnyObject?
-                var sizeVal: AnyObject?
-                if AXUIElementCopyAttributeValue(win, kAXPositionAttribute as CFString, &positionVal) == .success,
-                   AXUIElementCopyAttributeValue(win, kAXSizeAttribute as CFString, &sizeVal) == .success,
-                   let posValue = positionVal as! AXValue?,
-                   let sizeValue = sizeVal as! AXValue? {
-                    var point = CGPoint.zero
-                    var size = CGSize.zero
-                    AXValueGetValue(posValue, .cgPoint, &point)
-                    AXValueGetValue(sizeValue, .cgSize, &size)
-                    if size.width > 80 && size.height > 80, let primary = NSScreen.screens.first {
-                        let cocoaY = primary.frame.height - (point.y + size.height)
-                        return NSRect(x: point.x, y: cocoaY, width: size.width, height: size.height)
+        guard let frontApp = NSWorkspace.shared.frontmostApplication,
+              frontApp.processIdentifier != scribePID,
+              frontApp.bundleIdentifier != scribeBundleID else {
+            return nil
+        }
+        let pid = frontApp.processIdentifier
+
+        // Helper to extract bounds from AXUIElement
+        func getAXBounds(element: AXUIElement) -> NSRect? {
+            var posVal: AnyObject?
+            var sizeVal: AnyObject?
+            if AXUIElementCopyAttributeValue(element, kAXPositionAttribute as CFString, &posVal) == .success,
+               AXUIElementCopyAttributeValue(element, kAXSizeAttribute as CFString, &sizeVal) == .success,
+               let pVal = posVal as! AXValue?,
+               let sVal = sizeVal as! AXValue? {
+                var point = CGPoint.zero
+                var size = CGSize.zero
+                AXValueGetValue(pVal, .cgPoint, &point)
+                AXValueGetValue(sVal, .cgSize, &size)
+                if size.width >= 320 && size.height >= 200 {
+                    let cocoaY = primaryHeight - (point.y + size.height)
+                    return NSRect(x: point.x, y: cocoaY, width: size.width, height: size.height)
+                }
+            }
+            return nil
+        }
+
+        // 1. Check Accessibility API on frontmost app
+        let appElement = AXUIElementCreateApplication(pid)
+
+        // Try MainWindow first (best representation of the primary app window)
+        var mainWinObj: AnyObject?
+        if AXUIElementCopyAttributeValue(appElement, kAXMainWindowAttribute as CFString, &mainWinObj) == .success,
+           let win = mainWinObj as! AXUIElement? {
+            if let frame = getAXBounds(element: win) {
+                return frame
+            }
+        }
+
+        // Try FocusedWindow next
+        var focusedWinObj: AnyObject?
+        if AXUIElementCopyAttributeValue(appElement, kAXFocusedWindowAttribute as CFString, &focusedWinObj) == .success,
+           let win = focusedWinObj as! AXUIElement? {
+            var roleObj: AnyObject?
+            _ = AXUIElementCopyAttributeValue(win, kAXRoleAttribute as CFString, &roleObj)
+            let role = roleObj as? String ?? ""
+
+            if role == (kAXWindowRole as String) {
+                if let frame = getAXBounds(element: win) {
+                    return frame
+                }
+            } else {
+                // If focused element is a child group or sidebar, query its parent window
+                var parentWinObj: AnyObject?
+                if AXUIElementCopyAttributeValue(win, kAXWindowAttribute as CFString, &parentWinObj) == .success,
+                   let pWin = parentWinObj as! AXUIElement? {
+                    if let frame = getAXBounds(element: pWin) {
+                        return frame
                     }
                 }
             }
         }
 
-        // 2. Query CGWindowList for the topmost user application window (excluding Scribe and system shells)
+        // 2. Query CGWindowList specifically for the frontmost application's largest visible window
         if let windowList = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] {
+            var candidateWindows: [(rect: NSRect, area: CGFloat)] = []
+
+            for window in windowList {
+                guard let winPID = window[kCGWindowOwnerPID as String] as? pid_t,
+                      winPID == pid,
+                      let layer = window[kCGWindowLayer as String] as? Int, layer == 0,
+                      let boundsDict = window[kCGWindowBounds as String] as? [String: CGFloat],
+                      let w = boundsDict["Width"], let h = boundsDict["Height"],
+                      w >= 320 && h >= 220 else {
+                    continue
+                }
+
+                if let alpha = window[kCGWindowAlpha as String] as? CGFloat, alpha < 0.2 {
+                    continue
+                }
+
+                let x = boundsDict["X"] ?? 0
+                let y = boundsDict["Y"] ?? 0
+                let cocoaY = primaryHeight - (y + h)
+                let rect = NSRect(x: x, y: cocoaY, width: w, height: h)
+                candidateWindows.append((rect: rect, area: w * h))
+            }
+
+            // Pick the largest window of the front app (ignores sidebars, popups, and tooltips)
+            if let best = candidateWindows.max(by: { $0.area < $1.area }) {
+                return best.rect
+            }
+
+            // Fallback: check other application windows on layer 0
             for window in windowList {
                 guard let winPID = window[kCGWindowOwnerPID as String] as? pid_t,
                       winPID != scribePID,
                       let layer = window[kCGWindowLayer as String] as? Int, layer == 0,
                       let boundsDict = window[kCGWindowBounds as String] as? [String: CGFloat],
-                      let w = boundsDict["Width"], let h = boundsDict["Height"], w > 150 && h > 150 else {
+                      let w = boundsDict["Width"], let h = boundsDict["Height"],
+                      w >= 450 && h >= 300 else {
                     continue
                 }
                 let ownerName = window[kCGWindowOwnerName as String] as? String ?? ""
@@ -368,10 +436,8 @@ final class RecordingPanel: NSPanel {
                 }
                 let x = boundsDict["X"] ?? 0
                 let y = boundsDict["Y"] ?? 0
-                if let primary = NSScreen.screens.first {
-                    let cocoaY = primary.frame.height - (y + h)
-                    return NSRect(x: x, y: cocoaY, width: w, height: h)
-                }
+                let cocoaY = primaryHeight - (y + h)
+                return NSRect(x: x, y: cocoaY, width: w, height: h)
             }
         }
 
@@ -380,19 +446,26 @@ final class RecordingPanel: NSPanel {
 
     /// Positions the panel based on the selected positioning mode.
     func positionPanel(mode: OverlayPositionMode, yOffset: CGFloat = 0) {
-        guard let screen = NSScreen.main else { center(); return }
-        let screenFrame = screen.visibleFrame
-
         switch mode {
         case .screenBottom:
+            guard let screen = NSScreen.main ?? NSScreen.screens.first else { center(); return }
+            let screenFrame = screen.visibleFrame
             let x = screenFrame.midX - frame.width / 2
             let y = screenFrame.minY + 160 + yOffset
             setFrameOrigin(NSPoint(x: x, y: y))
 
         case .activeWindow:
             if let windowFrame = Self.getActiveWindowFrame() {
+                // Find the screen containing the active window
+                let windowCenter = NSPoint(x: windowFrame.midX, y: windowFrame.midY)
+                let targetScreen = NSScreen.screens.first(where: { $0.frame.contains(windowCenter) })
+                    ?? NSScreen.screens.first(where: { $0.frame.intersects(windowFrame) })
+                    ?? NSScreen.main
+                    ?? NSScreen.screens.first
+                let screenFrame = targetScreen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+
                 // If the active window is full screen / maximized (occupies almost the full screen), position at screen bottom
-                let isNearlyFullScreen = windowFrame.width >= (screenFrame.width - 60) && windowFrame.height >= (screenFrame.height - 60)
+                let isNearlyFullScreen = windowFrame.width >= (screenFrame.width - 80) && windowFrame.height >= (screenFrame.height - 80)
                 if isNearlyFullScreen {
                     let x = screenFrame.midX - frame.width / 2
                     let y = screenFrame.minY + 160 + yOffset
@@ -400,16 +473,22 @@ final class RecordingPanel: NSPanel {
                 } else {
                     // Center horizontally at the active target window
                     var x = windowFrame.midX - frame.width / 2
-                    // Place near the bottom edge of the active window
-                    var y = windowFrame.minY + 36 + yOffset
+                    // Place near the bottom edge of the active window with comfortable margin
+                    var y = windowFrame.minY + 54 + yOffset
 
-                    // Keep strictly inside the screen visible bounds with room for subtitle below
-                    let minAllowedY = screenFrame.minY + 68
-                    x = max(screenFrame.minX + 16, min(x, screenFrame.maxX - frame.width - 16))
-                    y = max(minAllowedY, min(y, screenFrame.maxY - frame.height - 24))
+                    // Keep strictly inside the target screen visible bounds with room for subtitle below
+                    let minAllowedY = screenFrame.minY + 72
+                    let maxAllowedY = screenFrame.maxY - frame.height - 24
+                    let minAllowedX = screenFrame.minX + 24
+                    let maxAllowedX = screenFrame.maxX - frame.width - 24
+
+                    x = max(minAllowedX, min(x, maxAllowedX))
+                    y = max(minAllowedY, min(y, maxAllowedY))
                     setFrameOrigin(NSPoint(x: x, y: y))
                 }
             } else {
+                guard let screen = NSScreen.main ?? NSScreen.screens.first else { center(); return }
+                let screenFrame = screen.visibleFrame
                 let x = screenFrame.midX - frame.width / 2
                 let y = screenFrame.minY + 160 + yOffset
                 setFrameOrigin(NSPoint(x: x, y: y))
