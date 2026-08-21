@@ -8,6 +8,7 @@ cask "scribe" do
   homepage "https://github.com/bledny1099/Scribe"
 
   depends_on macos: ">= :sonoma"
+  depends_on arch: :arm64
 
   app "Scribe.app"
 
