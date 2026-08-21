@@ -639,7 +639,24 @@ struct SettingsHeaderView: View {
 
             HStack(spacing: 8) {
                 Button(action: {
-                    if let url = URL(string: "https://github.com/bledny1099/Scribe/issues") {
+                    let osVersion = ProcessInfo.processInfo.operatingSystemVersionString
+                    var chip = "Apple Silicon"
+                    var size = 0
+                    sysctlbyname("machdep.cpu.brand_string", nil, &size, nil, 0)
+                    if size > 0 {
+                        var name = [CChar](repeating: 0, count: size)
+                        sysctlbyname("machdep.cpu.brand_string", &name, &size, nil, 0)
+                        let brand = String(cString: name)
+                        if brand.contains("M1") { chip = "M1" }
+                        else if brand.contains("M2") { chip = "M2" }
+                        else if brand.contains("M3") { chip = "M3" }
+                        else if brand.contains("M4") { chip = "M4" }
+                        else if brand.contains("M5") { chip = "M5" }
+                    }
+                    let encOS = osVersion.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "macOS"
+                    let encChip = chip.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "AppleSilicon"
+                    let urlStr = "https://bledny1099.github.io/Scribe/report.html?type=support&os=\(encOS)&arch=\(encChip)&version=v2.4.2"
+                    if let url = URL(string: urlStr) {
                         NSWorkspace.shared.open(url)
                     }
                 }) {
