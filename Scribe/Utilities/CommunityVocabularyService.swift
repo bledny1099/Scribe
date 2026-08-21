@@ -158,7 +158,7 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
         return _cachedTransliterationMap
     }
 
-    private func getCachedTermsSetLower() -> Set<String> {
+    public func getCachedTermsSetLower() -> Set<String> {
         lock.lock()
         defer { lock.unlock() }
         return Set(_cachedAllTerms.map { $0.lowercased() })

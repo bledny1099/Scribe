@@ -924,13 +924,28 @@
             "эппл заметки"
           ],
           "term" : "Apple Notes"
+        },
+        {
+          "aliases" : [
+            "отобили",
+            "ото били",
+            "ото бери"
+          ],
+          "term" : "убери"
+        },
+        {
+          "aliases" : [
+            "пафикси",
+            "по фикси"
+          ],
+          "term" : "пофикси"
         }
       ]
     }
   ],
   "contributing" : "To propose new words or aliases, open an issue or PR at https:\/\/github.com\/bledny1099\/Scribe",
   "description" : "Scribe Multilingual Open Community Vocabulary — Curated dictionary of tech stacks, AI platforms, modern slang, music, crypto, and productivity terms with phonetic auto-casing across English, Russian, and international speech.",
-  "lastUpdated" : "2026-08-21T14:23:11Z",
+  "lastUpdated" : "2026-08-21T17:50:00Z",
   "repository" : "https:\/\/github.com\/bledny1099\/Scribe",
-  "version" : 4
+  "version" : 5
 }

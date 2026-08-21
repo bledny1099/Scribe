@@ -255,7 +255,15 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
 
         // Strip non-speech annotations that Whisper sometimes inserts,
         // e.g. [keyboard clicking], (music), *laughs*, [BLANK_AUDIO], rogue scripts
-        let text = Self.cleanTranscription(rawText, preferredLanguages: preferredLanguages, targetLanguage: resolvedLang)
+        var text = Self.cleanTranscription(rawText, preferredLanguages: preferredLanguages, targetLanguage: resolvedLang)
+
+        // Stage C: Linguistic validation against native macOS dictionary and phonetic correction
+        let customVocabList = customVocabulary.components(separatedBy: CharacterSet(charactersIn: ",\n;")).map { $0.trimmingCharacters(in: .whitespaces) }
+        text = AetherLinguisticValidator.shared.validateAndCorrect(
+            text: text,
+            language: resolvedLang != "auto" ? resolvedLang : language,
+            customVocabulary: customVocabList
+        )
 
         logger.info("Transcribed text (\(text.count) chars): \(text.prefix(100))")
 

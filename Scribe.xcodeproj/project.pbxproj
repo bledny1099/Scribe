@@ -27,6 +27,7 @@
 		654788EAF4DDE1E76909FD20 /* SoundFeedback.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CBC037D320FA9FA6D66EBD7 /* SoundFeedback.swift */; };
 		74F7E12716D64CCFA449EDF8 /* NotePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92BFCE91C2AFC558D1E53CFE /* NotePickerView.swift */; };
 		7B374F86DA4A0185D8AF567E /* TranscriptionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03E3F01E9E6835C4E2BA39DD /* TranscriptionService.swift */; };
+		A0010007 /* AetherLinguisticValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010007 /* AetherLinguisticValidator.swift */; };
 		8580267BDF5EBAA8994647DD /* LaunchAtLoginHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = A33DFF31D403EFBFA043388C /* LaunchAtLoginHelper.swift */; };
 		94E79D85DBC1F87C1915FE93 /* NoteExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21275C02C08F216BDCACFB8D /* NoteExporter.swift */; };
 		964CE5E111F740301E77DAB5 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 42BA0A3DE7484100CC7A997F /* AppIcon.icns */; };
@@ -53,6 +54,7 @@
 		B1010002 /* ObsidianIcon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = ObsidianIcon.png; sourceTree = "<group>"; };
 		B1010003 /* NotionIcon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = NotionIcon.png; sourceTree = "<group>"; };
 		03E3F01E9E6835C4E2BA39DD /* TranscriptionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionService.swift; sourceTree = "<group>"; };
+		F0010007 /* AetherLinguisticValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AetherLinguisticValidator.swift; sourceTree = "<group>"; };
 		F0010001 /* AetherAudioConditioner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AetherAudioConditioner.swift; sourceTree = "<group>"; };
 		F0010002 /* AetherContextEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AetherContextEngine.swift; sourceTree = "<group>"; };
 		F0010003 /* AetherFuzzyMatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AetherFuzzyMatcher.swift; sourceTree = "<group>"; };
@@ -123,6 +125,7 @@
 			isa = PBXGroup;
 			children = (
 				F0010002 /* AetherContextEngine.swift */,
+				F0010007 /* AetherLinguisticValidator.swift */,
 				03E3F01E9E6835C4E2BA39DD /* TranscriptionService.swift */,
 			);
 			path = Transcription;
@@ -296,6 +299,7 @@
 				654788EAF4DDE1E76909FD20 /* SoundFeedback.swift in Sources */,
 				F884AE0AF8654BE0E2DEC1DE /* TranscriptionHistory.swift in Sources */,
 				7B374F86DA4A0185D8AF567E /* TranscriptionService.swift in Sources */,
+				A0010007 /* AetherLinguisticValidator.swift in Sources */,
 				A0010001 /* AetherAudioConditioner.swift in Sources */,
 				A0010002 /* AetherContextEngine.swift in Sources */,
 				A0010003 /* AetherFuzzyMatcher.swift in Sources */,
