@@ -290,6 +290,25 @@
       transition: all 0.15s ease;
     }
 
+    .form-select {
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      background-color: rgba(0, 0, 0, 0.3);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.6)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      background-size: 14px 14px;
+      padding-right: 38px;
+      cursor: pointer;
+    }
+
+    .form-select option {
+      background-color: #121815;
+      color: #ffffff;
+      padding: 8px 12px;
+    }
+
     .form-input:focus, .form-textarea:focus, .form-select:focus {
       border-color: rgba(52, 211, 153, 0.6);
       background: rgba(0, 0, 0, 0.45);
@@ -559,33 +578,38 @@
           </table>
         </div>
 
-        <!-- Form Inputs -->
+        <!-- Scribe Version (Top) -->
+        <div class="form-group">
+          <label class="form-label" for="reportVersion">Scribe Version</label>
+          <select id="reportVersion" class="form-select" onchange="onVersionChange()">
+            <option id="optLatestVersion" value="v2.4.2" selected>v2.4.2 (Latest Release)</option>
+            <option id="optOutdatedVersion" value="< v2.4.2">&lt; v2.4.2 (Outdated)</option>
+          </select>
+        </div>
+
+        <!-- Outdated Version Warning -->
+        <div id="versionWarning" class="version-warning">
+          <strong>⛔ Unsupported Version for Bug Reports:</strong>
+          <p style="margin-top: 4px;">Bug reports are only accepted for the latest release (<strong id="warnLatestVerText">v2.4.2</strong>). Many issues are already resolved in newer builds. Please update Scribe and check if the issue persists.</p>
+          <div style="margin-top: 10px;">
+            <a id="warnDownloadBtn" href="https://github.com/bledny1099/Scribe/releases/latest" target="_blank" style="display: inline-block; padding: 7px 14px; background: rgba(52, 211, 153, 0.15); border: 1px solid rgba(52, 211, 153, 0.35); border-radius: 6px; color: #34d399; text-decoration: none; font-weight: 600;">Download v2.4.2</a>
+          </div>
+        </div>
+
+        <!-- Email -->
         <div class="form-group">
           <label class="form-label" for="reportEmail">Your Email Address <span class="req">*</span></label>
           <input type="email" id="reportEmail" class="form-input" placeholder="name@example.com (for confirmation & status replies)" required>
         </div>
 
+        <!-- Title -->
         <div class="form-group">
           <label class="form-label" for="reportTitle">Summary / Title <span class="req">*</span></label>
           <input type="text" id="reportTitle" class="form-input" placeholder="Brief summary of the issue..." required>
         </div>
 
-        <!-- Outdated Version Warning -->
-        <div id="versionWarning" class="version-warning">
-          <strong>⚠️ Upgrade Required:</strong>
-          <p style="margin-top: 4px;">Bug reports are strictly accepted only for the latest release. Many issues are already resolved in newer builds. Please update Scribe and verify if the issue persists.</p>
-        </div>
-
+        <!-- OS & Chip on single line -->
         <div class="form-row" style="margin-bottom: 16px;">
-          <div class="form-group" style="margin-bottom: 0;">
-            <label class="form-label" for="reportVersion">Scribe Version</label>
-            <select id="reportVersion" class="form-select" onchange="onVersionChange()">
-              <option id="optLatestVersion" value="v2.4.2" selected>v2.4.2 (Latest Release)</option>
-              <option value="v2.4.1">v2.4.1</option>
-              <option value="v2.4.0">v2.4.0</option>
-              <option value="< v2.4.0">&lt; v2.4.0 (Outdated)</option>
-            </select>
-          </div>
           <div class="form-group" style="margin-bottom: 0;">
             <label class="form-label" for="reportOS">macOS Version</label>
             <select id="reportOS" class="form-select">
@@ -595,17 +619,16 @@
               <option value="macOS 27 Golden Gate Beta">macOS 27 Golden Gate Beta</option>
             </select>
           </div>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label" for="reportArch">Apple Silicon Chip</label>
-          <select id="reportArch" class="form-select">
-            <option value="Apple Silicon M1">Apple Silicon M1</option>
-            <option value="Apple Silicon M2" selected>Apple Silicon M2</option>
-            <option value="Apple Silicon M3">Apple Silicon M3</option>
-            <option value="Apple Silicon M4">Apple Silicon M4</option>
-            <option value="Apple Silicon M5">Apple Silicon M5</option>
-          </select>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label" for="reportArch">Apple Silicon Chip</label>
+            <select id="reportArch" class="form-select">
+              <option value="Apple Silicon M1">Apple Silicon M1</option>
+              <option value="Apple Silicon M2" selected>Apple Silicon M2</option>
+              <option value="Apple Silicon M3">Apple Silicon M3</option>
+              <option value="Apple Silicon M4">Apple Silicon M4</option>
+              <option value="Apple Silicon M5">Apple Silicon M5</option>
+            </select>
+          </div>
         </div>
 
         <div class="form-group">
@@ -682,6 +705,11 @@
         topOpt.value = latestSupportedVersion;
         topOpt.textContent = `${latestSupportedVersion} (Latest Release)`;
       }
+      const outOpt = document.getElementById('optOutdatedVersion');
+      if (outOpt) {
+        outOpt.value = `< ${latestSupportedVersion}`;
+        outOpt.textContent = `< ${latestSupportedVersion} (Outdated)`;
+      }
       onVersionChange();
     }
 
@@ -729,10 +757,11 @@
       const verParam = params.get('version');
       if (verParam) {
         const verSelect = document.getElementById('reportVersion');
-        if (verParam.includes('2.4.2')) verSelect.value = 'v2.4.2';
-        else if (verParam.includes('2.4.1')) verSelect.value = 'v2.4.1';
-        else if (verParam.includes('2.4.0')) verSelect.value = 'v2.4.0';
-        else verSelect.value = '< v2.4.0';
+        if (verParam.includes('2.4.2') || verParam.includes(latestSupportedVersion)) {
+          verSelect.value = latestSupportedVersion;
+        } else {
+          verSelect.value = `< ${latestSupportedVersion}`;
+        }
       }
 
       syncLatestReleaseFromGitHub();
