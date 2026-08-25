@@ -657,6 +657,10 @@ struct OrbOverlay: View {
 struct SubtitleOverlayView: View {
     @EnvironmentObject var appState: AppState
 
+    private var cornerRadius: CGFloat {
+        max(22, round(24 * appState.selectedOverlaySize.scale))
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             if !appState.livePreviewText.isEmpty && (appState.recordingStatus == .recording || appState.isShowingPreview) {
@@ -667,31 +671,31 @@ struct SubtitleOverlayView: View {
                     .lineLimit(4)
                     .lineSpacing(3)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 9)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
                     .background {
                         if appState.livePreviewBackground == .dark {
-                            RoundedRectangle(cornerRadius: 15, style: .continuous)
+                            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                                 .fill(Color.black.opacity(0.82))
                                 .overlay(
-                                    RoundedRectangle(cornerRadius: 15, style: .continuous)
+                                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                                         .strokeBorder(Color.white.opacity(0.18), lineWidth: 0.8)
                                 )
                         } else {
-                            RoundedRectangle(cornerRadius: 15, style: .continuous)
+                            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                                 .fill(.ultraThinMaterial)
                                 .overlay(
-                                    RoundedRectangle(cornerRadius: 15, style: .continuous)
+                                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                                         .fill(Color.white.opacity(0.15))
                                 )
                                 .overlay(
-                                    RoundedRectangle(cornerRadius: 15, style: .continuous)
+                                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                                         .strokeBorder(Color.white.opacity(0.3), lineWidth: 0.8)
                                 )
                         }
                     }
-                    .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
-                    .shadow(color: Color.black.opacity(0.16), radius: 10, x: 0, y: 4)
+                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                    .shadow(color: Color.black.opacity(0.16), radius: 12, x: 0, y: 4)
                     .frame(maxWidth: 680)
                     .transition(.opacity.combined(with: .scale(scale: 0.96)))
                     .animation(.spring(response: 0.32, dampingFraction: 0.82), value: appState.livePreviewText)
