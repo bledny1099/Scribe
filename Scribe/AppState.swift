@@ -1658,18 +1658,39 @@ final class AppState: ObservableObject {
             let isSingle = self.recognitionMode == "singleLanguage"
             let langParam: String? = isSingle ? (self.singleDictationLanguage == "auto" ? nil : self.singleDictationLanguage) : nil
             let preferredLangs: [String] = isSingle ? [] : (self.multilingualLanguages.isEmpty ? ["ru", "en"] : self.multilingualLanguages)
-            let text = try await transcriptionService.transcribe(
+            let rawText = try await transcriptionService.transcribe(
                 audioURL: snapshotURL,
                 modelName: selectedModel,
                 language: langParam,
                 preferredLanguages: preferredLangs,
                 autoTranslate: autoTranslate,
                 customVocabulary: vocabulary,
-                userLocation: effectiveUserLocation
+                userLocation: effectiveUserLocation,
+                targetApp: self.targetRunningApplication
             )
+
+            let effectiveBlocked = AetherContextEngine.shared.activeEffectiveBlockedWords(
+                targetApp: self.targetRunningApplication,
+                userBlockedWords: self.blockedWords,
+                recognitionLanguages: isSingle ? [self.singleDictationLanguage] : preferredLangs
+            )
+            let effectiveVocab = AetherContextEngine.shared.activeEffectiveVocabulary(
+                targetApp: self.targetRunningApplication,
+                userVocabulary: self.vocabulary
+            )
+
+            var processedText = TranscriptionService.removeFillerWordsAndDuplicates(rawText)
+            processedText = TextReplacer.apply(
+                replacements: self.textReplacements,
+                vocabulary: effectiveVocab,
+                blockedWords: effectiveBlocked,
+                blockedAction: self.blockedWordsActionRaw,
+                to: processedText
+            )
+
             // Only update if we're still recording
             if isRecording {
-                livePreviewText = text
+                livePreviewText = processedText
             }
         } catch {
             logger.warning("Live preview transcription failed: \(error.localizedDescription)")
