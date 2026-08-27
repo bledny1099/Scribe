@@ -6,50 +6,72 @@ import FirebaseFirestore
 
 private let logger = Logger(subsystem: "com.aleksei.scribe", category: "CommunityVocabularyService")
 
-public struct CommunityTerm: Codable, Identifiable, Hashable, Sendable {
-    public var id: String { term.lowercased() }
-    public let term: String
-    public let aliases: [String]
-
-    public init(term: String, aliases: [String]) {
-        self.term = term
-        // Strict deduplication of aliases: case-insensitive & trimmed
-        var seen = Set<String>()
-        var cleanAliases: [String] = []
-        for alias in aliases {
-            let trimmed = alias.trimmingCharacters(in: .whitespacesAndNewlines)
-            let lower = trimmed.lowercased()
-            if !trimmed.isEmpty && lower != term.lowercased() && !seen.contains(lower) {
-                seen.insert(lower)
-                cleanAliases.append(trimmed)
-            }
-        }
-        self.aliases = cleanAliases
-    }
-}
-
 public struct CommunityCategory: Codable, Identifiable, Hashable, Sendable {
     public let id: String
     public let name: String
     public let languages: [String]?
-    public var terms: [CommunityTerm]
+    public var terms: [String]
 
-    public init(id: String, name: String, languages: [String]?, terms: [CommunityTerm]) {
+    enum CodingKeys: String, CodingKey {
+        case id, name, languages, terms
+    }
+
+    public init(id: String, name: String, languages: [String]?, terms: [String]) {
         self.id = id
         self.name = name
         self.languages = languages
-        // Deduplicate terms inside category
         var seen = Set<String>()
-        var cleanTerms: [CommunityTerm] = []
+        var cleanTerms: [String] = []
         for t in terms {
-            let lower = t.term.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            if !lower.isEmpty && !seen.contains(lower) {
+            let trimmed = t.trimmingCharacters(in: .whitespacesAndNewlines)
+            let lower = trimmed.lowercased()
+            if !trimmed.isEmpty && !seen.contains(lower) {
                 seen.insert(lower)
-                cleanTerms.append(t)
+                cleanTerms.append(trimmed)
             }
         }
         self.terms = cleanTerms
     }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decode(String.self, forKey: .id)
+        self.name = try container.decode(String.self, forKey: .name)
+        self.languages = try container.decodeIfPresent([String].self, forKey: .languages)
+
+        if let stringTerms = try? container.decode([String].self, forKey: .terms) {
+            var seen = Set<String>()
+            var clean: [String] = []
+            for t in stringTerms {
+                let trimmed = t.trimmingCharacters(in: .whitespacesAndNewlines)
+                let lower = trimmed.lowercased()
+                if !trimmed.isEmpty && !seen.contains(lower) {
+                    seen.insert(lower)
+                    clean.append(trimmed)
+                }
+            }
+            self.terms = clean
+        } else if let objectTerms = try? container.decode([LegacyCommunityTerm].self, forKey: .terms) {
+            var seen = Set<String>()
+            var clean: [String] = []
+            for t in objectTerms {
+                let trimmed = t.term.trimmingCharacters(in: .whitespacesAndNewlines)
+                let lower = trimmed.lowercased()
+                if !trimmed.isEmpty && !seen.contains(lower) {
+                    seen.insert(lower)
+                    clean.append(trimmed)
+                }
+            }
+            self.terms = clean
+        } else {
+            self.terms = []
+        }
+    }
+}
+
+public struct LegacyCommunityTerm: Codable {
+    public let term: String
+    public let aliases: [String]?
 }
 
 public struct CommunityDictionaryPayload: Codable, Sendable {
@@ -61,14 +83,33 @@ public struct CommunityDictionaryPayload: Codable, Sendable {
     public let categories: [CommunityCategory]
 }
 
+public struct PhoneticRecognizerPayload: Codable, Sendable {
+    public let version: Int?
+    public let lastUpdated: String?
+    public let description: String?
+    public let transliterations: [String: String]?
+    public let acousticRules: [PhoneticAcousticRule]?
+
+    enum CodingKeys: String, CodingKey {
+        case version, lastUpdated, description, transliterations
+        case acousticRules = "acoustic_rules"
+    }
+}
+
+public struct PhoneticAcousticRule: Codable, Sendable {
+    public let pattern: String
+    public let template: String
+}
+
 /// Manages 5-minute background bi-directional syncing of the open community dictionary from GitHub and Firestore.
-/// Thread-safe for audio worker pipelines.
+/// Clean public dictionary stores terms only; phonetic speech recognition mappings are stored and loaded separately.
 public final class CommunityVocabularyService: ObservableObject, @unchecked Sendable {
     public static let shared = CommunityVocabularyService()
 
     public static let remoteDictionaryURL = URL(string: "https://raw.githubusercontent.com/bledny1099/Scribe/main/vocabulary/community_dictionary.json")!
+    public static let remotePhoneticMapURL = URL(string: "https://raw.githubusercontent.com/bledny1099/Scribe/main/vocabulary/phonetic_recognizer_map.json")!
     public static let githubDictionaryPageURL = URL(string: "https://github.com/bledny1099/Scribe/blob/main/vocabulary/community_dictionary.json")!
-    public static let githubContributeURL = URL(string: "https://github.com/bledny1099/Scribe/issues/new?title=%5BVocabulary%5D+Propose+new+word&body=Word%2FTerm%3A%0AAliases%2FPhonetics%3A%0ACategory%3A")!
+    public static let githubContributeURL = URL(string: "https://github.com/bledny1099/Scribe/issues/new?title=%5BVocabulary%5D+Propose+new+word&body=Word%2FTerm%3A%0ACategory%3A")!
 
     @Published public var categories: [CommunityCategory] = []
     @Published public var totalTermsCount: Int = 0
@@ -83,6 +124,7 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
     private var syncTask: Task<Void, Never>? = nil
 
     private let cacheFileName = "community_dictionary_cache.json"
+    private let phoneticCacheFileName = "phonetic_recognizer_cache.json"
 
     private var db: Firestore? {
         return FirebaseApp.app() != nil ? Firestore.firestore() : nil
@@ -93,6 +135,13 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
         let dir = appSupport.appendingPathComponent("com.aleksei.scribe", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir.appendingPathComponent(cacheFileName)
+    }
+
+    private var phoneticCacheFileURL: URL? {
+        guard let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return nil }
+        let dir = appSupport.appendingPathComponent("com.aleksei.scribe", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir.appendingPathComponent(phoneticCacheFileName)
     }
 
     private init() {
@@ -122,7 +171,7 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
     }
 
     public func performBiDirectionalSync() async {
-        // 1. Pull latest community dictionary from GitHub
+        // 1. Pull latest community dictionary and phonetic recognizer map from GitHub
         await refreshFromGitHub()
 
         // 2. Anonymously push unique new words to community pool if allowed
@@ -174,11 +223,33 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
     // MARK: - Loading & Syncing
 
     public func loadCachedOrBundled() {
-        // 1. Try Cache File first
+        // 0. Load phonetic recognizer map (transliterations & acoustic recognition mappings)
+        var phoneticMap: [String: String] = [:]
+
+        if let pCacheURL = phoneticCacheFileURL,
+           let pData = try? Data(contentsOf: pCacheURL),
+           let pPayload = try? JSONDecoder().decode(PhoneticRecognizerPayload.self, from: pData),
+           let trans = pPayload.transliterations {
+            phoneticMap = trans
+        } else if let bundleURL = Bundle.main.url(forResource: "phonetic_recognizer_map", withExtension: "json"),
+                  let pData = try? Data(contentsOf: bundleURL),
+                  let pPayload = try? JSONDecoder().decode(PhoneticRecognizerPayload.self, from: pData),
+                  let trans = pPayload.transliterations {
+            phoneticMap = trans
+        } else {
+            let devPhoneticURL = URL(fileURLWithPath: "/Users/aleksei/Documents/Scribe/vocabulary/phonetic_recognizer_map.json")
+            if let pData = try? Data(contentsOf: devPhoneticURL),
+               let pPayload = try? JSONDecoder().decode(PhoneticRecognizerPayload.self, from: pData),
+               let trans = pPayload.transliterations {
+                phoneticMap = trans
+            }
+        }
+
+        // 1. Try Cache File first for clean terms dictionary
         if let cacheURL = cacheFileURL,
            let data = try? Data(contentsOf: cacheURL),
            let payload = try? JSONDecoder().decode(CommunityDictionaryPayload.self, from: data) {
-            applyPayload(payload)
+            applyPayload(payload, basePhoneticMap: phoneticMap)
             return
         }
 
@@ -186,7 +257,7 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
         if let bundleURL = Bundle.main.url(forResource: "community_dictionary", withExtension: "json"),
            let data = try? Data(contentsOf: bundleURL),
            let payload = try? JSONDecoder().decode(CommunityDictionaryPayload.self, from: data) {
-            applyPayload(payload)
+            applyPayload(payload, basePhoneticMap: phoneticMap)
             return
         }
 
@@ -194,7 +265,7 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
         let devURL = URL(fileURLWithPath: "/Users/aleksei/Documents/Scribe/vocabulary/community_dictionary.json")
         if let data = try? Data(contentsOf: devURL),
            let payload = try? JSONDecoder().decode(CommunityDictionaryPayload.self, from: data) {
-            applyPayload(payload)
+            applyPayload(payload, basePhoneticMap: phoneticMap)
             return
         }
     }
@@ -206,6 +277,7 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
         syncError = nil
 
         do {
+            // 1. Fetch clean dictionary
             var request = URLRequest(url: Self.remoteDictionaryURL)
             request.cachePolicy = .reloadIgnoringLocalCacheData
             request.timeoutInterval = 10
@@ -216,7 +288,24 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
             }
 
             let payload = try JSONDecoder().decode(CommunityDictionaryPayload.self, from: data)
-            applyPayload(payload)
+
+            // 2. Fetch separate phonetic recognizer map
+            var phoneticMap: [String: String] = [:]
+            var pRequest = URLRequest(url: Self.remotePhoneticMapURL)
+            pRequest.cachePolicy = .reloadIgnoringLocalCacheData
+            pRequest.timeoutInterval = 10
+
+            if let (pData, pResponse) = try? await URLSession.shared.data(for: pRequest),
+               let pHttp = pResponse as? HTTPURLResponse, (200...299).contains(pHttp.statusCode),
+               let pPayload = try? JSONDecoder().decode(PhoneticRecognizerPayload.self, from: pData),
+               let trans = pPayload.transliterations {
+                phoneticMap = trans
+                if let pCache = phoneticCacheFileURL {
+                    try? pData.write(to: pCache, options: .atomic)
+                }
+            }
+
+            applyPayload(payload, basePhoneticMap: phoneticMap)
 
             // Cache to disk
             if let cacheURL = cacheFileURL {
@@ -225,7 +314,7 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
 
             lastSyncDate = Date()
             UserDefaults.standard.set(lastSyncDate, forKey: "communityDictionaryLastSync")
-            logger.info("Successfully refreshed community dictionary with \(self.totalTermsCount) terms")
+            logger.info("Successfully refreshed clean community dictionary (\(self.totalTermsCount) terms)")
         } catch {
             logger.warning("Failed to refresh community dictionary: \(error.localizedDescription)")
             syncError = error.localizedDescription
@@ -233,8 +322,6 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
 
         isSyncing = false
     }
-
-    // MARK: - Anonymous Local Contributions Push
 
     // MARK: - Local & Anonymous Community Synchronization
 
@@ -264,7 +351,12 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
         let localRepoURL = URL(fileURLWithPath: localRepoPath)
         let bundledURL = URL(fileURLWithPath: bundledPath)
 
-        // Read current dictionary from repo file, cache, or bundle
+        let localPhoneticRepoPath = "/Users/aleksei/Documents/Scribe/vocabulary/phonetic_recognizer_map.json"
+        let bundledPhoneticPath = "/Users/aleksei/Documents/Scribe/Scribe/phonetic_recognizer_map.json"
+        let localPhoneticURL = URL(fileURLWithPath: localPhoneticRepoPath)
+        let bundledPhoneticURL = URL(fileURLWithPath: bundledPhoneticPath)
+
+        // Read current dictionary
         var currentData: Data? = nil
         if FileManager.default.fileExists(atPath: localRepoPath), let data = try? Data(contentsOf: localRepoURL) {
             currentData = data
@@ -275,20 +367,26 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
         }
 
         guard let data = currentData,
-              var payload = try? JSONDecoder().decode(CommunityDictionaryPayload.self, from: data) else {
+              let payload = try? JSONDecoder().decode(CommunityDictionaryPayload.self, from: data) else {
             return 0
+        }
+
+        // Read current phonetic recognizer map
+        var currentPhoneticPayload: PhoneticRecognizerPayload? = nil
+        if FileManager.default.fileExists(atPath: localPhoneticRepoPath), let pData = try? Data(contentsOf: localPhoneticURL) {
+            currentPhoneticPayload = try? JSONDecoder().decode(PhoneticRecognizerPayload.self, from: pData)
+        } else if let pCacheURL = phoneticCacheFileURL, let pData = try? Data(contentsOf: pCacheURL) {
+            currentPhoneticPayload = try? JSONDecoder().decode(PhoneticRecognizerPayload.self, from: pData)
         }
 
         var allExistingTermsLower = Set<String>()
         for cat in payload.categories {
             for t in cat.terms {
-                allExistingTermsLower.insert(t.term.lowercased())
-                for a in t.aliases {
-                    allExistingTermsLower.insert(a.lowercased())
-                }
+                allExistingTermsLower.insert(t.lowercased())
             }
         }
 
+        var updatedPhoneticMap = currentPhoneticPayload?.transliterations ?? transliterationMap
         var newWordsAdded = 0
         var updatedCategories = payload.categories
 
@@ -296,7 +394,9 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
             let lower = word.lowercased()
             if !allExistingTermsLower.contains(lower) {
                 let aliases = generatePhoneticAliases(for: word)
-                let termObj = CommunityTerm(term: word, aliases: aliases)
+                for a in aliases {
+                    updatedPhoneticMap[a.lowercased()] = word
+                }
 
                 // Pick best category
                 let catIndex: Int
@@ -315,17 +415,15 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
                     catIndex = updatedCategories.firstIndex(where: { $0.id == "slang_and_culture" }) ?? 0
                 }
 
-                updatedCategories[catIndex].terms.append(termObj)
+                updatedCategories[catIndex].terms.append(word)
                 allExistingTermsLower.insert(lower)
-                for a in aliases {
-                    allExistingTermsLower.insert(a.lowercased())
-                }
                 newWordsAdded += 1
             }
         }
 
         guard newWordsAdded > 0 else { return 0 }
 
+        // Save clean words-only dictionary
         let newPayload = CommunityDictionaryPayload(
             version: payload.version + 1,
             lastUpdated: ISO8601DateFormatter().string(from: Date()),
@@ -345,15 +443,32 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
             }
         }
 
-        applyPayload(newPayload)
-        logger.info("Successfully synced \(newWordsAdded) new local words into community dictionary")
+        // Save separate phonetic recognizer map
+        let newPhoneticPayload = PhoneticRecognizerPayload(
+            version: (currentPhoneticPayload?.version ?? 1) + 1,
+            lastUpdated: ISO8601DateFormatter().string(from: Date()),
+            description: "Phonetic mappings, transliterations, and acoustic rules for speech recognition alignment.",
+            transliterations: updatedPhoneticMap,
+            acousticRules: currentPhoneticPayload?.acousticRules
+        )
+
+        if let pEncoded = try? encoder.encode(newPhoneticPayload) {
+            try? pEncoded.write(to: localPhoneticURL, options: .atomic)
+            try? pEncoded.write(to: bundledPhoneticURL, options: .atomic)
+            if let pCache = phoneticCacheFileURL {
+                try? pEncoded.write(to: pCache, options: .atomic)
+            }
+        }
+
+        applyPayload(newPayload, basePhoneticMap: updatedPhoneticMap)
+        logger.info("Successfully synced \(newWordsAdded) new local words into clean community dictionary")
         return newWordsAdded
     }
 
     public func generatePhoneticAliases(for term: String) -> [String] {
         var aliases: [String] = []
         let lower = term.lowercased()
-        
+
         switch lower {
         case "хоккей":
             aliases = ["hockey", "хакей"]
@@ -418,7 +533,6 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
 
         guard !localWords.isEmpty else { return 0 }
 
-        let existingTermsLower = getCachedTermsSetLower()
         var previouslySubmitted = Set(UserDefaults.standard.stringArray(forKey: "submittedCommunityWordsHistory") ?? [])
 
         var wordsToSubmit: [String] = []
@@ -452,39 +566,34 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
 
     // MARK: - Strict Deduplication & Payload Application
 
-    private func applyPayload(_ payload: CommunityDictionaryPayload) {
-        var map: [String: String] = [:]
+    private func applyPayload(_ payload: CommunityDictionaryPayload, basePhoneticMap: [String: String] = [:]) {
+        var map = basePhoneticMap
         var termsSeen = Set<String>()
         var uniqueTerms: [String] = []
         var cleanCategories: [CommunityCategory] = []
 
         for cat in payload.categories {
-            var catTerms: [CommunityTerm] = []
+            var catTerms: [String] = []
 
             for t in cat.terms {
-                let trimmed = t.term.trimmingCharacters(in: .whitespacesAndNewlines)
+                let trimmed = t.trimmingCharacters(in: .whitespacesAndNewlines)
                 let lower = trimmed.lowercased()
 
                 if !trimmed.isEmpty && !termsSeen.contains(lower) {
                     termsSeen.insert(lower)
                     uniqueTerms.append(trimmed)
+                    catTerms.append(trimmed)
 
-                    // Deduplicate aliases for this term
-                    var cleanAliases: [String] = []
-                    var aliasSeen = Set<String>()
+                    map[lower] = trimmed
 
-                    for alias in t.aliases {
-                        let aTrimmed = alias.trimmingCharacters(in: .whitespacesAndNewlines)
-                        let aLower = aTrimmed.lowercased()
-                        if !aTrimmed.isEmpty && aLower != lower && !aliasSeen.contains(aLower) {
-                            aliasSeen.insert(aLower)
-                            cleanAliases.append(aTrimmed)
+                    // Generate automatic aliases if not already mapped
+                    let autoAliases = generatePhoneticAliases(for: trimmed)
+                    for a in autoAliases {
+                        let aLower = a.lowercased()
+                        if map[aLower] == nil {
                             map[aLower] = trimmed
                         }
                     }
-
-                    map[lower] = trimmed
-                    catTerms.append(CommunityTerm(term: trimmed, aliases: cleanAliases))
                 }
             }
 

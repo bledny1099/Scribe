@@ -336,7 +336,8 @@ struct WaveformOverlay: View {
         .onChange(of: audioRecorder.audioLevel) { _, newLevel in
             if !appState.isShowingPreview {
                 levels.removeFirst()
-                let amplified = min(1.0, max(0.0, newLevel * 1.3))
+                // Dynamic non-linear scaling for visible speech responsiveness
+                let amplified = min(1.0, max(0.02, pow(newLevel, 0.75) * 1.45))
                 levels.append(amplified)
             }
         }
@@ -348,14 +349,14 @@ struct WaveformOverlay: View {
         HStack(alignment: .center, spacing: 2.4) {
             ForEach(0..<barCount, id: \.self) { i in
                 let level = CGFloat(levels[i])
-                let maxBarHeight: CGFloat = 44
+                let maxBarHeight: CGFloat = 46
                 let minBarHeight: CGFloat = 3.6
                 let barHeight = minBarHeight + level * (maxBarHeight - minBarHeight)
 
                 RoundedRectangle(cornerRadius: 1.6)
                     .fill(barGradient(for: level))
                     .frame(width: 3.2, height: barHeight)
-                    .animation(.spring(response: 0.12, dampingFraction: 0.72), value: levels[i])
+                    .animation(.spring(response: 0.09, dampingFraction: 0.68), value: levels[i])
             }
         }
     }
