@@ -200,8 +200,8 @@ struct WaveformOverlay: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var audioRecorder: AudioRecorder
 
-    private let barCount = 32
-    @State private var levels: [Float] = Array(repeating: 0.02, count: 32)
+    private let barCount = 52
+    @State private var levels: [Float] = Array(repeating: 0.02, count: 52)
     @State private var spinAngle: Double = 0
 
     private var theme: AppTheme { appState.selectedTheme }
