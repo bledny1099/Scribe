@@ -737,7 +737,6 @@ final class AppState: ObservableObject {
         logger.info("AppState init")
         setupHotkeyHandler()
         setupEscHandler()
-        setupAudioLevelForwarding()
         setupLivePreviewResizing()
         setupPeriodicAutoSync()
         preloadModel()
@@ -1584,12 +1583,6 @@ final class AppState: ObservableObject {
             }
             return event
         }
-    }
-
-    private func setupAudioLevelForwarding() {
-        audioRecorder.$audioLevel
-            .receive(on: RunLoop.main)
-            .assign(to: &$audioLevel)
     }
 
     private func preloadModel() {

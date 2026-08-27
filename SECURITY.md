@@ -4,10 +4,10 @@
 
 Only the version(s) below are currently supported with security updates and patches:
 
-| Version | Supported |
+| Version | Supported          |
 | ------- | ------------------ |
-| v2.4.3  | :white_check_mark: |
-| < v2.4.3 | 🚫 |
+| v2.4.4  | :white_check_mark: |
+| < v2.4.4 | 🚫 |
 
 ## Reporting a Vulnerability
 

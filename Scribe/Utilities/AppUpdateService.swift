@@ -30,7 +30,7 @@ public final class AppUpdateService: ObservableObject {
     private let checkInterval: TimeInterval = 30.0
 
     private init() {
-        self.currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.4.3"
+        self.currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.4.4"
         startPeriodicChecks()
     }
 

@@ -343,32 +343,41 @@ struct WaveformOverlay: View {
         }
     }
 
-    // MARK: - Waveform Bars
+    // MARK: - Waveform Bars (Hardware-Accelerated Canvas)
 
     private var waveformBars: some View {
-        HStack(alignment: .center, spacing: 2.4) {
-            ForEach(0..<barCount, id: \.self) { i in
-                let level = CGFloat(levels[i])
-                let maxBarHeight: CGFloat = 46
-                let minBarHeight: CGFloat = 3.6
-                let barHeight = minBarHeight + level * (maxBarHeight - minBarHeight)
+        Canvas { context, size in
+            let barWidth: CGFloat = 3.2
+            let spacing: CGFloat = 2.4
+            let totalBars = levels.count
+            let totalWidth = CGFloat(totalBars) * barWidth + CGFloat(max(0, totalBars - 1)) * spacing
+            let startX = max(0, (size.width - totalWidth) / 2)
+            let midY = size.height / 2
+            let maxBarHeight: CGFloat = max(min(size.height - 4, 46), 20)
+            let minBarHeight: CGFloat = 3.6
 
-                RoundedRectangle(cornerRadius: 1.6)
-                    .fill(barGradient(for: level))
-                    .frame(width: 3.2, height: barHeight)
-                    .animation(.spring(response: 0.09, dampingFraction: 0.68), value: levels[i])
+            let colors = theme.gradientColors
+            let grad = Gradient(colors: colors)
+
+            for i in 0..<totalBars {
+                let level = CGFloat(levels[i])
+                let barHeight = minBarHeight + level * (maxBarHeight - minBarHeight)
+                let x = startX + CGFloat(i) * (barWidth + spacing)
+                let y = midY - barHeight / 2
+                let rect = CGRect(x: x, y: y, width: barWidth, height: barHeight)
+                let path = Path(roundedRect: rect, cornerRadius: 1.6)
+
+                let opacity = 0.35 + level * 0.65
+                let barStyle = GraphicsContext.Shading.linearGradient(
+                    grad,
+                    startPoint: CGPoint(x: x, y: y + barHeight),
+                    endPoint: CGPoint(x: x, y: y)
+                )
+                context.opacity = opacity
+                context.fill(path, with: barStyle)
             }
         }
-    }
-
-    private func barGradient(for level: CGFloat) -> some ShapeStyle {
-        let colors = theme.gradientColors
-        let opacity = 0.3 + level * 0.7
-        return LinearGradient(
-            colors: [colors[0].opacity(opacity), colors[1].opacity(opacity)],
-            startPoint: .bottom,
-            endPoint: .top
-        )
+        .drawingGroup()
     }
 
     // MARK: - Status Indicator
