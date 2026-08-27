@@ -200,8 +200,8 @@ struct WaveformOverlay: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var audioRecorder: AudioRecorder
 
-    private let barCount = 52
-    @State private var levels: [Float] = Array(repeating: 0, count: 52)
+    private let barCount = 32
+    @State private var levels: [Float] = Array(repeating: 0.02, count: 32)
     @State private var spinAngle: Double = 0
 
     private var theme: AppTheme { appState.selectedTheme }
@@ -311,7 +311,7 @@ struct WaveformOverlay: View {
             height: cardHeight
         )
         .animation(.spring(response: 0.35, dampingFraction: 0.82), value: cardWidth)
-        .onReceive(Timer.publish(every: 0.04, on: .main, in: .common).autoconnect()) { _ in
+        .onReceive(Timer.publish(every: 0.035, on: .main, in: .common).autoconnect()) { _ in
             if appState.isShowingPreview {
                 let t = Date().timeIntervalSinceReferenceDate
                 let sentenceCycle = t.truncatingRemainder(dividingBy: 3.6)
@@ -328,66 +328,46 @@ struct WaveformOverlay: View {
                     simulated = Float(max(0.02, 0.035 + 0.015 * sin(t * 6.0)))
                 }
 
-                let last = levels.last ?? 0.02
-                let smoothed = last * 0.35 + simulated * 0.65
                 levels.removeFirst()
-                levels.append(smoothed)
+                levels.append(simulated)
             }
         }
         .onChange(of: audioRecorder.audioLevel) { _, newLevel in
             if !appState.isShowingPreview {
-                let target = min(1.0, max(0.02, newLevel * 1.05))
-                let last = levels.last ?? 0.02
-                let smoothed = last * 0.40 + target * 0.60
+                let target = min(1.0, max(0.02, newLevel))
                 levels.removeFirst()
-                levels.append(smoothed)
+                levels.append(target)
             }
         }
     }
 
-    // MARK: - Waveform Bars (Hardware-Accelerated Canvas with Auto-Fit & Zero Clipping)
+    // MARK: - Waveform Bars
 
     private var waveformBars: some View {
-        Canvas { context, size in
-            let barWidth: CGFloat = 3.2
-            let spacing: CGFloat = 2.4
-            let unitWidth = barWidth + spacing
-
-            // Calculate exact number of whole bars that fit without any edge clipping
-            let availableWidth = max(20, size.width - 8)
-            let fitCount = max(6, Int(availableWidth / unitWidth))
-            let count = min(fitCount, levels.count)
-            guard count > 0 else { return }
-
-            let totalWidth = CGFloat(count) * barWidth + CGFloat(count - 1) * spacing
-            let startX = (size.width - totalWidth) / 2
-            let midY = size.height / 2
-            let maxBarHeight: CGFloat = max(min(size.height - 6, 44), 18)
-            let minBarHeight: CGFloat = 3.6
-
-            let colors = theme.gradientColors
-            let grad = Gradient(colors: colors)
-            let startIndex = levels.count - count
-
-            for i in 0..<count {
-                let level = CGFloat(levels[startIndex + i])
+        HStack(alignment: .center, spacing: 2.4) {
+            ForEach(0..<barCount, id: \.self) { i in
+                let level = CGFloat(levels[i])
+                let maxBarHeight: CGFloat = 44
+                let minBarHeight: CGFloat = 3.6
                 let barHeight = minBarHeight + level * (maxBarHeight - minBarHeight)
-                let x = startX + CGFloat(i) * unitWidth
-                let y = midY - barHeight / 2
-                let rect = CGRect(x: x, y: y, width: barWidth, height: barHeight)
-                let path = Path(roundedRect: rect, cornerRadius: 1.6)
 
-                let opacity = 0.35 + level * 0.65
-                let barStyle = GraphicsContext.Shading.linearGradient(
-                    grad,
-                    startPoint: CGPoint(x: x, y: y + barHeight),
-                    endPoint: CGPoint(x: x, y: y)
-                )
-                context.opacity = opacity
-                context.fill(path, with: barStyle)
+                RoundedRectangle(cornerRadius: 1.6)
+                    .fill(barGradient(for: level))
+                    .frame(width: 3.2, height: barHeight)
+                    .animation(.spring(response: 0.12, dampingFraction: 0.70), value: levels[i])
             }
         }
-        .drawingGroup()
+        .frame(maxWidth: .infinity, alignment: .center)
+    }
+
+    private func barGradient(for level: CGFloat) -> some ShapeStyle {
+        let colors = theme.gradientColors
+        let opacity = 0.35 + level * 0.65
+        return LinearGradient(
+            colors: [colors[0].opacity(opacity), colors[1].opacity(opacity)],
+            startPoint: .bottom,
+            endPoint: .top
+        )
     }
 
     // MARK: - Status Indicator
