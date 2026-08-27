@@ -70,10 +70,8 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
         let inputNode = audioEngine.inputNode
         
         // Route audio input to user-selected hardware microphone
-        let selectedDeviceID = DispatchQueue.main.sync {
-            AudioDeviceManager.shared.resolveCurrentDeviceID()
-        }
-        if let targetDeviceID = selectedDeviceID,
+        let selectedUID = UserDefaults.standard.string(forKey: "selectedAudioInputDeviceUID") ?? AudioDeviceManager.systemDefaultUID
+        if let targetDeviceID = AudioDeviceManager.findDeviceID(byUID: selectedUID),
            let audioUnit = inputNode.audioUnit {
             var deviceID = targetDeviceID
             let status = AudioUnitSetProperty(

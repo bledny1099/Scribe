@@ -41,7 +41,7 @@ public struct AudioInputDevice: Identifiable, Hashable, Sendable {
 public final class AudioDeviceManager: ObservableObject {
     public static let shared = AudioDeviceManager()
 
-    public static let systemDefaultUID = "system_default"
+    public nonisolated static let systemDefaultUID = "system_default"
 
     @AppStorage("selectedAudioInputDeviceUID") public var selectedDeviceUID: String = AudioDeviceManager.systemDefaultUID
 
@@ -262,9 +262,36 @@ public final class AudioDeviceManager: ObservableObject {
         )
     }
 
-    // MARK: - Helper
+    // MARK: - Nonisolated Helper for Audio Thread
 
-    private static func getCFStringProperty(id: AudioDeviceID, selector: AudioObjectPropertySelector) -> String? {
+    /// Nonisolated static helper to find AudioDeviceID for a given UID without touching MainActor state
+    public nonisolated static func findDeviceID(byUID targetUID: String) -> AudioDeviceID? {
+        guard targetUID != systemDefaultUID && !targetUID.isEmpty else { return nil }
+
+        var propertyAddress = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDevices,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var dataSize: UInt32 = 0
+        guard AudioObjectGetPropertyDataSize(AudioObjectID(kAudioObjectSystemObject), &propertyAddress, 0, nil, &dataSize) == noErr else {
+            return nil
+        }
+        let deviceCount = Int(dataSize) / MemoryLayout<AudioDeviceID>.size
+        var deviceIDs = [AudioDeviceID](repeating: 0, count: deviceCount)
+        guard AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &propertyAddress, 0, nil, &dataSize, &deviceIDs) == noErr else {
+            return nil
+        }
+
+        for id in deviceIDs {
+            if let uid = getCFStringProperty(id: id, selector: kAudioDevicePropertyDeviceUID), uid == targetUID {
+                return id
+            }
+        }
+        return nil
+    }
+
+    private nonisolated static func getCFStringProperty(id: AudioDeviceID, selector: AudioObjectPropertySelector) -> String? {
         var address = AudioObjectPropertyAddress(
             mSelector: selector,
             mScope: kAudioObjectPropertyScopeGlobal,
