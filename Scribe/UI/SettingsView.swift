@@ -2125,8 +2125,12 @@ struct LiquidGlassLanguageMenu: View {
 /// A specialized menu button for selecting the audio input device (microphone) on macOS.
 struct LiquidGlassAudioInputMenu: View {
     @ObservedObject var deviceManager = AudioDeviceManager.shared
-    @EnvironmentObject var appState: AppState
+    @AppStorage("selectedUILanguage") private var selectedUILanguage: String = "auto"
     var compact: Bool = false
+
+    private func l(_ key: String) -> String {
+        Localization.string(key, lang: selectedUILanguage)
+    }
 
     var body: some View {
         Menu {
@@ -2136,8 +2140,8 @@ struct LiquidGlassAudioInputMenu: View {
                     deviceManager.selectedDeviceUID = AudioDeviceManager.systemDefaultUID
                 }
             } label: {
-                let defaultName = deviceManager.defaultDevice?.name ?? appState.l("Microphone")
-                let title = "\(appState.l("System Default")) (\(defaultName))"
+                let defaultName = deviceManager.defaultDevice?.name ?? l("Microphone")
+                let title = "\(l("System Default")) (\(defaultName))"
                 if deviceManager.selectedDeviceUID == AudioDeviceManager.systemDefaultUID {
                     Label(title, systemImage: "checkmark")
                 } else {
@@ -2171,7 +2175,7 @@ struct LiquidGlassAudioInputMenu: View {
                     .foregroundStyle(.secondary)
                     .frame(width: 14)
 
-                Text(deviceManager.selectedDeviceUID == AudioDeviceManager.systemDefaultUID ? (compact ? appState.l("System Default") : "\(appState.l("System Default")) (\(deviceManager.defaultDevice?.name ?? ""))") : deviceManager.activeDisplayName)
+                Text(deviceManager.selectedDeviceUID == AudioDeviceManager.systemDefaultUID ? (compact ? l("System Default") : "\(l("System Default")) (\(deviceManager.defaultDevice?.name ?? ""))") : deviceManager.activeDisplayName)
                     .font(.system(size: compact ? 11 : 12, weight: .medium, design: .rounded))
                     .foregroundStyle(.primary)
                     .lineLimit(1)

@@ -170,6 +170,14 @@ public final class AetherFuzzyMatcher: @unchecked Sendable {
 
             var matchedTarget: String? = nil
             for target in targets {
+                // If the word has Cyrillic characters, verify it is not a valid grammatical case inflection
+                if isCyrillic(cleanWord) && isCyrillic(target) {
+                    if isRussianCaseInflection(word: cleanWord, target: target) {
+                        // Never overwrite inflected Russian case forms with dictionary nominatives
+                        continue
+                    }
+                }
+
                 let dist = levenshteinDistance(cleanWord.lowercased(), target.lowercased())
                 let maxAllowedDist = cleanWord.count >= 8 ? 2 : 1
 
@@ -195,6 +203,39 @@ public final class AetherFuzzyMatcher: @unchecked Sendable {
         }
 
         return adjustedWords.joined(separator: " ")
+    }
+
+    /// Checks if a string contains Cyrillic characters
+    private func isCyrillic(_ s: String) -> Bool {
+        s.unicodeScalars.contains { $0.value >= 0x0400 && $0.value <= 0x04FF }
+    }
+
+    /// Detects if word is an inflected grammatical form of target (cases: -а, -у, -е, -ом, -ем, -ами, -ях, etc.)
+    private func isRussianCaseInflection(word: String, target: String) -> Bool {
+        let w = word.lowercased()
+        let t = target.lowercased()
+        
+        guard w != t else { return false }
+        
+        let minCommonPrefixLen = min(4, min(w.count, t.count) - 1)
+        guard minCommonPrefixLen >= 3 else { return false }
+        
+        let prefixW = w.prefix(minCommonPrefixLen)
+        let prefixT = t.prefix(minCommonPrefixLen)
+        guard prefixW == prefixT else { return false }
+        
+        // Common Russian noun, adjective, and verb case/inflection endings
+        let russianInflectionEndings: [String] = [
+            "а", "я", "у", "ю", "е", "о", "ё", "ом", "ем", "ём", "ами", "ями", "ы", "и",
+            "ей", "ов", "ев", "ях", "ах", "ам", "ям", "ого", "его", "ому", "ему", "ым", "им",
+            "ую", "юю", "ой", "ей", "ою", "ею", "ых", "их", "ыми", "ими", "ости", "остей",
+            "ский", "ского", "скому", "ским", "ском", "ская", "ской", "скую", "ское", "ские", "ских", "скими"
+        ]
+        
+        let suffixW = String(w.dropFirst(minCommonPrefixLen))
+        let suffixT = String(t.dropFirst(minCommonPrefixLen))
+        
+        return russianInflectionEndings.contains(suffixW) || russianInflectionEndings.contains(suffixT)
     }
 
     private func levenshteinDistance(_ s1: String, _ s2: String) -> Int {

@@ -21,6 +21,7 @@ struct ScribeApp: App {
         // MARK: Menu Bar
         MenuBarExtra {
             LiquidGlassMenuBarView(appState: appState)
+                .environmentObject(appState)
         } label: {
             Label("Scribe", systemImage: appState.isRecording ? "waveform" : "mic")
         }

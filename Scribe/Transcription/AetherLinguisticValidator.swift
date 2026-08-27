@@ -16,15 +16,25 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         "отобирите": "уберите",
         "пафикси": "пофикси",
         "по фикси": "пофикси",
+        "по фикшено": "пофикшено",
+        "по фикшен": "пофикшен",
         "зафикси": "зафиксируй",
         "пофиксить": "пофиксить",
         "промптить": "промптить",
         "промптинг": "промптинг",
         "рефакторинг": "рефакторинг",
         "рефакторить": "рефакторить",
+        "от рефактори": "отрефактори",
         "закоммить": "закоммить",
+        "за коммить": "закоммить",
         "запушить": "запушить",
-        "замержить": "замержить"
+        "за пушить": "запушить",
+        "замержить": "замержить",
+        "за мержить": "замержить",
+        "задеплой": "задеплой",
+        "за деплой": "задеплой",
+        "чекаутни": "чекаутни",
+        "заскрейпи": "заскрейпи"
     ]
 
     private init() {}
@@ -55,6 +65,7 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
 
         // 2. Token-level dictionary validation via NSSpellChecker
         let langCode = resolveSpellCheckerLanguage(language: language, text: text)
+        let isRussian = langCode.hasPrefix("ru")
         let customSet = Set(customVocabulary.map { $0.lowercased() })
 
         // Extract words using regex
@@ -94,11 +105,20 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
 
             // If word is unrecognized by dictionary (length > 0)
             if misspellingRange.length > 0 {
-                // Check if we have an acoustic fix
+                // Check if we have a direct acoustic fix
                 if let directFix = acousticCorrections[lowerWord] {
                     let matchedCase = matchCapitalization(original: word, target: directFix)
                     replacements.append((range: wordRange, replacement: matchedCase))
                     continue
+                }
+
+                // In Russian, do NOT let spell checker overwrite case endings (e.g. -ом, -ам, -ях, -е)
+                // with dictionary base forms unless it is clearly an acoustic mishearing.
+                if isRussian {
+                    let commonRussianInflections = ["ом", "ем", "ём", "ами", "ями", "ях", "ах", "ам", "ям", "ого", "его", "ому", "ему", "ым", "им", "ую", "юю", "ой", "ей", "ою", "ею", "ых", "их", "ыми", "ими"]
+                    if commonRussianInflections.contains(where: { lowerWord.hasSuffix($0) }) {
+                        continue
+                    }
                 }
 
                 // Query Apple's spell checker for plausible guesses
@@ -110,8 +130,8 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
                 ) ?? []
 
                 if let bestGuess = guesses.first, !bestGuess.isEmpty {
-                    // Only apply if the guess is very close in length (prevent aggressive rewrites)
-                    if abs(bestGuess.count - word.count) <= 2 && isAcousticallySimilar(word, bestGuess) {
+                    // Only apply if the guess is very close in length and phonetic structure
+                    if abs(bestGuess.count - word.count) <= 1 && isAcousticallySimilar(word, bestGuess) {
                         let matchedCase = matchCapitalization(original: word, target: bestGuess)
                         replacements.append((range: wordRange, replacement: matchedCase))
                     }
