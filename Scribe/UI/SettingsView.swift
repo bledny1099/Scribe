@@ -2120,6 +2120,90 @@ struct LiquidGlassLanguageMenu: View {
     }
 }
 
+// MARK: - Liquid Glass Audio Input Menu
+
+/// A specialized menu button for selecting the audio input device (microphone) on macOS.
+struct LiquidGlassAudioInputMenu: View {
+    @ObservedObject var deviceManager = AudioDeviceManager.shared
+    @EnvironmentObject var appState: AppState
+    var compact: Bool = false
+
+    var body: some View {
+        Menu {
+            // System Default Option
+            Button {
+                withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
+                    deviceManager.selectedDeviceUID = AudioDeviceManager.systemDefaultUID
+                }
+            } label: {
+                let defaultName = deviceManager.defaultDevice?.name ?? appState.l("Microphone")
+                let title = "\(appState.l("System Default")) (\(defaultName))"
+                if deviceManager.selectedDeviceUID == AudioDeviceManager.systemDefaultUID {
+                    Label(title, systemImage: "checkmark")
+                } else {
+                    Label(title, systemImage: deviceManager.defaultDevice?.transportType.iconName ?? "laptopcomputer")
+                }
+            }
+
+            if !deviceManager.availableDevices.isEmpty {
+                Divider()
+
+                // List of detected physical/virtual input devices
+                ForEach(deviceManager.availableDevices) { device in
+                    Button {
+                        withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
+                            deviceManager.selectedDeviceUID = device.uid
+                        }
+                    } label: {
+                        if deviceManager.selectedDeviceUID == device.uid {
+                            Label(device.name, systemImage: "checkmark")
+                        } else {
+                            Label(device.name, systemImage: device.transportType.iconName)
+                        }
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 6) {
+                let currentDevice = deviceManager.activeDevice
+                Image(systemName: currentDevice?.transportType.iconName ?? "mic.fill")
+                    .font(.system(size: compact ? 10 : 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 14)
+
+                Text(deviceManager.selectedDeviceUID == AudioDeviceManager.systemDefaultUID ? (compact ? appState.l("System Default") : "\(appState.l("System Default")) (\(deviceManager.defaultDevice?.name ?? ""))") : deviceManager.activeDisplayName)
+                    .font(.system(size: compact ? 11 : 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+
+                Spacer(minLength: 4)
+
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.system(size: compact ? 8 : 9, weight: .bold))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, compact ? 8 : 10)
+            .padding(.vertical, compact ? 4 : 6)
+            .frame(width: compact ? 140 : 210)
+            .background(
+                ZStack {
+                    RoundedRectangle(cornerRadius: compact ? 8 : 10)
+                        .fill(Color.primary.opacity(0.05))
+
+                    RoundedRectangle(cornerRadius: compact ? 8 : 10)
+                        .fill(.ultraThinMaterial.opacity(0.6))
+                }
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: compact ? 8 : 10)
+                    .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 // MARK: - Liquid Glass Multi-Language Menu
 
 /// A specialized menu button that supports multi-selecting 2-3 languages for multilingual mode.
@@ -5675,6 +5759,22 @@ struct GeneralSettingsView: View {
                         items: supportedLanguages,
                         selection: $appState.selectedUILanguage
                     )
+                }
+            }
+
+            // SECTION: Audio Input / Microphone
+            GlassSection(title: appState.l("Audio Input"), icon: "mic.fill") {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(appState.l("Microphone Source"))
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .foregroundStyle(.primary)
+                        Text(appState.l("Select the audio input source for dictation"))
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    LiquidGlassAudioInputMenu()
                 }
             }
 

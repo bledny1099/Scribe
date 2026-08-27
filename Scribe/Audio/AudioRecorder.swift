@@ -1,6 +1,8 @@
 import AVFoundation
 import Accelerate
 import Combine
+import CoreAudio
+import AudioToolbox
 import os.log
 
 private let logger = Logger(subsystem: "com.aleksei.scribe", category: "AudioRecorder")
@@ -66,6 +68,29 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
             .appendingPathComponent("scribe_\(UUID().uuidString).wav")
 
         let inputNode = audioEngine.inputNode
+        
+        // Route audio input to user-selected hardware microphone
+        let selectedDeviceID = DispatchQueue.main.sync {
+            AudioDeviceManager.shared.resolveCurrentDeviceID()
+        }
+        if let targetDeviceID = selectedDeviceID,
+           let audioUnit = inputNode.audioUnit {
+            var deviceID = targetDeviceID
+            let status = AudioUnitSetProperty(
+                audioUnit,
+                kAudioOutputUnitProperty_CurrentDevice,
+                kAudioUnitScope_Global,
+                0,
+                &deviceID,
+                UInt32(MemoryLayout<AudioDeviceID>.size)
+            )
+            if status == noErr {
+                logger.info("Configured audio input device ID: \(deviceID)")
+            } else {
+                logger.warning("Failed to configure audio input device ID \(deviceID), status: \(status)")
+            }
+        }
+
         let recordingFormat = inputNode.outputFormat(forBus: 0)
         currentFormat = recordingFormat
 

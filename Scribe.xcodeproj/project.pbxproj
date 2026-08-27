@@ -47,9 +47,11 @@
 		A0010003 /* AetherFuzzyMatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010003 /* AetherFuzzyMatcher.swift */; };
 		A0010005 /* CommunityVocabularyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010005 /* CommunityVocabularyService.swift */; };
 		A0010006 /* KeychainHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010006 /* KeychainHelper.swift */; };
+		A0010008 /* AudioDeviceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010008 /* AudioDeviceManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		F0010008 /* AudioDeviceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDeviceManager.swift; sourceTree = "<group>"; };
 		B1010001 /* AppleNotesIcon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = AppleNotesIcon.png; sourceTree = "<group>"; };
 		B1010002 /* ObsidianIcon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = ObsidianIcon.png; sourceTree = "<group>"; };
 		B1010003 /* NotionIcon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = NotionIcon.png; sourceTree = "<group>"; };
@@ -107,6 +109,7 @@
 		530DE06F0C9CE76DF25095EA /* Audio */ = {
 			isa = PBXGroup;
 			children = (
+				F0010008 /* AudioDeviceManager.swift */,
 				F0010001 /* AetherAudioConditioner.swift */,
 				B5D0155AE02279EAD3E31A5E /* AudioRecorder.swift */,
 			);
@@ -306,6 +309,7 @@
 				A0010004 /* AppUpdateService.swift in Sources */,
 				A0010005 /* CommunityVocabularyService.swift in Sources */,
 				A0010006 /* KeychainHelper.swift in Sources */,
+				A0010008 /* AudioDeviceManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
