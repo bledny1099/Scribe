@@ -203,14 +203,14 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
         var rms: Float = 0
         vDSP_rmsqv(channelData[0], 1, &rms, vDSP_Length(buffer.frameLength))
 
-        // Convert to dB with high sensitivity for voice
-        // Silence floor at -52 dB, normal speech around -28 to -18 dB, peaks at -10 dB
+        // Convert to dB with balanced natural sensitivity for voice
+        // Silence floor at -48 dB, normal speech around -24 to -14 dB, peaks at -8 dB
         let db = 20 * log10(max(rms, 1e-5))
-        let minDb: Float = -52.0
-        let maxDb: Float = -12.0
+        let minDb: Float = -48.0
+        let maxDb: Float = -8.0
         let normalized = max(0, min(1, (db - minDb) / (maxDb - minDb)))
 
-        // Non-linear gamma expansion (power 0.65) to boost quiet and normal speech responsiveness
-        return pow(normalized, 0.65)
+        // Natural smooth curve (power 0.85) without over-saturating
+        return pow(normalized, 0.85)
     }
 }

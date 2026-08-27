@@ -314,55 +314,65 @@ struct WaveformOverlay: View {
         .onReceive(Timer.publish(every: 0.04, on: .main, in: .common).autoconnect()) { _ in
             if appState.isShowingPreview {
                 let t = Date().timeIntervalSinceReferenceDate
-                // Realistic vocal cadence envelope: syllables, pauses, natural speech bursts 1:1 like real speech
                 let sentenceCycle = t.truncatingRemainder(dividingBy: 3.6)
-                let isSpeaking = sentenceCycle < 2.9 // 2.9s speech, 0.7s breath pause
+                let isSpeaking = sentenceCycle < 2.9
                 let syllable = sin(t * 12.0) * cos(t * 7.5)
                 let modulation = 0.5 + 0.5 * sin(t * 3.2)
 
                 let simulated: Float
                 if isSpeaking {
-                    let base = 0.28 + Float(modulation * 0.38)
-                    let syllabicBurst = Float(max(0.0, syllable * 0.34))
-                    simulated = min(0.92, base + syllabicBurst)
+                    let base = 0.22 + Float(modulation * 0.34)
+                    let syllabicBurst = Float(max(0.0, syllable * 0.28))
+                    simulated = min(0.85, base + syllabicBurst)
                 } else {
                     simulated = Float(max(0.02, 0.035 + 0.015 * sin(t * 6.0)))
                 }
 
+                let last = levels.last ?? 0.02
+                let smoothed = last * 0.35 + simulated * 0.65
                 levels.removeFirst()
-                levels.append(simulated)
+                levels.append(smoothed)
             }
         }
         .onChange(of: audioRecorder.audioLevel) { _, newLevel in
             if !appState.isShowingPreview {
+                let target = min(1.0, max(0.02, newLevel * 1.05))
+                let last = levels.last ?? 0.02
+                let smoothed = last * 0.40 + target * 0.60
                 levels.removeFirst()
-                // Dynamic non-linear scaling for visible speech responsiveness
-                let amplified = min(1.0, max(0.02, pow(newLevel, 0.75) * 1.45))
-                levels.append(amplified)
+                levels.append(smoothed)
             }
         }
     }
 
-    // MARK: - Waveform Bars (Hardware-Accelerated Canvas)
+    // MARK: - Waveform Bars (Hardware-Accelerated Canvas with Auto-Fit & Zero Clipping)
 
     private var waveformBars: some View {
         Canvas { context, size in
             let barWidth: CGFloat = 3.2
             let spacing: CGFloat = 2.4
-            let totalBars = levels.count
-            let totalWidth = CGFloat(totalBars) * barWidth + CGFloat(max(0, totalBars - 1)) * spacing
-            let startX = max(0, (size.width - totalWidth) / 2)
+            let unitWidth = barWidth + spacing
+
+            // Calculate exact number of whole bars that fit without any edge clipping
+            let availableWidth = max(20, size.width - 8)
+            let fitCount = max(6, Int(availableWidth / unitWidth))
+            let count = min(fitCount, levels.count)
+            guard count > 0 else { return }
+
+            let totalWidth = CGFloat(count) * barWidth + CGFloat(count - 1) * spacing
+            let startX = (size.width - totalWidth) / 2
             let midY = size.height / 2
-            let maxBarHeight: CGFloat = max(min(size.height - 4, 46), 20)
+            let maxBarHeight: CGFloat = max(min(size.height - 6, 44), 18)
             let minBarHeight: CGFloat = 3.6
 
             let colors = theme.gradientColors
             let grad = Gradient(colors: colors)
+            let startIndex = levels.count - count
 
-            for i in 0..<totalBars {
-                let level = CGFloat(levels[i])
+            for i in 0..<count {
+                let level = CGFloat(levels[startIndex + i])
                 let barHeight = minBarHeight + level * (maxBarHeight - minBarHeight)
-                let x = startX + CGFloat(i) * (barWidth + spacing)
+                let x = startX + CGFloat(i) * unitWidth
                 let y = midY - barHeight / 2
                 let rect = CGRect(x: x, y: y, width: barWidth, height: barHeight)
                 let path = Path(roundedRect: rect, cornerRadius: 1.6)

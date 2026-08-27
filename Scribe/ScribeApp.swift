@@ -149,34 +149,6 @@ struct LiquidGlassMenuBarView: View {
                         .stroke(appState.isRecording ? Color.red.opacity(0.35) : Color.primary.opacity(0.12), lineWidth: 1)
                 )
             }
-            .buttonStyle(.plain)
-
-            // Quick Audio Input Selector
-            HStack(spacing: 6) {
-                Image(systemName: "mic.fill")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 14)
-
-                Text(appState.l("Input:"))
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .foregroundStyle(.secondary)
-
-                Spacer()
-
-                LiquidGlassAudioInputMenu(compact: true)
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(Color.primary.opacity(0.04))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-            )
-
             // Footer
             HStack(spacing: 8) {
                 Button {
