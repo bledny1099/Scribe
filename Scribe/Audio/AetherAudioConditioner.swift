@@ -145,25 +145,70 @@ public final class AetherAudioConditioner: @unchecked Sendable {
         return (start, end)
     }
 
-    // MARK: - Peak Normalization
-
+    // MARK: - Adaptive Speech Loudness Normalization & Soft Limiting
+    
+    /// Normalizes speech energy to optimal Whisper decoding level (-19 dBFS RMS) with soft-knee limiting.
+    /// Ensures quiet/distant speech and loud close speech are both conditioned to consistent, crystal-clear amplitude.
     private func normalizeLoudness(buffer: AVAudioPCMBuffer) {
         guard let channelData = buffer.floatChannelData, buffer.frameLength > 0 else { return }
         let channelCount = Int(buffer.format.channelCount)
-        let length = vDSP_Length(buffer.frameLength)
+        let length = Int(buffer.frameLength)
 
+        // 1. Calculate Speech-Segment RMS (excluding pure silence frames)
+        let windowSize = 480 // 30ms window at 16kHz
+        var speechRmsSum: Float = 0
+        var speechWindowCount = 0
         var maxPeak: Float = 0
+
         for ch in 0..<channelCount {
-            var channelPeak: Float = 0
-            vDSP_maxv(channelData[ch], 1, &channelPeak, length)
-            maxPeak = max(maxPeak, channelPeak)
+            let samples = channelData[ch]
+            var offset = 0
+            while offset + windowSize <= length {
+                var windowRms: Float = 0
+                vDSP_rmsqv(samples + offset, 1, &windowRms, vDSP_Length(windowSize))
+                // Speech frame threshold (-50 dBFS)
+                if windowRms > 0.00316 {
+                    speechRmsSum += windowRms
+                    speechWindowCount += 1
+                }
+                offset += windowSize
+            }
+            var chPeak: Float = 0
+            vDSP_maxv(samples, 1, &chPeak, vDSP_Length(length))
+            maxPeak = max(maxPeak, chPeak)
         }
 
-        // If audio is reasonably audible (> 0.05) and below clipping threshold (< 0.95), normalize to 0.88
-        if maxPeak > 0.03 && maxPeak < 0.85 {
-            var gain = 0.88 / maxPeak
+        // Target speech RMS for Whisper attention encoder is ~ -19 dBFS (0.112)
+        let targetRms: Float = 0.112
+        var gain: Float = 1.0
+
+        if speechWindowCount > 0 {
+            let avgSpeechRms = speechRmsSum / Float(speechWindowCount)
+            if avgSpeechRms > 0.005 {
+                gain = min(targetRms / avgSpeechRms, 12.0) // Cap gain boost at +21 dB
+            }
+        } else if maxPeak > 0.01 && maxPeak < 0.85 {
+            gain = min(0.85 / maxPeak, 8.0)
+        }
+
+        // Apply gain across all channels
+        if gain != 1.0 {
+            var mutGain = gain
             for ch in 0..<channelCount {
-                vDSP_vsmul(channelData[ch], 1, &gain, channelData[ch], 1, length)
+                vDSP_vsmul(channelData[ch], 1, &mutGain, channelData[ch], 1, vDSP_Length(length))
+            }
+        }
+
+        // 2. Soft-knee compression limiter on peaks > 0.88 to eliminate harsh digital clipping
+        for ch in 0..<channelCount {
+            let ptr = channelData[ch]
+            for i in 0..<length {
+                let s = ptr[i]
+                if s > 0.88 {
+                    ptr[i] = 0.88 + 0.10 * tanh((s - 0.88) / 0.10)
+                } else if s < -0.88 {
+                    ptr[i] = -0.88 + 0.10 * tanh((s + 0.88) / 0.10)
+                }
             }
         }
     }

@@ -114,41 +114,41 @@ struct LiquidGlassMenuBarView: View {
                 HStack(spacing: 10) {
                     ZStack {
                         Circle()
-                            .fill(appState.isRecording ? Color.red.opacity(0.2) : Color.primary.opacity(0.1))
-                            .frame(width: 32, height: 32)
+                            .fill(appState.isRecording ? Color.red.opacity(0.18) : Color.primary.opacity(0.08))
+                            .frame(width: 36, height: 36)
 
                         Image(systemName: appState.isRecording ? "stop.fill" : "mic.fill")
-                            .font(.system(size: 13, weight: .bold))
+                            .font(.system(size: 14, weight: .bold))
                             .foregroundStyle(appState.isRecording ? Color.red : Color.primary)
                     }
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(appState.isRecording ? appState.l("Stop Dictation") : appState.l("Start Dictation"))
-                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .font(.system(size: 14, weight: .bold, design: .rounded))
                             .foregroundStyle(appState.isRecording ? Color.red : Color.primary)
 
                         Text(appState.isRecording ? (appState.formattedDuration.isEmpty ? "Recording…" : appState.formattedDuration) : appState.l("Hotkey: ⌥S"))
-                            .font(.system(size: 10, weight: .medium, design: .monospaced))
+                            .font(.system(size: 11, weight: .medium, design: .monospaced))
                             .foregroundStyle(appState.isRecording ? Color.red.opacity(0.85) : Color.secondary)
                     }
 
                     Spacer()
 
                     Image(systemName: appState.isRecording ? "waveform" : "chevron.right")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(appState.isRecording ? Color.red : Color.secondary)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
+                .padding(10)
                 .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(appState.isRecording ? Color.red.opacity(0.12) : Color.primary.opacity(0.06))
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(appState.isRecording ? Color.red.opacity(0.10) : Color.primary.opacity(0.04))
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(appState.isRecording ? Color.red.opacity(0.35) : Color.primary.opacity(0.12), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(appState.isRecording ? Color.red.opacity(0.30) : Color.primary.opacity(0.08), lineWidth: 1)
                 )
             }
+            .buttonStyle(.plain)
             // Footer
             HStack(spacing: 8) {
                 Button {

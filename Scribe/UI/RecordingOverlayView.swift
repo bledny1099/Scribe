@@ -288,10 +288,10 @@ struct WaveformOverlay: View {
                         if appState.recordingStatus == .recording || appState.isShowingPreview {
                             Button(action: { appState.cancelRecording() }) {
                                 Image(systemName: "stop.fill")
-                                    .font(.system(size: 12, weight: .bold))
-                                    .foregroundStyle(.primary.opacity(0.6))
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundStyle(.primary.opacity(0.65))
                                     .frame(width: 28, height: 28)
-                                    .background(Circle().fill(Color.primary.opacity(0.1)))
+                                    .background(Circle().fill(Color.primary.opacity(0.12)))
                             }
                             .buttonStyle(.plain)
                             .transition(.scale.combined(with: .opacity))
@@ -299,45 +299,44 @@ struct WaveformOverlay: View {
                     }
                     .fixedSize(horizontal: true, vertical: false)
                     .frame(height: RecordingPanel.waveformSize.height)
-                    .padding(.trailing, 12)
+                    .padding(.trailing, 20)
                     .animation(.easeInOut(duration: 0.2), value: appState.recordingStatus == .recording)
                 }
                 .frame(height: RecordingPanel.waveformSize.height)
             }
         }
-        .padding(.horizontal, 6)
+        .padding(.leading, 6)
+        .padding(.trailing, 10)
         .frame(
             width: cardWidth,
             height: cardHeight
         )
         .animation(.spring(response: 0.35, dampingFraction: 0.82), value: cardWidth)
-        .onReceive(Timer.publish(every: 0.035, on: .main, in: .common).autoconnect()) { _ in
-            if appState.isShowingPreview {
-                let t = Date().timeIntervalSinceReferenceDate
-                let sentenceCycle = t.truncatingRemainder(dividingBy: 3.6)
-                let isSpeaking = sentenceCycle < 2.9
-                let syllable = sin(t * 12.0) * cos(t * 7.5)
-                let modulation = 0.5 + 0.5 * sin(t * 3.2)
+        .onReceive(Timer.publish(every: 0.045, on: .main, in: .common).autoconnect()) { _ in
+            guard appState.isShowingPreview else { return }
+            let t = Date().timeIntervalSinceReferenceDate
+            let sentenceCycle = t.truncatingRemainder(dividingBy: 4.8)
+            let isSpeaking = sentenceCycle < 3.4
+            let syllable = sin(t * 5.2) * cos(t * 2.6)
+            let modulation = 0.5 + 0.5 * sin(t * 1.6)
 
-                let simulated: Float
-                if isSpeaking {
-                    let base = 0.22 + Float(modulation * 0.34)
-                    let syllabicBurst = Float(max(0.0, syllable * 0.28))
-                    simulated = min(0.85, base + syllabicBurst)
-                } else {
-                    simulated = Float(max(0.02, 0.035 + 0.015 * sin(t * 6.0)))
-                }
-
-                levels.removeFirst()
-                levels.append(simulated)
+            let simulated: Float
+            if isSpeaking {
+                let base = 0.18 + Float(modulation * 0.28)
+                let syllabicBurst = Float(max(0.0, syllable * 0.24))
+                simulated = min(0.78, base + syllabicBurst)
+            } else {
+                simulated = Float(max(0.02, 0.03 + 0.012 * sin(t * 2.0)))
             }
+
+            levels.removeFirst()
+            levels.append(simulated)
         }
         .onChange(of: audioRecorder.audioLevel) { _, newLevel in
-            if !appState.isShowingPreview {
-                let target = min(1.0, max(0.02, newLevel))
-                levels.removeFirst()
-                levels.append(target)
-            }
+            guard !appState.isShowingPreview else { return }
+            let target = min(1.0, max(0.02, newLevel))
+            levels.removeFirst()
+            levels.append(target)
         }
     }
 
@@ -354,9 +353,9 @@ struct WaveformOverlay: View {
                 RoundedRectangle(cornerRadius: 1.6)
                     .fill(barGradient(for: level))
                     .frame(width: 3.2, height: barHeight)
-                    .animation(.spring(response: 0.12, dampingFraction: 0.70), value: levels[i])
             }
         }
+        .animation(.interactiveSpring(response: 0.15, dampingFraction: 0.82), value: levels)
         .frame(maxWidth: .infinity, alignment: .center)
     }
 

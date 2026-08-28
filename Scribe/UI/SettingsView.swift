@@ -474,6 +474,11 @@ struct SettingsView: View {
                                 HistoryView(inSettings: true)
                             }
                         case .system:
+                            // SECTION: Software Updates
+                            GlassSection(title: appState.l("Software Updates"), icon: "arrow.triangle.2.circlepath.circle.fill") {
+                                AppUpdatesView()
+                            }
+
                             // SECTION: Audio Input
                             GlassSection(title: appState.l("Audio Input"), icon: "mic.fill") {
                                 HStack {
@@ -488,11 +493,6 @@ struct SettingsView: View {
                                     Spacer()
                                     LiquidGlassAudioInputMenu()
                                 }
-                            }
-
-                            // SECTION: Software Updates
-                            GlassSection(title: appState.l("Software Updates"), icon: "arrow.triangle.2.circlepath.circle.fill") {
-                                AppUpdatesView()
                             }
 
                             // SECTION: System

@@ -231,6 +231,26 @@ struct PermissionWelcomeView: View {
                                 .foregroundStyle(.secondary)
                                 .multilineTextAlignment(.center)
                                 .fixedSize(horizontal: false, vertical: true)
+
+                            HStack(spacing: 6) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(.green)
+                                Text(appState.l("Мы автоматически уже отправили информацию о том, что вы скачали приложение."))
+                                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                                    .multilineTextAlignment(.center)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(
+                                Capsule()
+                                    .fill(Color.primary.opacity(0.04))
+                            )
+                            .overlay(
+                                Capsule()
+                                    .stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
+                            )
                         }
                         .frame(maxWidth: .infinity)
                     }

@@ -49,9 +49,11 @@
 		A0010006 /* KeychainHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010006 /* KeychainHelper.swift */; };
 		A0010008 /* AudioDeviceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010008 /* AudioDeviceManager.swift */; };
 		A0010009 /* UserFrequencyDictionary.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010009 /* UserFrequencyDictionary.swift */; };
+		A0010010 /* TelemetryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010010 /* TelemetryService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		F0010010 /* TelemetryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TelemetryService.swift; sourceTree = "<group>"; };
 		F0010009 /* UserFrequencyDictionary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserFrequencyDictionary.swift; sourceTree = "<group>"; };
 		F0010008 /* AudioDeviceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDeviceManager.swift; sourceTree = "<group>"; };
 		B1010001 /* AppleNotesIcon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = AppleNotesIcon.png; sourceTree = "<group>"; };
@@ -140,6 +142,7 @@
 		9DCDD5E28C79618D3D7CE0FA /* Utilities */ = {
 			isa = PBXGroup;
 			children = (
+				F0010010 /* TelemetryService.swift */,
 				F0010004 /* AppUpdateService.swift */,
 				F0010005 /* CommunityVocabularyService.swift */,
 				F0010006 /* KeychainHelper.swift */,
@@ -314,6 +317,7 @@
 				A0010006 /* KeychainHelper.swift in Sources */,
 				A0010008 /* AudioDeviceManager.swift in Sources */,
 				A0010009 /* UserFrequencyDictionary.swift in Sources */,
+				A0010010 /* TelemetryService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

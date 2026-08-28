@@ -54,6 +54,55 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         "лаборатор", "закрепител", "проявител", "проявитель", "darkroom", "film", "35mm"
     ]
 
+    /// Systematic grammatical agreement and declension corrections in Russian speech
+    private let russianGrammarAgreementRules: [(pattern: String, replacement: String)] = [
+        // Subject-verb agreement (1st person singular "я")
+        ("(?i)\\bя\\s+говорит\\b", "я говорю"),
+        ("(?i)\\bя\\s+делает\\b", "я делаю"),
+        ("(?i)\\bя\\s+знает\\b", "я знаю"),
+        ("(?i)\\bя\\s+думает\\b", "я думаю"),
+        ("(?i)\\bя\\s+хочет\\b", "я хочу"),
+        ("(?i)\\bя\\s+видит\\b", "я вижу"),
+        ("(?i)\\bя\\s+слышит\\b", "я слышу"),
+        ("(?i)\\bя\\s+понимает\\b", "я понимаю"),
+        ("(?i)\\bя\\s+смотрит\\b", "я смотрю"),
+        ("(?i)\\bя\\s+пишет\\b", "я пишу"),
+
+        // Subject-verb agreement (2nd person singular "ты")
+        ("(?i)\\bты\\s+говорит\\b", "ты говоришь"),
+        ("(?i)\\bты\\s+делает\\b", "ты делаешь"),
+        ("(?i)\\bты\\s+знает\\b", "ты знаешь"),
+        ("(?i)\\bты\\s+думает\\b", "ты думаешь"),
+        ("(?i)\\bты\\s+хочет\\b", "ты хочешь"),
+
+        // Subject-verb agreement (1st person plural "мы")
+        ("(?i)\\bмы\\s+говорит\\b", "мы говорим"),
+        ("(?i)\\bмы\\s+делает\\b", "мы делаем"),
+        ("(?i)\\bмы\\s+знает\\b", "мы знаем"),
+        ("(?i)\\bмы\\s+думает\\b", "мы думаем"),
+        ("(?i)\\bмы\\s+сказал\\b", "мы сказали"),
+        ("(?i)\\bмы\\s+сделал\\b", "мы сделали"),
+
+        // Preposition and case agreement
+        ("(?i)\\bк\\s+одной\\s+и\\s+том\\s+же\\b", "к одной и той же"),
+        ("(?i)\\bк\\s+одной\\s+и\\s+тоже\\b", "к одному и тому же"),
+        ("(?i)\\bк\\s+одном\\s+и\\s+том\\s+же\\b", "к одному и тому же"),
+        ("(?i)\\bв\\s+одной\\s+и\\s+том\\s+же\\b", "в одном и том же"),
+        ("(?i)\\bв\\s+одном\\s+и\\s+той\\s+же\\b", "в одном и том же"),
+        ("(?i)\\bна\\s+одной\\s+и\\s+том\\s+же\\b", "на одной и той же"),
+        ("(?i)\\bс\\s+одной\\s+и\\s+том\\s+же\\b", "с одной и той же"),
+
+        // Common speech acoustic / case mishearings
+        ("(?i)\\bво\\s+время\\s+транскребаци[ейяию]\\b", "во время транскрибации"),
+        ("(?i)\\bперед\\s+транскребаци[ейяию]\\b", "перед транскрибацией"),
+        ("(?i)\\bтранскребаци[яеию]\\b", "транскрибация"),
+        ("(?i)\\bтранскребацией\\b", "транскрибацией"),
+        ("(?i)\\bраспозна[её]т\\s+подержи\\b", "распознаёт падежи"),
+        ("(?i)\\bраспознает\\s+подержи\\b", "распознаёт падежи"),
+        ("(?i)\\bне\\s+очень\\s+распозна[её]т\\s+подерж[ейи]\\b", "не очень распознаёт падежи"),
+        ("(?i)\\bготов[ыеых]+\\s+репозитори[яеи]\\b", "готовые репозитории")
+    ]
+
     /// Systematic mappings for "проявка" forms -> "проверка" forms outside photography context.
     private let nonPhotoAcousticMap: [String: String] = [
         "проявка": "проверка",
@@ -177,6 +226,14 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
             for (ukr, rus) in glyphMap {
                 if result.contains(ukr) {
                     result = result.replacingOccurrences(of: ukr, with: rus)
+                }
+            }
+
+            // 3b. Grammatical agreement & case declension repairs
+            for (pat, rep) in russianGrammarAgreementRules {
+                if let regex = try? NSRegularExpression(pattern: pat) {
+                    let range = NSRange(result.startIndex..<result.endIndex, in: result)
+                    result = regex.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: rep)
                 }
             }
         }

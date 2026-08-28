@@ -742,6 +742,9 @@ final class AppState: ObservableObject {
         preloadModel()
         checkFirstLaunchPermissions()
         
+        // Record anonymous installation & active user telemetry
+        TelemetryService.shared.recordAppLaunch()
+        
         // Remove old pre-seeded location presets if present
         if customLocationPresets.contains(where: { 
             $0.shareCode == "scr_loc_cis_capitals" || 

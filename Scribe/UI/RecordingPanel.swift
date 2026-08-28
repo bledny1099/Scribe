@@ -31,11 +31,11 @@ final class RecordingPanel: NSPanel {
             return NSSize(width: width, height: 56)
         }
 
-        // Base width: Left dot cap (36) + Waveform visualizer 52 bars (290) + Stop button cap (32) + padding (24) = 382 pt
-        var width: CGFloat = 382
+        // Base width: Left dot cap (36) + Waveform visualizer 52 bars (290) + Stop button cap (32) + padding (38) = 406 pt
+        var width: CGFloat = 406
         
         if isTimerVisible {
-            width += 50 // Timer digits + margin
+            width += 52 // Timer digits + margin
         }
         
         if !targetAppName.isEmpty {
@@ -45,10 +45,10 @@ final class RecordingPanel: NSPanel {
         }
         
         if hasAIMode {
-            width += 85 // AI refinement mode badge
+            width += 88 // AI refinement mode badge
         }
         
-        return NSSize(width: min(max(width, 382), 740), height: 72)
+        return NSSize(width: min(max(width, 406), 760), height: 72)
     }
 
     static func size(

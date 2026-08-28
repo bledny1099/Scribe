@@ -224,7 +224,22 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
 
         // 3. Stage A: Context Biasing & Dynamic Vocabulary Injection
         let langKey = resolvedLang
-        let basePrompt = initialPrompt[langKey] ?? initialPrompt["auto"]!
+        let basePrompt: String
+        if resolvedLang != "auto" {
+            basePrompt = initialPrompt[resolvedLang] ?? initialPrompt["auto"]!
+        } else if !preferredLanguages.isEmpty {
+            // Only combine prompts from languages explicitly enabled by the user
+            var combined: [String] = []
+            for code in preferredLanguages {
+                if let p = initialPrompt[code] {
+                    combined.append(p)
+                }
+            }
+            basePrompt = combined.isEmpty ? initialPrompt["auto"]! : combined.joined(separator: " ")
+        } else {
+            basePrompt = initialPrompt["auto"]!
+        }
+
         let promptText = AetherContextEngine.shared.buildConditioningPrompt(
             basePrompt: basePrompt,
             customVocabulary: customVocabulary,
@@ -396,20 +411,53 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         // 8. Strip trailing repetitions again after root stripping
         cleaned = stripTrailingRepetitions(cleaned)
 
-        // 9. If Arabic is not an enabled/selected language, strip Arabic characters and foreign hallucinations
+        // 9. Strict language script filtering: if a script is not part of enabled languages, eliminate foreign glyphs & hallucinations
         let activeLangs = Set(preferredLanguages.map { $0.lowercased() } + (targetLanguage != nil ? [targetLanguage!.lowercased()] : []))
         let allowsArabic = activeLangs.contains("ar") || activeLangs.contains("arabic")
-        if !allowsArabic {
-            cleaned = String(cleaned.unicodeScalars.filter { scalar in
-                let val = scalar.value
-                let isArabic = (val >= 0x0600 && val <= 0x06FF) || // Arabic
-                               (val >= 0x0750 && val <= 0x077F) || // Arabic Supplement
-                               (val >= 0x08A0 && val <= 0x08FF) || // Arabic Extended-A
-                               (val >= 0xFB50 && val <= 0xFDFF) || // Arabic Presentation Forms-A
-                               (val >= 0xFE70 && val <= 0xFEFF)    // Arabic Presentation Forms-B
-                return !isArabic
-            })
-        }
+        let allowsChinese = activeLangs.contains("zh") || activeLangs.contains("chinese")
+        let allowsJapanese = activeLangs.contains("ja") || activeLangs.contains("japanese")
+        let allowsKorean = activeLangs.contains("ko") || activeLangs.contains("korean")
+        let allowsThai = activeLangs.contains("th") || activeLangs.contains("thai")
+        let allowsHebrew = activeLangs.contains("he") || activeLangs.contains("hebrew")
+        let allowsDevanagari = activeLangs.contains("hi") || activeLangs.contains("hindi")
+        let allowsCyrillic = activeLangs.contains("ru") || activeLangs.contains("uk") || activeLangs.contains("be") || activeLangs.contains("bg") || activeLangs.contains("sr") || activeLangs.contains("mk") || activeLangs.contains("kk") || activeLangs.isEmpty
+
+        cleaned = String(cleaned.unicodeScalars.filter { scalar in
+            let val = scalar.value
+            if !allowsArabic {
+                let isArabic = (val >= 0x0600 && val <= 0x06FF) || (val >= 0x0750 && val <= 0x077F) || (val >= 0x08A0 && val <= 0x08FF) || (val >= 0xFB50 && val <= 0xFDFF) || (val >= 0xFE70 && val <= 0xFEFF)
+                if isArabic { return false }
+            }
+            if !allowsChinese && !allowsJapanese {
+                let isCJK = (val >= 0x4E00 && val <= 0x9FFF) || (val >= 0x3400 && val <= 0x4DBF)
+                if isCJK { return false }
+            }
+            if !allowsJapanese {
+                let isKana = (val >= 0x3040 && val <= 0x30FF)
+                if isKana { return false }
+            }
+            if !allowsKorean {
+                let isHangul = (val >= 0xAC00 && val <= 0xD7AF) || (val >= 0x1100 && val <= 0x11FF)
+                if isHangul { return false }
+            }
+            if !allowsThai {
+                let isThai = (val >= 0x0E00 && val <= 0x0E7F)
+                if isThai { return false }
+            }
+            if !allowsHebrew {
+                let isHebrew = (val >= 0x0590 && val <= 0x05FF)
+                if isHebrew { return false }
+            }
+            if !allowsDevanagari {
+                let isDevanagari = (val >= 0x0900 && val <= 0x097F)
+                if isDevanagari { return false }
+            }
+            if !allowsCyrillic {
+                let isCyrillic = (val >= 0x0400 && val <= 0x04FF) || (val >= 0x0500 && val <= 0x052F)
+                if isCyrillic { return false }
+            }
+            return true
+        })
 
         // Collapse multiple spaces into one and trim
         cleaned = cleaned.replacingOccurrences(
@@ -510,13 +558,27 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         return result
     }
 
-    /// Removes filler words (эээ, ну, типа, uh, um, etc.) and duplicate adjacent words.
+    /// Removes filler words (эээ, ну, типа, uh, um, etc.) and duplicate adjacent words or stuttering loops.
     public static func removeFillerWordsAndDuplicates(_ text: String) -> String {
         guard !text.isEmpty else { return text }
         
         var result = text
 
-        // 1. Remove interjection filler patterns (standalone or surrounded by punctuation/spaces)
+        // 1. Collapse repeating word loops with any punctuation (e.g. "Как... Как... Как... Как..." -> "Как...")
+        let repeatingWordLoopPattern = #"(?i)(?:\b([\p{L}\p{N}]+)[.,…!?:;\s]*)(?:\s*\1[.,…!?:;\s]*){2,}"#
+        if let loopRegex = try? NSRegularExpression(pattern: repeatingWordLoopPattern) {
+            let range = NSRange(result.startIndex..<result.endIndex, in: result)
+            result = loopRegex.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: "$1")
+        }
+
+        // 2. Collapse repeating multi-word phrase loops (e.g. "всё из мелочей всё из мелочей" -> "всё из мелочей")
+        let repeatingPhraseLoopPattern = #"(?i)(?:\b([\p{L}\p{N}]+\s+[\p{L}\p{N}]+)[.,…!?:;\s]*)(?:\s*\1[.,…!?:;\s]*){1,}"#
+        if let phraseRegex = try? NSRegularExpression(pattern: repeatingPhraseLoopPattern) {
+            let range = NSRange(result.startIndex..<result.endIndex, in: result)
+            result = phraseRegex.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: "$1")
+        }
+
+        // 3. Remove interjection filler patterns (standalone or surrounded by punctuation/spaces)
         let fillerRegexes = [
             "\\b(?i)(эээ+|ээ+|э-э|гмм+|ммм+|э-мм+|uh+|um+|err+|ahh+)\\b",
             "(?<=^|\\s)(?i)(ну|типа|как бы|короче)(?=\\s|\\,|\\.|\\!|\\?|$)"
@@ -530,7 +592,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             )
         }
 
-        // 2. Remove duplicate consecutive words (e.g. "мы мы пошли" -> "мы пошли", "I I think" -> "I think")
+        // 4. Remove duplicate consecutive words (e.g. "мы мы пошли" -> "мы пошли", "I I think" -> "I think")
         let duplicateWordRegex = "\\b(\\w+)\\s+\\1\\b"
         result = result.replacingOccurrences(
             of: duplicateWordRegex,
@@ -538,7 +600,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             options: [.regularExpression, .caseInsensitive]
         )
 
-        // 3. Clean up leading/trailing punctuation artifacts
+        // 5. Clean up leading/trailing punctuation artifacts
         result = result.replacingOccurrences(of: "\\s+,", with: ",", options: .regularExpression)
         result = result.replacingOccurrences(of: "\\s+\\.", with: ".", options: .regularExpression)
         result = result.replacingOccurrences(of: ",,", with: ",")

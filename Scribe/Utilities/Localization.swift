@@ -61,6 +61,7 @@ enum Localization {
     
     private static let translations: [String: [String: String]] = [
         "en": [
+            "Мы автоматически уже отправили информацию о том, что вы скачали приложение.": "We have automatically sent information that you downloaded the app.",
             "Start Dictation": "Start Dictation",
             "Stop Dictation": "Stop Dictation",
             "Transcribing…": "Transcribing…",

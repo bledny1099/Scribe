@@ -5,6 +5,24 @@ All notable changes to Scribe will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2026-08-28
+
+## Added
+- Intelligent Two-Pass Speech RMS Normalization with soft-knee limiting for consistent speech loudness on external and distant microphones.
+- Real-time Russian grammatical agreement and declension rules (subject-verb agreement, preposition-case agreement, and ASR phonetic repairs).
+- Anonymous Firestore install and launch telemetry tracking.
+- Strict multi-script filtering to eliminate foreign language tokens when specific languages are active.
+
+## Changed
+- Menu bar popover "Start Dictation" button redesigned to cleanly match the user profile card.
+- Swapped Software Updates and Audio Input sections in System Settings.
+- Slower, more organic voice modulation physics for the recording preview waveform.
+
+## Fixed
+- Fixed stuttering repetition loops and duplicate word runs in Live Preview.
+- Fixed UI lag and high CPU usage during recording and live preview by optimizing waveform spring animations.
+- Fixed right padding and centering for the stop button on the recording pill overlay.
+
 ## [1.1.0] - 2026-08-02
 
 ### Added
