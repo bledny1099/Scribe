@@ -433,7 +433,7 @@ public final class AetherContextEngine: @unchecked Sendable {
             }
             return languageHallucinations + streamSpam
 
-        case .browsersAndResearch, .designAndCreative, .cryptoAndTrading, .general:
+        case .browsersAndResearch, .designAndCreative, .cryptoAndTrading, .medicalAndHealth, .nutritionAndBiohacking, .general:
             return languageHallucinations
         }
     }
