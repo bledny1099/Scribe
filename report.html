@@ -567,7 +567,7 @@
             </thead>
             <tbody>
               <tr>
-                <td id="securitySupportedVer">v2.5.0</td>
+                <td id="securitySupportedVer">v2.5.1</td>
                 <td>✅ Supported</td>
               </tr>
               <tr>
@@ -582,7 +582,7 @@
         <div class="form-group">
           <label class="form-label" for="reportVersion">Scribe Version</label>
           <select id="reportVersion" class="form-select" onchange="onVersionChange()">
-            <option id="optLatestVersion" value="v2.5.0" selected>v2.5.0 (Latest Release)</option>
+            <option id="optLatestVersion" value="v2.5.1" selected>v2.5.1 (Latest Release)</option>
             <option id="optOutdatedVersion" value="< v2.5.0">&lt; v2.5.0 (Outdated)</option>
           </select>
         </div>
@@ -590,9 +590,9 @@
         <!-- Outdated Version Warning -->
         <div id="versionWarning" class="version-warning">
           <strong>⛔ Unsupported Version for Bug Reports:</strong>
-          <p style="margin-top: 4px;">Bug reports are only accepted for the latest release (<strong id="warnLatestVerText">v2.5.0</strong>). Many issues are already resolved in newer builds. Please update Scribe and check if the issue persists.</p>
+          <p style="margin-top: 4px;">Bug reports are only accepted for the latest release (<strong id="warnLatestVerText">v2.5.1</strong>). Many issues are already resolved in newer builds. Please update Scribe and check if the issue persists.</p>
           <div style="margin-top: 10px;">
-            <a id="warnDownloadBtn" href="https://github.com/bledny1099/Scribe/releases/latest" target="_blank" style="display: inline-block; padding: 7px 14px; background: rgba(52, 211, 153, 0.15); border: 1px solid rgba(52, 211, 153, 0.35); border-radius: 6px; color: #34d399; text-decoration: none; font-weight: 600;">Download v2.5.0</a>
+            <a id="warnDownloadBtn" href="https://github.com/bledny1099/Scribe/releases/latest" target="_blank" style="display: inline-block; padding: 7px 14px; background: rgba(52, 211, 153, 0.15); border: 1px solid rgba(52, 211, 153, 0.35); border-radius: 6px; color: #34d399; text-decoration: none; font-weight: 600;">Download v2.5.1</a>
           </div>
         </div>
 
@@ -674,7 +674,25 @@
 
   <script>
     let currentType = 'bug';
-    let latestSupportedVersion = 'v2.5.0';
+    let latestSupportedVersion = 'v2.5.1';
+    let passedAppVersion = null;
+
+    function isSupportedVersion(ver) {
+      if (!ver) return false;
+      const clean = ver.trim().replace(/^v/, '');
+      const cleanLatest = latestSupportedVersion.replace(/^v/, '');
+      
+      // Match exact latest release or active release tag
+      if (ver === latestSupportedVersion || clean === cleanLatest) return true;
+      if (passedAppVersion && (ver === passedAppVersion || clean === passedAppVersion.replace(/^v/, ''))) return true;
+
+      // Check if version is within same major.minor branch
+      const majorMinor = cleanLatest.split('.').slice(0, 2).join('.');
+      if (clean.startsWith(majorMinor)) return true;
+      if (ver.includes('(Active Release)') || ver.includes('(Latest Release)')) return true;
+
+      return false;
+    }
 
     async function syncLatestReleaseFromGitHub() {
       try {
@@ -698,17 +716,28 @@
       }
       const verTableOld = document.getElementById('securityUnsupportedVer');
       if (verTableOld) {
-        verTableOld.textContent = '< ' + latestSupportedVersion;
+        const majorMinor = latestSupportedVersion.replace(/^v/, '').split('.').slice(0, 2).join('.');
+        verTableOld.textContent = '< v' + majorMinor + '.0';
       }
       const topOpt = document.getElementById('optLatestVersion');
       if (topOpt) {
-        topOpt.value = latestSupportedVersion;
-        topOpt.textContent = `${latestSupportedVersion} (Latest Release)`;
+        const activeLabel = passedAppVersion ? `${passedAppVersion} (Current App Version)` : `${latestSupportedVersion} (Latest Release)`;
+        topOpt.value = passedAppVersion || latestSupportedVersion;
+        topOpt.textContent = activeLabel;
       }
       const outOpt = document.getElementById('optOutdatedVersion');
       if (outOpt) {
-        outOpt.value = `< ${latestSupportedVersion}`;
-        outOpt.textContent = `< ${latestSupportedVersion} (Outdated)`;
+        const majorMinor = latestSupportedVersion.replace(/^v/, '').split('.').slice(0, 2).join('.');
+        outOpt.value = `< v${majorMinor}.0`;
+        outOpt.textContent = `< v${majorMinor}.0 (Outdated)`;
+      }
+      const warnLatestVerText = document.getElementById('warnLatestVerText');
+      if (warnLatestVerText) {
+        warnLatestVerText.textContent = latestSupportedVersion;
+      }
+      const warnDownloadBtn = document.getElementById('warnDownloadBtn');
+      if (warnDownloadBtn) {
+        warnDownloadBtn.textContent = `Download ${latestSupportedVersion}`;
       }
       onVersionChange();
     }
@@ -756,12 +785,15 @@
       // Pre-select Version if passed
       const verParam = params.get('version');
       if (verParam) {
+        const cleanVer = verParam.startsWith('v') ? verParam : ('v' + verParam);
+        passedAppVersion = cleanVer;
         const verSelect = document.getElementById('reportVersion');
-        if (verParam.includes('2.4.2') || verParam.includes(latestSupportedVersion)) {
-          verSelect.value = latestSupportedVersion;
-        } else {
-          verSelect.value = `< ${latestSupportedVersion}`;
+        const topOpt = document.getElementById('optLatestVersion');
+        if (topOpt) {
+          topOpt.value = cleanVer;
+          topOpt.textContent = `${cleanVer} (Current App Version)`;
         }
+        verSelect.value = cleanVer;
       }
 
       syncLatestReleaseFromGitHub();
@@ -775,8 +807,8 @@
       const submitLabel = document.getElementById('submitLabel');
 
       if (currentType === 'bug') {
-        const isLatest = (ver === latestSupportedVersion || ver === 'v2.4.2');
-        if (!isLatest) {
+        const isSupported = isSupportedVersion(ver);
+        if (!isSupported) {
           warn.innerHTML = `
             <strong>⛔ Unsupported Version for Bug Reports:</strong>
             <p style="margin-top: 4px;">Bug reports are only accepted for the latest release (<strong>${latestSupportedVersion}</strong>). Many issues are already resolved in newer builds. Please update Scribe and check if the issue persists.</p>
