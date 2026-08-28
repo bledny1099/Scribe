@@ -4401,6 +4401,7 @@ struct VocabularySettingsView: View {
     @State private var showingShareActiveModal: Bool = false
     @State private var showingContributionPromptModal: Bool = false
     @State private var presetModalCategory: String = "vocabulary"
+    @State private var selectedPresetCategory: String = "vocabulary"
     @State private var copiedPresetId: UUID? = nil
     @State private var appliedPresetId: UUID? = nil
     @State private var copiedActiveVocabularyFeedback: Bool = false
@@ -4528,6 +4529,14 @@ struct VocabularySettingsView: View {
         if preset.category == "location" {
             appState.customLocationPresets.removeAll { $0.id == preset.id }
             appState.activeLocationPresetIds.removeAll { $0 == preset.id.uuidString }
+        } else if preset.category == "blocked" {
+            appState.customBlockedWordsPresets.removeAll { $0.id == preset.id }
+            if removeWordsFromActive {
+                var current = blockedWordsList
+                let presetWordsLower = Set(preset.words.map { $0.lowercased() })
+                current.removeAll { presetWordsLower.contains($0.lowercased()) }
+                appState.blockedWords = current.joined(separator: ", ")
+            }
         } else {
             appState.customVocabularyPresets.removeAll { $0.id == preset.id }
             if removeWordsFromActive {
@@ -4948,491 +4957,6 @@ struct VocabularySettingsView: View {
                             .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
                     )
                 }
-
-                // SECTION: Location & Country Presets
-                GlassSection(title: appState.l("Location & Country Presets"), icon: "globe.europe.africa.fill") {
-                    VStack(alignment: .leading, spacing: 14) {
-                        HStack(alignment: .center, spacing: 12) {
-                            Text(appState.l("Biasing packs for world cities, countries, and regional hubs."))
-                                .font(.system(size: 12))
-                                .foregroundStyle(.secondary)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-
-                            HStack(spacing: 8) {
-                                Button(action: {
-                                    presetModalCategory = "location"
-                                    showingCreatePresetModal = true
-                                }) {
-                                    HStack(spacing: 5) {
-                                        Image(systemName: "plus.circle.fill")
-                                            .font(.system(size: 11, weight: .bold))
-                                        Text(appState.l("Create Preset"))
-                                            .font(.system(size: 11, weight: .bold, design: .rounded))
-                                            .lineLimit(1)
-                                    }
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 7)
-                                    .background(Color.primary.opacity(0.06))
-                                    .foregroundStyle(.primary)
-                                    .cornerRadius(8)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
-                                    )
-                                }
-                                .buttonStyle(.plain)
-                                .fixedSize()
-
-                                Button(action: {
-                                    presetModalCategory = "location"
-                                    showingImportPresetModal = true
-                                }) {
-                                    HStack(spacing: 5) {
-                                        Image(systemName: "square.and.arrow.down.fill")
-                                            .font(.system(size: 11, weight: .bold))
-                                        Text(appState.l("Import Preset"))
-                                            .font(.system(size: 11, weight: .bold, design: .rounded))
-                                            .lineLimit(1)
-                                    }
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 7)
-                                    .background(Color.primary.opacity(0.06))
-                                    .foregroundStyle(.primary)
-                                    .cornerRadius(8)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
-                                    )
-                                }
-                                .buttonStyle(.plain)
-                                .fixedSize()
-                            }
-                        }
-
-                        if appState.customLocationPresets.isEmpty {
-                            HStack(spacing: 8) {
-                                Image(systemName: "sparkles")
-                                    .font(.system(size: 13))
-                                    .foregroundStyle(.secondary)
-                                Text(appState.l("No custom location presets yet."))
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 8)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.primary.opacity(0.025))
-                            .cornerRadius(8)
-                        } else {
-                            VStack(spacing: 8) {
-                                ForEach(appState.customLocationPresets) { preset in
-                                    let isActive = appState.activeLocationPresetIds.contains(preset.id.uuidString) || appState.activeLocationPresetIds.isEmpty
-                                    HStack(spacing: 12) {
-                                        Button(action: {
-                                            withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
-                                                if appState.activeLocationPresetIds.contains(preset.id.uuidString) {
-                                                    appState.activeLocationPresetIds.removeAll { $0 == preset.id.uuidString }
-                                                } else {
-                                                    appState.activeLocationPresetIds.append(preset.id.uuidString)
-                                                }
-                                            }
-                                        }) {
-                                            Image(systemName: isActive ? "checkmark.circle.fill" : "circle")
-                                                .font(.system(size: 16, weight: .semibold))
-                                                .foregroundStyle(isActive ? Color.accentColor : Color.secondary.opacity(0.5))
-                                        }
-                                        .buttonStyle(.plain)
-
-                                        VStack(alignment: .leading, spacing: 3) {
-                                            HStack(spacing: 6) {
-                                                Text(preset.name)
-                                                    .font(.system(size: 13, weight: .bold, design: .rounded))
-                                                    .foregroundStyle(.primary)
-
-                                                Text("\(preset.words.count) " + appState.l("words"))
-                                                    .font(.system(size: 9, weight: .bold))
-                                                    .padding(.horizontal, 6)
-                                                    .padding(.vertical, 2)
-                                                    .background(Color.primary.opacity(0.08))
-                                                    .foregroundStyle(Color.primary.opacity(0.85))
-                                                    .cornerRadius(4)
-                                            }
-
-                                            if !preset.description.isEmpty {
-                                                Text(preset.description)
-                                                    .font(.system(size: 11))
-                                                    .foregroundStyle(.secondary)
-                                                    .lineLimit(1)
-                                            }
-
-                                            Text(preset.words.prefix(6).joined(separator: ", ") + (preset.words.count > 6 ? "..." : ""))
-                                                .font(.system(size: 10))
-                                                .foregroundStyle(.tertiary)
-                                                .lineLimit(1)
-                                        }
-
-                                        Spacer()
-
-                                        // Action buttons
-                                        HStack(spacing: 6) {
-                                            Button(action: { sharePreset(preset) }) {
-                                                HStack(spacing: 4) {
-                                                    Image(systemName: copiedPresetId == preset.id ? "checkmark" : "square.and.arrow.up")
-                                                    Text(copiedPresetId == preset.id ? appState.l("Copied!") : appState.l("Share"))
-                                                }
-                                                .font(.system(size: 11, weight: .semibold))
-                                                .padding(.horizontal, 8)
-                                                .padding(.vertical, 5)
-                                                .background(copiedPresetId == preset.id ? Color.green.opacity(0.15) : Color.primary.opacity(0.08))
-                                                .foregroundStyle(copiedPresetId == preset.id ? .green : .primary)
-                                                .cornerRadius(6)
-                                            }
-                                            .buttonStyle(.plain)
-
-                                            Button(action: { presetToDelete = preset }) {
-                                                Image(systemName: "trash")
-                                                    .font(.system(size: 11))
-                                                    .foregroundStyle(.secondary)
-                                                    .padding(6)
-                                            }
-                                            .buttonStyle(.plain)
-                                        }
-                                    }
-                                    .padding(10)
-                                    .background(Color.primary.opacity(0.03))
-                                    .cornerRadius(10)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 10)
-                                            .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    .padding(14)
-                }
-
-                // SECTION 2: Custom Presets & Community Share (Vocabulary)
-                GlassSection(title: appState.l("Vocabulary Presets"), icon: "square.grid.2x2.fill") {
-                    VStack(alignment: .leading, spacing: 14) {
-                        HStack(alignment: .center, spacing: 12) {
-                            Text(appState.l("Create custom word packs and share them instantly."))
-                                .font(.system(size: 12))
-                                .foregroundStyle(.secondary)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-
-                            HStack(spacing: 8) {
-                                Button(action: {
-                                    presetModalCategory = "vocabulary"
-                                    showingCreatePresetModal = true
-                                }) {
-                                    HStack(spacing: 5) {
-                                        Image(systemName: "plus.circle.fill")
-                                            .font(.system(size: 11, weight: .bold))
-                                        Text(appState.l("Create Preset"))
-                                            .font(.system(size: 11, weight: .bold, design: .rounded))
-                                            .lineLimit(1)
-                                    }
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 7)
-                                    .background(Color.primary.opacity(0.06))
-                                    .foregroundStyle(.primary)
-                                    .cornerRadius(8)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
-                                    )
-                                }
-                                .buttonStyle(.plain)
-                                .fixedSize()
-
-                                Button(action: {
-                                    presetModalCategory = "vocabulary"
-                                    showingImportPresetModal = true
-                                }) {
-                                    HStack(spacing: 5) {
-                                        Image(systemName: "square.and.arrow.down.fill")
-                                            .font(.system(size: 11, weight: .bold))
-                                        Text(appState.l("Import Preset"))
-                                            .font(.system(size: 11, weight: .bold, design: .rounded))
-                                            .lineLimit(1)
-                                    }
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 7)
-                                    .background(Color.primary.opacity(0.06))
-                                    .foregroundStyle(.primary)
-                                    .cornerRadius(8)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
-                                    )
-                                }
-                                .buttonStyle(.plain)
-                                .fixedSize()
-                            }
-                        }
-
-                        if appState.customVocabularyPresets.isEmpty {
-                            HStack(spacing: 8) {
-                                Image(systemName: "sparkles")
-                                    .font(.system(size: 13))
-                                    .foregroundStyle(.secondary)
-                                Text(appState.l("No custom presets yet. Create one or import a share code to get started."))
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 8)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.primary.opacity(0.025))
-                            .cornerRadius(8)
-                        } else {
-                            VStack(spacing: 8) {
-                                ForEach(appState.customVocabularyPresets) { preset in
-                                    HStack(spacing: 12) {
-                                        VStack(alignment: .leading, spacing: 3) {
-                                            HStack(spacing: 6) {
-                                                Text(preset.name)
-                                                    .font(.system(size: 13, weight: .bold, design: .rounded))
-                                                    .foregroundStyle(.primary)
-
-                                                Text("\(preset.words.count) " + appState.l("words"))
-                                                    .font(.system(size: 9, weight: .bold))
-                                                    .padding(.horizontal, 6)
-                                                    .padding(.vertical, 2)
-                                                    .background(Color.primary.opacity(0.08))
-                                                    .foregroundStyle(Color.primary.opacity(0.85))
-                                                    .cornerRadius(4)
-                                            }
-
-                                            if !preset.description.isEmpty {
-                                                Text(preset.description)
-                                                    .font(.system(size: 11))
-                                                    .foregroundStyle(.secondary)
-                                                    .lineLimit(1)
-                                            }
-
-                                            Text(preset.words.prefix(5).joined(separator: ", ") + (preset.words.count > 5 ? "..." : ""))
-                                                .font(.system(size: 10))
-                                                .foregroundStyle(.tertiary)
-                                                .lineLimit(1)
-                                        }
-
-                                        Spacer()
-
-                                        // Action buttons
-                                        HStack(spacing: 6) {
-                                            Button(action: { applyPreset(preset) }) {
-                                                HStack(spacing: 4) {
-                                                    Image(systemName: appliedPresetId == preset.id ? "checkmark" : "plus")
-                                                    Text(appliedPresetId == preset.id ? appState.l("Applied!") : appState.l("Apply"))
-                                                }
-                                                .font(.system(size: 11, weight: .semibold))
-                                                .padding(.horizontal, 8)
-                                                .padding(.vertical, 5)
-                                                .background(appliedPresetId == preset.id ? Color.green.opacity(0.15) : Color.primary.opacity(0.06))
-                                                .foregroundStyle(appliedPresetId == preset.id ? .green : .primary)
-                                                .cornerRadius(6)
-                                            }
-                                            .buttonStyle(.plain)
-
-                                            Button(action: { sharePreset(preset) }) {
-                                                HStack(spacing: 4) {
-                                                    Image(systemName: copiedPresetId == preset.id ? "checkmark" : "square.and.arrow.up")
-                                                    Text(copiedPresetId == preset.id ? appState.l("Copied!") : appState.l("Share"))
-                                                }
-                                                .font(.system(size: 11, weight: .semibold))
-                                                .padding(.horizontal, 8)
-                                                .padding(.vertical, 5)
-                                                .background(copiedPresetId == preset.id ? Color.green.opacity(0.15) : Color.primary.opacity(0.08))
-                                                .foregroundStyle(copiedPresetId == preset.id ? .green : .primary)
-                                                .cornerRadius(6)
-                                            }
-                                            .buttonStyle(.plain)
-
-                                            Button(action: { presetToDelete = preset }) {
-                                                Image(systemName: "trash")
-                                                    .font(.system(size: 11))
-                                                    .foregroundStyle(.secondary)
-                                                    .padding(6)
-                                            }
-                                            .buttonStyle(.plain)
-                                        }
-                                    }
-                                    .padding(10)
-                                    .background(Color.primary.opacity(0.03))
-                                    .cornerRadius(10)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 10)
-                                            .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    .padding(14)
-                }
-            } else {
-                // SECTION 2: Custom Presets (Blocked Words)
-                GlassSection(title: appState.l("Blocked Words Presets"), icon: "square.grid.2x2.fill") {
-                    VStack(alignment: .leading, spacing: 14) {
-                        HStack(alignment: .center, spacing: 12) {
-                            Text(appState.l("Create custom word packs and share them instantly."))
-                                .font(.system(size: 12))
-                                .foregroundStyle(.secondary)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-
-                            HStack(spacing: 8) {
-                                Button(action: {
-                                    presetModalCategory = "blocked"
-                                    showingCreatePresetModal = true
-                                }) {
-                                    HStack(spacing: 5) {
-                                        Image(systemName: "plus.circle.fill")
-                                            .font(.system(size: 11, weight: .bold))
-                                        Text(appState.l("Create Preset"))
-                                            .font(.system(size: 11, weight: .bold, design: .rounded))
-                                            .lineLimit(1)
-                                    }
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 7)
-                                    .background(Color.primary.opacity(0.06))
-                                    .foregroundStyle(.primary)
-                                    .cornerRadius(8)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
-                                    )
-                                }
-                                .buttonStyle(.plain)
-                                .fixedSize()
-
-                                Button(action: {
-                                    presetModalCategory = "blocked"
-                                    showingImportPresetModal = true
-                                }) {
-                                    HStack(spacing: 5) {
-                                        Image(systemName: "square.and.arrow.down.fill")
-                                            .font(.system(size: 11, weight: .bold))
-                                        Text(appState.l("Import Preset"))
-                                            .font(.system(size: 11, weight: .bold, design: .rounded))
-                                            .lineLimit(1)
-                                    }
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 7)
-                                    .background(Color.primary.opacity(0.06))
-                                    .foregroundStyle(.primary)
-                                    .cornerRadius(8)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
-                                        )
-                                }
-                                .buttonStyle(.plain)
-                                .fixedSize()
-                            }
-                        }
-
-                        if appState.customBlockedWordsPresets.isEmpty {
-                            HStack(spacing: 8) {
-                                Image(systemName: "nosign")
-                                    .font(.system(size: 13))
-                                    .foregroundStyle(.secondary)
-                                Text(appState.l("No custom blocked presets yet."))
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 8)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.primary.opacity(0.025))
-                            .cornerRadius(8)
-                        } else {
-                            VStack(spacing: 8) {
-                                ForEach(appState.customBlockedWordsPresets) { preset in
-                                    HStack(spacing: 12) {
-                                        VStack(alignment: .leading, spacing: 3) {
-                                            HStack(spacing: 6) {
-                                                Text(preset.name)
-                                                    .font(.system(size: 13, weight: .bold, design: .rounded))
-                                                    .foregroundStyle(.primary)
-
-                                                Text("\(preset.words.count) " + appState.l("words"))
-                                                    .font(.system(size: 9, weight: .bold))
-                                                    .padding(.horizontal, 6)
-                                                    .padding(.vertical, 2)
-                                                    .background(Color.red.opacity(0.1))
-                                                    .foregroundStyle(Color.red.opacity(0.85))
-                                                    .cornerRadius(4)
-                                            }
-
-                                            if !preset.description.isEmpty {
-                                                Text(preset.description)
-                                                    .font(.system(size: 11))
-                                                    .foregroundStyle(.secondary)
-                                                    .lineLimit(1)
-                                            }
-
-                                            Text(preset.words.prefix(5).joined(separator: ", ") + (preset.words.count > 5 ? "..." : ""))
-                                                .font(.system(size: 10))
-                                                .foregroundStyle(.tertiary)
-                                                .lineLimit(1)
-                                        }
-
-                                        Spacer()
-
-                                        // Action buttons
-                                        HStack(spacing: 6) {
-                                            Button(action: { applyBlockedPreset(preset) }) {
-                                                HStack(spacing: 4) {
-                                                    Image(systemName: appliedPresetId == preset.id ? "checkmark" : "plus")
-                                                    Text(appliedPresetId == preset.id ? appState.l("Applied!") : appState.l("Apply"))
-                                                }
-                                                .font(.system(size: 11, weight: .semibold))
-                                                .padding(.horizontal, 8)
-                                                .padding(.vertical, 5)
-                                                .background(appliedPresetId == preset.id ? Color.green.opacity(0.15) : Color.primary.opacity(0.06))
-                                                .foregroundStyle(appliedPresetId == preset.id ? .green : .primary)
-                                                .cornerRadius(6)
-                                            }
-                                            .buttonStyle(.plain)
-
-                                            Button(action: { shareBlockedPreset(preset) }) {
-                                                HStack(spacing: 4) {
-                                                    Image(systemName: copiedPresetId == preset.id ? "checkmark" : "square.and.arrow.up")
-                                                    Text(copiedPresetId == preset.id ? appState.l("Copied!") : appState.l("Share"))
-                                                }
-                                                .font(.system(size: 11, weight: .semibold))
-                                                .padding(.horizontal, 8)
-                                                .padding(.vertical, 5)
-                                                .background(copiedPresetId == preset.id ? Color.green.opacity(0.15) : Color.primary.opacity(0.08))
-                                                .foregroundStyle(copiedPresetId == preset.id ? .green : .primary)
-                                                .cornerRadius(6)
-                                            }
-                                            .buttonStyle(.plain)
-
-                                            Button(action: { presetToDelete = preset }) {
-                                                Image(systemName: "trash")
-                                                    .font(.system(size: 11))
-                                                    .foregroundStyle(.secondary)
-                                                    .padding(6)
-                                            }
-                                            .buttonStyle(.plain)
-                                        }
-                                    }
-                                    .padding(10)
-                                    .background(Color.primary.opacity(0.03))
-                                    .cornerRadius(10)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 10)
-                                            .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    .padding(14)
-                }
             }
 
             // SECTION: Dynamic App Context & Anti-Hallucination
@@ -5498,6 +5022,410 @@ struct VocabularySettingsView: View {
                         RoundedRectangle(cornerRadius: 12)
                             .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
                     )
+                }
+                .padding(14)
+            }
+
+            // SECTION: Custom Presets (Unified)
+            GlassSection(title: appState.l("Custom Presets"), icon: "square.grid.2x2.fill") {
+                VStack(alignment: .leading, spacing: 14) {
+                    VStack(spacing: 10) {
+                        HStack(alignment: .center, spacing: 12) {
+                            Text(appState.l("Create custom word packs and share them instantly."))
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                            HStack(spacing: 8) {
+                                Button(action: {
+                                    presetModalCategory = selectedPresetCategory
+                                    showingCreatePresetModal = true
+                                }) {
+                                    HStack(spacing: 5) {
+                                        Image(systemName: "plus.circle.fill")
+                                            .font(.system(size: 11, weight: .bold))
+                                        Text(appState.l("Create Preset"))
+                                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                                            .lineLimit(1)
+                                    }
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 7)
+                                    .background(Color.primary.opacity(0.06))
+                                    .foregroundStyle(.primary)
+                                    .cornerRadius(8)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                                .fixedSize()
+
+                                Button(action: {
+                                    presetModalCategory = selectedPresetCategory
+                                    showingImportPresetModal = true
+                                }) {
+                                    HStack(spacing: 5) {
+                                        Image(systemName: "square.and.arrow.down.fill")
+                                            .font(.system(size: 11, weight: .bold))
+                                        Text(appState.l("Import Preset"))
+                                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                                            .lineLimit(1)
+                                    }
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 7)
+                                    .background(Color.primary.opacity(0.06))
+                                    .foregroundStyle(.primary)
+                                    .cornerRadius(8)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                                .fixedSize()
+                            }
+                        }
+
+                        // Category Pill Switcher
+                        HStack(spacing: 6) {
+                            let categories: [(id: String, title: String, icon: String, count: Int)] = [
+                                ("vocabulary", appState.l("Vocabulary"), "text.quote", appState.customVocabularyPresets.count),
+                                ("blocked", appState.l("Blocked Words"), "nosign", appState.customBlockedWordsPresets.count),
+                                ("location", appState.l("Locations"), "mappin.and.ellipse", appState.customLocationPresets.count)
+                            ]
+
+                            ForEach(categories, id: \.id) { cat in
+                                let isSelected = selectedPresetCategory == cat.id
+                                Button(action: {
+                                    withAnimation(.spring(response: 0.25, dampingFraction: 0.75)) {
+                                        selectedPresetCategory = cat.id
+                                    }
+                                }) {
+                                    HStack(spacing: 5) {
+                                        Image(systemName: cat.icon)
+                                            .font(.system(size: 10, weight: isSelected ? .bold : .regular))
+                                        Text(cat.title)
+                                            .font(.system(size: 11, weight: isSelected ? .semibold : .medium, design: .rounded))
+                                        Text("\(cat.count)")
+                                            .font(.system(size: 9, weight: .bold))
+                                            .padding(.horizontal, 5)
+                                            .padding(.vertical, 1)
+                                            .background(isSelected ? Color.primary.opacity(0.15) : Color.primary.opacity(0.06))
+                                            .cornerRadius(6)
+                                    }
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 5)
+                                    .background(isSelected ? Color.accentColor.opacity(0.18) : Color.primary.opacity(0.035))
+                                    .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
+                                    .cornerRadius(8)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .strokeBorder(isSelected ? Color.accentColor.opacity(0.35) : Color.primary.opacity(0.06), lineWidth: 1)
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                            }
+
+                            Spacer()
+                        }
+                    }
+
+                    // Content for selected preset category
+                    if selectedPresetCategory == "vocabulary" {
+                        if appState.customVocabularyPresets.isEmpty {
+                            HStack(spacing: 8) {
+                                Image(systemName: "sparkles")
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(.secondary)
+                                Text(appState.l("No custom presets yet. Create one or import a share code to get started."))
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 8)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.primary.opacity(0.025))
+                            .cornerRadius(8)
+                        } else {
+                            VStack(spacing: 8) {
+                                ForEach(appState.customVocabularyPresets) { preset in
+                                    HStack(spacing: 12) {
+                                        VStack(alignment: .leading, spacing: 3) {
+                                            HStack(spacing: 6) {
+                                                Text(preset.name)
+                                                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                                                    .foregroundStyle(.primary)
+
+                                                Text("\(preset.words.count) " + appState.l("words"))
+                                                    .font(.system(size: 9, weight: .bold))
+                                                    .padding(.horizontal, 6)
+                                                    .padding(.vertical, 2)
+                                                    .background(Color.primary.opacity(0.08))
+                                                    .foregroundStyle(Color.primary.opacity(0.85))
+                                                    .cornerRadius(4)
+                                            }
+
+                                            if !preset.description.isEmpty {
+                                                Text(preset.description)
+                                                    .font(.system(size: 11))
+                                                    .foregroundStyle(.secondary)
+                                                    .lineLimit(1)
+                                            }
+
+                                            Text(preset.words.prefix(5).joined(separator: ", ") + (preset.words.count > 5 ? "..." : ""))
+                                                .font(.system(size: 10))
+                                                .foregroundStyle(.tertiary)
+                                                .lineLimit(1)
+                                        }
+
+                                        Spacer()
+
+                                        HStack(spacing: 6) {
+                                            Button(action: { applyPreset(preset) }) {
+                                                HStack(spacing: 4) {
+                                                    Image(systemName: appliedPresetId == preset.id ? "checkmark" : "plus")
+                                                    Text(appliedPresetId == preset.id ? appState.l("Applied!") : appState.l("Apply"))
+                                                }
+                                                .font(.system(size: 11, weight: .semibold))
+                                                .padding(.horizontal, 8)
+                                                .padding(.vertical, 5)
+                                                .background(appliedPresetId == preset.id ? Color.green.opacity(0.15) : Color.primary.opacity(0.06))
+                                                .foregroundStyle(appliedPresetId == preset.id ? .green : .primary)
+                                                .cornerRadius(6)
+                                            }
+                                            .buttonStyle(.plain)
+
+                                            Button(action: { sharePreset(preset) }) {
+                                                HStack(spacing: 4) {
+                                                    Image(systemName: copiedPresetId == preset.id ? "checkmark" : "square.and.arrow.up")
+                                                    Text(copiedPresetId == preset.id ? appState.l("Copied!") : appState.l("Share"))
+                                                }
+                                                .font(.system(size: 11, weight: .semibold))
+                                                .padding(.horizontal, 8)
+                                                .padding(.vertical, 5)
+                                                .background(copiedPresetId == preset.id ? Color.green.opacity(0.15) : Color.primary.opacity(0.08))
+                                                .foregroundStyle(copiedPresetId == preset.id ? .green : .primary)
+                                                .cornerRadius(6)
+                                            }
+                                            .buttonStyle(.plain)
+
+                                            Button(action: { presetToDelete = preset }) {
+                                                Image(systemName: "trash")
+                                                    .font(.system(size: 11))
+                                                    .foregroundStyle(.secondary)
+                                                    .padding(6)
+                                            }
+                                            .buttonStyle(.plain)
+                                        }
+                                    }
+                                    .padding(10)
+                                    .background(Color.primary.opacity(0.03))
+                                    .cornerRadius(10)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+                                    )
+                                }
+                            }
+                        }
+                    } else if selectedPresetCategory == "blocked" {
+                        if appState.customBlockedWordsPresets.isEmpty {
+                            HStack(spacing: 8) {
+                                Image(systemName: "nosign")
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(.secondary)
+                                Text(appState.l("No custom blocked presets yet."))
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 8)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.primary.opacity(0.025))
+                            .cornerRadius(8)
+                        } else {
+                            VStack(spacing: 8) {
+                                ForEach(appState.customBlockedWordsPresets) { preset in
+                                    HStack(spacing: 12) {
+                                        VStack(alignment: .leading, spacing: 3) {
+                                            HStack(spacing: 6) {
+                                                Text(preset.name)
+                                                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                                                    .foregroundStyle(.primary)
+
+                                                Text("\(preset.words.count) " + appState.l("words"))
+                                                    .font(.system(size: 9, weight: .bold))
+                                                    .padding(.horizontal, 6)
+                                                    .padding(.vertical, 2)
+                                                    .background(Color.red.opacity(0.1))
+                                                    .foregroundStyle(Color.red.opacity(0.85))
+                                                    .cornerRadius(4)
+                                            }
+
+                                            if !preset.description.isEmpty {
+                                                Text(preset.description)
+                                                    .font(.system(size: 11))
+                                                    .foregroundStyle(.secondary)
+                                                    .lineLimit(1)
+                                            }
+
+                                            Text(preset.words.prefix(5).joined(separator: ", ") + (preset.words.count > 5 ? "..." : ""))
+                                                .font(.system(size: 10))
+                                                .foregroundStyle(.tertiary)
+                                                .lineLimit(1)
+                                        }
+
+                                        Spacer()
+
+                                        HStack(spacing: 6) {
+                                            Button(action: { applyBlockedPreset(preset) }) {
+                                                HStack(spacing: 4) {
+                                                    Image(systemName: appliedPresetId == preset.id ? "checkmark" : "plus")
+                                                    Text(appliedPresetId == preset.id ? appState.l("Applied!") : appState.l("Apply"))
+                                                }
+                                                .font(.system(size: 11, weight: .semibold))
+                                                .padding(.horizontal, 8)
+                                                .padding(.vertical, 5)
+                                                .background(appliedPresetId == preset.id ? Color.green.opacity(0.15) : Color.primary.opacity(0.06))
+                                                .foregroundStyle(appliedPresetId == preset.id ? .green : .primary)
+                                                .cornerRadius(6)
+                                            }
+                                            .buttonStyle(.plain)
+
+                                            Button(action: { shareBlockedPreset(preset) }) {
+                                                HStack(spacing: 4) {
+                                                    Image(systemName: copiedPresetId == preset.id ? "checkmark" : "square.and.arrow.up")
+                                                    Text(copiedPresetId == preset.id ? appState.l("Copied!") : appState.l("Share"))
+                                                }
+                                                .font(.system(size: 11, weight: .semibold))
+                                                .padding(.horizontal, 8)
+                                                .padding(.vertical, 5)
+                                                .background(copiedPresetId == preset.id ? Color.green.opacity(0.15) : Color.primary.opacity(0.08))
+                                                .foregroundStyle(copiedPresetId == preset.id ? .green : .primary)
+                                                .cornerRadius(6)
+                                            }
+                                            .buttonStyle(.plain)
+
+                                            Button(action: { presetToDelete = preset }) {
+                                                Image(systemName: "trash")
+                                                    .font(.system(size: 11))
+                                                    .foregroundStyle(.secondary)
+                                                    .padding(6)
+                                            }
+                                            .buttonStyle(.plain)
+                                        }
+                                    }
+                                    .padding(10)
+                                    .background(Color.primary.opacity(0.03))
+                                    .cornerRadius(10)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+                                    )
+                                }
+                            }
+                        }
+                    } else if selectedPresetCategory == "location" {
+                        if appState.customLocationPresets.isEmpty {
+                            HStack(spacing: 8) {
+                                Image(systemName: "sparkles")
+                                    .font(.system(size: 13))
+                                    .foregroundStyle(.secondary)
+                                Text(appState.l("No custom location presets yet."))
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 8)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.primary.opacity(0.025))
+                            .cornerRadius(8)
+                        } else {
+                            VStack(spacing: 8) {
+                                ForEach(appState.customLocationPresets) { preset in
+                                    let isActive = appState.activeLocationPresetIds.contains(preset.id.uuidString) || appState.activeLocationPresetIds.isEmpty
+                                    HStack(spacing: 12) {
+                                        Button(action: {
+                                            withAnimation(.spring(response: 0.25, dampingFraction: 0.7)) {
+                                                if appState.activeLocationPresetIds.contains(preset.id.uuidString) {
+                                                    appState.activeLocationPresetIds.removeAll { $0 == preset.id.uuidString }
+                                                } else {
+                                                    appState.activeLocationPresetIds.append(preset.id.uuidString)
+                                                }
+                                            }
+                                        }) {
+                                            Image(systemName: isActive ? "checkmark.circle.fill" : "circle")
+                                                .font(.system(size: 16, weight: .semibold))
+                                                .foregroundStyle(isActive ? Color.accentColor : Color.secondary.opacity(0.5))
+                                        }
+                                        .buttonStyle(.plain)
+
+                                        VStack(alignment: .leading, spacing: 3) {
+                                            HStack(spacing: 6) {
+                                                Text(preset.name)
+                                                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                                                    .foregroundStyle(.primary)
+
+                                                Text("\(preset.words.count) " + appState.l("words"))
+                                                    .font(.system(size: 9, weight: .bold))
+                                                    .padding(.horizontal, 6)
+                                                    .padding(.vertical, 2)
+                                                    .background(Color.primary.opacity(0.08))
+                                                    .foregroundStyle(Color.primary.opacity(0.85))
+                                                    .cornerRadius(4)
+                                            }
+
+                                            if !preset.description.isEmpty {
+                                                Text(preset.description)
+                                                    .font(.system(size: 11))
+                                                    .foregroundStyle(.secondary)
+                                                    .lineLimit(1)
+                                            }
+
+                                            Text(preset.words.prefix(6).joined(separator: ", ") + (preset.words.count > 6 ? "..." : ""))
+                                                .font(.system(size: 10))
+                                                .foregroundStyle(.tertiary)
+                                                .lineLimit(1)
+                                        }
+
+                                        Spacer()
+
+                                        HStack(spacing: 6) {
+                                            Button(action: { sharePreset(preset) }) {
+                                                HStack(spacing: 4) {
+                                                    Image(systemName: copiedPresetId == preset.id ? "checkmark" : "square.and.arrow.up")
+                                                    Text(copiedPresetId == preset.id ? appState.l("Copied!") : appState.l("Share"))
+                                                }
+                                                .font(.system(size: 11, weight: .semibold))
+                                                .padding(.horizontal, 8)
+                                                .padding(.vertical, 5)
+                                                .background(copiedPresetId == preset.id ? Color.green.opacity(0.15) : Color.primary.opacity(0.08))
+                                                .foregroundStyle(copiedPresetId == preset.id ? .green : .primary)
+                                                .cornerRadius(6)
+                                            }
+                                            .buttonStyle(.plain)
+
+                                            Button(action: { presetToDelete = preset }) {
+                                                Image(systemName: "trash")
+                                                    .font(.system(size: 11))
+                                                    .foregroundStyle(.secondary)
+                                                    .padding(6)
+                                            }
+                                            .buttonStyle(.plain)
+                                        }
+                                    }
+                                    .padding(10)
+                                    .background(Color.primary.opacity(0.03))
+                                    .cornerRadius(10)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
                 .padding(14)
             }

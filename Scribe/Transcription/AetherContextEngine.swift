@@ -22,6 +22,7 @@ public final class AetherContextEngine: @unchecked Sendable {
         case cryptoAndTrading = "cryptoAndTrading"
         case medicalAndHealth = "medicalAndHealth"
         case nutritionAndBiohacking = "nutritionAndBiohacking"
+        case citiesAndLocations = "citiesAndLocations"
         case general = "general"
 
         public var id: String { rawValue }
@@ -36,6 +37,7 @@ public final class AetherContextEngine: @unchecked Sendable {
             case .cryptoAndTrading: return "Crypto & Web3"
             case .medicalAndHealth: return "Medicine & Diagnostics"
             case .nutritionAndBiohacking: return "Nutrition & Biohacking"
+            case .citiesAndLocations: return "Cities & Locations"
             case .general: return "General System"
             }
         }
@@ -58,6 +60,8 @@ public final class AetherContextEngine: @unchecked Sendable {
                 return "Optimized for medical terms, pharmacology, clinical diagnostics & diseases."
             case .nutritionAndBiohacking:
                 return "Optimized for nutrition, vitamins, minerals, amino acids & metabolic pathways."
+            case .citiesAndLocations:
+                return "Optimized for global cities, island archipelagos, streets, avenues, districts & geolocation navigation."
             case .general:
                 return "Balanced system-wide dictation with smart auto-casing."
             }
@@ -73,6 +77,7 @@ public final class AetherContextEngine: @unchecked Sendable {
             case .cryptoAndTrading: return "bitcoinsign.circle.fill"
             case .medicalAndHealth: return "cross.case.fill"
             case .nutritionAndBiohacking: return "leaf.fill"
+            case .citiesAndLocations: return "mappin.and.ellipse"
             case .general: return "macwindow"
             }
         }
@@ -334,6 +339,30 @@ public final class AetherContextEngine: @unchecked Sendable {
             return (name, .nutritionAndBiohacking, bundleId, icon)
         }
 
+        // 9. Cities, Maps, Travel & Navigation Apps
+        if bundleId.contains("maps") ||
+           bundleId.contains("navigation") ||
+           bundleId.contains("yandexmaps") ||
+           bundleId.contains("yandexnavi") ||
+           bundleId.contains("2gis") ||
+           bundleId.contains("doublegis") ||
+           bundleId.contains("uber") ||
+           bundleId.contains("careem") ||
+           bundleId.contains("bolt") ||
+           bundleId.contains("waze") ||
+           bundleId.contains("citymapper") ||
+           bundleId.contains("airbnb") ||
+           bundleId.contains("booking") ||
+           bundleId.contains("tripadvisor") ||
+           bundleId.contains("flightradar") ||
+           nameLower.contains("maps") ||
+           nameLower.contains("карты") ||
+           nameLower.contains("навигатор") ||
+           nameLower.contains("такси") ||
+           nameLower.contains("2gis") {
+            return (name, .citiesAndLocations, bundleId, icon)
+        }
+
         return (name, .general, bundleId, icon)
     }
 
@@ -393,6 +422,23 @@ public final class AetherContextEngine: @unchecked Sendable {
                 "Берберин", "Глутатион", "NAC", "Ашваганда", "Ежовик гребенчатый", "Lion's Mane", "L-теанин", "Креатин", "BCAA",
                 "Коллаген", "Пробиотики", "Пребиотики", "Микробиом", "БЖУ", "Кетоз", "Автофагия", "Инсулинорезистентность"
             ]
+        case .citiesAndLocations:
+            return [
+                "Абу-Даби", "Abu Dhabi", "Саадият", "остров Саадият", "Saadiyat Island", "Яс", "остров Яс", "Yas Island",
+                "Рим", "Аль-Рим", "остров Аль-Рим", "Al Reem Island", "Reem Island", "Аль-Марьях", "остров Аль-Марьях", "Al Maryah Island",
+                "Джубайл", "остров Джубайл", "Jubail Island", "Худайрият", "остров Худайрият", "Hudayriyat Island",
+                "Нурай", "остров Нурай", "Nurai Island", "Лулу", "остров Лулу", "Lulu Island", "Сир-Бани-Яс", "Sir Bani Yas",
+                "Корниш", "Корниш Роуд", "Corniche Road", "Шейх Заед", "Шейх Зайд", "Sheikh Zayed Road", "Шейх Рашид Бин Саид",
+                "улица Хамдан", "Hamdan Street", "улица Халифа", "Khalifa Street", "улица Электра", "Electra Street",
+                "Аль-Салам", "Al Salam Street", "Аэропорт Роуд", "Airport Road", "Мурур Роуд", "Muroor Road",
+                "Аль-Батин", "Al Bateen", "Аль-Халидия", "Al Khalidiyah", "Масдар Сити", "Masdar City", "Аль-Раха", "Al Raha Beach",
+                "Аль-Риф", "Al Reef", "Халифа Сити", "Khalifa City", "Мохамед Бин Заед Сити", "MBZ City", "Дубай", "Dubai",
+                "Палм-Джумейра", "Palm Jumeirah", "Блювотерс", "Bluewaters Island", "Дубай Марина", "Dubai Marina", "Даунтаун", "Downtown",
+                "Бурдж-Халифа", "Burj Khalifa", "Бизнес Бэй", "Business Bay", "DIFC", "Сити Вок", "City Walk", "Ла Мер", "La Mer",
+                "Манхэттен", "Manhattan", "Бруклин", "Brooklyn", "Оксфорд-стрит", "Oxford Street", "Сохо", "Soho",
+                "Москва", "Moscow", "Тверская", "Арбат", "Патриаршие пруды", "Москва-Сити", "Санкт-Петербург", "Невский проспект",
+                "Бали", "Bali", "Чангу", "Canggu", "Семиньяк", "Seminyak", "Убуд", "Ubud", "Сингапур", "Singapore", "Сентоза", "Sentosa Island"
+            ]
         case .general:
             return []
         }
@@ -433,7 +479,7 @@ public final class AetherContextEngine: @unchecked Sendable {
             }
             return languageHallucinations + streamSpam
 
-        case .browsersAndResearch, .designAndCreative, .cryptoAndTrading, .medicalAndHealth, .nutritionAndBiohacking, .general:
+        case .browsersAndResearch, .designAndCreative, .cryptoAndTrading, .medicalAndHealth, .nutritionAndBiohacking, .citiesAndLocations, .general:
             return languageHallucinations
         }
     }
@@ -553,6 +599,14 @@ public final class AetherContextEngine: @unchecked Sendable {
             } else {
                 return "Nutrition & biohacking context (Russian & English): витамины, добавки, нутрициология, Vitamin D3, Omega-3, magnesium, metabolism."
             }
+        case .citiesAndLocations:
+            if isRussianOnly {
+                return "Города, острова, архипелаги, улицы, локации и навигация: Абу-Даби, остров Саадият, остров Яс, остров Аль-Рим, Аль-Марьях, Джубайл, Худайрият, Нурай, Корниш, Шейх Заед Роуд, Дубай, Палм-Джумейра, Дубай Марина, Даунтаун, Манхэттен, Москва, Бали, Сингапур."
+            } else if isEnglishOnly {
+                return "Cities, islands, archipelagos, streets, locations, and navigation context: Abu Dhabi, Saadiyat Island, Yas Island, Al Reem Island, Al Maryah, Jubail, Hudayriyat, Nurai, Corniche, Sheikh Zayed Road, Dubai, Palm Jumeirah, Dubai Marina, Downtown, Manhattan, London, Tokyo, Bali, Singapore."
+            } else {
+                return "Cities, islands, and locations context (Russian & English): Абу-Даби, Saadiyat Island, Yas Island, Al Reem Island, Al Maryah, Jubail, Corniche, Sheikh Zayed Road, Dubai, Palm Jumeirah, Marina, Downtown, Москва, London, Manhattan, Bali, Singapore."
+            }
         case .general:
             if isRussianOnly {
                 return "Используйте правильную пунктуацию, запятые и заглавные буквы."
@@ -584,10 +638,10 @@ public final class AetherContextEngine: @unchecked Sendable {
 
         if !userLocation.isEmpty {
             let isRussian = language == "ru" || language == nil
-            let locHeader = isRussian ? "Локации и адреса:" : "Locations and streets:"
+            let locHeader = isRussian ? "Локации, острова и адреса:" : "Locations, islands and streets:"
             let addressAffixes = isRussian
-                ? "ул., улица, проспект, бульвар, переулок, шоссе, набережная, дом, корп., стр., кв."
-                : "st., ave, blvd, road, drive, lane, apt, suite, bldg"
+                ? "остров, о., архипелаг, ул., улица, проспект, бульвар, переулок, шоссе, набережная, наб., площадь, пл., корп., стр., вл."
+                : "island, isl., st., ave, blvd, road, drive, lane, apt, suite, bldg, crescent, way, walk, marina"
             components.append("\(locHeader) \(userLocation), \(addressAffixes).")
         }
 
@@ -622,7 +676,12 @@ public final class AetherContextEngine: @unchecked Sendable {
                 .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
                 .filter { !$0.isEmpty }
             strings.append(contentsOf: locWords)
-            strings.append(contentsOf: ["ул.", "улица", "проспект", "бульвар", "набережная", "переулок", "шоссе", "дом", "корпус", "строение", "квартира", "метро", "Street", "Avenue", "Boulevard", "Road"])
+            strings.append(contentsOf: [
+                "остров", "island", "о.", "isl.", "Саадият", "Яс", "Рим", "Аль-Рим", "Аль-Марьях", "Джубайл", "Худайрият",
+                "Нурай", "Корниш", "Шейх Заед", "Масдар", "Палм-Джумейра", "Дубай Марина", "Даунтаун",
+                "ул.", "улица", "проспект", "бульвар", "набережная", "переулок", "шоссе", "дом", "корпус", "строение", "квартира", "метро",
+                "Street", "Avenue", "Boulevard", "Road", "Way", "Drive", "Lane", "Square", "Corniche"
+            ])
         }
 
         return Array(Set(strings)).prefix(120).map { $0 }
