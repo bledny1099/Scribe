@@ -20,6 +20,8 @@ public final class AetherContextEngine: @unchecked Sendable {
         case browsersAndResearch = "browsersAndResearch"
         case designAndCreative = "designAndCreative"
         case cryptoAndTrading = "cryptoAndTrading"
+        case medicalAndHealth = "medicalAndHealth"
+        case nutritionAndBiohacking = "nutritionAndBiohacking"
         case general = "general"
 
         public var id: String { rawValue }
@@ -32,6 +34,8 @@ public final class AetherContextEngine: @unchecked Sendable {
             case .browsersAndResearch: return "Browser & Research"
             case .designAndCreative: return "Design & Creative"
             case .cryptoAndTrading: return "Crypto & Web3"
+            case .medicalAndHealth: return "Medicine & Diagnostics"
+            case .nutritionAndBiohacking: return "Nutrition & Biohacking"
             case .general: return "General System"
             }
         }
@@ -50,6 +54,10 @@ public final class AetherContextEngine: @unchecked Sendable {
                 return "Optimized for UI/UX, layouts, design tokens & typography."
             case .cryptoAndTrading:
                 return "Optimized for web3, tokens, blockchain protocols & trading."
+            case .medicalAndHealth:
+                return "Optimized for medical terms, pharmacology, clinical diagnostics & diseases."
+            case .nutritionAndBiohacking:
+                return "Optimized for nutrition, vitamins, minerals, amino acids & metabolic pathways."
             case .general:
                 return "Balanced system-wide dictation with smart auto-casing."
             }
@@ -63,6 +71,8 @@ public final class AetherContextEngine: @unchecked Sendable {
             case .browsersAndResearch: return "safari.fill"
             case .designAndCreative: return "paintpalette.fill"
             case .cryptoAndTrading: return "bitcoinsign.circle.fill"
+            case .medicalAndHealth: return "cross.case.fill"
+            case .nutritionAndBiohacking: return "leaf.fill"
             case .general: return "macwindow"
             }
         }
@@ -297,6 +307,33 @@ public final class AetherContextEngine: @unchecked Sendable {
             return (name, .cryptoAndTrading, bundleId, icon)
         }
 
+        // 7. Medical, Clinical & Health Apps
+        if bundleId.contains("health") ||
+           bundleId.contains("medscape") ||
+           bundleId.contains("uptodate") ||
+           bundleId.contains("epocrates") ||
+           bundleId.contains("emias") ||
+           nameLower.contains("health") ||
+           nameLower.contains("medical") ||
+           nameLower.contains("клиника") ||
+           nameLower.contains("медицина") ||
+           nameLower.contains("анализы") {
+            return (name, .medicalAndHealth, bundleId, icon)
+        }
+
+        // 8. Nutrition, Fitness & Biohacking
+        if bundleId.contains("myfitnesspal") ||
+           bundleId.contains("yazio") ||
+           bundleId.contains("cronometer") ||
+           bundleId.contains("fatsecret") ||
+           bundleId.contains("whoop") ||
+           bundleId.contains("oura") ||
+           nameLower.contains("fitness") ||
+           nameLower.contains("diet") ||
+           nameLower.contains("nutrition") {
+            return (name, .nutritionAndBiohacking, bundleId, icon)
+        }
+
         return (name, .general, bundleId, icon)
     }
 
@@ -339,6 +376,22 @@ public final class AetherContextEngine: @unchecked Sendable {
             return [
                 "Bitcoin", "Ethereum", "Solana", "TON", "USDT", "TRC20", "ERC20", "Swap", "Liquidity", "Gas fee",
                 "Wallet", "Staking", "Short", "Long", "Futures", "Spot", "Tonkeeper", "MetaMask", "Bybit", "Binance"
+            ]
+        case .medicalAndHealth:
+            return [
+                "МРТ", "КТ", "УЗИ", "ЭКГ", "ЭхоКГ", "Холтер", "ЭЭГ", "ФГДС", "Колоноскопия", "Биопсия", "Лапароскопия",
+                "ОАК", "ОАМ", "Биохимия", "Коагулограмма", "Гликированный гемоглобин", "СОЭ", "С-реактивный белок",
+                "Ферритин", "Д-димер", "Тропонин", "Креатинин", "АЛТ", "АСТ", "Билирубин", "ТТГ", "Т3", "Т4", "Кортизол",
+                "Кардиология", "Неврология", "Эндокринология", "Гастроэнтерология", "Пульмонология", "Онкология", "Хирургия",
+                "Аспирин", "Ибупрофен", "Парацетамол", "Амоксициллин", "Дексаметазон", "Омепразол", "Метформин", "Инсулин",
+                "Гипертензия", "Инфаркт миокарда", "Аритмия", "Инсульт", "Диабет", "Гипотиреоз", "Гастрит", "Пневмония", "Астма"
+            ]
+        case .nutritionAndBiohacking:
+            return [
+                "Витамин D3", "Витамин B12", "Витамин C", "Витамин K2", "Магний глицинат", "Магний треонат", "Цинк пиколинат",
+                "Селен", "Омега-3", "EPA", "DHA", "Фосфолипиды", "Лецитин", "Холин", "Инозитол", "Коэнзим Q10", "NAD+", "NMN",
+                "Берберин", "Глутатион", "NAC", "Ашваганда", "Ежовик гребенчатый", "Lion's Mane", "L-теанин", "Креатин", "BCAA",
+                "Коллаген", "Пробиотики", "Пребиотики", "Микробиом", "БЖУ", "Кетоз", "Автофагия", "Инсулинорезистентность"
             ]
         case .general:
             return []
@@ -483,6 +536,22 @@ public final class AetherContextEngine: @unchecked Sendable {
                 return "Crypto, Web3, blockchain transactions, wallets, tokens, staking, and trading."
             } else {
                 return "Crypto & Web3 context: Bitcoin, Ethereum, Solana, TON, USDT, кошелек, стейкинг, trading."
+            }
+        case .medicalAndHealth:
+            if isRussianOnly {
+                return "Медицинский контекст, анализы, фармакология, процедуры и клиническая диагностика: МРТ, КТ, УЗИ, ЭКГ, биохимия, диагнозы, препараты."
+            } else if isEnglishOnly {
+                return "Clinical medical context, laboratory diagnostics, pharmacology, symptoms, and procedures: MRI, CT, ECG, CBC, diseases, medication."
+            } else {
+                return "Medical & clinical context (Russian & English): МРТ, КТ, УЗИ, ЭКГ, анализы, диагнозы, pharmacology, MRI, CT, healthcare."
+            }
+        case .nutritionAndBiohacking:
+            if isRussianOnly {
+                return "Нутрициология, биохакинг, метаболизм, витамины, минералы, добавки: Витамин D3, Омега-3, магний, микробиом, кетоз, БЖУ."
+            } else if isEnglishOnly {
+                return "Nutrition, biohacking, metabolic health, supplements, vitamins, and minerals: Vitamin D3, Omega-3, magnesium, microbiome, ketosis, macros."
+            } else {
+                return "Nutrition & biohacking context (Russian & English): витамины, добавки, нутрициология, Vitamin D3, Omega-3, magnesium, metabolism."
             }
         case .general:
             if isRussianOnly {

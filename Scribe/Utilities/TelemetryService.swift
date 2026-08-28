@@ -44,7 +44,7 @@ public final class TelemetryService: @unchecked Sendable {
 
         let id = installationId
         let isFirstInstall = !UserDefaults.standard.bool(forKey: hasReportedInstallKey)
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.5.0"
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.5.1"
         let osVersion = ProcessInfo.processInfo.operatingSystemVersionString
         let chip = getChipName()
         let locale = Locale.current.identifier
