@@ -5518,14 +5518,16 @@ struct VocabularySettingsView: View {
 
                         Spacer()
 
-                        // View on GitHub Button
+                        // Sync Now Button
                         Button(action: {
-                            NSWorkspace.shared.open(CommunityVocabularyService.githubDictionaryPageURL)
+                            Task {
+                                _ = await communityVocab.manualSyncAndContribute()
+                            }
                         }) {
                             HStack(spacing: 4) {
-                                Image(systemName: "doc.text.magnifyingglass")
+                                Image(systemName: communityVocab.isSyncing ? "arrow.triangle.2.circlepath" : "arrow.clockwise")
                                     .font(.system(size: 11, weight: .semibold))
-                                Text(appState.l("View JSON on GitHub ↗"))
+                                Text(communityVocab.isSyncing ? appState.l("Syncing...") : appState.l("Sync Now"))
                                     .font(.system(size: 11, weight: .semibold, design: .rounded))
                             }
                             .padding(.horizontal, 10)
@@ -5536,6 +5538,7 @@ struct VocabularySettingsView: View {
                             .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.primary.opacity(0.12), lineWidth: 1))
                         }
                         .buttonStyle(.plain)
+                        .disabled(communityVocab.isSyncing)
                     }
 
                     // Anonymous Contribution Toggle
