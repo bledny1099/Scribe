@@ -244,11 +244,53 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         
         logger.debug("Calling WhisperKit.transcribe(audioPath: \(path), language: \(options.language ?? "auto"))")
 
-        let results: [TranscriptionResult] = try await Task.detached {
-            try await kit.transcribe(audioPath: path, decodeOptions: options)
-        }.value
+        var results: [TranscriptionResult] = try await kit.transcribe(audioPath: path, decodeOptions: options)
 
-        logger.info("WhisperKit returned \(results.count) result(s)")
+        let detectedLang = results.first?.language.lowercased()
+        logger.info("WhisperKit returned \(results.count) result(s), detected language: '\(detectedLang ?? "unknown")'")
+
+        // Language Lock Enforcement for Multilingual Mode:
+        // If Whisper detected a language outside the user's enabled preferred languages, re-decode to the proper enabled language.
+        let allowedLanguages = preferredLanguages.map { $0.lowercased() }
+        if !allowedLanguages.isEmpty, let detected = detectedLang, !allowedLanguages.contains(detected) {
+            let slavicUnselected: Set<String> = ["uk", "be", "bg", "mk", "sr", "pl", "cs", "sk", "hr", "sl"]
+            let targetFallback: String
+            if allowedLanguages.contains("ru") && slavicUnselected.contains(detected) {
+                targetFallback = "ru"
+            } else if allowedLanguages.contains("ru") {
+                targetFallback = "ru"
+            } else if allowedLanguages.contains("en") {
+                targetFallback = "en"
+            } else {
+                targetFallback = allowedLanguages.first ?? "ru"
+            }
+
+            logger.warning("Whisper detected unselected language '\(detected)'. User enabled only: \(preferredLanguages). Re-decoding locked to '\(targetFallback)'…")
+            var redecodeOptions = options
+            redecodeOptions.language = targetFallback
+            redecodeOptions.detectLanguage = false
+
+            // Update base prompt for the target fallback
+            let fallbackBasePrompt = initialPrompt[targetFallback] ?? initialPrompt["ru"]!
+            let fallbackPromptText = AetherContextEngine.shared.buildConditioningPrompt(
+                basePrompt: fallbackBasePrompt,
+                customVocabulary: customVocabulary,
+                userLocation: userLocation,
+                targetApp: targetApp,
+                language: targetFallback
+            )
+            if let tokenizer = kit.tokenizer {
+                let tokens = tokenizer.encode(text: fallbackPromptText)
+                redecodeOptions.promptTokens = Array(tokens.suffix(min(tokens.count, 100)))
+                redecodeOptions.usePrefillCache = false
+            }
+
+            if let retryResults = try? await kit.transcribe(audioPath: path, decodeOptions: redecodeOptions), !retryResults.isEmpty {
+                results = retryResults
+                resolvedLang = targetFallback
+                logger.info("Successfully re-decoded audio in locked target language '\(targetFallback)'")
+            }
+        }
 
         let rawText = results.map(\.text).joined(separator: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -265,6 +307,9 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             customVocabulary: customVocabList
         )
 
+        // Track user spoken word frequencies for dynamic Top 100 lexicon adaptation
+        UserFrequencyDictionary.shared.record(text: text)
+
         logger.info("Transcribed text (\(text.count) chars): \(text.prefix(100))")
 
         state = .done(text)
@@ -273,32 +318,21 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
 
     // MARK: - Post-Processing
 
-    /// Built-in Whisper boundary hallucination artifacts (common subtitle credits, YouTube noise & trailing repetition loops).
+    /// Built-in Whisper boundary hallucination artifacts (common subtitle credits & YouTube noise loops).
     public static let builtInWhisperHallucinationRoots: [String] = [
         "субтитры сделал",
         "субтитры создавал",
         "субтитры добавил",
         "редактор субтитров",
-        "корректор",
         "продолжение следует",
         "спасибо за просмотр",
-        "ставьте лайки",
-        "ставьте лайк",
-        "поставьте лайк",
+        "благодарю за просмотр",
         "подписывайтесь на канал",
         "подпишитесь на канал",
-        "подпишитесь",
-        "подписывайтесь",
-        "благодарю за просмотр",
-        "до новых встреч",
         "до встречи в следующем видео",
         "до встречи в новом видео",
-        "ссылка в описании",
+        "ссылка в описании под видео",
         "нажмите на колокольчик",
-        "пишите в комментариях",
-        "оставляйте комментарии",
-        "всем пока",
-        "пока-пока",
         "amara.org",
         "subtitles by",
         "thank you for watching",
@@ -306,7 +340,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         "thank you for listening",
         "thanks for listening",
         "translated by",
-        "please subscribe",
+        "please subscribe to my channel",
         "subscribe to my channel",
         "subscribe to the channel",
         "like and subscribe",
@@ -314,30 +348,10 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         "like, comment, and subscribe",
         "don't forget to subscribe",
         "don't forget to like and subscribe",
-        "leave a like",
-        "leave a comment",
-        "let me know in the comments",
-        "link in description",
-        "link in the description",
-        "see you next time",
-        "see you in the next one",
+        "let me know in the comments below",
+        "link in the description below",
         "see you in the next video",
-        "watch next",
-        "watch more",
-        "top 10",
-        "top ten",
-        "top 5",
-        "top five",
-        "4nb",
-        "genin",
-        "jenin",
-        "4 nb",
-        "find, genin",
-        "what is the best place to live in home city",
-        "what is the best place to live",
-        "what is the best place",
-        "in home city",
-        "sir"
+        "what is the best place to live in home city"
     ]
 
     /// Removes non-speech annotations and boundary hallucinations from Whisper output.
@@ -425,9 +439,9 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
     /// Removes consecutive duplicate phrases/words at the end of speech caused by Whisper decoding loops.
     private static func stripTrailingRepetitions(_ text: String) -> String {
         var current = text
-        let pattern = #"(?i)(?:\b([A-Za-zА-Яа-я0-9\s]{2,30}?)[.,!?;:\s]+)\1[.,!?;:\s]*$"#
+        let pattern = #"(?i)(?:\b([A-Za-zА-Яа-я0-9\s]{3,30}?)[.,!?;:\s]+)\1[.,!?;:\s]*$"#
         if let regex = try? NSRegularExpression(pattern: pattern) {
-            for _ in 0..<3 {
+            for _ in 0..<2 {
                 let range = NSRange(current.startIndex..<current.endIndex, in: current)
                 guard let match = regex.firstMatch(in: current, options: [], range: range),
                       let fullMatchRange = Range(match.range, in: current),
@@ -435,7 +449,9 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
 
                 let phrase = String(current[phraseRange]).trimmingCharacters(in: .whitespacesAndNewlines)
                 let lower = phrase.lowercased()
-                let isKnownHallucination = builtInWhisperHallucinationRoots.contains(where: { lower.contains($0) || $0.contains(lower) })
+                let isKnownHallucination = builtInWhisperHallucinationRoots.contains(where: { root in
+                    root.count >= 6 && lower.contains(root)
+                })
 
                 if isKnownHallucination {
                     current.removeSubrange(fullMatchRange)
@@ -467,13 +483,13 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         var result = text
         for root in builtInWhisperHallucinationRoots {
             let escaped = NSRegularExpression.escapedPattern(for: root)
-            // Match at the END of string with preceding punctuation/whitespace and optional trailing repetitions
-            let endPattern = "(?:[,\\.\\!\\?\\s]+|^)(?:\(escaped)[,\\.\\!\\?\\s]*)+[^\\n]*?$"
-            result = result.replacingOccurrences(of: endPattern, with: "", options: [.regularExpression, .caseInsensitive])
+            // Match STRICTLY at the END of string with preceding punctuation/whitespace and whole-word boundary
+            let endPattern = "(?i)(?:[,\\.\\!\\?\\s]+|^)\\b\(escaped)\\b[,\\.\\!\\?\\s]*$"
+            result = result.replacingOccurrences(of: endPattern, with: "", options: [.regularExpression])
 
-            // Match at the START of string with following punctuation/whitespace
-            let startPattern = "^(?:\(escaped)[,\\.\\!\\?\\s]*)+[^\\n\\.\\!\\?]*?[,\\.\\!\\?\\s]+"
-            result = result.replacingOccurrences(of: startPattern, with: "", options: [.regularExpression, .caseInsensitive])
+            // Match STRICTLY at the START of string with trailing punctuation/whitespace and whole-word boundary
+            let startPattern = "(?i)^[,\\.\\!\\?\\s]*\\b\(escaped)\\b(?:[,\\.\\!\\?\\s]+|$)"
+            result = result.replacingOccurrences(of: startPattern, with: "", options: [.regularExpression])
         }
 
         // Clean up punctuation and whitespace
@@ -481,12 +497,11 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         result = result.replacingOccurrences(of: "\\s+([.,!?:;])", with: "$1", options: .regularExpression)
         result = result.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        // If stripping left only orphan punctuation (e.g. "." or "..."), but there was actual text, restore or clean
+        // If stripping left only orphan punctuation (e.g. "." or "..."), but there was actual text, restore
         let alphaCheck = result.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) }
         if alphaCheck.isEmpty && !trimmed.isEmpty {
             let origAlpha = trimmed.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) }
             if !origAlpha.isEmpty {
-                // If it was just one of the phrases with credits (e.g. "Субтитры сделал DimaTorzok"), and the user spoke just that, return it
                 return trimmed
             }
             return ""

@@ -888,6 +888,10 @@ final class AppState: ObservableObject {
         stopLivePreviewTimer()
         livePreviewText = ""
         if soundFeedbackEnabled { SoundFeedback.play(.recordingStopped) }
+
+        // Allow in-flight hardware audio tap buffer (~80ms) to flush to file before tearing down tap
+        usleep(80000)
+
         let audioURL = audioRecorder.stopRecording()
         isRecording = false
         logger.info("Recording stopped, audioURL=\(audioURL?.path ?? "nil")")

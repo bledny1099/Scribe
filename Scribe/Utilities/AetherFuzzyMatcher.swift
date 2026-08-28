@@ -142,8 +142,9 @@ public final class AetherFuzzyMatcher: @unchecked Sendable {
             }
         }
 
-        // 3. Levenshtein Fuzzy Alignment for Longer Custom & Built-in Vocabulary (>5 chars)
-        let combinedTargets = builtInDictionaryTargets + vocabulary.filter { $0.count >= 5 }
+        // 3. Levenshtein Fuzzy Alignment for Longer Custom, User Top 100 & Built-in Vocabulary (>5 chars)
+        let userTopTargets = UserFrequencyDictionary.shared.topWords(limit: 100).filter { $0.count >= 5 }
+        let combinedTargets = builtInDictionaryTargets + vocabulary.filter { $0.count >= 5 } + userTopTargets
         if !combinedTargets.isEmpty {
             result = applyLevenshteinAlignment(text: result, targets: combinedTargets)
         }

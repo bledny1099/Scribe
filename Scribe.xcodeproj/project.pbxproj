@@ -48,9 +48,11 @@
 		A0010005 /* CommunityVocabularyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010005 /* CommunityVocabularyService.swift */; };
 		A0010006 /* KeychainHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010006 /* KeychainHelper.swift */; };
 		A0010008 /* AudioDeviceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010008 /* AudioDeviceManager.swift */; };
+		A0010009 /* UserFrequencyDictionary.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010009 /* UserFrequencyDictionary.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		F0010009 /* UserFrequencyDictionary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserFrequencyDictionary.swift; sourceTree = "<group>"; };
 		F0010008 /* AudioDeviceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDeviceManager.swift; sourceTree = "<group>"; };
 		B1010001 /* AppleNotesIcon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = AppleNotesIcon.png; sourceTree = "<group>"; };
 		B1010002 /* ObsidianIcon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = ObsidianIcon.png; sourceTree = "<group>"; };
@@ -127,6 +129,7 @@
 		727413048200327DC4D484D3 /* Transcription */ = {
 			isa = PBXGroup;
 			children = (
+				F0010009 /* UserFrequencyDictionary.swift */,
 				F0010002 /* AetherContextEngine.swift */,
 				F0010007 /* AetherLinguisticValidator.swift */,
 				03E3F01E9E6835C4E2BA39DD /* TranscriptionService.swift */,
@@ -310,6 +313,7 @@
 				A0010005 /* CommunityVocabularyService.swift in Sources */,
 				A0010006 /* KeychainHelper.swift in Sources */,
 				A0010008 /* AudioDeviceManager.swift in Sources */,
+				A0010009 /* UserFrequencyDictionary.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

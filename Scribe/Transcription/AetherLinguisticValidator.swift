@@ -34,7 +34,47 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         "задеплой": "задеплой",
         "за деплой": "задеплой",
         "чекаутни": "чекаутни",
-        "заскрейпи": "заскрейпи"
+        "заскрейпи": "заскрейпи",
+        "от скорректируй": "откорректируй",
+        "под корректируй": "подкорректируй",
+        "со стилизуй": "стилизуй",
+        "за имплементируй": "заимплементируй",
+        "по тестируй": "потестируй",
+        "от валидируй": "отвалидируй",
+        "за дебажь": "задебажь",
+        "по дебажь": "подебажь",
+        "за оптимизируй": "заоптимизируй",
+        "по ресерчи": "поресерчи",
+        "по ресёрчи": "поресёрчи"
+    ]
+
+    /// Context-dependent photographic terms. If none of these keywords exist in text, words like "проявка" are acoustic mishearings of "проверка".
+    private let photographyKeywords: [String] = [
+        "пленк", "плёнк", "фото", "негатив", "реактив", "бачок", "эмульси", "кадр",
+        "лаборатор", "закрепител", "проявител", "проявитель", "darkroom", "film", "35mm"
+    ]
+
+    /// Systematic mappings for "проявка" forms -> "проверка" forms outside photography context.
+    private let nonPhotoAcousticMap: [String: String] = [
+        "проявка": "проверка",
+        "проявки": "проверки",
+        "проявку": "проверку",
+        "проявке": "проверке",
+        "проявкой": "проверкой",
+        "проявкою": "проверкою",
+        "проявкам": "проверкам",
+        "проявками": "проверками",
+        "проявках": "проверках",
+        "прояви": "проверь",
+        "проявил": "проверил",
+        "проявили": "проверили",
+        "проявим": "проверим",
+        "проявляем": "проверяем",
+        "проявлять": "проверять",
+        "проявлен": "проверен",
+        "проявлено": "проверено",
+        "проявлена": "проверена",
+        "проявлены": "проверены"
     ]
 
     private init() {}
@@ -48,6 +88,7 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         guard !text.isEmpty else { return text }
 
         var result = text
+        let lowerOriginal = text.lowercased()
 
         // 1. Direct phrase-level acoustic corrections
         for (incorrect, correct) in acousticCorrections {
@@ -63,10 +104,86 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
             }
         }
 
-        // 2. Token-level dictionary validation via NSSpellChecker
+        // 2. Context-aware Russian phrase corrections (e.g. testing / mic checks / non-photography speech)
+        let hasPhotoContext = photographyKeywords.contains { lowerOriginal.contains($0) }
+        if !hasPhotoContext {
+            // "раз, два, три, проявка" -> "Раз, два, три, проверка."
+            let micCheckPattern = "(?i)\\bраз[\\s,]+два[\\s,]+(?:три[\\s,]+)?проявк([а-яё]*)"
+            if let regex = try? NSRegularExpression(pattern: micCheckPattern) {
+                let range = NSRange(result.startIndex..<result.endIndex, in: result)
+                result = regex.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: "Раз, два, три, проверк$1")
+            }
+
+            // "тест / проверка связи / микрофона"
+            let micContextPattern = "(?i)\\bпроявк([а-яё]*)\\s+(микрофон|связ|звук|работ|код|гипотез|систем|слух|качеств|данны|файло|тест)"
+            if let regex = try? NSRegularExpression(pattern: micContextPattern) {
+                let range = NSRange(result.startIndex..<result.endIndex, in: result)
+                result = regex.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: "проверк$1 $2")
+            }
+
+            // General "проявка" -> "проверка" inflection map outside photography context
+            for (incorrect, correct) in nonPhotoAcousticMap {
+                let pattern = "(?i)\\b" + NSRegularExpression.escapedPattern(for: incorrect) + "\\b"
+                if let regex = try? NSRegularExpression(pattern: pattern) {
+                    let matches = regex.matches(in: result, options: [], range: NSRange(location: 0, length: (result as NSString).length))
+                    for match in matches.reversed() {
+                        if let range = Range(match.range, in: result) {
+                            let originalWord = String(result[range])
+                            let matchedCase = matchCapitalization(original: originalWord, target: correct)
+                            result.replaceSubrange(range, with: matchedCase)
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Token-level dictionary validation via Top 100 User Vocabulary & NSSpellChecker
         let langCode = resolveSpellCheckerLanguage(language: language, text: text)
         let isRussian = langCode.hasPrefix("ru")
+
+        // 3a. Sanitize any rogue Ukrainian characters or particles when transcribing in Russian
+        if isRussian {
+            let ukrainianWordMap: [(pattern: String, replacement: String)] = [
+                ("(?i)\\bщо\\b", "что"),
+                ("(?i)\\bце\\b", "это"),
+                ("(?i)\\bбуло\\b", "было"),
+                ("(?i)\\bбув\\b", "был"),
+                ("(?i)\\bбули\\b", "были"),
+                ("(?i)\\bвже\\b", "уже"),
+                ("(?i)\\bякщо\\b", "если"),
+                ("(?i)\\bтакож\\b", "также"),
+                ("(?i)\\bале\\b", "но"),
+                ("(?i)\\bдуже\\b", "очень"),
+                ("(?i)\\bдякую\\b", "спасибо"),
+                ("(?i)\\bсьогодні\\b", "сегодня"),
+                ("(?i)\\bчому\\b", "почему"),
+                ("(?i)\\bтому що\\b", "потому что"),
+                ("(?i)\\bзараз\\b", "сейчас")
+            ]
+            for (pat, rep) in ukrainianWordMap {
+                if let regex = try? NSRegularExpression(pattern: pat) {
+                    let range = NSRange(result.startIndex..<result.endIndex, in: result)
+                    result = regex.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: rep)
+                }
+            }
+
+            // Replace single Ukrainian glyphs with Russian equivalents
+            let glyphMap: [(String, String)] = [
+                ("і", "и"), ("І", "И"),
+                ("ї", "и"), ("Ї", "И"),
+                ("є", "е"), ("Є", "Е"),
+                ("ґ", "г"), ("Ґ", "Г")
+            ]
+            for (ukr, rus) in glyphMap {
+                if result.contains(ukr) {
+                    result = result.replacingOccurrences(of: ukr, with: rus)
+                }
+            }
+        }
+
         let customSet = Set(customVocabulary.map { $0.lowercased() })
+        let userFreqDict = UserFrequencyDictionary.shared
+        let userTop100Set = userFreqDict.topWordsSet(limit: 100)
 
         // Extract words using regex
         let wordPattern = "\\b([\\p{L}\\p{M}'-]+)\\b"
@@ -87,9 +204,22 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
                 continue
             }
 
-            // Check if known by community dictionary
-            if CommunityVocabularyService.shared.getCachedTermsSetLower().contains(lowerWord) {
+            // If already in user's top words or community dictionary, it's definitively valid
+            if userTop100Set.contains(lowerWord) || CommunityVocabularyService.shared.getCachedTermsSetLower().contains(lowerWord) {
                 continue
+            }
+
+            // Check if there is a strong User Top 100 match (fuzzy candidate)
+            if let userCandidate = userFreqDict.findBestFuzzyCandidate(for: word, maxDistance: 2, limit: 100) {
+                let userWordFreq = userCandidate.count
+                let currentWordFreq = userFreqDict.frequency(of: lowerWord)
+
+                // If current word is non-existent in user history, but close to a frequent user top word
+                if userCandidate.distance == 1 && userWordFreq >= 2 && currentWordFreq == 0 {
+                    let matchedCase = matchCapitalization(original: word, target: userCandidate.word)
+                    replacements.append((range: wordRange, replacement: matchedCase))
+                    continue
+                }
             }
 
             // Check spelling with NSSpellChecker
@@ -112,7 +242,14 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
                     continue
                 }
 
-                // In Russian, do NOT let spell checker overwrite case endings (e.g. -ом, -ам, -ях, -е)
+                // Check Top 100 User Words first before generic spellchecker
+                if let userMatch = userFreqDict.findBestFuzzyCandidate(for: word, maxDistance: 2, limit: 100) {
+                    let matchedCase = matchCapitalization(original: word, target: userMatch.word)
+                    replacements.append((range: wordRange, replacement: matchedCase))
+                    continue
+                }
+
+                // In Russian, do NOT let spell checker overwrite valid case endings (e.g. -ом, -ам, -ях, -е)
                 // with dictionary base forms unless it is clearly an acoustic mishearing.
                 if isRussian {
                     let commonRussianInflections = ["ом", "ем", "ём", "ами", "ями", "ях", "ах", "ам", "ям", "ого", "его", "ому", "ему", "ым", "им", "ую", "юю", "ой", "ей", "ою", "ею", "ых", "их", "ыми", "ими"]
@@ -129,11 +266,19 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
                     inSpellDocumentWithTag: 0
                 ) ?? []
 
-                if let bestGuess = guesses.first, !bestGuess.isEmpty {
-                    // Only apply if the guess is very close in length and phonetic structure
-                    if abs(bestGuess.count - word.count) <= 1 && isAcousticallySimilar(word, bestGuess) {
-                        let matchedCase = matchCapitalization(original: word, target: bestGuess)
-                        replacements.append((range: wordRange, replacement: matchedCase))
+                if !guesses.isEmpty {
+                    // Re-rank guesses by User Top 100 frequency + Community dictionary + phonetic closeness
+                    let sortedGuesses = guesses.sorted { g1, g2 in
+                        let score1 = scoreGuess(g1, original: lowerWord, userFreqDict: userFreqDict)
+                        let score2 = scoreGuess(g2, original: lowerWord, userFreqDict: userFreqDict)
+                        return score1 > score2
+                    }
+
+                    if let bestGuess = sortedGuesses.first, !bestGuess.isEmpty {
+                        if abs(bestGuess.count - word.count) <= 1 && isAcousticallySimilar(word, bestGuess) {
+                            let matchedCase = matchCapitalization(original: word, target: bestGuess)
+                            replacements.append((range: wordRange, replacement: matchedCase))
+                        }
                     }
                 }
             }
@@ -147,6 +292,23 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         }
 
         return result
+    }
+
+    /// Scores a candidate guess based on user top vocabulary, community dictionary, and distance
+    private func scoreGuess(_ guess: String, original: String, userFreqDict: UserFrequencyDictionary) -> Int {
+        let lower = guess.lowercased()
+        var score = 0
+        let userFreq = userFreqDict.frequency(of: lower)
+        score += min(userFreq * 25, 200)
+
+        if CommunityVocabularyService.shared.getCachedTermsSetLower().contains(lower) {
+            score += 80
+        }
+
+        let dist = levenshtein(original, lower)
+        score -= dist * 20
+
+        return score
     }
 
     /// Resolves appropriate spell checker language tag

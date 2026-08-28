@@ -663,7 +663,7 @@ struct SettingsHeaderView: View {
                     }
                     let encOS = osVersion.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "macOS"
                     let encChip = chip.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "AppleSilicon"
-                    let urlStr = "https://bledny1099.github.io/Scribe/report.html?type=support&os=\(encOS)&arch=\(encChip)&version=v2.4.4"
+                    let urlStr = "https://bledny1099.github.io/Scribe/report.html?type=support&os=\(encOS)&arch=\(encChip)&version=v2.5.0"
                     if let url = URL(string: urlStr) {
                         NSWorkspace.shared.open(url)
                     }

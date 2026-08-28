@@ -321,6 +321,7 @@ final class TranscriptionHistory: ObservableObject {
     /// Add a new transcription record and persist.
     func add(_ record: TranscriptionRecord) {
         records.insert(record, at: 0) // newest first
+        UserFrequencyDictionary.shared.record(text: record.text)
         recomputeAllStatsCache()
         saveToDisk()
         logger.info("Saved transcription (\(record.text.prefix(50))…), total: \(self.records.count)")
