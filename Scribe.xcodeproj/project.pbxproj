@@ -46,7 +46,7 @@
 		A0010002 /* AetherContextEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010002 /* AetherContextEngine.swift */; };
 		A0010003 /* AetherFuzzyMatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010003 /* AetherFuzzyMatcher.swift */; };
 		A0010005 /* CommunityVocabularyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010005 /* CommunityVocabularyService.swift */; };
-		A0010007 /* EmbeddedVocabularyData.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010007 /* EmbeddedVocabularyData.swift */; };
+		A0010011 /* EmbeddedVocabularyData.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010011 /* EmbeddedVocabularyData.swift */; };
 		A0010006 /* KeychainHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010006 /* KeychainHelper.swift */; };
 		A0010008 /* AudioDeviceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010008 /* AudioDeviceManager.swift */; };
 		A0010009 /* UserFrequencyDictionary.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010009 /* UserFrequencyDictionary.swift */; };
@@ -66,7 +66,7 @@
 		F0010002 /* AetherContextEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AetherContextEngine.swift; sourceTree = "<group>"; };
 		F0010003 /* AetherFuzzyMatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AetherFuzzyMatcher.swift; sourceTree = "<group>"; };
 		F0010005 /* CommunityVocabularyService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommunityVocabularyService.swift; sourceTree = "<group>"; };
-		F0010007 /* EmbeddedVocabularyData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbeddedVocabularyData.swift; sourceTree = "<group>"; };
+		F0010011 /* EmbeddedVocabularyData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbeddedVocabularyData.swift; sourceTree = "<group>"; };
 		F0010006 /* KeychainHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainHelper.swift; sourceTree = "<group>"; };
 		11345C81116DC36BA7419B25 /* Scribe.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Scribe.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		12FECAADAC70A1B20BDAB73F /* PermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionManager.swift; sourceTree = "<group>"; };
@@ -147,7 +147,7 @@
 				F0010010 /* TelemetryService.swift */,
 				F0010004 /* AppUpdateService.swift */,
 				F0010005 /* CommunityVocabularyService.swift */,
-				F0010007 /* EmbeddedVocabularyData.swift */,
+				F0010011 /* EmbeddedVocabularyData.swift */,
 				F0010006 /* KeychainHelper.swift */,
 				F0010003 /* AetherFuzzyMatcher.swift */,
 				8292B0055A0E08315F0E6894 /* FirebaseSyncService.swift */,
@@ -317,7 +317,7 @@
 				A0010003 /* AetherFuzzyMatcher.swift in Sources */,
 				A0010004 /* AppUpdateService.swift in Sources */,
 				A0010005 /* CommunityVocabularyService.swift in Sources */,
-				A0010007 /* EmbeddedVocabularyData.swift in Sources */,
+				A0010011 /* EmbeddedVocabularyData.swift in Sources */,
 				A0010006 /* KeychainHelper.swift in Sources */,
 				A0010008 /* AudioDeviceManager.swift in Sources */,
 				A0010009 /* UserFrequencyDictionary.swift in Sources */,
