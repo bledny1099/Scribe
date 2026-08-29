@@ -901,23 +901,41 @@
       window.location.href = `mailto:security@scribe.app?subject=${subject}&body=${body}`;
     }
 
+    const TG_BOT_TOKEN = '8706935173:AAHa0PsYN8VcJpmubTYg3EN4jzkZv48UDjQ';
+    const TG_CHAT_ID = '6157618020';
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
     async function submitReportForm() {
       const emailInput = document.getElementById('reportEmail');
       const titleInput = document.getElementById('reportTitle');
       const descInput = document.getElementById('reportDesc');
       const submitBtn = document.getElementById('submitBtn');
+      const ver = document.getElementById('reportVersion').value;
+      const os = document.getElementById('reportOS').value;
+      const arch = document.getElementById('reportArch').value;
 
-      if (!emailInput.value.trim() || !emailInput.checkValidity()) {
+      const email = emailInput.value.trim();
+      const title = titleInput.value.trim();
+      const desc = descInput.value.trim();
+
+      if (!email || !emailInput.checkValidity()) {
         emailInput.focus();
         showToast('Please enter a valid email address.');
         return;
       }
-      if (!titleInput.value.trim()) {
+      if (!title) {
         titleInput.focus();
         showToast('Please provide a brief title/summary.');
         return;
       }
-      if (!descInput.value.trim()) {
+      if (!desc) {
         descInput.focus();
         showToast('Please describe the issue or steps.');
         return;
@@ -930,13 +948,42 @@
       const randomHex = Math.random().toString(16).substring(2, 8).toUpperCase();
       const ticketId = `#SCR-${randomHex}`;
 
-      // Simulate instantaneous dispatch with fallback
-      setTimeout(() => {
-        document.getElementById('ticketBadge').textContent = `TICKET REF: ${ticketId}`;
-        document.getElementById('formContent').style.display = 'none';
-        document.getElementById('successView').classList.add('active');
-        showToast('Report sent successfully!');
-      }, 700);
+      const typeEmoji = currentType === 'security' ? '🔒' : (currentType === 'bug' ? '🐛' : '💡');
+      const typeLabel = currentType === 'security' ? 'Security Vulnerability' : (currentType === 'bug' ? 'Bug / Crash Report' : 'Support / Feature');
+
+      const messageText = `${typeEmoji} <b>Новое обращение в Scribe Support</b>\n\n` +
+        `🎫 <b>Тикет:</b> <code>${ticketId}</code>\n` +
+        `🏷 <b>Категория:</b> ${typeLabel}\n` +
+        `📦 <b>Версия Scribe:</b> <code>${ver}</code>\n` +
+        `💻 <b>ОС:</b> ${os}\n` +
+        `⚙️ <b>Чип:</b> ${arch}\n` +
+        `✉️ <b>Email:</b> ${email}\n\n` +
+        `📌 <b>Тема:</b> ${escapeHtml(title)}\n\n` +
+        `📝 <b>Описание:</b>\n${escapeHtml(desc)}`;
+
+      try {
+        const response = await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: TG_CHAT_ID,
+            text: messageText,
+            parse_mode: 'HTML'
+          })
+        });
+
+        const data = await response.json();
+        if (!data.ok) {
+          console.warn('Telegram API response:', data);
+        }
+      } catch (err) {
+        console.error('Failed to dispatch to Telegram:', err);
+      }
+
+      document.getElementById('ticketBadge').textContent = `TICKET REF: ${ticketId}`;
+      document.getElementById('formContent').style.display = 'none';
+      document.getElementById('successView').classList.add('active');
+      showToast('Report sent successfully!');
     }
 
     function resetForm() {
