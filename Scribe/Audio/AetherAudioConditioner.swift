@@ -57,27 +57,60 @@ public final class AetherAudioConditioner: @unchecked Sendable {
                         dstPtr.assign(from: srcPtr, count: trimmedLength)
                     }
                     normalizeLoudness(buffer: trimmedBuffer)
+                    let expandedBuffer = applyPhonemeExpansion(buffer: trimmedBuffer, stretchFactor: 1.08)
 
                     let outputURL = FileManager.default.temporaryDirectory
                         .appendingPathComponent("aether_conditioned_\(UUID().uuidString).wav")
                     let outputFile = try AVAudioFile(forWriting: outputURL, settings: format.settings)
-                    try outputFile.write(from: trimmedBuffer)
-                    logger.debug("Aether conditioned audio: trimmed \(samplesPerChannel) -> \(trimmedLength) frames")
+                    try outputFile.write(from: expandedBuffer)
+                    logger.debug("Aether conditioned audio: trimmed \(samplesPerChannel) -> \(trimmedLength) -> expanded \(expandedBuffer.frameLength) frames")
                     return outputURL
                 }
             }
 
             // Fallback: If speech boundaries were not trimmed, normalize full audio and return it
             normalizeLoudness(buffer: buffer)
+            let expandedFallback = applyPhonemeExpansion(buffer: buffer, stretchFactor: 1.08)
             let fallbackURL = FileManager.default.temporaryDirectory
                 .appendingPathComponent("aether_conditioned_\(UUID().uuidString).wav")
             let fallbackFile = try AVAudioFile(forWriting: fallbackURL, settings: format.settings)
-            try fallbackFile.write(from: buffer)
+            try fallbackFile.write(from: expandedFallback)
             return fallbackURL
         } catch {
             logger.warning("Aether audio conditioning failed: \(error.localizedDescription), using raw audio")
             return audioURL
         }
+    }
+
+    // MARK: - Acoustic Phoneme Expansion (Sub-phoneme Precision Slowdown)
+
+    /// Expands speech duration by ~1.08x to give Whisper multi-head attention more acoustic bins per phoneme for studio-grade recognition.
+    private func applyPhonemeExpansion(buffer: AVAudioPCMBuffer, stretchFactor: Float = 1.08) -> AVAudioPCMBuffer {
+        guard stretchFactor > 1.0, let channelData = buffer.floatChannelData else { return buffer }
+        let srcLength = Int(buffer.frameLength)
+        guard srcLength > 100 else { return buffer }
+
+        let dstLength = Int(Float(srcLength) * stretchFactor)
+        guard let dstBuffer = AVAudioPCMBuffer(pcmFormat: buffer.format, frameCapacity: AVAudioFrameCount(dstLength)) else {
+            return buffer
+        }
+        dstBuffer.frameLength = AVAudioFrameCount(dstLength)
+        let channelCount = Int(buffer.format.channelCount)
+
+        for ch in 0..<channelCount {
+            let src = channelData[ch]
+            guard let dst = dstBuffer.floatChannelData?[ch] else { continue }
+
+            for i in 0..<dstLength {
+                let srcPos = Float(i) / stretchFactor
+                let idx0 = Int(srcPos)
+                let idx1 = min(idx0 + 1, srcLength - 1)
+                let frac = srcPos - Float(idx0)
+                dst[i] = src[idx0] * (1.0 - frac) + src[idx1] * frac
+            }
+        }
+
+        return dstBuffer
     }
 
     // MARK: - High-Pass Filter (~80 Hz 1st Order IIR)
@@ -109,7 +142,7 @@ public final class AetherAudioConditioner: @unchecked Sendable {
         let frameSize = Int(sampleRate * 0.02) // 20ms frame
         guard frameSize > 0, count > frameSize else { return (0, count) }
 
-        let silenceThresholdDb: Float = -60.0
+        let silenceThresholdDb: Float = -65.0
         let thresholdRMS = pow(10.0, silenceThresholdDb / 20.0)
 
         var firstSpeechFrame: Int?
@@ -133,12 +166,13 @@ public final class AetherAudioConditioner: @unchecked Sendable {
         }
 
         guard let first = firstSpeechFrame, let last = lastSpeechFrame, totalSpeechFrames >= 1 else {
-            return nil
+            // If below threshold, do not drop audio — let full audio through
+            return (0, count)
         }
 
-        // Add generous 450ms tail padding and 200ms lead padding to prevent clipping soft word endings
-        let leadPadding = Int(sampleRate * 0.20)
-        let tailPadding = Int(sampleRate * 0.45)
+        // Add generous 600ms tail padding and 350ms lead padding to prevent clipping soft word endings
+        let leadPadding = Int(sampleRate * 0.35)
+        let tailPadding = Int(sampleRate * 0.60)
         let start = max(0, first - leadPadding)
         let end = min(count, last + tailPadding)
 

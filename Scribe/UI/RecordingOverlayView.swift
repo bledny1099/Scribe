@@ -495,55 +495,126 @@ struct MinimalOverlay: View {
 struct ECGOverlay: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var audioRecorder: AudioRecorder
+    @State private var spinAngle: Double = 0
     private var theme: AppTheme { appState.selectedTheme }
 
     var body: some View {
-        let cardHeight = RecordingPanel.size(
+        let isStatusMessage = appState.recordingStatus != .recording && !appState.isShowingPreview && !statusLabel.isEmpty
+        let dynamicSize = RecordingPanel.size(
             for: .ecg,
-            overlaySize: appState.selectedOverlaySize
-        ).height / appState.selectedOverlaySize.scale
+            overlaySize: appState.selectedOverlaySize,
+            isStatusMessage: isStatusMessage,
+            statusTextLength: statusLabel.count
+        )
+        let cardWidth = dynamicSize.width / appState.selectedOverlaySize.scale
+        let cardHeight = dynamicSize.height / appState.selectedOverlaySize.scale
 
         return VStack(spacing: 8) {
-            HStack(spacing: 12) {
-                Image(systemName: "waveform.path.ecg")
-                    .foregroundStyle(theme.accentGradient)
-                    .font(.system(size: 16, weight: .semibold))
-                    
-                GeometryReader { geo in
-                    Path { path in
-                        let midY = geo.size.height / 2
-                        path.move(to: CGPoint(x: 0, y: midY))
+            if isStatusMessage {
+                HStack(spacing: 8) {
+                    statusIndicator
+
+                    Text(statusLabel)
+                        .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.primary.opacity(0.85))
+                        .lineLimit(1)
+                }
+                .padding(.horizontal, 14)
+                .frame(maxWidth: .infinity, maxHeight: cardHeight, alignment: .center)
+            } else {
+                HStack(spacing: 12) {
+                    Image(systemName: "waveform.path.ecg")
+                        .foregroundStyle(theme.accentGradient)
+                        .font(.system(size: 16, weight: .semibold))
                         
-                        let width = geo.size.width
-                        let segments = 40
-                        let step = width / CGFloat(segments)
-                        
-                        for i in 1...segments {
-                            let x = CGFloat(i) * step
-                            let isCenter = (i > 10 && i < 30)
-                            let amplitude = isCenter ? (CGFloat(audioRecorder.audioLevel) * midY) : (CGFloat.random(in: 0...2))
-                            let y = midY + (i % 2 == 0 ? amplitude : -amplitude)
-                            path.addLine(to: CGPoint(x: x, y: y))
+                    GeometryReader { geo in
+                        Path { path in
+                            let midY = geo.size.height / 2
+                            path.move(to: CGPoint(x: 0, y: midY))
+                            
+                            let width = geo.size.width
+                            let segments = 40
+                            let step = width / CGFloat(segments)
+                            
+                            for i in 1...segments {
+                                let x = CGFloat(i) * step
+                                let isCenter = (i > 10 && i < 30)
+                                let amplitude = isCenter ? (CGFloat(audioRecorder.audioLevel) * midY) : (CGFloat.random(in: 0...2))
+                                let y = midY + (i % 2 == 0 ? amplitude : -amplitude)
+                                path.addLine(to: CGPoint(x: x, y: y))
+                            }
                         }
+                        .stroke(theme.accentGradient, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+                        .animation(.linear(duration: 0.1), value: audioRecorder.audioLevel)
                     }
-                    .stroke(theme.accentGradient, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
-                    .animation(.linear(duration: 0.1), value: audioRecorder.audioLevel)
-                }
-                .frame(height: 30)
-                
-                if appState.recordingStatus == .recording || appState.isShowingPreview {
-                    Button(action: { appState.cancelRecording() }) {
-                        Image(systemName: "xmark.circle.fill")
+                    .frame(height: 30)
+                    
+                    if appState.durationVisible && (appState.recordingStatus == .recording || appState.isShowingPreview) {
+                        Text(appState.isShowingPreview ? "0:05" : appState.formattedDuration)
+                            .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .monospaced))
                             .foregroundStyle(.secondary)
-                            .font(.system(size: 16))
                     }
-                    .buttonStyle(.plain)
+
+                    if appState.recordingStatus == .recording || appState.isShowingPreview {
+                        Button(action: { appState.cancelRecording() }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(.secondary)
+                                .font(.system(size: 16))
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
+                .frame(height: RecordingPanel.ecgSize.height)
             }
-            .frame(height: RecordingPanel.ecgSize.height)
         }
         .padding(.horizontal, 16)
-        .frame(width: RecordingPanel.ecgSize.width, height: cardHeight)
+        .frame(width: cardWidth, height: cardHeight)
+        .animation(.spring(response: 0.35, dampingFraction: 0.82), value: cardWidth)
+    }
+
+    @ViewBuilder
+    private var statusIndicator: some View {
+        switch appState.recordingStatus {
+        case .loadingModel, .transcribing:
+            Circle()
+                .trim(from: 0, to: 0.7)
+                .stroke(
+                    theme.accentGradient,
+                    style: StrokeStyle(lineWidth: 2.5, lineCap: .round)
+                )
+                .frame(width: 22, height: 22)
+                .rotationEffect(.degrees(spinAngle))
+                .onAppear {
+                    withAnimation(.linear(duration: 0.9).repeatForever(autoreverses: false)) {
+                        spinAngle = 360
+                    }
+                }
+                .onDisappear { spinAngle = 0 }
+
+        case .done:
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 20, weight: .medium))
+                .foregroundStyle(.green.gradient)
+
+        case .error:
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(.orange.gradient)
+
+        case .idle, .recording:
+            EmptyView()
+        }
+    }
+
+    private var statusLabel: String {
+        switch appState.recordingStatus {
+        case .idle:              ""
+        case .recording:         "Recording"
+        case .loadingModel:      "Loading…"
+        case .transcribing:      appState.transcribingStatusText
+        case .done:              "Done ✓"
+        case .error(let msg):    msg
+        }
     }
 }
 
@@ -556,88 +627,137 @@ struct ECGOverlay: View {
 struct OrbOverlay: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var audioRecorder: AudioRecorder
-    @State private var rotationAngle: Double = 0
+    @State private var spinAngle: Double = 0
 
     private var theme: AppTheme { appState.selectedTheme }
     private var gradient: LinearGradient { theme.accentGradient }
 
     var body: some View {
-        let cardHeight = RecordingPanel.size(
+        let isStatusMessage = appState.recordingStatus != .recording && !appState.isShowingPreview && !statusLabel.isEmpty
+        let dynamicSize = RecordingPanel.size(
             for: .orb,
-            overlaySize: appState.selectedOverlaySize
-        ).height / appState.selectedOverlaySize.scale
+            overlaySize: appState.selectedOverlaySize,
+            isStatusMessage: isStatusMessage,
+            statusTextLength: statusLabel.count
+        )
+        let cardWidth = dynamicSize.width / appState.selectedOverlaySize.scale
+        let cardHeight = dynamicSize.height / appState.selectedOverlaySize.scale
 
         return VStack(spacing: 0) {
-            Spacer()
+            if isStatusMessage {
+                HStack(spacing: 8) {
+                    statusIndicator
 
-            // Bouncy Fluid Liquid Orb Sphere
-            ZStack {
-                // Outer fluid aura glow
-                Circle()
-                    .fill(theme.glowColor.opacity(0.3 + Double(audioRecorder.audioLevel) * 0.45))
-                    .blur(radius: 16)
-                    .scaleEffect(1.0 + CGFloat(audioRecorder.audioLevel) * 0.35)
-
-                // Layer 1: Rotating Gradient Ring
-                Circle()
-                    .stroke(gradient, lineWidth: 5)
-                    .frame(width: 80, height: 80)
-                    .rotationEffect(.degrees(rotationAngle))
-                    .scaleEffect(1.0 + CGFloat(audioRecorder.audioLevel) * 0.2)
-                    .opacity(0.85)
-
-                // Layer 2: Inner Fluid Blob Sphere
-                Circle()
-                    .fill(gradient.opacity(0.75))
-                    .frame(width: 64, height: 64)
-                    .scaleEffect(1.0 + CGFloat(audioRecorder.audioLevel) * 0.25)
-
-                // Center Mic Icon
-                Image(systemName: "mic.fill")
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundStyle(.white)
-                    .shadow(color: .black.opacity(0.3), radius: 4)
-                    .scaleEffect(1.0 + CGFloat(audioRecorder.audioLevel) * 0.15)
-            }
-            .animation(.linear(duration: 0.04), value: audioRecorder.audioLevel)
-            .frame(width: 96, height: 96)
-
-            Spacer()
-            
-            // Timer & Status Text
-            HStack(spacing: 6) {
-                if appState.durationVisible && (appState.recordingStatus == .recording || appState.isShowingPreview) {
-                    Text(appState.isShowingPreview ? "0:05" : appState.formattedDuration)
-                        .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                        .contentTransition(.numericText())
-                        .animation(.default, value: appState.recordingDuration)
+                    Text(statusLabel)
+                        .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.primary.opacity(0.85))
+                        .lineLimit(1)
                 }
+                .padding(.horizontal, 14)
+                .frame(maxWidth: .infinity, maxHeight: cardHeight, alignment: .center)
+            } else {
+                Spacer()
 
-                Text(appState.isShowingPreview ? appState.l("Recording…") : statusLabel)
-                    .font(.system(size: 11 * appState.overlayTextCompensation, weight: .medium, design: .rounded))
-                    .foregroundStyle(.primary.opacity(0.7))
+                // Fluid Liquid Orb Sphere with smooth GPU scaling
+                ZStack {
+                    // Outer fluid aura glow
+                    Circle()
+                        .fill(theme.glowColor.opacity(0.25 + Double(audioRecorder.audioLevel) * 0.35))
+                        .frame(width: 88, height: 88)
+                        .scaleEffect(1.0 + CGFloat(audioRecorder.audioLevel) * 0.25)
+
+                    // Layer 1: Gradient Outer Ring
+                    Circle()
+                        .stroke(gradient, lineWidth: 3.5)
+                        .frame(width: 76, height: 76)
+                        .scaleEffect(1.0 + CGFloat(audioRecorder.audioLevel) * 0.15)
+                        .opacity(0.9)
+
+                    // Layer 2: Inner Fluid Sphere
+                    Circle()
+                        .fill(gradient.opacity(0.75))
+                        .frame(width: 58, height: 58)
+                        .scaleEffect(1.0 + CGFloat(audioRecorder.audioLevel) * 0.18)
+
+                    // Center Mic Icon
+                    Image(systemName: "mic.fill")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundStyle(.white)
+                        .shadow(color: .black.opacity(0.25), radius: 3)
+                        .scaleEffect(1.0 + CGFloat(audioRecorder.audioLevel) * 0.1)
+                }
+                .animation(.linear(duration: 0.04), value: audioRecorder.audioLevel)
+                .frame(width: 96, height: 96)
+
+                Spacer()
+                
+                // Timer & Status Text
+                HStack(spacing: 6) {
+                    if appState.durationVisible && (appState.recordingStatus == .recording || appState.isShowingPreview) {
+                        Text(appState.isShowingPreview ? "0:05" : appState.formattedDuration)
+                            .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .contentTransition(.numericText())
+                            .animation(.default, value: appState.recordingDuration)
+                    }
+
+                    Text(appState.isShowingPreview ? appState.l("Recording…") : statusLabel)
+                        .font(.system(size: 11 * appState.overlayTextCompensation, weight: .medium, design: .rounded))
+                        .foregroundStyle(.primary.opacity(0.7))
+                }
+                .padding(.bottom, 12)
             }
-            .padding(.bottom, 12)
         }
-        .frame(width: RecordingPanel.orbSize.width, height: cardHeight)
+        .frame(width: cardWidth, height: cardHeight)
         .overlay(alignment: .topTrailing) {
-            Button(action: { appState.cancelRecording() }) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(.primary.opacity(0.6))
-                    .frame(width: 22, height: 22)
-                    .background(Circle().fill(Color.primary.opacity(0.15)))
+            if !isStatusMessage {
+                Button(action: { appState.cancelRecording() }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.primary.opacity(0.6))
+                        .frame(width: 22, height: 22)
+                        .background(Circle().fill(Color.primary.opacity(0.15)))
+                }
+                .buttonStyle(.plain)
+                .opacity((appState.recordingStatus == .recording || appState.isShowingPreview) ? 1 : 0)
+                .padding(.top, 12)
+                .padding(.trailing, 12)
             }
-            .buttonStyle(.plain)
-            .opacity((appState.recordingStatus == .recording || appState.isShowingPreview) ? 1 : 0)
-            .padding(.top, 12)
-            .padding(.trailing, 12)
         }
-        .onAppear {
-            withAnimation(.linear(duration: 6).repeatForever(autoreverses: false)) {
-                rotationAngle = 360
-            }
+        .animation(.spring(response: 0.35, dampingFraction: 0.82), value: cardWidth)
+    }
+
+    @ViewBuilder
+    private var statusIndicator: some View {
+        switch appState.recordingStatus {
+        case .loadingModel, .transcribing:
+            Circle()
+                .trim(from: 0, to: 0.7)
+                .stroke(
+                    theme.accentGradient,
+                    style: StrokeStyle(lineWidth: 2.5, lineCap: .round)
+                )
+                .frame(width: 22, height: 22)
+                .rotationEffect(.degrees(spinAngle))
+                .onAppear {
+                    withAnimation(.linear(duration: 0.9).repeatForever(autoreverses: false)) {
+                        spinAngle = 360
+                    }
+                }
+                .onDisappear { spinAngle = 0 }
+
+        case .done:
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 20, weight: .medium))
+                .foregroundStyle(.green.gradient)
+
+        case .error:
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(.orange.gradient)
+
+        case .idle, .recording:
+            EmptyView()
         }
     }
 

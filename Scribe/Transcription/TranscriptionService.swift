@@ -112,13 +112,6 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             request.addsPunctuation = true
         }
         
-        // Try to enable on-device recognition for privacy/speed, if available
-        if #available(macOS 13.0, *) {
-            if recognizer.supportsOnDeviceRecognition {
-                request.requiresOnDeviceRecognition = true
-            }
-        }
-        
         let strings = AetherContextEngine.shared.buildContextualStrings(
             customVocabulary: customVocabulary,
             userLocation: userLocation,

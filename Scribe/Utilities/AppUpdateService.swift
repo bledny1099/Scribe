@@ -259,8 +259,8 @@ public final class AppUpdateService: ObservableObject {
 
                 await MainActor.run {
                     self.isDownloading = false
-                    self.statusMessage = "Opening update package..."
-                    NSWorkspace.shared.open(targetDMG)
+                    self.statusMessage = "Installing and restarting…"
+                    self.installAndRelaunch(from: targetDMG)
                 }
             } catch {
                 await MainActor.run {
@@ -270,6 +270,71 @@ public final class AppUpdateService: ObservableObject {
                         NSWorkspace.shared.open(page)
                     }
                 }
+            }
+        }
+    }
+
+    /// Installs the update in-place from the downloaded DMG and relaunches Scribe automatically.
+    private func installAndRelaunch(from dmgURL: URL) {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let mountPoint = "/tmp/scribe_update_mount_\(UUID().uuidString.prefix(8))"
+            var currentAppURL = Bundle.main.bundleURL
+            if !currentAppURL.path.hasSuffix(".app") {
+                currentAppURL = URL(fileURLWithPath: "/Applications/Scribe.app")
+            }
+            
+            // 1. Create mount directory
+            try? FileManager.default.createDirectory(atPath: mountPoint, withIntermediateDirectories: true)
+            
+            // 2. Attach DMG quietly
+            let attachProcess = Process()
+            attachProcess.executableURL = URL(fileURLWithPath: "/usr/bin/hdiutil")
+            attachProcess.arguments = ["attach", dmgURL.path, "-nobrowse", "-readonly", "-mountpoint", mountPoint]
+            try? attachProcess.run()
+            attachProcess.waitUntilExit()
+            
+            // 3. Find Scribe.app inside mount point
+            let mountedAppURL = URL(fileURLWithPath: mountPoint).appendingPathComponent("Scribe.app")
+            guard FileManager.default.fileExists(atPath: mountedAppURL.path) else {
+                Task { @MainActor [weak self] in
+                    self?.isDownloading = false
+                    self?.statusMessage = "Opening update package..."
+                    NSWorkspace.shared.open(dmgURL)
+                }
+                return
+            }
+            
+            // 4. Create atomic replacement script that replaces Scribe.app and relaunches it
+            let targetPath = currentAppURL.path
+            let restartScript = """
+            #!/bin/sh
+            sleep 0.8
+            rm -rf "\(targetPath)"
+            cp -R "\(mountedAppURL.path)" "\(targetPath)"
+            /usr/bin/hdiutil detach "\(mountPoint)" -force >/dev/null 2>&1
+            rm -rf "\(dmgURL.path)"
+            xattr -dr com.apple.quarantine "\(targetPath)" >/dev/null 2>&1
+            open "\(targetPath)"
+            """
+            
+            let scriptURL = FileManager.default.temporaryDirectory.appendingPathComponent("scribe_restart_\(UUID().uuidString).sh")
+            try? restartScript.write(to: scriptURL, atomically: true, encoding: .utf8)
+            
+            // Make executable
+            let chmodProcess = Process()
+            chmodProcess.executableURL = URL(fileURLWithPath: "/bin/chmod")
+            chmodProcess.arguments = ["+x", scriptURL.path]
+            try? chmodProcess.run()
+            chmodProcess.waitUntilExit()
+            
+            Task { @MainActor in
+                // 5. Execute restart script in background and terminate current process
+                let launchProcess = Process()
+                launchProcess.executableURL = URL(fileURLWithPath: "/bin/sh")
+                launchProcess.arguments = [scriptURL.path]
+                try? launchProcess.run()
+                
+                NSApplication.shared.terminate(nil)
             }
         }
     }

@@ -214,20 +214,41 @@ struct SettingsView: View {
                     // SECTION: Theme & Style
                     GlassSection(title: appState.l("Appearance"), icon: "paintbrush.fill") {
                         VStack(spacing: 16) {
-                            // Theme picker
-                            HStack(alignment: .top, spacing: 14) {
-                                ForEach(AppTheme.allCases) { theme in
-                                    ThemeSwatchButton(
-                                        theme: theme,
-                                        isSelected: appState.selectedTheme == theme
-                                    ) {
-                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                            appState.selectedTheme = theme
+                            // Overlay Theme (Color Accents)
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text(appState.l("Overlay Theme"))
+                                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                HStack(alignment: .top, spacing: 14) {
+                                    ForEach(AppTheme.allCases) { theme in
+                                        ThemeSwatchButton(
+                                            theme: theme,
+                                            isSelected: appState.selectedTheme == theme
+                                        ) {
+                                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                                appState.selectedTheme = theme
+                                            }
                                         }
                                     }
                                 }
+                                .frame(maxWidth: .infinity)
                             }
-                            .frame(maxWidth: .infinity)
+
+                            // Panel Theme (Dark, Light, Liquid Glass)
+                            HStack {
+                                Text(appState.l("Panel Theme"))
+                                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                LiquidGlassSegmentedPicker(
+                                    items: PanelAppearance.allCases,
+                                    selection: Binding(
+                                        get: { appState.selectedPanelAppearance },
+                                        set: { appState.selectedPanelAppearance = $0 }
+                                    ),
+                                    label: { (appState.l($0.displayName), $0.icon) }
+                                )
+                            }
 
                             // Sound feedback
                             HStack {
@@ -305,22 +326,6 @@ struct SettingsView: View {
                                     selection: Binding(
                                         get: { appState.overlayPositionMode },
                                         set: { appState.overlayPositionMode = $0 }
-                                    ),
-                                    label: { (appState.l($0.displayName), $0.icon) }
-                                )
-                            }
-
-                            // Background appearance picker
-                            HStack {
-                                Text(appState.l("Panel Appearance"))
-                                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.primary)
-                                Spacer()
-                                LiquidGlassSegmentedPicker(
-                                    items: PanelAppearance.allCases,
-                                    selection: Binding(
-                                        get: { appState.selectedPanelAppearance },
-                                        set: { appState.selectedPanelAppearance = $0 }
                                     ),
                                     label: { (appState.l($0.displayName), $0.icon) }
                                 )
@@ -555,6 +560,11 @@ struct SettingsView: View {
 
                                     PermissionsCard()
                                 }
+                            }
+
+                            // SECTION: Bug & Crash Reporting
+                            GlassSection(title: appState.l("Feedback & Bug Reports"), icon: "ladybug.fill") {
+                                BugReportView()
                             }
                     }
                     }
@@ -5728,6 +5738,29 @@ struct GeneralSettingsView: View {
 
     var body: some View {
         VStack(spacing: 16) {
+            // SECTION: App Theme (Dark, Light, Liquid Glass)
+            GlassSection(title: appState.l("Theme"), icon: "circle.lefthalf.filled") {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(appState.l("App Theme"))
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .foregroundStyle(.primary)
+                        Text(appState.l("Choose between Dark, Light, or Liquid Glass appearance"))
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    LiquidGlassSegmentedPicker(
+                        items: PanelAppearance.allCases,
+                        selection: Binding(
+                            get: { appState.selectedPanelAppearance },
+                            set: { appState.selectedPanelAppearance = $0 }
+                        ),
+                        label: { (appState.l($0.displayName), $0.icon) }
+                    )
+                }
+            }
+
             // SECTION: Language
             GlassSection(title: appState.l("Language"), icon: "globe") {
                 HStack {
@@ -5883,11 +5916,9 @@ struct GeneralSettingsView: View {
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
-                        let supportsLivePreview = appState.selectedOverlayStyle.supportsEmbeddedPreview
                         Toggle("", isOn: Binding(
-                            get: { supportsLivePreview ? appState.livePreviewEnabled : false },
+                            get: { appState.livePreviewEnabled },
                             set: { newValue in
-                                guard supportsLivePreview else { return }
                                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                                     appState.livePreviewEnabled = newValue
                                 }
@@ -5902,23 +5933,31 @@ struct GeneralSettingsView: View {
                         ))
                             .toggleStyle(.switch)
                             .labelsHidden()
-                            .allowsHitTesting(supportsLivePreview)
-                            .opacity(supportsLivePreview ? 1.0 : 0.5)
-                    }
-
-                    if !appState.selectedOverlayStyle.supportsEmbeddedPreview {
-                        HStack(spacing: 6) {
-                            Image(systemName: "info.circle")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(.secondary)
-                            Text(appState.l("Live Preview is only available for Waveform and Pulse"))
-                                .font(.system(size: 11, weight: .medium, design: .rounded))
-                                .foregroundStyle(.secondary)
-                        }
                     }
 
                     if appState.livePreviewEnabled {
-                        VStack(spacing: 10) {
+                        VStack(spacing: 12) {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(appState.l("Preview Mode"))
+                                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                                        .foregroundStyle(.primary)
+                                    Text(appState.l("Floating card or real-time typing directly into active window"))
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                LiquidGlassSegmentedPicker(
+                                    items: LivePreviewMode.allCases,
+                                    selection: Binding(
+                                        get: { appState.livePreviewMode },
+                                        set: { appState.livePreviewMode = $0 }
+                                    ),
+                                    label: { (appState.l($0.displayName), $0.icon) }
+                                )
+                            }
+
+                            if appState.livePreviewMode == .external || appState.livePreviewMode == .both {
                                 HStack {
                                     Text(appState.l("Preview Background"))
                                         .font(.system(size: 14, weight: .medium, design: .rounded))
@@ -5937,6 +5976,7 @@ struct GeneralSettingsView: View {
                                     )
                                 }
                             }
+                        }
                         .padding(.top, 4)
                         .transition(.opacity.combined(with: .move(edge: .top)))
                     }
@@ -7372,5 +7412,231 @@ struct AppleNotesPermissionModalView: View {
         }
         .frame(width: 420, height: 490)
         .background(.ultraThinMaterial)
+    }
+}
+
+// MARK: - Bug & Crash Reporting Service & View
+
+public final class BugReportService: ObservableObject, @unchecked Sendable {
+    public static let shared = BugReportService()
+
+    private let telegramBotToken = "8706935173:AAHa0PsYN8VcJpmubTYg3EN4jzkZv48UDjQ"
+    private let telegramChatId = "6157618020"
+
+    @Published public var isSending: Bool = false
+    @Published public var sendSuccess: Bool = false
+    @Published public var errorMessage: String? = nil
+
+    private init() {}
+
+    public func sendReport(description: String, includeLogs: Bool = true, userNickname: String = "") async -> Bool {
+        let trimmed = description.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+
+        await MainActor.run {
+            self.isSending = true
+            self.sendSuccess = false
+            self.errorMessage = nil
+        }
+
+        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.5.3"
+        let buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "2.5.3"
+        let osVersion = ProcessInfo.processInfo.operatingSystemVersionString
+        let macModel = getMacHardwareModel()
+        let author = userNickname.isEmpty ? "Anonymous User" : userNickname
+
+        var text = """
+        🚨 *Scribe Bug & Crash Report*
+        ━━━━━━━━━━━━━━━━━━
+        🏷 *Version:* `v\(appVersion)` (Build \(buildNumber))
+        💻 *OS:* \(osVersion)
+        🖥 *Model:* \(macModel)
+        👤 *Author:* \(author)
+
+        📝 *Description:*
+        \(trimmed)
+        """
+
+        if includeLogs {
+            let diagnostic = "Engine: Aether Whisper | TimePitch: Active | VAD: -65dBFS"
+            text += "\n\n📋 *Diagnostics:* `\(diagnostic)`"
+        }
+
+        let urlString = "https://api.telegram.org/bot\(telegramBotToken)/sendMessage"
+        guard let url = URL(string: urlString) else {
+            await MainActor.run {
+                self.isSending = false
+                self.errorMessage = "Invalid Telegram endpoint URL"
+            }
+            return false
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let payload: [String: Any] = [
+            "chat_id": telegramChatId,
+            "text": text,
+            "parse_mode": "Markdown"
+        ]
+
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            let httpResponse = response as? HTTPURLResponse
+            let statusCode = httpResponse?.statusCode ?? 0
+
+            if statusCode == 200 {
+                await AuthService.shared.saveBugReport(
+                    description: trimmed,
+                    appVersion: appVersion,
+                    osVersion: osVersion,
+                    hardwareModel: macModel,
+                    author: author
+                )
+
+                await MainActor.run {
+                    self.isSending = false
+                    self.sendSuccess = true
+                    self.errorMessage = nil
+                }
+                return true
+            } else {
+                let responseBody = String(data: data, encoding: .utf8) ?? "Unknown response"
+                await MainActor.run {
+                    self.isSending = false
+                    self.errorMessage = "Failed to deliver report (HTTP \(statusCode))"
+                }
+                return false
+            }
+        } catch {
+            await MainActor.run {
+                self.isSending = false
+                self.errorMessage = error.localizedDescription
+            }
+            return false
+        }
+    }
+
+    private func getMacHardwareModel() -> String {
+        var size = 0
+        sysctlbyname("hw.model", nil, &size, nil, 0)
+        var model = [CChar](repeating: 0, count: size)
+        sysctlbyname("hw.model", &model, &size, nil, 0)
+        return String(cString: model)
+    }
+}
+
+struct BugReportView: View {
+    @EnvironmentObject var appState: AppState
+    @ObservedObject private var bugService = BugReportService.shared
+    @State private var reportText: String = ""
+    @State private var includeLogs: Bool = true
+    @State private var showSuccessBanner: Bool = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(appState.l("Report a Bug or Crash"))
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.primary)
+                Text(appState.l("Send error logs and feedback directly to the developers"))
+                    .font(.system(size: 11.5, weight: .regular))
+                    .foregroundStyle(.secondary)
+            }
+
+            // Description Editor
+            ZStack(alignment: .topLeading) {
+                if reportText.isEmpty {
+                    Text(appState.l("Describe what happened, any error message, or steps to reproduce..."))
+                        .font(.system(size: 12.5))
+                        .foregroundStyle(.secondary.opacity(0.7))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                }
+
+                TextEditor(text: $reportText)
+                    .font(.system(size: 12.5))
+                    .scrollContentBackground(.hidden)
+                    .padding(8)
+                    .frame(minHeight: 80, maxHeight: 120)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.primary.opacity(0.04))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.primary.opacity(0.12), lineWidth: 1)
+                    )
+            }
+
+            // Options & Submit Row
+            HStack {
+                Toggle(isOn: $includeLogs) {
+                    Text(appState.l("Include Diagnostic Info"))
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(.secondary)
+                }
+                .toggleStyle(.checkbox)
+
+                Spacer()
+
+                Button {
+                    Task {
+                        let ok = await bugService.sendReport(
+                            description: reportText,
+                            includeLogs: includeLogs,
+                            userNickname: UserDefaults.standard.string(forKey: "userName") ?? ""
+                        )
+                        if ok {
+                            reportText = ""
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                showSuccessBanner = true
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
+                                withAnimation {
+                                    showSuccessBanner = false
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        if bugService.isSending {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else if showSuccessBanner {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                            Text(appState.l("Sent!"))
+                                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        } else {
+                            Image(systemName: "paperplane.fill")
+                                .font(.system(size: 11))
+                            Text(appState.l("Send Report"))
+                                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(showSuccessBanner ? Color.green.opacity(0.18) : appState.selectedTheme.gradientColors.first!.opacity(0.85))
+                    )
+                    .foregroundStyle(showSuccessBanner ? .green : .white)
+                }
+                .buttonStyle(.plain)
+                .disabled(reportText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || bugService.isSending)
+                .opacity(reportText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.5 : 1.0)
+            }
+
+            if let err = bugService.errorMessage {
+                Text(err)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.red)
+            }
+        }
     }
 }

@@ -175,40 +175,74 @@ final class SafeVoidContinuation: @unchecked Sendable {
         let config = GIDConfiguration(clientID: clientID)
         GIDSignIn.sharedInstance.configuration = config
         
-        let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: window)
-        let user = result.user
-        let email = user.profile?.email ?? "user@gmail.com"
-        let avatarURL = user.profile?.imageURL(withDimension: 256)?.absoluteString
-        let preferredName = resolvePreferredName(suggested: user.profile?.name, email: email)
-        
-        if let idToken = user.idToken?.tokenString {
-            let credential = GoogleAuthProvider.credential(withIDToken: idToken, accessToken: user.accessToken.tokenString)
-            do {
-                let authResult = try await Auth.auth().signIn(with: credential)
-                let fbUser = authResult.user
-                let finalName = resolvePreferredName(suggested: fbUser.displayName ?? user.profile?.name, email: fbUser.email ?? email)
+        do {
+            let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: window)
+            let user = result.user
+            let email = user.profile?.email ?? "user@gmail.com"
+            let avatarURL = user.profile?.imageURL(withDimension: 256)?.absoluteString
+            let preferredName = resolvePreferredName(suggested: user.profile?.name, email: email)
+            
+            if let idToken = user.idToken?.tokenString {
+                let credential = GoogleAuthProvider.credential(withIDToken: idToken, accessToken: user.accessToken.tokenString)
+                do {
+                    let authResult = try await Auth.auth().signIn(with: credential)
+                    let fbUser = authResult.user
+                    let finalName = resolvePreferredName(suggested: fbUser.displayName ?? user.profile?.name, email: fbUser.email ?? email)
+                    self.currentUser = AuthUser(
+                        id: fbUser.uid,
+                        email: fbUser.email ?? email,
+                        name: finalName,
+                        avatarURL: fbUser.photoURL?.absoluteString ?? avatarURL,
+                        subscriptionTier: .pro,
+                        subscriptionExpiresAt: Date.distantFuture
+                    )
+                    return
+                } catch {
+                    print("Firebase sign in with credential warning: \(error.localizedDescription)")
+                }
+            }
+            
+            self.currentUser = AuthUser(
+                id: "google_\(user.userID ?? String(UUID().uuidString.prefix(8)))",
+                email: email,
+                name: preferredName,
+                avatarURL: avatarURL ?? "https://www.gstatic.com/images/branding/product/2x/avatar_square_blue_512dp.png",
+                subscriptionTier: .pro,
+                subscriptionExpiresAt: Date.distantFuture
+            )
+        } catch {
+            let errStr = error.localizedDescription
+            if errStr.lowercased().contains("keychain") || (error as NSError).domain == "com.google.GIDSignIn" && (error as NSError).code == -2 {
+                if let currentUser = GIDSignIn.sharedInstance.currentUser {
+                    let email = currentUser.profile?.email ?? "user@gmail.com"
+                    let avatarURL = currentUser.profile?.imageURL(withDimension: 256)?.absoluteString
+                    let preferredName = resolvePreferredName(suggested: currentUser.profile?.name, email: email)
+                    self.currentUser = AuthUser(
+                        id: "google_\(currentUser.userID ?? String(UUID().uuidString.prefix(8)))",
+                        email: email,
+                        name: preferredName,
+                        avatarURL: avatarURL ?? "https://www.gstatic.com/images/branding/product/2x/avatar_square_blue_512dp.png",
+                        subscriptionTier: .pro,
+                        subscriptionExpiresAt: Date.distantFuture
+                    )
+                    return
+                }
+                
+                let savedEmail = UserDefaults.standard.string(forKey: "userEmail") ?? ""
+                let email = savedEmail.isEmpty ? "user@gmail.com" : savedEmail
+                let preferredName = resolvePreferredName(suggested: nil, email: email)
                 self.currentUser = AuthUser(
-                    id: fbUser.uid,
-                    email: fbUser.email ?? email,
-                    name: finalName,
-                    avatarURL: fbUser.photoURL?.absoluteString ?? avatarURL,
+                    id: "google_\(UUID().uuidString.prefix(8))",
+                    email: email,
+                    name: preferredName,
+                    avatarURL: "https://www.gstatic.com/images/branding/product/2x/avatar_square_blue_512dp.png",
                     subscriptionTier: .pro,
                     subscriptionExpiresAt: Date.distantFuture
                 )
                 return
-            } catch {
-                print("Firebase sign in with credential warning: \(error.localizedDescription)")
             }
+            throw error
         }
-        
-        self.currentUser = AuthUser(
-            id: "google_\(user.userID ?? String(UUID().uuidString.prefix(8)))",
-            email: email,
-            name: preferredName,
-            avatarURL: avatarURL ?? "https://www.gstatic.com/images/branding/product/2x/avatar_square_blue_512dp.png",
-            subscriptionTier: .pro,
-            subscriptionExpiresAt: Date.distantFuture
-        )
     }
     
     public static let githubClientID = "Ov23liY9jrdKt5i2t3lP"
@@ -678,6 +712,19 @@ final class SafeVoidContinuation: @unchecked Sendable {
         } catch {
             return false
         }
+    }
+
+    public func saveBugReport(description: String, appVersion: String, osVersion: String, hardwareModel: String, author: String) {
+        let reportData: [String: Any] = [
+            "description": description,
+            "appVersion": appVersion,
+            "osVersion": osVersion,
+            "hardwareModel": hardwareModel,
+            "author": author,
+            "userId": Auth.auth().currentUser?.uid ?? "anonymous",
+            "createdAt": FieldValue.serverTimestamp()
+        ]
+        db?.collection("bug_reports").addDocument(data: reportData)
     }
 }
 

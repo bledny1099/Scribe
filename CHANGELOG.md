@@ -5,6 +5,27 @@ All notable changes to Scribe will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.3] - 2026-08-30
+
+## Added
+- Live Typing / Direct Window Insertion mode with real-time cursor streaming and final Whisper replacement.
+- In-app 1-click update installation and seamless restart from downloaded DMG without manual drag-and-drop.
+- In-app Bug and Crash reporting card in System settings with direct Telegram delivery and diagnostic logs.
+- Acoustic phoneme time-stretch expansion in Aether conditioner for studio-grade Whisper phoneme accuracy.
+- Explicit Panel Theme (Dark, Light, Liquid Glass) selector in Appearance settings alongside Overlay Theme swatches.
+
+## Changed
+- Moved App Theme selection to General settings while retaining Overlay Theme in Appearance settings.
+- Switched live speech streaming to adaptive mode preventing stalled recognition on prolonged pauses.
+- Background model pre-warming during recording for sub-150ms instant transcription.
+
+## Fixed
+- Fixed Pill overlay positioning to remain centered relative to active windows and multi-monitor setups.
+- Fixed Live Preview freezing on initial spoken phrases during dictation.
+- Fixed permission resetting across updates by enforcing stable code signing requirements.
+- Fixed duplicate lines when exporting dictated notes to Apple Notes.
+- Fixed GPU stuttering and "No speech" timeouts in Orb (Magic) and ECG (Voltage) overlay modes.
+
 ## [2.5.1] - 2026-08-28
 
 ## Added

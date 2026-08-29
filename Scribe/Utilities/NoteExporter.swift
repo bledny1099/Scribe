@@ -90,7 +90,7 @@ class NoteExporter {
         if mode == .newNote {
             scriptSource = """
             tell application "Notes"
-                make new note with properties {name:"\(sanitizedTitle)", body:"<h1>\(sanitizedTitle)</h1>\(dateHeader)<p>\(sanitizedText)\(tagsText)</p>"}
+                make new note with properties {body:"\(dateHeader)<p>\(sanitizedText)\(tagsText)</p>"}
             end tell
             """
         } else {
@@ -101,7 +101,7 @@ class NoteExporter {
             scriptSource = """
             tell application "Notes"
                 if not (exists note "\(sanitizedNoteName)") then
-                    make new note with properties {name:"\(sanitizedNoteName)", body:"<h1>\(sanitizedNoteName)</h1>"}
+                    make new note with properties {name:"\(sanitizedNoteName)", body:"<p>\(sanitizedNoteName)</p>"}
                 end if
                 make new paragraph at end of text of note "\(sanitizedNoteName)" with data "\(dateHeader)<p>\(sanitizedText)\(tagsText)</p>"
             end tell

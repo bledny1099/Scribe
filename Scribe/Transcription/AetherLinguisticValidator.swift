@@ -104,8 +104,6 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
     ]
 
     /// Systematic Russian command verb mappings: 3rd person singular present tense -> 2nd person imperative mood.
-    /// When users dictate commands to AI assistants or developer tools, Whisper frequently misrecognizes
-    /// imperative verb endings (-й, -и, -ь) as 3rd person (-ет, -ит): e.g. "Создает для сервера" -> "Создай для сервера".
     private let russianCommandVerbMap: [String: String] = [
         "создает": "создай",
         "создаёт": "создай",
@@ -139,26 +137,19 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         "задеплоит": "задеплой"
     ]
 
-    /// Systematic AI and developer tooling brand name normalizations (e.g. "чат гпт" -> "ChatGPT", "chat gpt" -> "ChatGPT", "чатгпт" -> "ChatGPT", "гпт 4" -> "GPT-4")
+    /// Systematic AI and developer tooling brand name normalizations
     private let brandNormalizationRules: [(pattern: String, replacement: String)] = [
-        // ChatGPT model variants (e.g. ChatGPT-4o, ChatGPT 4, ChatGPT 5, chat gpt 4)
         ("(?i)\\b(?:чат[\\s-]*гпт|чат[\\s-]*gpt|chat[\\s-]*gpt|chatgpt|чат[\\s-]*джи[\\s-]*пи[\\s-]*ти|чат[\\s-]*джипити|чатджипити)\\s*([0-9]+(?:\\.[0-9]+)?(?:[a-z]|o|mini|pro|turbo)?)\\b", "ChatGPT $1"),
-        // ChatGPT standalone
         ("(?i)\\b(?:чат[\\s-]*гпт|чат[\\s-]*gpt|chat[\\s-]*gpt|chatgpt|чат[\\s-]*джи[\\s-]*пи[\\s-]*ти|чат[\\s-]*джипити|чатджипити)\\b", "ChatGPT"),
-        // GPT standalone and versions
         ("(?i)\\b(?:гпт|джи[\\s-]*пи[\\s-]*ти|джипити)\\s*([0-9]+(?:\\.[0-9]+)?(?:[a-z]|o|mini|pro|turbo)?)\\b", "GPT-$1"),
         ("(?i)\\b(?:гпт|джи[\\s-]*пи[\\s-]*ти|джипити)\\b", "GPT"),
-        // OpenAI
         ("(?i)\\b(?:опен[\\s-]*а[ий]|опен[\\s-]*эй|open[\\s-]*ai)\\b", "OpenAI"),
-        // Claude / Claude Code
         ("(?i)\\b(?:клод[\\s-]*код|клауд[\\s-]*код|claude[\\s-]*code)\\b", "Claude Code"),
-        // Gemini / Perplexity / Midjourney / DeepSeek
         ("(?i)\\b(?:джеминай|гемнай|джемини)\\b", "Gemini"),
         ("(?i)\\b(?:перплексити[\\s-]*а[ий]|perplexity[\\s-]*ai)\\b", "Perplexity AI"),
         ("(?i)\\b(?:перплексити)\\b", "Perplexity"),
         ("(?i)\\b(?:миджорни|мидджорни|mid[\\s-]*journey)\\b", "Midjourney"),
         ("(?i)\\b(?:дип[\\s-]*сик|deep[\\s-]*seek)\\b", "DeepSeek"),
-        // Frameworks & Dev tools
         ("(?i)\\b(?:пай[\\s-]*торч|пи[\\s-]*торч|py[\\s-]*torch)\\b", "PyTorch"),
         ("(?i)\\b(?:тензор[\\s-]*флоу|тензор[\\s-]*фло|tensor[\\s-]*flow)\\b", "TensorFlow"),
         ("(?i)\\b(?:супа[\\s-]*бейс|супа[\\s-]*бейз|supa[\\s-]*base)\\b", "Supabase"),
@@ -194,7 +185,94 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         "проявлены": "проверены"
     ]
 
-    private init() {}
+    // Precompiled regex caches for ultra-fast linguistic validation
+    private let compiledAcousticCorrections: [(regex: NSRegularExpression, replacement: String)]
+    private let compiledBrandRules: [(regex: NSRegularExpression, replacement: String)]
+    private let compiledRussianGrammarRules: [(regex: NSRegularExpression, replacement: String)]
+    private let compiledUkrainianWordMap: [(regex: NSRegularExpression, replacement: String)]
+    private let compiledNonPhotoRules: [(regex: NSRegularExpression, replacement: String)]
+    private let micCheckRegex: NSRegularExpression?
+    private let micContextRegex: NSRegularExpression?
+    private let transitionRegex: NSRegularExpression?
+    private let directiveContextRegex: NSRegularExpression?
+    private let wordExtractorRegex: NSRegularExpression?
+
+    private init() {
+        // Precompile acoustic corrections
+        var acousticCompiled: [(regex: NSRegularExpression, replacement: String)] = []
+        for (incorrect, correct) in acousticCorrections {
+            let pattern = "(?i)\\b" + NSRegularExpression.escapedPattern(for: incorrect) + "\\b"
+            if let reg = try? NSRegularExpression(pattern: pattern) {
+                acousticCompiled.append((regex: reg, replacement: correct))
+            }
+        }
+        self.compiledAcousticCorrections = acousticCompiled
+
+        // Precompile brand normalization rules
+        var brandCompiled: [(regex: NSRegularExpression, replacement: String)] = []
+        for rule in brandNormalizationRules {
+            if let reg = try? NSRegularExpression(pattern: rule.pattern) {
+                brandCompiled.append((regex: reg, replacement: rule.replacement))
+            }
+        }
+        self.compiledBrandRules = brandCompiled
+
+        // Precompile Russian grammar agreement rules
+        var grammarCompiled: [(regex: NSRegularExpression, replacement: String)] = []
+        for rule in russianGrammarAgreementRules {
+            if let reg = try? NSRegularExpression(pattern: rule.pattern) {
+                grammarCompiled.append((regex: reg, replacement: rule.replacement))
+            }
+        }
+        self.compiledRussianGrammarRules = grammarCompiled
+
+        // Precompile Ukrainian word map
+        let ukrRules: [(pattern: String, replacement: String)] = [
+            ("(?i)\\bщо\\b", "что"),
+            ("(?i)\\bце\\b", "это"),
+            ("(?i)\\bбуло\\b", "было"),
+            ("(?i)\\bбув\\b", "был"),
+            ("(?i)\\bбули\\b", "были"),
+            ("(?i)\\bвже\\b", "уже"),
+            ("(?i)\\bякщо\\b", "если"),
+            ("(?i)\\bтакож\\b", "также"),
+            ("(?i)\\bале\\b", "но"),
+            ("(?i)\\bдуже\\b", "очень"),
+            ("(?i)\\bдякую\\b", "спасибо"),
+            ("(?i)\\bсьогодні\\b", "сегодня"),
+            ("(?i)\\bчому\\b", "почему"),
+            ("(?i)\\bтому що\\b", "потому что"),
+            ("(?i)\\bзараз\\b", "сейчас")
+        ]
+        var ukrCompiled: [(regex: NSRegularExpression, replacement: String)] = []
+        for rule in ukrRules {
+            if let reg = try? NSRegularExpression(pattern: rule.pattern) {
+                ukrCompiled.append((regex: reg, replacement: rule.replacement))
+            }
+        }
+        self.compiledUkrainianWordMap = ukrCompiled
+
+        // Precompile non-photo acoustic rules
+        var nonPhotoCompiled: [(regex: NSRegularExpression, replacement: String)] = []
+        for (incorrect, correct) in nonPhotoAcousticMap {
+            let pattern = "(?i)\\b" + NSRegularExpression.escapedPattern(for: incorrect) + "\\b"
+            if let reg = try? NSRegularExpression(pattern: pattern) {
+                nonPhotoCompiled.append((regex: reg, replacement: correct))
+            }
+        }
+        self.compiledNonPhotoRules = nonPhotoCompiled
+
+        self.micCheckRegex = try? NSRegularExpression(pattern: "(?i)\\bраз[\\s,]+два[\\s,]+(?:три[\\s,]+)?проявк([а-яё]*)")
+        self.micContextRegex = try? NSRegularExpression(pattern: "(?i)\\bпроявк([а-яё]*)\\s+(микрофон|связ|звук|работ|код|гипотез|систем|слух|качеств|данны|файло|тест)")
+
+        let verbKeys = russianCommandVerbMap.keys.sorted { $0.count > $1.count }.joined(separator: "|")
+        self.transitionRegex = try? NSRegularExpression(pattern: "(?i)(?:^|(?<=[.!?;\n])|\\b(?:и|а|потом|затем|теперь|дальше|ещ[её]|также|давай|просто|пожалуйста)\\s+)(" + verbKeys + ")\\b")
+
+        let subjectExclusion = "(?:он|она|оно|сервер|скрипт|система|приложение|процесс|сервис|код|бот|воркер|пользователь|юзер|клиент|фреймворк)"
+        self.directiveContextRegex = try? NSRegularExpression(pattern: "(?i)(?:^|(?<!\\b" + subjectExclusion + "\\s))\\b(" + verbKeys + ")\\s+(для\\b|в\\b|на\\b|из\\b|под\\b|отдельн|нов|файл|папк|сервер|компонент|скрипт|функци|класс|модул|роут|проект|таблиц|баз|конфиг|ветк|пул|код|тест|кнопк|баг|ошибк|запрос|ответ)")
+
+        self.wordExtractorRegex = try? NSRegularExpression(pattern: "\\b([\\p{L}\\p{M}'-]+)\\b")
+    }
 
     /// Validates and corrects words in the transcription text.
     public func validateAndCorrect(
@@ -208,60 +286,50 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         let lowerOriginal = text.lowercased()
 
         // 1. Direct phrase-level acoustic corrections
-        for (incorrect, correct) in acousticCorrections {
-            let pattern = "(?i)\\b" + NSRegularExpression.escapedPattern(for: incorrect) + "\\b"
-            if let regex = try? NSRegularExpression(pattern: pattern) {
-                let range = NSRange(result.startIndex..<result.endIndex, in: result)
-                result = regex.stringByReplacingMatches(
-                    in: result,
-                    options: [],
-                    range: range,
-                    withTemplate: correct
-                )
-            }
+        for (regex, correct) in compiledAcousticCorrections {
+            let range = NSRange(result.startIndex..<result.endIndex, in: result)
+            result = regex.stringByReplacingMatches(
+                in: result,
+                options: [],
+                range: range,
+                withTemplate: correct
+            )
         }
 
         // 1b. AI & Tech Brand name normalizations (e.g. "чат гпт" -> "ChatGPT", "chat gpt" -> "ChatGPT")
-        for rule in brandNormalizationRules {
-            if let regex = try? NSRegularExpression(pattern: rule.pattern) {
-                let range = NSRange(result.startIndex..<result.endIndex, in: result)
-                result = regex.stringByReplacingMatches(
-                    in: result,
-                    options: [],
-                    range: range,
-                    withTemplate: rule.replacement
-                )
-            }
+        for (regex, replacement) in compiledBrandRules {
+            let range = NSRange(result.startIndex..<result.endIndex, in: result)
+            result = regex.stringByReplacingMatches(
+                in: result,
+                options: [],
+                range: range,
+                withTemplate: replacement
+            )
         }
 
         // 2. Context-aware Russian phrase corrections (e.g. testing / mic checks / non-photography speech)
         let hasPhotoContext = photographyKeywords.contains { lowerOriginal.contains($0) }
         if !hasPhotoContext {
             // "раз, два, три, проявка" -> "Раз, два, три, проверка."
-            let micCheckPattern = "(?i)\\bраз[\\s,]+два[\\s,]+(?:три[\\s,]+)?проявк([а-яё]*)"
-            if let regex = try? NSRegularExpression(pattern: micCheckPattern) {
+            if let regex = micCheckRegex {
                 let range = NSRange(result.startIndex..<result.endIndex, in: result)
                 result = regex.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: "Раз, два, три, проверк$1")
             }
 
             // "тест / проверка связи / микрофона"
-            let micContextPattern = "(?i)\\bпроявк([а-яё]*)\\s+(микрофон|связ|звук|работ|код|гипотез|систем|слух|качеств|данны|файло|тест)"
-            if let regex = try? NSRegularExpression(pattern: micContextPattern) {
+            if let regex = micContextRegex {
                 let range = NSRange(result.startIndex..<result.endIndex, in: result)
                 result = regex.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: "проверк$1 $2")
             }
 
             // General "проявка" -> "проверка" inflection map outside photography context
-            for (incorrect, correct) in nonPhotoAcousticMap {
-                let pattern = "(?i)\\b" + NSRegularExpression.escapedPattern(for: incorrect) + "\\b"
-                if let regex = try? NSRegularExpression(pattern: pattern) {
-                    let matches = regex.matches(in: result, options: [], range: NSRange(location: 0, length: (result as NSString).length))
-                    for match in matches.reversed() {
-                        if let range = Range(match.range, in: result) {
-                            let originalWord = String(result[range])
-                            let matchedCase = matchCapitalization(original: originalWord, target: correct)
-                            result.replaceSubrange(range, with: matchedCase)
-                        }
+            for (regex, correct) in compiledNonPhotoRules {
+                let matches = regex.matches(in: result, options: [], range: NSRange(location: 0, length: (result as NSString).length))
+                for match in matches.reversed() {
+                    if let range = Range(match.range, in: result) {
+                        let originalWord = String(result[range])
+                        let matchedCase = matchCapitalization(original: originalWord, target: correct)
+                        result.replaceSubrange(range, with: matchedCase)
                     }
                 }
             }
@@ -273,28 +341,9 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
 
         // 3a. Sanitize any rogue Ukrainian characters or particles when transcribing in Russian
         if isRussian {
-            let ukrainianWordMap: [(pattern: String, replacement: String)] = [
-                ("(?i)\\bщо\\b", "что"),
-                ("(?i)\\bце\\b", "это"),
-                ("(?i)\\bбуло\\b", "было"),
-                ("(?i)\\bбув\\b", "был"),
-                ("(?i)\\bбули\\b", "были"),
-                ("(?i)\\bвже\\b", "уже"),
-                ("(?i)\\bякщо\\b", "если"),
-                ("(?i)\\bтакож\\b", "также"),
-                ("(?i)\\bале\\b", "но"),
-                ("(?i)\\bдуже\\b", "очень"),
-                ("(?i)\\bдякую\\b", "спасибо"),
-                ("(?i)\\bсьогодні\\b", "сегодня"),
-                ("(?i)\\bчому\\b", "почему"),
-                ("(?i)\\bтому що\\b", "потому что"),
-                ("(?i)\\bзараз\\b", "сейчас")
-            ]
-            for (pat, rep) in ukrainianWordMap {
-                if let regex = try? NSRegularExpression(pattern: pat) {
-                    let range = NSRange(result.startIndex..<result.endIndex, in: result)
-                    result = regex.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: rep)
-                }
+            for (regex, rep) in compiledUkrainianWordMap {
+                let range = NSRange(result.startIndex..<result.endIndex, in: result)
+                result = regex.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: rep)
             }
 
             // Replace single Ukrainian glyphs with Russian equivalents
@@ -311,11 +360,9 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
             }
 
             // 3b. Grammatical agreement & case declension repairs
-            for (pat, rep) in russianGrammarAgreementRules {
-                if let regex = try? NSRegularExpression(pattern: pat) {
-                    let range = NSRange(result.startIndex..<result.endIndex, in: result)
-                    result = regex.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: rep)
-                }
+            for (regex, rep) in compiledRussianGrammarRules {
+                let range = NSRange(result.startIndex..<result.endIndex, in: result)
+                result = regex.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: rep)
             }
 
             // 3c. Command and imperative mood repairs for AI & developer directives
@@ -326,9 +373,7 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         let userFreqDict = UserFrequencyDictionary.shared
         let userTop100Set = userFreqDict.topWordsSet(limit: 100)
 
-        // Extract words using regex
-        let wordPattern = "\\b([\\p{L}\\p{M}'-]+)\\b"
-        guard let wordRegex = try? NSRegularExpression(pattern: wordPattern) else { return result }
+        guard let wordRegex = wordExtractorRegex else { return result }
 
         let nsString = result as NSString
         let matches = wordRegex.matches(in: result, options: [], range: NSRange(location: 0, length: nsString.length))
@@ -440,11 +485,9 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
     /// when used as direct commands to AI agents, IDEs, or in instructional speech (without a 3rd person subject noun/pronoun).
     private func applyRussianCommandImperativeRules(_ text: String) -> String {
         var result = text
-        let verbKeys = russianCommandVerbMap.keys.sorted { $0.count > $1.count }.joined(separator: "|")
 
         // 1. Initial / transitional commands: "создает...", "и создает...", "потом делает...", "ну создает..."
-        let transitionPattern = "(?i)(?:^|(?<=[.!?;\n])|\\b(?:и|а|потом|затем|теперь|дальше|ещ[её]|также|давай|просто|пожалуйста)\\s+)(" + verbKeys + ")\\b"
-        if let regex = try? NSRegularExpression(pattern: transitionPattern) {
+        if let regex = transitionRegex {
             let nsString = result as NSString
             let matches = regex.matches(in: result, options: [], range: NSRange(location: 0, length: nsString.length))
             for match in matches.reversed() {
@@ -462,9 +505,7 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         }
 
         // 2. Direct object / preposition directive context without explicit subject
-        let subjectExclusion = "(?:он|она|оно|сервер|скрипт|система|приложение|процесс|сервис|код|бот|воркер|пользователь|юзер|клиент|фреймворк)"
-        let directiveContextPattern = "(?i)(?:^|(?<!\\b" + subjectExclusion + "\\s))\\b(" + verbKeys + ")\\s+(для\\b|в\\b|на\\b|из\\b|под\\b|отдельн|нов|файл|папк|сервер|компонент|скрипт|функци|класс|модул|роут|проект|таблиц|баз|конфиг|ветк|пул|код|тест|кнопк|баг|ошибк|запрос|ответ)"
-        if let regex = try? NSRegularExpression(pattern: directiveContextPattern) {
+        if let regex = directiveContextRegex {
             let nsString = result as NSString
             let matches = regex.matches(in: result, options: [], range: NSRange(location: 0, length: nsString.length))
             for match in matches.reversed() {

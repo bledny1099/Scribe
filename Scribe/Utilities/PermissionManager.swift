@@ -16,32 +16,61 @@ final class PermissionManager: ObservableObject {
     @Published var isSpeechRecognitionGranted: Bool = false
 
     private var timer: Timer?
+    private var activeObserver: NSObjectProtocol?
 
     init() {
         checkPermissions()
-        startPolling()
+        if !isMicrophoneGranted || !isAccessibilityGranted || !isSpeechRecognitionGranted {
+            startPolling()
+        }
+        activeObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.checkPermissions()
+        }
     }
 
     func checkPermissions() {
         // Microphone status
         let micStatus = AVCaptureDevice.authorizationStatus(for: .audio)
-        isMicrophoneGranted = (micStatus == .authorized)
+        let mic = (micStatus == .authorized)
+        if isMicrophoneGranted != mic {
+            isMicrophoneGranted = mic
+        }
 
         // Accessibility status
-        isAccessibilityGranted = PasteService.isAccessibilityGranted()
+        let ax = PasteService.isAccessibilityGranted()
+        if isAccessibilityGranted != ax {
+            isAccessibilityGranted = ax
+        }
 
         // Speech Recognition status
         let speechStatus = SFSpeechRecognizer.authorizationStatus()
-        isSpeechRecognitionGranted = (speechStatus == .authorized)
+        let speech = (speechStatus == .authorized)
+        if isSpeechRecognitionGranted != speech {
+            isSpeechRecognitionGranted = speech
+        }
+
+        // When all permissions are granted, stop background polling to save CPU
+        if isMicrophoneGranted && isAccessibilityGranted && isSpeechRecognitionGranted {
+            stopPolling()
+        }
     }
 
     func startPolling() {
         timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 0.8, repeats: true) { [weak self] _ in
+        timer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
             Task { @MainActor in
                 self?.checkPermissions()
             }
         }
+    }
+
+    func stopPolling() {
+        timer?.invalidate()
+        timer = nil
     }
 
     func requestMicrophone() {

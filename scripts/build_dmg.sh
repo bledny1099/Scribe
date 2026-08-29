@@ -38,8 +38,8 @@ if [ -n "$CODE_SIGN_IDENTITY" ]; then
     echo "🔏 Signing app with identity: $CODE_SIGN_IDENTITY"
     codesign --force --deep --sign "$CODE_SIGN_IDENTITY" "$APP_PATH"
 else
-    echo "🔏 Signing app ad-hoc..."
-    codesign --force --deep --sign - "$APP_PATH"
+    echo "🔏 Signing app ad-hoc with stable bundle identifier..."
+    codesign --force --deep --identifier "com.aleksei.scribe" --sign - "$APP_PATH"
 fi
 
 rm -f "$DIST_DIR/$DMG_NAME"

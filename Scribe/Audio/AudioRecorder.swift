@@ -40,6 +40,8 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
     private let audioLevelSubject = PassthroughSubject<Float, Never>()
     private var levelCancellable: AnyCancellable?
 
+    private let audioProcessingQueue = DispatchQueue(label: "com.aleksei.scribe.audioProcessing", qos: .userInteractive)
+
     // MARK: - Init
 
     init() {
@@ -100,30 +102,38 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
 
         // Capture subject locally to avoid accessing self from audio thread
         let subject = audioLevelSubject
+        let queue = audioProcessingQueue
 
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
-            // Write to file on the audio thread
-            do {
-                try file.write(from: buffer)
-            } catch {
-                logger.error("Failed to write audio buffer: \(error.localizedDescription)")
-            }
-
-            // Save samples in memory for live preview safely on background thread
-            if let floatData = buffer.floatChannelData?[0] {
-                let frameLength = Int(buffer.frameLength)
-                let samples = Array(UnsafeBufferPointer(start: floatData, count: frameLength))
-                self?.samplesLock.lock()
-                self?.recordedSamples.append(contentsOf: samples)
-                self?.samplesLock.unlock()
-            }
-
-            // Stream buffer to any real-time consumers (like Apple Speech)
-            self?.onBufferTap?(buffer)
-
-            // Compute RMS level and send to subject (no actor isolation needed)
+        inputNode.installTap(onBus: 0, bufferSize: 2048, format: recordingFormat) { [weak self] buffer, _ in
+            // Compute RMS level and send to subject on audio thread (non-blocking)
             let level = AudioRecorder.computeLevel(buffer)
             subject.send(level)
+
+            // Clone buffer data to safely process asynchronously off the real-time audio thread
+            guard let copy = AudioRecorder.copyPCMBuffer(buffer) else { return }
+
+            queue.async { [weak self] in
+                guard let self = self else { return }
+                
+                // Write to file on background processing queue
+                do {
+                    try file.write(from: copy)
+                } catch {
+                    logger.error("Failed to write audio buffer: \(error.localizedDescription)")
+                }
+
+                // Save samples in memory for live preview
+                if let floatData = copy.floatChannelData?[0] {
+                    let frameLength = Int(copy.frameLength)
+                    let samples = Array(UnsafeBufferPointer(start: floatData, count: frameLength))
+                    self.samplesLock.lock()
+                    self.recordedSamples.append(contentsOf: samples)
+                    self.samplesLock.unlock()
+                }
+
+                // Stream buffer to live speech recognizer
+                self.onBufferTap?(copy)
+            }
         }
 
         audioEngine.prepare()
@@ -139,11 +149,32 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
     func stopRecording() -> URL? {
         audioEngine.inputNode.removeTap(onBus: 0)
         audioEngine.stop()
-        audioFile = nil
+        
+        // Drain pending audio write blocks
+        audioProcessingQueue.sync {
+            self.audioFile = nil
+        }
+        
         isRecording = false
         audioLevel = 0
         logger.info("Recording stopped")
         return recordingURL
+    }
+
+    /// Copies an AVAudioPCMBuffer safely
+    public static func copyPCMBuffer(_ buffer: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
+        guard let copy = AVAudioPCMBuffer(pcmFormat: buffer.format, frameCapacity: buffer.frameCapacity) else {
+            return nil
+        }
+        copy.frameLength = buffer.frameLength
+        if let srcData = buffer.floatChannelData, let dstData = copy.floatChannelData {
+            let channelCount = Int(buffer.format.channelCount)
+            let frameLength = Int(buffer.frameLength)
+            for ch in 0..<channelCount {
+                dstData[ch].update(from: srcData[ch], count: frameLength)
+            }
+        }
+        return copy
     }
 
     /// Securely wipes memory buffers containing recorded audio samples.

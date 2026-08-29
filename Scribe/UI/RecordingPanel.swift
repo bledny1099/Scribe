@@ -73,8 +73,22 @@ final class RecordingPanel: NSPanel {
             statusTextLength: statusTextLength
         )
         case .minimal:  base = minimalSize
-        case .ecg:      base = ecgSize
-        case .orb:      base = orbSize
+        case .ecg:
+            if isStatusMessage {
+                let textWidth = CGFloat(max(statusTextLength, 6)) * 8.5
+                let width = min(max(32 + 16 + textWidth + 36, 160), 340)
+                base = NSSize(width: width, height: 56)
+            } else {
+                base = ecgSize
+            }
+        case .orb:
+            if isStatusMessage {
+                let textWidth = CGFloat(max(statusTextLength, 6)) * 8.5
+                let width = min(max(32 + 16 + textWidth + 36, 160), 340)
+                base = NSSize(width: width, height: 56)
+            } else {
+                base = orbSize
+            }
         }
 
         if isEmbeddedPreviewActive && style.supportsEmbeddedPreview {
@@ -116,6 +130,9 @@ final class RecordingPanel: NSPanel {
             isStatusMessage: isStatusMessage,
             statusTextLength: statusTextLength
         )
+        if isStatusMessage {
+            return currentSize.height / 2
+        }
         switch style {
         case .classic:  return round(24 * overlaySize.scale)
         case .ecg:      return round(24 * overlaySize.scale)
@@ -464,19 +481,20 @@ final class RecordingPanel: NSPanel {
                     ?? NSScreen.screens.first
                 let screenFrame = targetScreen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
 
-                // If the active window is full screen / maximized (occupies almost the full screen), position at screen bottom
+                // If the active window is full screen / maximized, position at screen bottom
                 let isNearlyFullScreen = windowFrame.width >= (screenFrame.width - 80) && windowFrame.height >= (screenFrame.height - 80)
-                if isNearlyFullScreen {
+                let isValidWindowFrame = windowFrame.intersects(screenFrame) && windowFrame.width >= 200
+
+                if isNearlyFullScreen || !isValidWindowFrame {
                     let x = screenFrame.midX - frame.width / 2
                     let y = screenFrame.minY + 160 + yOffset
                     setFrameOrigin(NSPoint(x: x, y: y))
                 } else {
                     // Center horizontally at the active target window
                     var x = windowFrame.midX - frame.width / 2
-                    // Place near the bottom edge of the active window with comfortable margin
                     var y = windowFrame.minY + 54 + yOffset
 
-                    // Keep strictly inside the target screen visible bounds with room for subtitle below
+                    // Keep strictly inside the target screen visible bounds with comfortable padding
                     let minAllowedY = screenFrame.minY + 72
                     let maxAllowedY = screenFrame.maxY - frame.height - 24
                     let minAllowedX = screenFrame.minX + 24

@@ -113,6 +113,38 @@ final class PasteService {
         return true
     }
 
+    /// Types text directly into the focused window using simulated Unicode keystrokes.
+    static func typeText(_ text: String) {
+        guard !text.isEmpty, isAccessibilityGranted() else { return }
+        guard let source = CGEventSource(stateID: .hidSystemState) else { return }
+
+        for char in text.utf16 {
+            var utf16Char = char
+            if let eventDown = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: true) {
+                eventDown.keyboardSetUnicodeString(stringLength: 1, unicodeString: &utf16Char)
+                eventDown.post(tap: .cghidEventTap)
+            }
+            if let eventUp = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: false) {
+                eventUp.keyboardSetUnicodeString(stringLength: 1, unicodeString: &utf16Char)
+                eventUp.post(tap: .cghidEventTap)
+            }
+        }
+    }
+
+    /// Sends N backspaces to erase previously streamed draft text in the active window.
+    static func sendBackspaces(count: Int) {
+        guard count > 0, isAccessibilityGranted() else { return }
+        guard let source = CGEventSource(stateID: .hidSystemState) else { return }
+
+        for _ in 0..<count {
+            if let keyDown = CGEvent(keyboardEventSource: source, virtualKey: UInt16(kVK_Delete), keyDown: true),
+               let keyUp = CGEvent(keyboardEventSource: source, virtualKey: UInt16(kVK_Delete), keyDown: false) {
+                keyDown.post(tap: .cghidEventTap)
+                keyUp.post(tap: .cghidEventTap)
+            }
+        }
+    }
+
     /// Checks (and optionally prompts for) Accessibility trust.
     /// Returns `true` when the app is already trusted.
     @discardableResult

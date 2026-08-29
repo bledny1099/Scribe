@@ -257,21 +257,27 @@ enum SubtitleBackground: String, CaseIterable, Identifiable {
 
 // MARK: - Live Preview Mode
 
-/// Placement mode for Live Preview text (Floating Pill vs Inside Card).
+/// Placement mode for Live Preview text (Floating Window, Direct Window Insertion, or Both).
 enum LivePreviewMode: String, CaseIterable, Identifiable {
     case external = "external"
+    case directInsert = "directInsert"
+    case both = "both"
 
     var id: String { rawValue }
 
     var displayName: String {
         switch self {
-        case .external: "Floating Pill"
+        case .external:     "Floating Window"
+        case .directInsert: "Direct Window Insertion"
+        case .both:         "Both"
         }
     }
 
     var icon: String {
         switch self {
-        case .external: "capsule"
+        case .external:     "macwindow.on.rectangle"
+        case .directInsert: "cursorarrow.and.square.on.square.dashed"
+        case .both:         "square.split.2x1"
         }
     }
 }
@@ -422,6 +428,7 @@ final class AppState: ObservableObject {
 
     @Published var recordingDuration: TimeInterval = 0
     @Published var livePreviewText: String = ""
+    private var liveStreamLastInsertedText: String = ""
     @Published var requestedSettingsTab: SettingsTab? = nil
 
     @Published public var transcribingDotCount: Int = 3
@@ -514,7 +521,7 @@ final class AppState: ObservableObject {
     @AppStorage("notionPageId") public var notionPageId: String = ""
     @AppStorage("integrationExportMode") public var integrationExportMode: String = "both" // "both", "notesOnly", "windowOnly"
     @AppStorage("vocabulary") public var vocabulary: String = ""
-    @AppStorage("blockedWords") public var blockedWords: String = "Skype"
+    @AppStorage("blockedWords") public var blockedWords: String = ""
     @AppStorage("blockedWordsAction") public var blockedWordsActionRaw: String = "remove" // "remove" or "mask"
     @AppStorage("customVocabularyPresets") public var customVocabularyPresets: [VocabularyPreset] = []
     @AppStorage("customBlockedWordsPresets") public var customBlockedWordsPresets: [VocabularyPreset] = []
@@ -733,9 +740,7 @@ final class AppState: ObservableObject {
     private var escMonitor: Any?
     private var localEscMonitor: Any?
     private var durationTimer: Timer?
-    private var livePreviewTimer: Timer?
     private var periodicSyncTimer: Timer?
-    private var isLiveTranscribing = false
 
     // MARK: Init
 
@@ -856,7 +861,11 @@ final class AppState: ObservableObject {
         }
         guard isRecording else { return }
         stopDurationTimer()
-        stopLivePreviewTimer()
+        if livePreviewEnabled { stopLiveStreaming() }
+        if (livePreviewMode == .directInsert || livePreviewMode == .both) && !liveStreamLastInsertedText.isEmpty {
+            PasteService.sendBackspaces(count: liveStreamLastInsertedText.count)
+            liveStreamLastInsertedText = ""
+        }
         livePreviewText = ""
         let audioURL = audioRecorder.stopRecording()
         isRecording = false
@@ -881,9 +890,17 @@ final class AppState: ObservableObject {
             recordingDuration = 0
             livePreviewText = ""
             startDurationTimer()
-            if livePreviewEnabled { startLivePreviewTimer() }
+            if livePreviewEnabled { startLiveStreaming() }
             showPanel()
             if soundFeedbackEnabled { SoundFeedback.play(.recordingStarted) }
+            
+            // Pre-warm Whisper neural engine and CoreML compute graph during recording
+            Task.detached(priority: .userInitiated) { [weak self] in
+                guard let self = self else { return }
+                let model = await self.selectedModel
+                try? await self.transcriptionService.ensureModelLoaded(modelName: model)
+            }
+            
             logger.info("Recording started")
         } catch {
             recordingStatus = .error("Mic error")
@@ -894,7 +911,7 @@ final class AppState: ObservableObject {
 
     private func stopRecording() {
         stopDurationTimer()
-        stopLivePreviewTimer()
+        if livePreviewEnabled { stopLiveStreaming() }
         livePreviewText = ""
         if soundFeedbackEnabled { SoundFeedback.play(.recordingStopped) }
 
@@ -1010,6 +1027,11 @@ final class AppState: ObservableObject {
                 text = PasteService.adjustCasingForContext(text: text)
 
                 logger.info("Transcription result: '\(text)'")
+
+                if (self.livePreviewMode == .directInsert || self.livePreviewMode == .both) && !self.liveStreamLastInsertedText.isEmpty {
+                    PasteService.sendBackspaces(count: self.liveStreamLastInsertedText.count)
+                    self.liveStreamLastInsertedText = ""
+                }
 
                 if text.isEmpty {
                     logger.warning("Transcription returned empty text")
@@ -1637,77 +1659,57 @@ final class AppState: ObservableObject {
         return String(format: "%d:%02d", mins, secs)
     }
 
-    // MARK: - Live Preview Timer
+    // MARK: - Live Preview (Apple Speech Streaming for 0ms latency & low CPU)
 
-    private func startLivePreviewTimer() {
-        livePreviewTimer?.invalidate()
-        livePreviewTimer = Timer.scheduledTimer(withTimeInterval: 0.85, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                await self?.runLivePreview()
-            }
-        }
-    }
-
-    private func stopLivePreviewTimer() {
-        livePreviewTimer?.invalidate()
-        livePreviewTimer = nil
-    }
-
-    private func runLivePreview() async {
-        guard isRecording, !isLiveTranscribing else { return }
-        guard audioRecorder.currentRecordingURL != nil else { return }
-
-        isLiveTranscribing = true
-        defer { isLiveTranscribing = false }
-
-        // Create a snapshot WAV file from the in-memory buffers
-        guard let snapshotURL = audioRecorder.createSnapshot() else { return }
-        defer { try? FileManager.default.removeItem(at: snapshotURL) }
-
+    private func startLiveStreaming() {
+        let isSingle = self.recognitionMode == "singleLanguage"
+        let langParam: String? = isSingle ? (self.singleDictationLanguage == "auto" ? nil : self.singleDictationLanguage) : nil
+        liveStreamLastInsertedText = ""
         do {
-            let isSingle = self.recognitionMode == "singleLanguage"
-            let langParam: String? = isSingle ? (self.singleDictationLanguage == "auto" ? nil : self.singleDictationLanguage) : nil
-            let preferredLangs: [String] = isSingle ? [] : (self.multilingualLanguages.isEmpty ? ["ru", "en"] : self.multilingualLanguages)
-            let rawText = try await transcriptionService.transcribe(
-                audioURL: snapshotURL,
-                modelName: selectedModel,
+            try transcriptionService.startStreaming(
                 language: langParam,
-                preferredLanguages: preferredLangs,
-                autoTranslate: autoTranslate,
                 customVocabulary: vocabulary,
                 userLocation: effectiveUserLocation,
                 targetApp: self.targetRunningApplication
-            )
-
-            let effectiveBlocked = AetherContextEngine.shared.activeEffectiveBlockedWords(
-                targetApp: self.targetRunningApplication,
-                userBlockedWords: self.blockedWords,
-                recognitionLanguages: isSingle ? [self.singleDictationLanguage] : preferredLangs
-            )
-            let effectiveVocab = AetherContextEngine.shared.activeEffectiveVocabulary(
-                targetApp: self.targetRunningApplication,
-                userVocabulary: self.vocabulary,
-                userLocation: self.effectiveUserLocation
-            )
-
-            // 1. Scribe Dictation Mode Transformation (Clean, Code, Raw, Chat, Formal)
-            var processedText = ScribeModeProcessor.shared.process(text: rawText, mode: self.transcriptionMode)
-            
-            // 2. Custom Replacements, Canonical Vocabulary & Anti-Hallucination Filtering
-            processedText = TextReplacer.apply(
-                replacements: self.textReplacements,
-                vocabulary: effectiveVocab,
-                blockedWords: effectiveBlocked,
-                blockedAction: self.blockedWordsActionRaw,
-                to: processedText
-            )
-
-            // Only update if we're still recording
-            if isRecording {
-                livePreviewText = processedText
+            ) { [weak self] streamingText in
+                guard let self = self, self.isRecording else { return }
+                let formatted = ScribeModeProcessor.shared.process(text: streamingText, mode: self.transcriptionMode)
+                
+                if self.livePreviewMode == .external || self.livePreviewMode == .both {
+                    self.livePreviewText = formatted
+                }
+                
+                if (self.livePreviewMode == .directInsert || self.livePreviewMode == .both) && !formatted.isEmpty {
+                    if self.liveStreamLastInsertedText.isEmpty {
+                        let toInsert = PasteService.adjustCasingForContext(text: formatted)
+                        PasteService.typeText(toInsert)
+                        self.liveStreamLastInsertedText = toInsert
+                    } else if formatted.hasPrefix(self.liveStreamLastInsertedText) {
+                        let delta = String(formatted.dropFirst(self.liveStreamLastInsertedText.count))
+                        if !delta.isEmpty {
+                            PasteService.typeText(delta)
+                            self.liveStreamLastInsertedText = formatted
+                        }
+                    } else {
+                        PasteService.sendBackspaces(count: self.liveStreamLastInsertedText.count)
+                        let toInsert = PasteService.adjustCasingForContext(text: formatted)
+                        PasteService.typeText(toInsert)
+                        self.liveStreamLastInsertedText = toInsert
+                    }
+                }
+            }
+            audioRecorder.onBufferTap = { [weak self] buffer in
+                self?.transcriptionService.append(buffer)
             }
         } catch {
-            logger.warning("Live preview transcription failed: \(error.localizedDescription)")
+            logger.info("Apple Speech live streaming unavailable: \(error.localizedDescription)")
+        }
+    }
+
+    private func stopLiveStreaming() {
+        audioRecorder.onBufferTap = nil
+        Task {
+            _ = await transcriptionService.stopStreaming()
         }
     }
 }
