@@ -487,13 +487,20 @@ public final class AetherContextEngine: @unchecked Sendable {
     // MARK: - Dynamic Effective Mergers
 
     /// Merges user custom vocabulary with target application domain vocabulary
-    public func activeEffectiveVocabulary(targetApp: NSRunningApplication? = nil, userVocabulary: String) -> String {
+    public func activeEffectiveVocabulary(targetApp: NSRunningApplication? = nil, userVocabulary: String, userLocation: String = "") -> String {
         let (_, domain, _, _) = detectActiveAppDomain(targetApp: targetApp)
         let domainWords = domainSpecificVocabulary(for: domain)
         
-        let userWords = userVocabulary.components(separatedBy: CharacterSet(charactersIn: ",\n;"))
+        var userWords = userVocabulary.components(separatedBy: CharacterSet(charactersIn: ",\n;"))
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
+
+        if !userLocation.isEmpty {
+            let locWords = userLocation.components(separatedBy: CharacterSet(charactersIn: ",\n;"))
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+            userWords.append(contentsOf: locWords)
+        }
 
         var combined = userWords
         for w in domainWords {
@@ -618,6 +625,91 @@ public final class AetherContextEngine: @unchecked Sendable {
         }
     }
 
+    // MARK: - Window & Active Document Accessibility Context
+
+    public struct WindowContext: Sendable {
+        public let windowTitle: String?
+        public let documentFileName: String?
+        public let fileExtension: String?
+        public let keywords: [String]
+    }
+
+    /// Inspects the frontmost active window title and open document name via Accessibility API (100% locally, no network).
+    public func inspectActiveWindowContext(targetApp: NSRunningApplication? = nil) -> WindowContext {
+        guard AXIsProcessTrusted() else {
+            return WindowContext(windowTitle: nil, documentFileName: nil, fileExtension: nil, keywords: [])
+        }
+
+        let app = targetApp ?? NSWorkspace.shared.frontmostApplication
+        guard let pid = app?.processIdentifier else {
+            return WindowContext(windowTitle: nil, documentFileName: nil, fileExtension: nil, keywords: [])
+        }
+
+        let appElement = AXUIElementCreateApplication(pid)
+        var focusedWindowValue: AnyObject?
+        let copyRes = AXUIElementCopyAttributeValue(appElement, kAXFocusedWindowAttribute as CFString, &focusedWindowValue)
+
+        var title: String?
+        var documentURL: String?
+
+        if copyRes == .success, let window = focusedWindowValue {
+            // 1. Window Title
+            var titleVal: AnyObject?
+            if AXUIElementCopyAttributeValue(window as! AXUIElement, kAXTitleAttribute as CFString, &titleVal) == .success,
+               let t = titleVal as? String, !t.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                title = t.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+
+            // 2. Document URL / Path
+            var docVal: AnyObject?
+            if AXUIElementCopyAttributeValue(window as! AXUIElement, kAXDocumentAttribute as CFString, &docVal) == .success,
+               let doc = docVal as? String, !doc.isEmpty {
+                documentURL = doc
+            }
+        }
+
+        var fileName: String?
+        var fileExt: String?
+        var extractedKeywords: [String] = []
+
+        if let doc = documentURL {
+            let url = URL(fileURLWithPath: doc)
+            fileName = url.lastPathComponent
+            fileExt = url.pathExtension.isEmpty ? nil : url.pathExtension
+            if let fn = fileName { extractedKeywords.append(fn) }
+        } else if let t = title {
+            // Extract possible file name from title e.g. "auth.ts — Scribe — Cursor" or "SettingsView.swift"
+            let components = t.components(separatedBy: CharacterSet(charactersIn: " —-–|/\\"))
+            for comp in components {
+                let trimmed = comp.trimmingCharacters(in: .whitespacesAndNewlines)
+                if trimmed.contains(".") && trimmed.count >= 3 && trimmed.count <= 40 {
+                    let ext = (trimmed as NSString).pathExtension
+                    if !ext.isEmpty && ext.count <= 6 {
+                        fileName = trimmed
+                        fileExt = ext
+                        extractedKeywords.append(trimmed)
+                        break
+                    }
+                }
+            }
+            // Add clean keywords from window title (letters and digits, len >= 3)
+            let rawWords = t.components(separatedBy: CharacterSet.alphanumerics.inverted)
+                .filter { $0.count >= 3 && $0.count <= 25 }
+            for w in rawWords {
+                if !extractedKeywords.contains(w) {
+                    extractedKeywords.append(w)
+                }
+            }
+        }
+
+        return WindowContext(
+            windowTitle: title,
+            documentFileName: fileName,
+            fileExtension: fileExt,
+            keywords: Array(extractedKeywords.prefix(8))
+        )
+    }
+
     /// Generates a comprehensive prompt string conditioned on active app, location, and custom vocabulary
     public func buildConditioningPrompt(
         basePrompt: String,
@@ -636,6 +728,15 @@ public final class AetherContextEngine: @unchecked Sendable {
             components.append("App: \(appName). \(domainHint)")
         }
 
+        // Local Window & Document Context (100% on-device)
+        let winContext = inspectActiveWindowContext(targetApp: targetApp)
+        if let fn = winContext.documentFileName {
+            components.append("Active file: \(fn).")
+        } else if let wt = winContext.windowTitle, !wt.isEmpty {
+            let cleanTitle = String(wt.prefix(50))
+            components.append("Window: \(cleanTitle).")
+        }
+
         if !userLocation.isEmpty {
             let isRussian = language == "ru" || language == nil
             let locHeader = isRussian ? "Локации, острова и адреса:" : "Locations, islands and streets:"
@@ -645,7 +746,7 @@ public final class AetherContextEngine: @unchecked Sendable {
             components.append("\(locHeader) \(userLocation), \(addressAffixes).")
         }
 
-        let effectiveVocab = activeEffectiveVocabulary(targetApp: targetApp, userVocabulary: customVocabulary)
+        let effectiveVocab = activeEffectiveVocabulary(targetApp: targetApp, userVocabulary: customVocabulary, userLocation: userLocation)
         if !effectiveVocab.isEmpty {
             components.append("Custom Terms: \(effectiveVocab).")
         }
@@ -662,12 +763,18 @@ public final class AetherContextEngine: @unchecked Sendable {
         var strings: [String] = []
 
         // Add effective vocabulary (user + domain)
-        let effectiveVocab = activeEffectiveVocabulary(targetApp: targetApp, userVocabulary: customVocabulary)
+        let effectiveVocab = activeEffectiveVocabulary(targetApp: targetApp, userVocabulary: customVocabulary, userLocation: userLocation)
         let customWords = effectiveVocab
             .components(separatedBy: CharacterSet(charactersIn: ",\n;"))
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
         strings.append(contentsOf: customWords)
+
+        // Add active window & document keywords
+        let winContext = inspectActiveWindowContext(targetApp: targetApp)
+        if !winContext.keywords.isEmpty {
+            strings.append(contentsOf: winContext.keywords)
+        }
 
         // Add user locations & street indicators
         if !userLocation.isEmpty {
@@ -687,3 +794,4 @@ public final class AetherContextEngine: @unchecked Sendable {
         return Array(Set(strings)).prefix(120).map { $0 }
     }
 }
+

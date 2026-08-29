@@ -89,7 +89,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
     // MARK: - Apple Speech (Streaming)
 
     @MainActor
-    func startStreaming(language: String?, customVocabulary: String = "", targetApp: NSRunningApplication? = nil, onUpdate: @escaping (String) -> Void) throws {
+    func startStreaming(language: String?, customVocabulary: String = "", userLocation: String = "", targetApp: NSRunningApplication? = nil, onUpdate: @escaping (String) -> Void) throws {
         state = .transcribing
         currentStreamingText = ""
         
@@ -121,6 +121,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         
         let strings = AetherContextEngine.shared.buildContextualStrings(
             customVocabulary: customVocabulary,
+            userLocation: userLocation,
             targetApp: targetApp
         )
         request.contextualStrings = strings

@@ -171,6 +171,11 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
 
         // 2. Anonymously push unique new words to community pool if allowed
         _ = await pushLocalContributionsIfAllowed()
+
+        await MainActor.run {
+            self.lastSyncDate = Date()
+            UserDefaults.standard.set(self.lastSyncDate, forKey: "communityDictionaryLastSync")
+        }
     }
 
     /// Triggers manual sync and returns count of downloaded terms and newly uploaded words
@@ -178,6 +183,8 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
     public func manualSyncAndContribute() async -> (downloaded: Int, uploaded: Int) {
         await refreshFromCloud()
         let uploadedCount = await pushLocalContributionsIfAllowed()
+        lastSyncDate = Date()
+        UserDefaults.standard.set(lastSyncDate, forKey: "communityDictionaryLastSync")
         if uploadedCount > 0 {
             lastContributionMessage = "Uploaded \(uploadedCount) new terms to cloud pool"
         } else {
@@ -256,7 +263,11 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
         isSyncing = true
         syncError = nil
 
-        defer { isSyncing = false }
+        defer {
+            isSyncing = false
+            self.lastSyncDate = Date()
+            UserDefaults.standard.set(self.lastSyncDate, forKey: "communityDictionaryLastSync")
+        }
 
         guard let firestore = self.db else {
             // Offline or Firebase uninitialized — ensure embedded categories are active
@@ -279,8 +290,6 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
                 }
             }
 
-            lastSyncDate = Date()
-            UserDefaults.standard.set(lastSyncDate, forKey: "communityDictionaryLastSync")
             logger.info("Successfully refreshed cloud dictionary (\(self.totalTermsCount) terms)")
         } catch {
             logger.warning("Cloud dictionary refresh: \(error.localizedDescription)")

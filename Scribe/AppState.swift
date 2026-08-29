@@ -3,7 +3,7 @@ import KeyboardShortcuts
 import SwiftUI
 import OSLog
 
-extension Array: RawRepresentable where Element: Codable {
+extension Array: @retroactive RawRepresentable where Element: Codable {
     public init?(rawValue: String) {
         guard let data = rawValue.data(using: .utf8),
               let result = try? JSONDecoder().decode([Element].self, from: data)
@@ -573,11 +573,17 @@ final class AppState: ObservableObject {
     }
 
     @AppStorage("pushToTalk") public var pushToTalk: Bool = false
+    @AppStorage("scribeTranscriptionMode") public var transcriptionModeRaw: String = ScribeMode.clean.rawValue
     @AppStorage("enableCloudAI") public var enableCloudAI: Bool = false
     @AppStorage("cloudAIProvider") public var cloudAIProviderRaw: String = CloudAIProvider.groq.rawValue
     @AppStorage("groqAPIKey") public var groqAPIKey: String = ""
     @AppStorage("openAIAPIKey") public var openAIAPIKey: String = ""
     @AppStorage("selectedAIRefinementMode") public var selectedAIRefinementModeRaw: String = AIRefinementMode.raw.rawValue
+
+    public var transcriptionMode: ScribeMode {
+        get { ScribeMode(rawValue: transcriptionModeRaw) ?? .clean }
+        set { transcriptionModeRaw = newValue.rawValue }
+    }
 
     public var cloudAIProvider: CloudAIProvider {
         get { CloudAIProvider(rawValue: cloudAIProviderRaw) ?? .groq }
@@ -973,10 +979,14 @@ final class AppState: ObservableObject {
                 )
                 let effectiveVocab = AetherContextEngine.shared.activeEffectiveVocabulary(
                     targetApp: self.targetRunningApplication,
-                    userVocabulary: self.vocabulary
+                    userVocabulary: self.vocabulary,
+                    userLocation: self.effectiveUserLocation
                 )
 
-                text = TranscriptionService.removeFillerWordsAndDuplicates(text)
+                // 1. Scribe Dictation Mode Transformation (Clean, Code, Raw, Chat, Formal)
+                text = ScribeModeProcessor.shared.process(text: text, mode: self.transcriptionMode)
+
+                // 2. Custom Replacements, Canonical Vocabulary & Anti-Hallucination Filtering
                 text = TextReplacer.apply(
                     replacements: self.textReplacements,
                     vocabulary: effectiveVocab,
@@ -1676,10 +1686,14 @@ final class AppState: ObservableObject {
             )
             let effectiveVocab = AetherContextEngine.shared.activeEffectiveVocabulary(
                 targetApp: self.targetRunningApplication,
-                userVocabulary: self.vocabulary
+                userVocabulary: self.vocabulary,
+                userLocation: self.effectiveUserLocation
             )
 
-            var processedText = TranscriptionService.removeFillerWordsAndDuplicates(rawText)
+            // 1. Scribe Dictation Mode Transformation (Clean, Code, Raw, Chat, Formal)
+            var processedText = ScribeModeProcessor.shared.process(text: rawText, mode: self.transcriptionMode)
+            
+            // 2. Custom Replacements, Canonical Vocabulary & Anti-Hallucination Filtering
             processedText = TextReplacer.apply(
                 replacements: self.textReplacements,
                 vocabulary: effectiveVocab,

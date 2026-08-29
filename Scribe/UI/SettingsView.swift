@@ -113,7 +113,6 @@ struct SettingsView: View {
                             selectedTab = .statistics
                         }
                     }
-                    // Support Scribe Button (Redesigned & Compact)
                     Button(action: {
                         showingSupportModal = true
                     }) {
@@ -456,6 +455,48 @@ struct SettingsView: View {
                                     .toggleStyle(.switch)
                                     .labelsHidden()
                             }
+                        }
+                    }
+
+                    // SECTION: Dictation Modes
+                    GlassSection(title: appState.l("Dictation Mode"), icon: "text.quote") {
+                        VStack(alignment: .leading, spacing: 14) {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(appState.l("Active Transcription Mode"))
+                                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                                        .foregroundStyle(.primary)
+                                    Text(appState.l("Adapts filler cleaning, formatting, code syntax, and structure"))
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                            }
+
+                            LiquidGlassSegmentedPicker(
+                                items: ScribeMode.allCases,
+                                selection: Binding(
+                                    get: { appState.transcriptionMode },
+                                    set: { appState.transcriptionMode = $0 }
+                                ),
+                                label: { (appState.l($0.displayName), $0.icon) }
+                            )
+
+                            HStack(spacing: 8) {
+                                Image(systemName: "info.circle.fill")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(appState.selectedTheme.gradientColors.first ?? .blue)
+                                Text(appState.l(appState.transcriptionMode.description))
+                                    .font(.system(size: 11.5, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(2)
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color.primary.opacity(0.04))
+                            )
                         }
                     }
 
@@ -5431,43 +5472,30 @@ struct VocabularySettingsView: View {
                 .padding(14)
             }
 
-            // SECTION: Open Community Dictionary (GitHub Powered)
+            // SECTION: Open Community Dictionary (Automated 5-Min Sync)
             GlassSection(title: appState.l("Open Community Dictionary"), icon: "network") {
                 VStack(alignment: .leading, spacing: 12) {
-                    HStack(alignment: .center, spacing: 10) {
-                        if let lastSync = communityVocab.lastSyncDate {
-                            Text("\(appState.l("Synced")): \(lastSync.formatted(date: .omitted, time: .shortened))")
-                                .font(.system(size: 12, weight: .medium, design: .rounded))
-                                .foregroundStyle(.secondary)
-                        } else {
-                            Text(appState.l("Synced"))
-                                .font(.system(size: 12, weight: .medium, design: .rounded))
-                                .foregroundStyle(.secondary)
+                    HStack(alignment: .center, spacing: 8) {
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(Color.green)
+                                .frame(width: 7, height: 7)
+                            Text(appState.l("Auto-sync active (every 5 min)"))
+                                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.primary)
                         }
 
                         Spacer()
 
-                        // Sync Now Button
-                        Button(action: {
-                            Task {
-                                _ = await communityVocab.manualSyncAndContribute()
-                            }
-                        }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: communityVocab.isSyncing ? "arrow.triangle.2.circlepath" : "arrow.clockwise")
-                                    .font(.system(size: 11, weight: .semibold))
-                                Text(communityVocab.isSyncing ? appState.l("Syncing...") : appState.l("Sync Now"))
-                                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                            }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5.5)
-                            .background(Color.primary.opacity(0.06))
-                            .foregroundStyle(.primary)
-                            .cornerRadius(8)
-                            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.primary.opacity(0.12), lineWidth: 1))
+                        if let lastSync = communityVocab.lastSyncDate {
+                            Text("\(appState.l("Synced")): \(lastSync.formatted(date: .omitted, time: .shortened))")
+                                .font(.system(size: 11.5, weight: .medium, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text(appState.l("Synced"))
+                                .font(.system(size: 11.5, weight: .medium, design: .rounded))
+                                .foregroundStyle(.secondary)
                         }
-                        .buttonStyle(.plain)
-                        .disabled(communityVocab.isSyncing)
                     }
 
                     // Anonymous Contribution Toggle

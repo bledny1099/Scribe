@@ -51,9 +51,11 @@
 		A0010008 /* AudioDeviceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010008 /* AudioDeviceManager.swift */; };
 		A0010009 /* UserFrequencyDictionary.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010009 /* UserFrequencyDictionary.swift */; };
 		A0010010 /* TelemetryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010010 /* TelemetryService.swift */; };
+		A0010012 /* ScribeMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010012 /* ScribeMode.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		F0010012 /* ScribeMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScribeMode.swift; sourceTree = "<group>"; };
 		F0010010 /* TelemetryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TelemetryService.swift; sourceTree = "<group>"; };
 		F0010009 /* UserFrequencyDictionary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserFrequencyDictionary.swift; sourceTree = "<group>"; };
 		F0010008 /* AudioDeviceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioDeviceManager.swift; sourceTree = "<group>"; };
@@ -133,6 +135,7 @@
 		727413048200327DC4D484D3 /* Transcription */ = {
 			isa = PBXGroup;
 			children = (
+				F0010012 /* ScribeMode.swift */,
 				F0010009 /* UserFrequencyDictionary.swift */,
 				F0010002 /* AetherContextEngine.swift */,
 				F0010007 /* AetherLinguisticValidator.swift */,
@@ -322,6 +325,7 @@
 				A0010008 /* AudioDeviceManager.swift in Sources */,
 				A0010009 /* UserFrequencyDictionary.swift in Sources */,
 				A0010010 /* TelemetryService.swift in Sources */,
+				A0010012 /* ScribeMode.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
