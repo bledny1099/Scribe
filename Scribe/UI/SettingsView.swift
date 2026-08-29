@@ -2388,7 +2388,7 @@ struct ThemeSwatchButton: View {
                     if isSelected {
                         Image(systemName: "checkmark")
                             .font(.system(size: 15, weight: .bold))
-                            .foregroundStyle(theme == .whiteGlow ? Color.black : Color.white)
+                            .foregroundStyle(Color.white)
                             .transition(.scale.combined(with: .opacity))
                     }
                 }
@@ -5936,8 +5936,8 @@ struct GeneralSettingsView: View {
                     }
 
                     if appState.livePreviewEnabled {
-                        VStack(spacing: 12) {
-                            HStack {
+                        VStack(spacing: 14) {
+                            VStack(alignment: .leading, spacing: 10) {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(appState.l("Preview Mode"))
                                         .font(.system(size: 14, weight: .medium, design: .rounded))
@@ -5946,7 +5946,7 @@ struct GeneralSettingsView: View {
                                         .font(.system(size: 11))
                                         .foregroundStyle(.secondary)
                                 }
-                                Spacer()
+
                                 LiquidGlassSegmentedPicker(
                                     items: LivePreviewMode.allCases,
                                     selection: Binding(
@@ -7439,8 +7439,8 @@ public final class BugReportService: ObservableObject, @unchecked Sendable {
             self.errorMessage = nil
         }
 
-        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.5.3"
-        let buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "2.5.3"
+        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.5.4"
+        let buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "2.5.4"
         let osVersion = ProcessInfo.processInfo.operatingSystemVersionString
         let macModel = getMacHardwareModel()
         let author = userNickname.isEmpty ? "Anonymous User" : userNickname

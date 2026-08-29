@@ -222,7 +222,7 @@ struct PermissionWelcomeView: View {
 
                                 Image(systemName: "waveform")
                                     .font(.system(size: 24, weight: .bold))
-                                    .foregroundStyle(appState.selectedTheme == .whiteGlow ? Color.black : Color.white)
+                                    .foregroundStyle(Color.white)
                             }
                             .shadow(color: themeGlow.opacity(0.35), radius: 10, y: 4)
 

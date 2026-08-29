@@ -598,8 +598,16 @@
 
         <!-- Email -->
         <div class="form-group">
-          <label class="form-label" for="reportEmail">Your Email Address <span class="req">*</span></label>
-          <input type="email" id="reportEmail" class="form-input" placeholder="name@example.com (for confirmation & status replies)" required>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <label class="form-label" for="reportEmail" style="margin-bottom: 0;">Your Email Address <span class="req">*</span></label>
+            <span id="emailValidationStatus" style="font-size: 11px; font-weight: 500; display: none;"></span>
+          </div>
+          <input type="email" id="reportEmail" class="form-input" placeholder="name@example.com (for confirmation & status replies)" required autocomplete="email" oninput="onEmailInput()" onblur="validateEmailDomainAsync()">
+          <div id="emailSuggestion" style="display: none; margin-top: 6px; font-size: 12px; color: #34d399; background: rgba(52, 211, 153, 0.1); border: 1px solid rgba(52, 211, 153, 0.25); border-radius: 6px; padding: 6px 10px;">
+            <span>Did you mean <strong id="suggestedEmail" style="text-decoration: underline; cursor: pointer;" onclick="applyEmailSuggestion()"></strong>?</span>
+          </div>
+          <div id="emailErrorMsg" style="display: none; margin-top: 6px; font-size: 12px; color: #f87171; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 6px; padding: 6px 10px;">
+          </div>
         </div>
 
         <!-- Title -->
@@ -674,7 +682,7 @@
 
   <script>
     let currentType = 'bug';
-    let latestSupportedVersion = 'v2.5.3';
+    let latestSupportedVersion = 'v2.5.4';
     let passedAppVersion = null;
 
     function isSupportedVersion(ver) {
@@ -912,6 +920,141 @@
         .replace(/>/g, '&gt;');
     }
 
+    const TYPO_DOMAINS = {
+      'gmai.com': 'gmail.com', 'gmial.com': 'gmail.com', 'gamil.com': 'gmail.com',
+      'gmail.con': 'gmail.com', 'gmail.co': 'gmail.com', 'gmaill.com': 'gmail.com',
+      'gmaik.com': 'gmail.com', 'gmai.co': 'gmail.com', 'gemail.com': 'gmail.com',
+      'yaho.com': 'yahoo.com', 'yahooo.com': 'yahoo.com', 'yaho.co': 'yahoo.com',
+      'yandx.ru': 'yandex.ru', 'yadnex.ru': 'yandex.ru', 'yandex.ruu': 'yandex.ru',
+      'yandex.com': 'yandex.ru', 'yandex.con': 'yandex.ru',
+      'outlok.com': 'outlook.com', 'outluk.com': 'outlook.com', 'outlock.com': 'outlook.com',
+      'hotmial.com': 'hotmail.com', 'hotmaill.com': 'hotmail.com',
+      'iclod.com': 'icloud.com', 'icoud.com': 'icloud.com', 'icloud.co': 'icloud.com',
+      'prton.me': 'proton.me', 'protonmai.com': 'protonmail.com', 'protonmal.com': 'protonmail.com',
+      'prtonmail.com': 'protonmail.com',
+      'mil.ru': 'mail.ru', 'mai.ru': 'mail.ru', 'mial.ru': 'mail.ru', 'mail.ruu': 'mail.ru',
+      'bk.ruu': 'bk.ru', 'inbox.ruu': 'inbox.ru', 'list.ruu': 'list.ru'
+    };
+
+    let domainCheckCache = {};
+    let pendingSuggestedEmail = '';
+
+    function isValidEmailSyntax(email) {
+      const re = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+      if (!re.test(email)) return false;
+      const parts = email.split('@');
+      if (parts.length !== 2) return false;
+      const domain = parts[1];
+      const dotIndex = domain.lastIndexOf('.');
+      if (dotIndex === -1 || domain.length - dotIndex - 1 < 2) return false;
+      return true;
+    }
+
+    function onEmailInput() {
+      const emailInput = document.getElementById('reportEmail');
+      const suggestionBox = document.getElementById('emailSuggestion');
+      const suggestedElem = document.getElementById('suggestedEmail');
+      const errorBox = document.getElementById('emailErrorMsg');
+      const val = (emailInput.value || '').trim();
+
+      errorBox.style.display = 'none';
+
+      if (!val || !val.includes('@')) {
+        suggestionBox.style.display = 'none';
+        return;
+      }
+
+      const parts = val.split('@');
+      const localPart = parts[0];
+      const domainPart = (parts[1] || '').toLowerCase();
+
+      if (TYPO_DOMAINS[domainPart]) {
+        pendingSuggestedEmail = `${localPart}@${TYPO_DOMAINS[domainPart]}`;
+        suggestedElem.textContent = pendingSuggestedEmail;
+        suggestionBox.style.display = 'block';
+      } else {
+        suggestionBox.style.display = 'none';
+      }
+    }
+
+    function applyEmailSuggestion() {
+      if (pendingSuggestedEmail) {
+        const emailInput = document.getElementById('reportEmail');
+        emailInput.value = pendingSuggestedEmail;
+        document.getElementById('emailSuggestion').style.display = 'none';
+        validateEmailDomainAsync();
+      }
+    }
+
+    async function checkDomainMx(domain) {
+      if (domainCheckCache[domain] !== undefined) {
+        return domainCheckCache[domain];
+      }
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+        const res = await fetch(`https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(domain)}&type=MX`, {
+          headers: { 'Accept': 'application/dns-json' },
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.Status === 3) {
+            domainCheckCache[domain] = false;
+            return false;
+          }
+          if (data.Answer && data.Answer.length > 0) {
+            domainCheckCache[domain] = true;
+            return true;
+          }
+          const aRes = await fetch(`https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(domain)}&type=A`, {
+            headers: { 'Accept': 'application/dns-json' }
+          });
+          if (aRes.ok) {
+            const aData = await aRes.json();
+            const exists = (aData.Answer && aData.Answer.length > 0) || aData.Status === 0;
+            domainCheckCache[domain] = exists;
+            return exists;
+          }
+        }
+      } catch (err) {
+        console.warn('MX check timeout or fallback:', err);
+      }
+      return true;
+    }
+
+    async function validateEmailDomainAsync() {
+      const emailInput = document.getElementById('reportEmail');
+      const errorBox = document.getElementById('emailErrorMsg');
+      const email = (emailInput.value || '').trim();
+
+      if (!email) {
+        errorBox.style.display = 'none';
+        return true;
+      }
+
+      if (!isValidEmailSyntax(email)) {
+        errorBox.textContent = 'Please enter a valid email format (e.g. name@domain.com).';
+        errorBox.style.display = 'block';
+        return false;
+      }
+
+      const domain = email.split('@')[1].toLowerCase();
+      const domainValid = await checkDomainMx(domain);
+
+      if (!domainValid) {
+        errorBox.textContent = `The domain "@${domain}" does not exist or has no active mail exchange (MX) servers. Please check for typos.`;
+        errorBox.style.display = 'block';
+        return false;
+      }
+
+      errorBox.style.display = 'none';
+      return true;
+    }
+
     async function submitReportForm() {
       const emailInput = document.getElementById('reportEmail');
       const titleInput = document.getElementById('reportTitle');
@@ -925,17 +1068,35 @@
       const title = titleInput.value.trim();
       const desc = descInput.value.trim();
 
-      if (!email || !emailInput.checkValidity()) {
+      if (!email || !isValidEmailSyntax(email)) {
         emailInput.focus();
         showToast('Please enter a valid email address.');
         return;
       }
+
+      // Check domain MX validity before submitting
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<svg class="spinner" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg> Validating email...';
+
+      const isDomainValid = await validateEmailDomainAsync();
+      if (!isDomainValid) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg> <span id="submitLabel">Submit Report</span>';
+        emailInput.focus();
+        showToast('Please correct the email address domain.');
+        return;
+      }
+
       if (!title) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg> <span id="submitLabel">Submit Report</span>';
         titleInput.focus();
         showToast('Please provide a brief title/summary.');
         return;
       }
       if (!desc) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg> <span id="submitLabel">Submit Report</span>';
         descInput.focus();
         showToast('Please describe the issue or steps.');
         return;

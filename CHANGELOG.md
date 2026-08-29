@@ -5,6 +5,22 @@ All notable changes to Scribe will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.4] - 2026-08-30
+
+## Added
+- New Solar (Amber → Sunset Coral) overlay theme replacing Lumina for enhanced contrast.
+- Full-width Preview Mode responsive layout picker preventing vertical text squishing in General settings.
+- Automatic Russian language streaming fallback in Live Preview when preferred languages match Russian.
+
+## Changed
+- Decoupled floating overlay appearance completely from panel window theme to preserve high-contrast dark frosted glass.
+- Multi-phrase live speech accumulator preventing recognition stalls during pauses in dictation.
+
+## Fixed
+- Fixed Russian acoustic phonetic errors for goals and case agreement (e.g., proper accusative «твою цель»).
+- Fixed squashed segmented buttons and labels in General settings card.
+- Fixed overlay themes turning white when Light Panel appearance is selected.
+
 ## [2.5.3] - 2026-08-30
 
 ## Added

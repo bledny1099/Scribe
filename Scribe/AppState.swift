@@ -1663,7 +1663,14 @@ final class AppState: ObservableObject {
 
     private func startLiveStreaming() {
         let isSingle = self.recognitionMode == "singleLanguage"
-        let langParam: String? = isSingle ? (self.singleDictationLanguage == "auto" ? nil : self.singleDictationLanguage) : nil
+        let langParam: String?
+        if isSingle && self.singleDictationLanguage != "auto" {
+            langParam = self.singleDictationLanguage
+        } else if self.selectedUILanguage != "auto" {
+            langParam = self.selectedUILanguage
+        } else {
+            langParam = "ru"
+        }
         liveStreamLastInsertedText = ""
         do {
             try transcriptionService.startStreaming(

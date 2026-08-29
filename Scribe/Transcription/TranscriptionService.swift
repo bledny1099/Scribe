@@ -88,19 +88,32 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
 
     // MARK: - Apple Speech (Streaming)
 
+    private var streamingAccumulatedPrefix: String = ""
+
     @MainActor
     func startStreaming(language: String?, customVocabulary: String = "", userLocation: String = "", targetApp: NSRunningApplication? = nil, onUpdate: @escaping (String) -> Void) throws {
         state = .transcribing
         currentStreamingText = ""
+        streamingAccumulatedPrefix = ""
         
-        let locale: Locale
-        if let lang = language, lang != "auto" {
-            locale = Locale(identifier: lang)
-        } else {
-            locale = Locale.current
+        let targetLang = (language ?? "ru").lowercased()
+        let localeIdentifier: String
+        switch targetLang {
+        case "ru", "ru-ru", "rus": localeIdentifier = "ru-RU"
+        case "en", "en-us", "eng": localeIdentifier = "en-US"
+        case "es", "es-es": localeIdentifier = "es-ES"
+        case "de", "de-de": localeIdentifier = "de-DE"
+        case "fr", "fr-fr": localeIdentifier = "fr-FR"
+        case "it", "it-it": localeIdentifier = "it-IT"
+        case "zh", "zh-cn": localeIdentifier = "zh-CN"
+        case "ja", "ja-jp": localeIdentifier = "ja-JP"
+        case "uk", "uk-ua": localeIdentifier = "uk-UA"
+        default: localeIdentifier = targetLang.contains("-") ? targetLang : "\(targetLang)-\(targetLang.uppercased())"
         }
         
-        guard let recognizer = SFSpeechRecognizer(locale: locale), recognizer.isAvailable else {
+        let locale = Locale(identifier: localeIdentifier)
+        
+        guard let recognizer = SFSpeechRecognizer(locale: locale) ?? SFSpeechRecognizer(locale: Locale(identifier: "ru-RU")) ?? SFSpeechRecognizer(locale: Locale.current), recognizer.isAvailable else {
             throw TranscriptionError.modelNotLoaded
         }
         
@@ -125,13 +138,17 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             guard let self = self else { return }
             if let result = result {
                 let text = result.bestTranscription.formattedString
+                let fullStream = self.streamingAccumulatedPrefix.isEmpty ? text : "\(self.streamingAccumulatedPrefix) \(text)"
                 Task { @MainActor in
-                    self.currentStreamingText = text
-                    onUpdate(text)
+                    self.currentStreamingText = fullStream
+                    onUpdate(fullStream)
+                }
+                if result.isFinal {
+                    self.streamingAccumulatedPrefix = fullStream
                 }
             }
             if let error = error {
-                logger.error("Apple Speech error: \(error.localizedDescription)")
+                logger.debug("Apple Speech stream task info: \(error.localizedDescription)")
             }
         }
         
