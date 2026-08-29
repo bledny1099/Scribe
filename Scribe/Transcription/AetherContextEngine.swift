@@ -544,11 +544,11 @@ public final class AetherContextEngine: @unchecked Sendable {
         switch domain {
         case .ideAndCoding:
             if isRussianOnly {
-                return "Контекст разработки кода, терминала, вайб кодинга и IDE: Git, Swift, TypeScript, Python, Docker, API, PR, commit, merge, branch, function, async, await, deploy, bugs, проект, ветка, коммит, пофиксить."
+                return "Команды для разработки, терминала и ИИ-ассистента: создай, сделай, добавь, напиши, удали, пофикси, запусти, проверь, обнови, настрой, открой, закрой, поменяй, переименуй, задеплой, Git, Swift, TypeScript, Python, Docker, API, PR, commit, merge, branch, function, async, await, deploy, bugs."
             } else if isEnglishOnly {
-                return "Code development, terminal & vibe coding context: Git, Swift, TypeScript, Python, Docker, API, PR, commit, merge, branch, function, async, await, deploy, bugs, refactor."
+                return "Developer commands and AI instructions: create, make, add, write, delete, fix, run, check, update, configure, open, close, change, rename, deploy, Git, Swift, TypeScript, Python, Docker, API, PR, commit, merge, branch, function, async, await, deploy, bugs."
             } else {
-                return "Bilingual code development & vibe coding context (Russian & English): Git, Swift, Xcode, TypeScript, Python, Docker, API, PR, commit, merge, branch, function, async, await, deploy, bugs, проект, ветка, коммит, функция, правка."
+                return "Bilingual code development & AI commands (Russian & English): создай, сделай, добавь, напиши, удали, пофикси, запусти, проверь, Git, Swift, Xcode, TypeScript, Python, Docker, API, PR, commit, merge, branch, function, async, await, deploy, bugs."
             }
         case .messengersAndChat:
             if isRussianOnly {
@@ -560,15 +560,15 @@ public final class AetherContextEngine: @unchecked Sendable {
             }
         case .notesAndWriting:
             if isRussianOnly {
-                return "Структурированные заметки, документы, списки и заголовки с четкой пунктуацией."
+                return "Структурированные заметки, документы, списки и заголовки с четкой пунктуацией: создай, добавь, план, задачи, выводы."
             } else if isEnglishOnly {
-                return "Structured documentation, notes, outlines, and clear punctuation."
+                return "Structured documentation, notes, outlines, and clear punctuation: create, add, plan, tasks, summary."
             } else {
                 return "Structured notes & documentation (Russian & English): заметки, списки, headers, punctuation, форматирование."
             }
         case .browsersAndResearch:
             if isRussianOnly {
-                return "Поисковые запросы, веб-страницы, статьи и интернет-навигация."
+                return "Поисковые запросы, веб-страницы, статьи и интернет-навигация: найди, открой, поиск, документация."
             } else if isEnglishOnly {
                 return "Web search queries, browser research, websites, and technical articles."
             } else {
@@ -576,7 +576,7 @@ public final class AetherContextEngine: @unchecked Sendable {
             }
         case .designAndCreative:
             if isRussianOnly {
-                return "Дизайн-термины, верстка макетов, компоненты, фреймы, шрифты и графика."
+                return "Дизайн-термины, верстка макетов, компоненты, фреймы, шрифты и графика: сделай, добавь, выровняй, макеты, шрифты."
             } else if isEnglishOnly {
                 return "UI/UX design, Figma components, frames, vector artboards, and creative terminology."
             } else {
@@ -616,7 +616,7 @@ public final class AetherContextEngine: @unchecked Sendable {
             }
         case .general:
             if isRussianOnly {
-                return "Используйте правильную пунктуацию, запятые и заглавные буквы."
+                return "Команды и естественная речь: создай, сделай, добавь, напиши, проверь, используйте правильную пунктуацию, запятые и заглавные буквы."
             } else if isEnglishOnly {
                 return "Use proper punctuation, capitalization, and formatting."
             } else {

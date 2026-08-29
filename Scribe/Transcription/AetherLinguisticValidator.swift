@@ -103,6 +103,42 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         ("(?i)\\bготов[ыеых]+\\s+репозитори[яеи]\\b", "готовые репозитории")
     ]
 
+    /// Systematic Russian command verb mappings: 3rd person singular present tense -> 2nd person imperative mood.
+    /// When users dictate commands to AI assistants or developer tools, Whisper frequently misrecognizes
+    /// imperative verb endings (-й, -и, -ь) as 3rd person (-ет, -ит): e.g. "Создает для сервера" -> "Создай для сервера".
+    private let russianCommandVerbMap: [String: String] = [
+        "создает": "создай",
+        "создаёт": "создай",
+        "делает": "сделай",
+        "пишет": "напиши",
+        "добавляет": "добавь",
+        "удаляет": "удали",
+        "настраивает": "настрой",
+        "исправляет": "исправь",
+        "проверяет": "проверь",
+        "запускает": "запусти",
+        "перезапускает": "перезапусти",
+        "обновляет": "обнови",
+        "показывает": "покажи",
+        "открывает": "открой",
+        "закрывает": "закрой",
+        "меняет": "поменяй",
+        "поменяет": "поменяй",
+        "подключает": "подключи",
+        "выносит": "вынеси",
+        "переносит": "перенеси",
+        "переименовывает": "переименуй",
+        "генерирует": "сгенерируй",
+        "импортирует": "импортируй",
+        "экспортирует": "экспортируй",
+        "коммитит": "закоммить",
+        "закоммитит": "закоммить",
+        "пушит": "запушь",
+        "запушит": "запушь",
+        "деплоит": "задеплой",
+        "задеплоит": "задеплой"
+    ]
+
     /// Systematic AI and developer tooling brand name normalizations (e.g. "чат гпт" -> "ChatGPT", "chat gpt" -> "ChatGPT", "чатгпт" -> "ChatGPT", "гпт 4" -> "GPT-4")
     private let brandNormalizationRules: [(pattern: String, replacement: String)] = [
         // ChatGPT model variants (e.g. ChatGPT-4o, ChatGPT 4, ChatGPT 5, chat gpt 4)
@@ -281,6 +317,9 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
                     result = regex.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: rep)
                 }
             }
+
+            // 3c. Command and imperative mood repairs for AI & developer directives
+            result = applyRussianCommandImperativeRules(result)
         }
 
         let customSet = Set(customVocabulary.map { $0.lowercased() })
@@ -390,6 +429,55 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         for rep in replacements.reversed() {
             if let strRange = Range(rep.range, in: result) {
                 result.replaceSubrange(strRange, with: rep.replacement)
+            }
+        }
+
+        return result
+    }
+
+    /// Systematic command directive repair for Russian speech:
+    /// Converts 3rd person singular present tense verbs to 2nd person imperative mood
+    /// when used as direct commands to AI agents, IDEs, or in instructional speech (without a 3rd person subject noun/pronoun).
+    private func applyRussianCommandImperativeRules(_ text: String) -> String {
+        var result = text
+        let verbKeys = russianCommandVerbMap.keys.sorted { $0.count > $1.count }.joined(separator: "|")
+
+        // 1. Initial / transitional commands: "создает...", "и создает...", "потом делает...", "ну создает..."
+        let transitionPattern = "(?i)(?:^|(?<=[.!?;\n])|\\b(?:и|а|потом|затем|теперь|дальше|ещ[её]|также|давай|просто|пожалуйста)\\s+)(" + verbKeys + ")\\b"
+        if let regex = try? NSRegularExpression(pattern: transitionPattern) {
+            let nsString = result as NSString
+            let matches = regex.matches(in: result, options: [], range: NSRange(location: 0, length: nsString.length))
+            for match in matches.reversed() {
+                let verbRange = match.range(at: 1)
+                let verbWord = nsString.substring(with: verbRange)
+                let lowerVerb = verbWord.lowercased()
+
+                if let imperative = russianCommandVerbMap[lowerVerb] {
+                    let matchedCase = matchCapitalization(original: verbWord, target: imperative)
+                    if let strRange = Range(verbRange, in: result) {
+                        result.replaceSubrange(strRange, with: matchedCase)
+                    }
+                }
+            }
+        }
+
+        // 2. Direct object / preposition directive context without explicit subject
+        let subjectExclusion = "(?:он|она|оно|сервер|скрипт|система|приложение|процесс|сервис|код|бот|воркер|пользователь|юзер|клиент|фреймворк)"
+        let directiveContextPattern = "(?i)(?:^|(?<!\\b" + subjectExclusion + "\\s))\\b(" + verbKeys + ")\\s+(для\\b|в\\b|на\\b|из\\b|под\\b|отдельн|нов|файл|папк|сервер|компонент|скрипт|функци|класс|модул|роут|проект|таблиц|баз|конфиг|ветк|пул|код|тест|кнопк|баг|ошибк|запрос|ответ)"
+        if let regex = try? NSRegularExpression(pattern: directiveContextPattern) {
+            let nsString = result as NSString
+            let matches = regex.matches(in: result, options: [], range: NSRange(location: 0, length: nsString.length))
+            for match in matches.reversed() {
+                let verbRange = match.range(at: 1)
+                let verbWord = nsString.substring(with: verbRange)
+                let lowerVerb = verbWord.lowercased()
+
+                if let imperative = russianCommandVerbMap[lowerVerb] {
+                    let matchedCase = matchCapitalization(original: verbWord, target: imperative)
+                    if let strRange = Range(verbRange, in: result) {
+                        result.replaceSubrange(strRange, with: matchedCase)
+                    }
+                }
             }
         }
 

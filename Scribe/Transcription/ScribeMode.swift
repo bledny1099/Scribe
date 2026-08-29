@@ -4,33 +4,25 @@ import OSLog
 private let logger = Logger(subsystem: "com.aleksei.scribe", category: "ScribeMode")
 
 /// Scribe Dictation & Intelligence Modes.
-/// Enables specialized on-device speech-to-text processing for developers, writers, and casual chat.
+/// Enables on-device speech-to-text processing (Clean formatting vs Raw verbatim).
+/// Advanced AI-styled modes (Code, Chat, Formal) are reserved for the upcoming Pro AI version.
 public enum ScribeMode: String, CaseIterable, Identifiable, Codable, Sendable {
     case clean = "clean"       // Default: filler removal, clean punctuation, brand casing
-    case raw = "raw"           // Exact verbatim transcription, zero removal
-    case code = "code"         // Dev & code: transforms camelCase, snake_case, CLI flags (--flag, -f), file extensions, backticks
-    case chat = "chat"         // Concise, chat-friendly, conversational punctuation, spoken emoji recognition
-    case formal = "formal"     // Polished, business/email tone, full sentences
+    case raw = "raw"           // Exact verbatim transcription, zero removal (as is)
 
     public var id: String { rawValue }
 
     public var displayName: String {
         switch self {
         case .clean: return "Clean"
-        case .raw: return "Raw (Verbatim)"
-        case .code: return "Code & Dev"
-        case .chat: return "Chat & Messaging"
-        case .formal: return "Email & Formal"
+        case .raw: return "Raw (As Is)"
         }
     }
 
     public var localizedName: String {
         switch self {
         case .clean: return String(localized: "mode.clean", defaultValue: "Clean")
-        case .raw: return String(localized: "mode.raw", defaultValue: "Raw")
-        case .code: return String(localized: "mode.code", defaultValue: "Code")
-        case .chat: return String(localized: "mode.chat", defaultValue: "Chat")
-        case .formal: return String(localized: "mode.formal", defaultValue: "Formal")
+        case .raw: return String(localized: "mode.raw", defaultValue: "Raw (As Is)")
         }
     }
 
@@ -38,34 +30,22 @@ public enum ScribeMode: String, CaseIterable, Identifiable, Codable, Sendable {
         switch self {
         case .clean: return "sparkles"
         case .raw: return "waveform"
-        case .code: return "chevron.left.forwardslash.chevron.right"
-        case .chat: return "bubble.left.and.bubble.right.fill"
-        case .formal: return "envelope.fill"
         }
     }
 
     public var shortDescription: String {
         switch self {
         case .clean: return "Smart filler removal & clean punctuation."
-        case .raw: return "Verbatim speech without any filtering."
-        case .code: return "camelCase, snake_case, CLI flags & code syntax."
-        case .chat: return "Concise punctuation for Telegram & Slack."
-        case .formal: return "Polished grammar for emails & documents."
+        case .raw: return "Verbatim speech without any filtering (leaves everything as is)."
         }
     }
 
     public var fullDescription: String {
         switch self {
         case .clean:
-            return "Automatically removes verbal clutter (uh, um, эээ, ну типа, короче), fixes capitalization, and standardizes tech terminology."
+            return "Automatically removes verbal clutter (uh, um, эээ, ну типа, короче), fixes capitalization, and standardizes punctuation."
         case .raw:
-            return "Preserves every spoken word exactly as uttered by the model without conversational truncation or filler stripping."
-        case .code:
-            return "Transforms spoken programming constructs (e.g. 'camel case userId' → userId, 'flag force' → --force, 'dot ts' → .ts, 'const data' → const data)."
-        case .chat:
-            return "Optimized for messengers: trims heavy sentence-ending periods in single-line replies and converts spoken emojis (👍, 🔥, 🚀)."
-        case .formal:
-            return "Polishes colloquial speech into articulate, formal business prose with full punctuation and professional phrasing."
+            return "Preserves every spoken word exactly as uttered by the model without conversational truncation or filler stripping (leaves everything as is)."
         }
     }
 
@@ -138,34 +118,12 @@ public final class ScribeModeProcessor: @unchecked Sendable {
 
         switch mode {
         case .raw:
-            // Verbatim output: zero filtering
+            // Verbatim output: zero filtering, preserves everything as is
             return text
 
         case .clean:
             // Standard cleanup: remove fillers, normalize duplicate spaces, fix punctuation
             var result = removeFillerWords(text)
-            result = normalizePunctuation(result)
-            return result
-
-        case .code:
-            // Developer transformations
-            var result = removeFillerWords(text)
-            result = transformCaseIdentifiers(result)
-            result = applyCodeRules(result)
-            result = normalizePunctuation(result)
-            return result
-
-        case .chat:
-            // Messenger transformations: remove heavy fillers, spoken emojis, trim formal period if short
-            var result = removeFillerWords(text)
-            result = applyEmojis(result)
-            result = formatForChat(result)
-            return result
-
-        case .formal:
-            // Polished prose
-            var result = removeFillerWords(text)
-            result = formalizeColloquialisms(result)
             result = normalizePunctuation(result)
             return result
         }
