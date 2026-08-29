@@ -103,6 +103,38 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         ("(?i)\\bготов[ыеых]+\\s+репозитори[яеи]\\b", "готовые репозитории")
     ]
 
+    /// Systematic AI and developer tooling brand name normalizations (e.g. "чат гпт" -> "ChatGPT", "chat gpt" -> "ChatGPT", "чатгпт" -> "ChatGPT", "гпт 4" -> "GPT-4")
+    private let brandNormalizationRules: [(pattern: String, replacement: String)] = [
+        // ChatGPT model variants (e.g. ChatGPT-4o, ChatGPT 4, ChatGPT 5, chat gpt 4)
+        ("(?i)\\b(?:чат[\\s-]*гпт|чат[\\s-]*gpt|chat[\\s-]*gpt|chatgpt|чат[\\s-]*джи[\\s-]*пи[\\s-]*ти|чат[\\s-]*джипити|чатджипити)\\s*([0-9]+(?:\\.[0-9]+)?(?:[a-z]|o|mini|pro|turbo)?)\\b", "ChatGPT $1"),
+        // ChatGPT standalone
+        ("(?i)\\b(?:чат[\\s-]*гпт|чат[\\s-]*gpt|chat[\\s-]*gpt|chatgpt|чат[\\s-]*джи[\\s-]*пи[\\s-]*ти|чат[\\s-]*джипити|чатджипити)\\b", "ChatGPT"),
+        // GPT standalone and versions
+        ("(?i)\\b(?:гпт|джи[\\s-]*пи[\\s-]*ти|джипити)\\s*([0-9]+(?:\\.[0-9]+)?(?:[a-z]|o|mini|pro|turbo)?)\\b", "GPT-$1"),
+        ("(?i)\\b(?:гпт|джи[\\s-]*пи[\\s-]*ти|джипити)\\b", "GPT"),
+        // OpenAI
+        ("(?i)\\b(?:опен[\\s-]*а[ий]|опен[\\s-]*эй|open[\\s-]*ai)\\b", "OpenAI"),
+        // Claude / Claude Code
+        ("(?i)\\b(?:клод[\\s-]*код|клауд[\\s-]*код|claude[\\s-]*code)\\b", "Claude Code"),
+        // Gemini / Perplexity / Midjourney / DeepSeek
+        ("(?i)\\b(?:джеминай|гемнай|джемини)\\b", "Gemini"),
+        ("(?i)\\b(?:перплексити[\\s-]*а[ий]|perplexity[\\s-]*ai)\\b", "Perplexity AI"),
+        ("(?i)\\b(?:перплексити)\\b", "Perplexity"),
+        ("(?i)\\b(?:миджорни|мидджорни|mid[\\s-]*journey)\\b", "Midjourney"),
+        ("(?i)\\b(?:дип[\\s-]*сик|deep[\\s-]*seek)\\b", "DeepSeek"),
+        // Frameworks & Dev tools
+        ("(?i)\\b(?:пай[\\s-]*торч|пи[\\s-]*торч|py[\\s-]*torch)\\b", "PyTorch"),
+        ("(?i)\\b(?:тензор[\\s-]*флоу|тензор[\\s-]*фло|tensor[\\s-]*flow)\\b", "TensorFlow"),
+        ("(?i)\\b(?:супа[\\s-]*бейс|супа[\\s-]*бейз|supa[\\s-]*base)\\b", "Supabase"),
+        ("(?i)\\b(?:кубер[\\s-]*нетес|кубер)\\b", "Kubernetes"),
+        ("(?i)\\b(?:пост[\\s-]*грес[\\s-]*кью[\\s-]*эль|пост[\\s-]*грес|пост[\\s-]*гре)\\b", "PostgreSQL"),
+        ("(?i)\\b(?:тайл[\\s-]*винд|тейл[\\s-]*винд|tailwind[\\s-]*css)\\b", "TailwindCSS"),
+        ("(?i)\\b(?:некст[\\s-]*дж[\\s-]*эс|next[\\s-]*js)\\b", "Next.js"),
+        ("(?i)\\b(?:вер[\\s-]*сель|вер[\\s-]*сел)\\b", "Vercel"),
+        ("(?i)\\b(?:хаггинг[\\s-]*фейс|hugging[\\s-]*face)\\b", "HuggingFace"),
+        ("(?i)\\b(?:анти[\\s-]*гравити)\\b", "Antigravity")
+    ]
+
     /// Systematic mappings for "проявка" forms -> "проверка" forms outside photography context.
     private let nonPhotoAcousticMap: [String: String] = [
         "проявка": "проверка",
@@ -149,6 +181,19 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
                     options: [],
                     range: range,
                     withTemplate: correct
+                )
+            }
+        }
+
+        // 1b. AI & Tech Brand name normalizations (e.g. "чат гпт" -> "ChatGPT", "chat gpt" -> "ChatGPT")
+        for rule in brandNormalizationRules {
+            if let regex = try? NSRegularExpression(pattern: rule.pattern) {
+                let range = NSRange(result.startIndex..<result.endIndex, in: result)
+                result = regex.stringByReplacingMatches(
+                    in: result,
+                    options: [],
+                    range: range,
+                    withTemplate: rule.replacement
                 )
             }
         }
