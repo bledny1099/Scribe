@@ -15,7 +15,7 @@ We take the security of Scribe and user privacy seriously. Scribe is engineered 
 
 To report a vulnerability, memory safety issue, or security concern, please submit a report directly through our website:
 
-👉 **[Submit a Security Report](https://bledny1099.github.io/Scribe/report.html?type=security)**
+👉 **[Submit a Security Report](https://scribe.dosimple.app/report?type=security)** (or email `scribe@dosimple.app`)
 
 ### What to Include in Your Report
 
