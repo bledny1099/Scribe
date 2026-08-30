@@ -603,6 +603,8 @@ enum Localization {
             "Downloading update...": "Загрузка обновления...",
             "App Theme": "Тема приложения",
             "Overlay Theme": "Тема оверлея",
+            "Color Theme": "Цветовая тема",
+            "Window & Controls": "Окно и управление",
             "Panel Theme": "Тема панели",
             "Choose between Dark, Light, or Liquid Glass appearance": "Выберите тёмную, светлую тему или Liquid Glass",
             "Direct Window Insertion": "Прямой ввод в окно",

@@ -1631,6 +1631,11 @@ final class AppState: ObservableObject {
 
     private func preloadModel() {
         Task {
+            // 1. Pre-warm Parakeet TDT v3 on Apple Neural Engine (instant when cached)
+            Task.detached(priority: .userInitiated) {
+                try? await ParakeetEngine.shared.loadModel()
+            }
+
             do {
                 logger.info("Preloading WhisperKit model '\(self.selectedModel)'…")
                 try await transcriptionService.ensureModelLoaded(modelName: self.selectedModel)

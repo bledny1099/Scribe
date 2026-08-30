@@ -7,7 +7,7 @@ enum AppTheme: String, CaseIterable, Identifiable {
     case aurora    // Purple → Cyan  (original)
     case ember     // Orange → Rose
     case ocean     // Blue → Teal
-    case solar     // Amber → Sunset Coral
+    case whiteGlow // White → Silver (Lumina)
     case darkBlue  // Navy → Indigo
     case green     // Lime → Emerald
 
@@ -18,7 +18,7 @@ enum AppTheme: String, CaseIterable, Identifiable {
         case .aurora: "Aurora"
         case .ember:  "Ember"
         case .ocean:  "Ocean"
-        case .solar:  "Solar"
+        case .whiteGlow: "Lumina"
         case .darkBlue:  "Midnight"
         case .green:     "Emerald"
         }
@@ -29,7 +29,7 @@ enum AppTheme: String, CaseIterable, Identifiable {
         case .aurora: "sparkles"
         case .ember:  "flame.fill"
         case .ocean:  "drop.fill"
-        case .solar:  "sun.max.fill"
+        case .whiteGlow: "moon.stars.fill"
         case .darkBlue:  "moon.fill"
         case .green:     "leaf.fill"
         }
@@ -41,7 +41,7 @@ enum AppTheme: String, CaseIterable, Identifiable {
         case .aurora: "mic.fill"
         case .ember:  "flame.fill"
         case .ocean:  "waveform"
-        case .solar:  "mic.fill"
+        case .whiteGlow: "mic.fill"
         case .darkBlue:  "mic.fill"
         case .green:     "mic.fill"
         }
@@ -67,10 +67,10 @@ enum AppTheme: String, CaseIterable, Identifiable {
                 Color(red: 0.165, green: 0.400, blue: 0.949),   // royal blue
                 Color(red: 0.133, green: 0.773, blue: 0.702),   // teal
             ]
-        case .solar:
+        case .whiteGlow:
             [
-                Color(red: 0.980, green: 0.650, blue: 0.150),   // warm amber
-                Color(red: 0.940, green: 0.280, blue: 0.450)    // sunset coral
+                Color.white,
+                Color(white: 0.85)
             ]
         case .darkBlue:
             [
@@ -100,7 +100,7 @@ enum AppTheme: String, CaseIterable, Identifiable {
         case .aurora: .purple
         case .ember:  Color(red: 0.976, green: 0.412, blue: 0.224)
         case .ocean:  .blue
-        case .solar:  Color(red: 0.980, green: 0.650, blue: 0.150)
+        case .whiteGlow: .white
         case .darkBlue:  Color(red: 0.28, green: 0.40, blue: 0.85)
         case .green:     .green
         }
@@ -108,7 +108,12 @@ enum AppTheme: String, CaseIterable, Identifiable {
 
     /// High-contrast text color when rendered on top of this theme's accent gradient.
     var contrastTextColor: Color {
-        return Color.white
+        switch self {
+        case .whiteGlow:
+            return Color(white: 0.12)
+        default:
+            return Color.white
+        }
     }
 
     /// Preview swatch colors for the theme picker (first, second).

@@ -210,12 +210,12 @@ struct SettingsView: View {
                         case .general:
                             GeneralSettingsView()
                         case .appearance:
-                    // SECTION: Theme & Style
-                    GlassSection(title: appState.l("Appearance"), icon: "paintbrush.fill") {
+                    // SECTION 1: Overlay Theme & Style
+                    GlassSection(title: appState.l("Overlay Theme"), icon: "sparkles") {
                         VStack(spacing: 16) {
                             // Overlay Theme (Color Accents)
                             VStack(alignment: .leading, spacing: 8) {
-                                Text(appState.l("Overlay Theme"))
+                                Text(appState.l("Color Theme"))
                                     .font(.system(size: 14, weight: .medium, design: .rounded))
                                     .foregroundStyle(.primary)
                                 HStack(alignment: .top, spacing: 14) {
@@ -231,55 +231,6 @@ struct SettingsView: View {
                                     }
                                 }
                                 .frame(maxWidth: .infinity)
-                            }
-
-                            // Panel Theme (Dark, Light, Liquid Glass)
-                            HStack {
-                                Text(appState.l("Panel Theme"))
-                                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.primary)
-                                Spacer()
-                                LiquidGlassSegmentedPicker(
-                                    items: PanelAppearance.allCases,
-                                    selection: Binding(
-                                        get: { appState.selectedPanelAppearance },
-                                        set: { appState.selectedPanelAppearance = $0 }
-                                    ),
-                                    label: { (appState.l($0.displayName), $0.icon) }
-                                )
-                            }
-
-                            // Sound feedback
-                            HStack {
-                                Text(appState.l("Sound Feedback"))
-                                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.primary)
-                                Spacer()
-                                Toggle("", isOn: $appState.soundFeedbackEnabled)
-                                    .toggleStyle(.switch)
-                                    .labelsHidden()
-                            }
-
-                            // Show recording timer
-                            HStack {
-                                Text(appState.l("Show Recording Timer"))
-                                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.primary)
-                                Spacer()
-                                Toggle("", isOn: $appState.durationVisible)
-                                    .toggleStyle(.switch)
-                                    .labelsHidden()
-                            }
-
-                            // Show target application
-                            HStack {
-                                Text(appState.l("Show Target Application"))
-                                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.primary)
-                                Spacer()
-                                Toggle("", isOn: $appState.showTargetAppInOverlay)
-                                    .toggleStyle(.switch)
-                                    .labelsHidden()
                             }
 
                             // Overlay style picker
@@ -347,6 +298,60 @@ struct SettingsView: View {
                             .padding(.vertical, 8)
                             .background(Color.primary.opacity(0.04))
                             .cornerRadius(8)
+                        }
+                    }
+
+                    // SECTION 2: Window Appearance & Controls
+                    GlassSection(title: appState.l("Window & Controls"), icon: "macwindow") {
+                        VStack(spacing: 16) {
+                            // Panel Theme (Dark, Light, Liquid Glass)
+                            HStack {
+                                Text(appState.l("Panel Theme"))
+                                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                LiquidGlassSegmentedPicker(
+                                    items: PanelAppearance.allCases,
+                                    selection: Binding(
+                                        get: { appState.selectedPanelAppearance },
+                                        set: { appState.selectedPanelAppearance = $0 }
+                                    ),
+                                    label: { (appState.l($0.displayName), $0.icon) }
+                                )
+                            }
+
+                            // Sound feedback
+                            HStack {
+                                Text(appState.l("Sound Feedback"))
+                                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                Toggle("", isOn: $appState.soundFeedbackEnabled)
+                                    .toggleStyle(.switch)
+                                    .labelsHidden()
+                            }
+
+                            // Show recording timer
+                            HStack {
+                                Text(appState.l("Show Recording Timer"))
+                                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                Toggle("", isOn: $appState.durationVisible)
+                                    .toggleStyle(.switch)
+                                    .labelsHidden()
+                            }
+
+                            // Show target application
+                            HStack {
+                                Text(appState.l("Show Target Application"))
+                                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                Toggle("", isOn: $appState.showTargetAppInOverlay)
+                                    .toggleStyle(.switch)
+                                    .labelsHidden()
+                            }
                         }
                     }
 
@@ -459,6 +464,54 @@ struct SettingsView: View {
                                     .toggleStyle(.switch)
                                     .labelsHidden()
                             }
+
+                            // Active Engine & Neural Architecture Info Card
+                            HStack(spacing: 12) {
+                                Image(systemName: "cpu.fill")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundStyle(.blue)
+
+                                VStack(alignment: .leading, spacing: 3) {
+                                    let isParakeet = ParakeetEngine.canHandle(
+                                        language: appState.recognitionMode == "singleLanguage" ? appState.singleDictationLanguage : nil,
+                                        preferredLanguages: appState.recognitionMode == "multilingual" ? appState.multilingualLanguages : []
+                                    ) && !appState.autoTranslate
+
+                                    HStack(spacing: 6) {
+                                        Text(appState.l("Active Speech Engine:"))
+                                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                            .foregroundStyle(.primary)
+
+                                        Text(isParakeet ? "Parakeet TDT 0.6B v3" : "WhisperKit")
+                                            .font(.system(size: 10.5, weight: .bold, design: .monospaced))
+                                            .foregroundStyle(isParakeet ? Color.green : Color.blue)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(
+                                                Capsule()
+                                                    .fill((isParakeet ? Color.green : Color.blue).opacity(0.12))
+                                            )
+                                    }
+
+                                    Text(isParakeet
+                                        ? appState.l("High-speed NVIDIA FastConformer + TDT running on Apple Neural Engine (ANE) for Russian, English & 25 EU languages. Instant latency, zero hallucinations & built-in punctuation.")
+                                        : appState.l("Multilingual WhisperKit engine active for 99+ world languages and real-time speech translation.")
+                                    )
+                                    .font(.system(size: 10.5, weight: .regular))
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                }
+                                Spacer()
+                            }
+                            .padding(12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .fill(Color.primary.opacity(0.04))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                            .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.8)
+                                    )
+                            )
                         }
                     }
 
