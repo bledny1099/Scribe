@@ -5,6 +5,20 @@ All notable changes to Scribe will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.5] - 2026-08-30
+
+## Added
+- Automatic game and match score formatting into digit:digit notation (e.g., «3:0», «2:1», «со счетом 3:0»).
+- Native IDE & Vibe Coding domain detection and acoustic rules for AI coding editors (Antigravity IDE, Windsurf, Trae, Fleet, Zed, Cursor, VS Code, Xcode).
+
+## Changed
+- Streamlined Live Preview into the floating overlay card and eliminated destructive active window backspacing.
+- Injected domain vocabulary and imperative directives for vibe coding into Whisper and Aether context engine.
+
+## Fixed
+- Fixed misrecognitions of «вайб-кодинг» (corrected variants like «вайб кодина», «вайп кодинг», «вайбкодина»).
+- Fixed duplicate clipboard paste triggers when completing dictation with active live preview.
+
 ## [2.5.4] - 2026-08-30
 
 ## Added
