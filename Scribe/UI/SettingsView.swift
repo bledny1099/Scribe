@@ -36,6 +36,7 @@ struct SettingsView: View {
     @EnvironmentObject var appState: AppState
     @ObservedObject private var updateService = AppUpdateService.shared
     @ObservedObject private var history = TranscriptionHistory.shared
+    @ObservedObject private var authService = AuthService.shared
     @AppStorage("lastSeenLevel") private var lastSeenLevel: Int = 1
     @State private var isLevelUpSweepActive: Bool = false
     @State private var sweepProgress: CGFloat = 1.0
@@ -593,9 +594,11 @@ struct SettingsView: View {
                                 }
                             }
 
-                            // SECTION: Bug & Crash Reporting
-                            GlassSection(title: appState.l("Feedback & Bug Reports"), icon: "ladybug.fill") {
-                                BugReportView()
+                            // SECTION: Bug & Crash Reporting (Only visible if user is registered/signed in)
+                            if authService.currentUser != nil {
+                                GlassSection(title: appState.l("Feedback & Bug Reports"), icon: "ladybug.fill") {
+                                    BugReportView()
+                                }
                             }
                     }
                     }
