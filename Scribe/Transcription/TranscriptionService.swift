@@ -88,13 +88,10 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
 
     // MARK: - Apple Speech (Streaming)
 
-    private var streamingAccumulatedPrefix: String = ""
-
     @MainActor
     func startStreaming(language: String?, customVocabulary: String = "", userLocation: String = "", targetApp: NSRunningApplication? = nil, onUpdate: @escaping (String) -> Void) throws {
         state = .transcribing
         currentStreamingText = ""
-        streamingAccumulatedPrefix = ""
         
         let targetLang = (language ?? "ru").lowercased()
         let localeIdentifier: String
@@ -138,13 +135,9 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             guard let self = self else { return }
             if let result = result {
                 let text = result.bestTranscription.formattedString
-                let fullStream = self.streamingAccumulatedPrefix.isEmpty ? text : "\(self.streamingAccumulatedPrefix) \(text)"
                 Task { @MainActor in
-                    self.currentStreamingText = fullStream
-                    onUpdate(fullStream)
-                }
-                if result.isFinal {
-                    self.streamingAccumulatedPrefix = fullStream
+                    self.currentStreamingText = text
+                    onUpdate(text)
                 }
             }
             if let error = error {

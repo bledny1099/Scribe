@@ -1054,8 +1054,19 @@ final class AppState: ObservableObject {
 
                 logger.info("Transcription result: '\(text)'")
 
-                if (self.livePreviewMode == .directInsert || self.livePreviewMode == .both) && !self.liveStreamLastInsertedText.isEmpty {
-                    PasteService.sendBackspaces(count: self.liveStreamLastInsertedText.count)
+                let isDirectInserted = (self.livePreviewMode == .directInsert || self.livePreviewMode == .both)
+
+                if isDirectInserted && !self.liveStreamLastInsertedText.isEmpty {
+                    // Smoothly reconcile final high-accuracy text with streamed draft
+                    let commonPrefix = self.longestCommonPrefix(self.liveStreamLastInsertedText, text)
+                    let backspacesNeeded = self.liveStreamLastInsertedText.count - commonPrefix.count
+                    if backspacesNeeded > 0 {
+                        PasteService.sendBackspaces(count: backspacesNeeded)
+                    }
+                    let suffixToType = String(text.dropFirst(commonPrefix.count))
+                    if !suffixToType.isEmpty {
+                        PasteService.typeText(suffixToType)
+                    }
                     self.liveStreamLastInsertedText = ""
                 }
 
@@ -1071,7 +1082,7 @@ final class AppState: ObservableObject {
                     try? await Task.sleep(for: .seconds(1.2))
                     hidePanel()
                 } else {
-                    // Use selected paste mode
+                    // Always populate clipboard
                     switch self.selectedPasteMode {
                     case .paste:  PasteService.copyToClipboard(text)
                     case .append: PasteService.appendToClipboard(text)
@@ -1098,6 +1109,8 @@ final class AppState: ObservableObject {
 
                     if isNotesOnly {
                         logger.info("Integrations-only mode active: Skipping active window paste.")
+                    } else if isDirectInserted {
+                        logger.info("Direct window insertion already completed seamlessly inline.")
                     } else {
                         logger.info("Text copied to clipboard, simulating paste…")
                         // Brief delay so the user sees the checkmark, then paste
@@ -1690,7 +1703,60 @@ final class AppState: ObservableObject {
         return String(format: "%d:%02d", mins, secs)
     }
 
-    // MARK: - Live Preview (Apple Speech Streaming for 0ms latency & low CPU)
+    // MARK: - Live Preview & Direct Window Streaming
+
+    /// Computes the longest common prefix between two strings to minimize backspacing.
+    private func longestCommonPrefix(_ s1: String, _ s2: String) -> String {
+        let chars1 = Array(s1)
+        let chars2 = Array(s2)
+        var index = 0
+        while index < chars1.count && index < chars2.count && chars1[index] == chars2[index] {
+            index += 1
+        }
+        return String(chars1.prefix(index))
+    }
+
+    /// Smoothly streams live text into the active window without destructive full-sentence erasure.
+    private func streamDirectWindowText(_ newRawText: String) {
+        guard isRecording else { return }
+        
+        let adjustedText = PasteService.adjustCasingForContext(text: newRawText)
+        
+        if liveStreamLastInsertedText.isEmpty {
+            PasteService.typeText(adjustedText)
+            liveStreamLastInsertedText = adjustedText
+            return
+        }
+        
+        if adjustedText == liveStreamLastInsertedText {
+            return
+        }
+        
+        // Find longest common prefix between what was already typed and new text
+        let commonPrefix = longestCommonPrefix(liveStreamLastInsertedText, adjustedText)
+        
+        // If the new text just appends more characters (e.g. "Привет" -> "Привет мир")
+        if commonPrefix.count == liveStreamLastInsertedText.count {
+            let suffix = String(adjustedText.dropFirst(commonPrefix.count))
+            if !suffix.isEmpty {
+                PasteService.typeText(suffix)
+                liveStreamLastInsertedText = adjustedText
+            }
+            return
+        }
+        
+        // If the recognizer changed only the last few characters / words:
+        let backspacesNeeded = liveStreamLastInsertedText.count - commonPrefix.count
+        if backspacesNeeded > 0 {
+            PasteService.sendBackspaces(count: backspacesNeeded)
+        }
+        
+        let suffixToType = String(adjustedText.dropFirst(commonPrefix.count))
+        if !suffixToType.isEmpty {
+            PasteService.typeText(suffixToType)
+        }
+        liveStreamLastInsertedText = adjustedText
+    }
 
     private func startLiveStreaming() {
         let isSingle = self.recognitionMode == "singleLanguage"
@@ -1711,36 +1777,45 @@ final class AppState: ObservableObject {
                 targetApp: self.targetRunningApplication
             ) { [weak self] streamingText in
                 guard let self = self, self.isRecording else { return }
-                let formatted = ScribeModeProcessor.shared.process(text: streamingText, mode: self.transcriptionMode)
+                
+                let isSingle = self.recognitionMode == "singleLanguage"
+                let preferredLangs = self.recognitionMode == "multilingual" ? self.multilingualLanguages : ["ru", "en"]
+                let effectiveBlocked = AetherContextEngine.shared.activeEffectiveBlockedWords(
+                    targetApp: self.targetRunningApplication,
+                    userBlockedWords: self.blockedWords,
+                    recognitionLanguages: isSingle ? [self.singleDictationLanguage] : preferredLangs
+                )
+                let effectiveVocab = AetherContextEngine.shared.activeEffectiveVocabulary(
+                    targetApp: self.targetRunningApplication,
+                    userVocabulary: self.vocabulary,
+                    userLocation: self.effectiveUserLocation
+                )
+
+                // 1. Process dictation mode (Code, Clean, Raw, Chat, Formal)
+                var formatted = ScribeModeProcessor.shared.process(text: streamingText, mode: self.transcriptionMode)
+                
+                // 2. Apply Custom Replacements, Canonical Vocabulary & Anti-Hallucination Filtering
+                formatted = TextReplacer.apply(
+                    replacements: self.textReplacements,
+                    vocabulary: effectiveVocab,
+                    blockedWords: effectiveBlocked,
+                    blockedAction: self.blockedWordsActionRaw,
+                    to: formatted
+                )
                 
                 if self.livePreviewMode == .external || self.livePreviewMode == .both {
                     self.livePreviewText = formatted
                 }
                 
                 if (self.livePreviewMode == .directInsert || self.livePreviewMode == .both) && !formatted.isEmpty {
-                    if self.liveStreamLastInsertedText.isEmpty {
-                        let toInsert = PasteService.adjustCasingForContext(text: formatted)
-                        PasteService.typeText(toInsert)
-                        self.liveStreamLastInsertedText = toInsert
-                    } else if formatted.hasPrefix(self.liveStreamLastInsertedText) {
-                        let delta = String(formatted.dropFirst(self.liveStreamLastInsertedText.count))
-                        if !delta.isEmpty {
-                            PasteService.typeText(delta)
-                            self.liveStreamLastInsertedText = formatted
-                        }
-                    } else {
-                        PasteService.sendBackspaces(count: self.liveStreamLastInsertedText.count)
-                        let toInsert = PasteService.adjustCasingForContext(text: formatted)
-                        PasteService.typeText(toInsert)
-                        self.liveStreamLastInsertedText = toInsert
-                    }
+                    self.streamDirectWindowText(formatted)
                 }
             }
             audioRecorder.onBufferTap = { [weak self] buffer in
                 self?.transcriptionService.append(buffer)
             }
         } catch {
-            logger.info("Apple Speech live streaming unavailable: \(error.localizedDescription)")
+            logger.info("Live streaming unavailable: \(error.localizedDescription)")
         }
     }
 

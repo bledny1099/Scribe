@@ -118,16 +118,20 @@ final class PasteService {
         guard !text.isEmpty, isAccessibilityGranted() else { return }
         guard let source = CGEventSource(stateID: .hidSystemState) else { return }
 
-        for char in text.utf16 {
-            var utf16Char = char
+        let utf16Array = Array(text.utf16)
+        var index = 0
+        while index < utf16Array.count {
+            let chunkSize = min(20, utf16Array.count - index)
+            var chunk = Array(utf16Array[index..<(index + chunkSize)])
             if let eventDown = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: true) {
-                eventDown.keyboardSetUnicodeString(stringLength: 1, unicodeString: &utf16Char)
+                eventDown.keyboardSetUnicodeString(stringLength: chunk.count, unicodeString: &chunk)
                 eventDown.post(tap: .cghidEventTap)
             }
             if let eventUp = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: false) {
-                eventUp.keyboardSetUnicodeString(stringLength: 1, unicodeString: &utf16Char)
+                eventUp.keyboardSetUnicodeString(stringLength: chunk.count, unicodeString: &chunk)
                 eventUp.post(tap: .cghidEventTap)
             }
+            index += chunkSize
         }
     }
 
