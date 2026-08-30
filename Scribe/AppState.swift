@@ -490,6 +490,7 @@ final class AppState: ObservableObject {
     @AppStorage("selectedOverlayStyle") var selectedOverlayStyleRaw: String = OverlayStyle.waveform.rawValue
     @AppStorage("selectedOverlaySize") var selectedOverlaySizeRaw: String = OverlaySize.s90.rawValue
     @AppStorage("overlayPositionMode") var overlayPositionModeRaw: String = OverlayPositionMode.screenBottom.rawValue
+    @AppStorage("selectedOverlayAppearance") var selectedOverlayAppearanceRaw: String = PanelAppearance.liquidGlass.rawValue
     @AppStorage("selectedPanelAppearance") var selectedPanelAppearanceRaw: String = PanelAppearance.liquidGlass.rawValue
     @AppStorage("soundFeedbackEnabled") var soundFeedbackEnabled: Bool = true
     @AppStorage("livePreviewEnabled") var livePreviewEnabled: Bool = true
@@ -685,6 +686,15 @@ final class AppState: ObservableObject {
     var overlayTextCompensation: CGFloat {
         let scale = selectedOverlaySize.scale
         return 1.0 + (1.0 - scale) * 0.75
+    }
+
+    /// Computed property for type-safe overlay appearance access.
+    var selectedOverlayAppearance: PanelAppearance {
+        get { PanelAppearance(rawValue: selectedOverlayAppearanceRaw) ?? .liquidGlass }
+        set {
+            selectedOverlayAppearanceRaw = newValue.rawValue
+            showSettingsPreviewFor5Seconds()
+        }
     }
 
     /// Computed property for type-safe panel appearance access.
@@ -1116,7 +1126,7 @@ final class AppState: ObservableObject {
         let isTimerVis = durationVisible
         let panel = RecordingPanel.make(
             style: selectedOverlayStyle,
-            appearance: selectedPanelAppearance,
+            appearance: selectedOverlayAppearance,
             size: selectedOverlaySize,
             isEmbeddedPreviewActive: isEmbedded,
             previewTextLength: livePreviewText.count,
@@ -1391,7 +1401,7 @@ final class AppState: ObservableObject {
         if let existingPanel = settingsPreviewPanel {
             // Update existing panel in-place without recreation or flashing
             existingPanel.ignoresMouseEvents = true
-            existingPanel.updateAppearance(selectedPanelAppearance)
+            existingPanel.updateAppearance(selectedOverlayAppearance)
             existingPanel.setContent(
                 overlay,
                 style: selectedOverlayStyle,
@@ -1422,7 +1432,7 @@ final class AppState: ObservableObject {
             // Create new panel with smooth slide-up entrance animation
             let panel = RecordingPanel.make(
                 style: selectedOverlayStyle,
-                appearance: selectedPanelAppearance,
+                appearance: selectedOverlayAppearance,
                 size: selectedOverlaySize,
                 isEmbeddedPreviewActive: isEmbeddedActive,
                 previewTextLength: livePreviewText.count,

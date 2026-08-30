@@ -203,11 +203,23 @@ final class RecordingPanel: NSPanel {
 
     /// Updates background appearance and material.
     func updateAppearance(_ appearance: PanelAppearance) {
-        // Floating recording overlay always maintains dark liquid glass backdrop
-        self.appearance = NSAppearance(named: .vibrantDark)
-        blurView.material = .hudWindow
-        blurView.wantsLayer = true
-        blurView.layer?.backgroundColor = NSColor(white: 0.04, alpha: 0.84).cgColor
+        switch appearance {
+        case .dark:
+            self.appearance = NSAppearance(named: .vibrantDark)
+            blurView.material = .hudWindow
+            blurView.wantsLayer = true
+            blurView.layer?.backgroundColor = NSColor(white: 0.06, alpha: 0.94).cgColor
+        case .light:
+            self.appearance = NSAppearance(named: .vibrantLight)
+            blurView.material = .hudWindow
+            blurView.wantsLayer = true
+            blurView.layer?.backgroundColor = NSColor(white: 0.94, alpha: 0.90).cgColor
+        case .liquidGlass:
+            self.appearance = NSAppearance(named: .vibrantDark)
+            blurView.material = .hudWindow
+            blurView.wantsLayer = true
+            blurView.layer?.backgroundColor = NSColor(white: 0.04, alpha: 0.84).cgColor
+        }
     }
 
     // MARK: - Corner Masking (Prevents Grey Square Artifacts)

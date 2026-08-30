@@ -234,6 +234,22 @@ struct SettingsView: View {
                                 .frame(maxWidth: .infinity)
                             }
 
+                            // Overlay Theme (Dark, Light, Liquid Glass)
+                            HStack {
+                                Text(appState.l("Overlay Theme"))
+                                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                LiquidGlassSegmentedPicker(
+                                    items: PanelAppearance.allCases,
+                                    selection: Binding(
+                                        get: { appState.selectedOverlayAppearance },
+                                        set: { appState.selectedOverlayAppearance = $0 }
+                                    ),
+                                    label: { (appState.l($0.displayName), $0.icon) }
+                                )
+                            }
+
                             // Overlay style picker
                             HStack {
                                 Text(appState.l("Overlay Style"))
