@@ -70,7 +70,6 @@ struct SettingsView: View {
             // Background & Ambient Glow
             SettingsBackgroundView(
                 panelAppearance: appState.selectedPanelAppearance,
-                selectedTheme: appState.selectedTheme,
                 selectedTab: selectedTab,
                 levelColor: history.currentLevelColor,
                 previousLevelColor: TranscriptionHistory.levelColor(for: previousLevelForAnimation),
@@ -87,7 +86,7 @@ struct SettingsView: View {
                             tab: tab,
                             isSelected: selectedTab == tab,
                             panelAppearance: appState.selectedPanelAppearance,
-                            themeGradientColor: appState.selectedTheme.gradientColors.first ?? .blue,
+                            themeGradientColor: .blue,
                             title: appState.l(tab.rawValue)
                         ) {
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
@@ -106,7 +105,7 @@ struct SettingsView: View {
                         tab: .statistics,
                         isSelected: selectedTab == .statistics,
                         panelAppearance: appState.selectedPanelAppearance,
-                        themeGradientColor: appState.selectedTheme.gradientColors.first ?? .blue,
+                        themeGradientColor: .blue,
                         title: appState.l(SettingsTab.statistics.rawValue)
                     ) {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
@@ -490,7 +489,7 @@ struct SettingsView: View {
                             HStack(spacing: 8) {
                                 Image(systemName: "info.circle.fill")
                                     .font(.system(size: 12))
-                                    .foregroundStyle(appState.selectedTheme.gradientColors.first ?? .blue)
+                                    .foregroundStyle(.blue)
                                 Text(appState.l(appState.transcriptionMode.description))
                                     .font(.system(size: 11.5, weight: .medium, design: .rounded))
                                     .foregroundStyle(.secondary)
@@ -802,7 +801,6 @@ struct SidebarTabButton: View {
 // MARK: - Settings Ambient Background View
 struct SettingsBackgroundView: View {
     let panelAppearance: PanelAppearance
-    let selectedTheme: AppTheme
     let selectedTab: SettingsTab
     let levelColor: Color
     let previousLevelColor: Color
@@ -878,43 +876,10 @@ struct SettingsBackgroundView: View {
                         progress: sweepProgress
                     )
                 }
-            } else if panelAppearance != .liquidGlass {
-                // Standard Theme Glow for other tabs
-                LinearGradient(
-                    colors: [
-                        selectedTheme.glowColor.opacity(0.18),
-                        selectedTheme.gradientColors[0].opacity(0.08),
-                        Color.clear
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-
-                RadialGradient(
-                    gradient: Gradient(colors: [
-                        selectedTheme.glowColor.opacity(0.38),
-                        selectedTheme.gradientColors[0].opacity(0.16),
-                        Color.clear
-                    ]),
-                    center: .topLeading,
-                    startRadius: 10,
-                    endRadius: 750
-                )
-
-                RadialGradient(
-                    gradient: Gradient(colors: [
-                        selectedTheme.gradientColors[1].opacity(0.24),
-                        Color.clear
-                    ]),
-                    center: .bottomTrailing,
-                    startRadius: 50,
-                    endRadius: 550
-                )
             }
         }
         .ignoresSafeArea()
         .animation(.easeInOut(duration: 0.6), value: selectedTab)
-        .animation(.easeInOut(duration: 0.6), value: selectedTheme)
         .animation(.easeInOut(duration: 0.4), value: panelAppearance)
     }
 }
@@ -2532,7 +2497,7 @@ struct SupportDeveloperModal: View {
                         HStack(spacing: 6) {
                             Image(systemName: "person.crop.circle.badge.checkmark")
                                 .font(.system(size: 11))
-                                .foregroundStyle(appState.selectedTheme.gradientColors.first ?? .blue)
+                                .foregroundStyle(Color.accentColor)
                             Text(user.email)
                                 .font(.system(size: 11, weight: .medium, design: .rounded))
                                 .foregroundStyle(.secondary)
@@ -2576,7 +2541,7 @@ struct SupportDeveloperModal: View {
                         HStack(spacing: 7) {
                             Image(systemName: "arrow.triangle.2.circlepath.doc.on.clipboard")
                                 .font(.system(size: 12, weight: .bold))
-                                .foregroundStyle(appState.selectedTheme.gradientColors.first ?? .blue)
+                                .foregroundStyle(Color.accentColor)
                             Text(appState.l("Transfer Verification"))
                                 .font(.system(size: 13, weight: .bold, design: .rounded))
                             Spacer()
@@ -2592,7 +2557,7 @@ struct SupportDeveloperModal: View {
                             HStack(spacing: 8) {
                                 Text(personalMemoCode)
                                     .font(.system(size: 12, weight: .bold, design: .monospaced))
-                                    .foregroundStyle(appState.selectedTheme.gradientColors.first ?? .blue)
+                                    .foregroundStyle(Color.accentColor)
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
                                     .background(Color.primary.opacity(0.05))
@@ -2777,7 +2742,7 @@ struct SupportDeveloperModal: View {
                                 HStack(spacing: 6) {
                                     Image(systemName: "questionmark.circle.fill")
                                         .font(.system(size: 11))
-                                        .foregroundStyle(appState.selectedTheme.gradientColors.first ?? .blue)
+                                        .foregroundStyle(Color.accentColor)
                                     Text(appState.l("How does verification work?"))
                                         .font(.system(size: 11, weight: .semibold, design: .rounded))
                                         .foregroundStyle(.primary.opacity(0.85))
@@ -2827,8 +2792,7 @@ struct SupportDeveloperModal: View {
                 Color(nsColor: .windowBackgroundColor).opacity(0.82)
                 LinearGradient(
                     colors: [
-                        (appState.selectedTheme.gradientColors.first ?? .blue).opacity(0.18),
-                        appState.selectedTheme.glowColor.opacity(0.10),
+                        Color.blue.opacity(0.08),
                         Color.clear
                     ],
                     startPoint: .topLeading,
@@ -3496,7 +3460,7 @@ struct CreatePresetModalView: View {
         guard canSave else { return Color.primary.opacity(0.1) }
         if isBlocked { return Color.red }
         if isLocation { return Color.blue }
-        return appState.selectedTheme.gradientColors.first ?? Color.accentColor
+        return Color.accentColor
     }
 
     private func isValidItem(_ text: String) -> Bool {
@@ -4018,7 +3982,7 @@ struct ImportPresetModalView: View {
                     .padding(.vertical, 8)
                     .background(
                         parsedPreset != nil 
-                            ? (isBlockedContext ? Color.red : appState.selectedTheme.gradientColors.first!) 
+                            ? (isBlockedContext ? Color.red : Color.blue) 
                             : Color.primary.opacity(0.08)
                     )
                     .foregroundStyle(
@@ -4408,7 +4372,7 @@ struct ShareActiveWordsModalView: View {
                     .padding(.vertical, 8)
                     .background(
                         !selectedWords.isEmpty 
-                            ? (isBlocked ? Color.red : appState.selectedTheme.gradientColors.first!) 
+                            ? (isBlocked ? Color.red : Color.blue) 
                             : Color.primary.opacity(0.1)
                     )
                     .foregroundStyle(
@@ -5518,7 +5482,7 @@ struct VocabularySettingsView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    .toggleStyle(SwitchToggleStyle(tint: appState.selectedTheme.gradientColors.first ?? .blue))
+                    .toggleStyle(SwitchToggleStyle(tint: .blue))
                     .padding(10)
                     .background(Color.primary.opacity(0.025))
                     .cornerRadius(8)
@@ -5883,13 +5847,13 @@ struct GeneralSettingsView: View {
                                             .padding(.vertical, 7)
                                             .background(
                                                 RoundedRectangle(cornerRadius: 10)
-                                                    .fill(isSelected ? appState.selectedTheme.gradientColors.first!.opacity(0.18) : Color.primary.opacity(0.04))
+                                                    .fill(isSelected ? Color.blue.opacity(0.18) : Color.primary.opacity(0.04))
                                             )
                                             .overlay(
                                                 RoundedRectangle(cornerRadius: 10)
-                                                    .stroke(isSelected ? appState.selectedTheme.gradientColors.first!.opacity(0.4) : Color.primary.opacity(0.1), lineWidth: 1)
+                                                    .stroke(isSelected ? Color.blue.opacity(0.4) : Color.primary.opacity(0.1), lineWidth: 1)
                                             )
-                                            .foregroundStyle(isSelected ? appState.selectedTheme.gradientColors.first! : .secondary)
+                                            .foregroundStyle(isSelected ? Color.blue : .secondary)
                                         }
                                         .buttonStyle(.plain)
                                     }
@@ -6058,7 +6022,7 @@ struct CloudAISettingsView: View {
                                 }
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 7)
-                                .background(appState.selectedTheme.gradientColors.first!.opacity(0.12))
+                                .background(Color.blue.opacity(0.12))
                                 .cornerRadius(8)
                                 .buttonStyle(.plain)
                             }
@@ -6110,30 +6074,29 @@ struct CloudAISettingsView: View {
                     provider: .groq,
                     apiKey: key
                 )
-                testingConnection = false
-                testStatusMessage = "Scribe Pro License Active! Cloud features enabled."
+                await MainActor.run {
+                    testingConnection = false
+                    testStatusMessage = "Scribe Pro License Active! Cloud features enabled."
+                }
             } catch {
-                testingConnection = false
-                testStatusMessage = "License verification failed: \(error.localizedDescription)"
+                await MainActor.run {
+                    testingConnection = false
+                    testStatusMessage = "License verification failed: \(error.localizedDescription)"
+                }
             }
         }
     }
 }
 
-
 // MARK: - Sidebar Account Footer View
 struct SidebarAccountFooterView: View {
-    @ObservedObject var authService = AuthService.shared
     @EnvironmentObject var appState: AppState
+    @ObservedObject var authService = AuthService.shared
     @Binding var showingAuthModal: Bool
     @Binding var showingAccountSettingsModal: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Divider()
-                .opacity(0.3)
-                .padding(.bottom, 2)
-
+        VStack(spacing: 0) {
             if let user = authService.currentUser {
                 HStack(spacing: 8) {
                     // Profile details button (opens Account Settings)
@@ -6144,12 +6107,12 @@ struct SidebarAccountFooterView: View {
                             // Avatar / Initials Circle
                             ZStack {
                                 Circle()
-                                    .fill(appState.selectedTheme.gradientColors.first!.opacity(0.2))
+                                    .fill(Color.blue.opacity(0.2))
                                     .frame(width: 28, height: 28)
 
                                 Text(user.initials)
                                     .font(.system(size: 10, weight: .bold, design: .rounded))
-                                    .foregroundStyle(appState.selectedTheme.gradientColors.first!)
+                                    .foregroundStyle(Color.blue)
                             }
 
                             VStack(alignment: .leading, spacing: 1) {
@@ -6192,7 +6155,7 @@ struct SidebarAccountFooterView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "person.crop.circle.fill")
                             .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(appState.selectedTheme.gradientColors.first!)
+                            .foregroundStyle(Color.blue)
 
                         Text(appState.l("Sign In"))
                             .font(.system(size: 11, weight: .semibold, design: .rounded))
@@ -6237,7 +6200,7 @@ struct AccountSettingsModalView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "gearshape.fill")
                         .font(.title2)
-                        .foregroundStyle(appState.selectedTheme.gradientColors.first!)
+                        .foregroundStyle(Color.blue)
 
                     Text(appState.l("Account Settings"))
                         .font(.system(size: 16, weight: .bold, design: .rounded))
@@ -6262,12 +6225,12 @@ struct AccountSettingsModalView: View {
                     HStack(spacing: 14) {
                         ZStack {
                             Circle()
-                                .fill(appState.selectedTheme.gradientColors.first!.opacity(0.2))
+                                .fill(Color.blue.opacity(0.2))
                                 .frame(width: 44, height: 44)
 
                             Text(user.initials)
                                 .font(.system(size: 16, weight: .bold, design: .rounded))
-                                .foregroundStyle(appState.selectedTheme.gradientColors.first!)
+                                .foregroundStyle(Color.blue)
                         }
 
                         VStack(alignment: .leading, spacing: 3) {
@@ -6283,7 +6246,7 @@ struct AccountSettingsModalView: View {
                         }
                         Spacer()
                     }
-                    .padding(12)
+                    .padding(14)
                     .background(Color.primary.opacity(0.04))
                     .cornerRadius(12)
 
@@ -6500,7 +6463,7 @@ struct AuthModalView: View {
                     } else {
                         Image(systemName: "person.badge.key.fill")
                             .font(.title2)
-                            .foregroundStyle(appState.selectedTheme.gradientColors.first!)
+                            .foregroundStyle(Color.blue)
                     }
 
                     Text(headerTitle)
@@ -7188,12 +7151,12 @@ struct OnboardingNameModalView: View {
         VStack(spacing: 20) {
             ZStack {
                 Circle()
-                    .fill(appState.selectedTheme.gradientColors.first!.opacity(0.15))
+                    .fill(Color.blue.opacity(0.15))
                     .frame(width: 56, height: 56)
 
                 Image(systemName: "person.crop.circle.badge.plus")
                     .font(.system(size: 26, weight: .bold))
-                    .foregroundStyle(appState.selectedTheme.gradientColors.first!)
+                    .foregroundStyle(Color.blue)
             }
             .padding(.top, 10)
 
@@ -7277,7 +7240,7 @@ struct AppleNotesPermissionModalView: View {
                 // Large Icon with glow
                 ZStack {
                     Circle()
-                        .fill(appState.selectedTheme.gradientColors.first!.opacity(0.12))
+                        .fill(Color.blue.opacity(0.12))
                         .frame(width: 88, height: 88)
                         .blur(radius: 12)
 
@@ -7304,7 +7267,7 @@ struct AppleNotesPermissionModalView: View {
                     HStack(alignment: .top, spacing: 12) {
                         Image(systemName: "doc.badge.plus")
                             .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(appState.selectedTheme.gradientColors.first!)
+                            .foregroundStyle(Color.blue)
                             .frame(width: 24, height: 24)
 
                         VStack(alignment: .leading, spacing: 2) {
@@ -7320,7 +7283,7 @@ struct AppleNotesPermissionModalView: View {
                     HStack(alignment: .top, spacing: 12) {
                         Image(systemName: "lock.shield.fill")
                             .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(appState.selectedTheme.gradientColors.first!)
+                            .foregroundStyle(Color.blue)
                             .frame(width: 24, height: 24)
 
                         VStack(alignment: .leading, spacing: 2) {
@@ -7336,7 +7299,7 @@ struct AppleNotesPermissionModalView: View {
                     HStack(alignment: .top, spacing: 12) {
                         Image(systemName: "hand.raised.fill")
                             .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(appState.selectedTheme.gradientColors.first!)
+                            .foregroundStyle(Color.blue)
                             .frame(width: 24, height: 24)
 
                         VStack(alignment: .leading, spacing: 2) {
@@ -7380,18 +7343,18 @@ struct AppleNotesPermissionModalView: View {
                     } label: {
                         Text(appState.l("Allow & Connect Apple Notes"))
                             .font(.system(size: 14, weight: .bold, design: .rounded))
-                            .foregroundStyle(appState.selectedTheme.contrastTextColor)
+                            .foregroundStyle(Color.white)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 10)
                             .background(
                                 RoundedRectangle(cornerRadius: 10)
-                                    .fill(appState.selectedTheme.accentGradient)
+                                    .fill(Color.blue)
                             )
                             .overlay(
                                 RoundedRectangle(cornerRadius: 10)
                                     .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
                             )
-                            .shadow(color: appState.selectedTheme.glowColor.opacity(0.3), radius: 6, y: 2)
+                            .shadow(color: Color.blue.opacity(0.3), radius: 6, y: 2)
                     }
                     .buttonStyle(.plain)
 
@@ -7623,7 +7586,7 @@ struct BugReportView: View {
                     .padding(.vertical, 7)
                     .background(
                         RoundedRectangle(cornerRadius: 8)
-                            .fill(showSuccessBanner ? Color.green.opacity(0.18) : appState.selectedTheme.gradientColors.first!.opacity(0.85))
+                            .fill(showSuccessBanner ? Color.green.opacity(0.18) : Color.blue.opacity(0.85))
                     )
                     .foregroundStyle(showSuccessBanner ? .green : .white)
                 }
