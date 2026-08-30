@@ -952,7 +952,7 @@
       const title = document.getElementById('reportTitle').value.trim() || 'Scribe Issue Report';
       const subject = encodeURIComponent(`[Scribe ${currentType.toUpperCase()}] ${title}`);
       const body = encodeURIComponent(buildMarkdown());
-      window.location.href = `mailto:security@scribe.app?subject=${subject}&body=${body}`;
+      window.location.href = `mailto:scribe@dosimple.app?subject=${subject}&body=${body}`;
     }
 
     const TG_BOT_TOKEN = '8706935173:AAHa0PsYN8VcJpmubTYg3EN4jzkZv48UDjQ';

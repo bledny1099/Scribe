@@ -192,6 +192,46 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
     ) async throws -> String {
         logger.info("Aether Transcribing: \(audioURL.lastPathComponent), model: \(modelName), language: \(language ?? "auto-detect"), translate: \(autoTranslate)")
 
+        state = .transcribing
+
+        // 1. Stage B: Audio Conditioning (VAD, high-pass filter, loudness normalization)
+        guard let conditionedURL = AetherAudioConditioner.shared.condition(audioURL: audioURL) else {
+            logger.info("Audio contains no audible speech, skipping decoding to prevent hallucinations")
+            state = .done("")
+            return ""
+        }
+        let path = conditionedURL.path
+        let baseLang = language != nil ? baseLanguageCode(for: language!) : "auto"
+
+        // 2. Fast Path: Parakeet TDT 0.6B v3 Engine (NVIDIA FastConformer on Apple Neural Engine)
+        // If preferred languages are within the 25 European languages supported by Parakeet (or default auto RU/EN)
+        // and translation is not requested, use Parakeet for ultra-low latency & superior WER.
+        if !autoTranslate && ParakeetEngine.canHandle(language: language, preferredLanguages: preferredLanguages) {
+            do {
+                logger.info("Routing to Parakeet TDT v3 Engine on Apple Neural Engine...")
+                let rawParakeetText = try await ParakeetEngine.shared.transcribe(
+                    audioURL: conditionedURL,
+                    language: baseLang != "auto" ? baseLang : nil
+                )
+
+                if !rawParakeetText.isEmpty {
+                    var text = Self.cleanTranscription(rawParakeetText, preferredLanguages: preferredLanguages, targetLanguage: baseLang)
+                    let customVocabList = customVocabulary.components(separatedBy: CharacterSet(charactersIn: ",\n;")).map { $0.trimmingCharacters(in: .whitespaces) }
+                    text = AetherLinguisticValidator.shared.validateAndCorrect(
+                        text: text,
+                        language: baseLang != "auto" ? baseLang : language,
+                        customVocabulary: customVocabList
+                    )
+                    UserFrequencyDictionary.shared.record(text: text)
+                    logger.info("Parakeet TDT v3 transcription completed: '\(text)'")
+                    state = .done(text)
+                    return text
+                }
+            } catch {
+                logger.warning("Parakeet TDT v3 encountered an error: \(error.localizedDescription). Falling back to WhisperKit...")
+            }
+        }
+
         // Check if model is loaded; load if missing
         if whisperKit == nil || loadedModelName != modelName {
             try await ensureModelLoaded(modelName: modelName)
@@ -201,18 +241,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             throw TranscriptionError.modelNotLoaded
         }
 
-        state = .transcribing
-
-        // 1. Stage B: Audio Conditioning (VAD, high-pass filter, loudness normalization)
-        guard let conditionedURL = AetherAudioConditioner.shared.condition(audioURL: audioURL) else {
-            logger.info("Audio contains no audible speech, skipping Whisper decoding to prevent hallucinations")
-            state = .done("")
-            return ""
-        }
-        let path = conditionedURL.path
-
-        // 2. Configure DecodingOptions with high-performance decoding
-        let baseLang = language != nil ? baseLanguageCode(for: language!) : "auto"
+        // 3. Configure DecodingOptions with high-performance decoding
         var options = DecodingOptions(task: autoTranslate ? .translate : .transcribe)
         options.temperature = 0.0
         options.temperatureFallbackCount = 0

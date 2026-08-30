@@ -27,6 +27,7 @@
 		654788EAF4DDE1E76909FD20 /* SoundFeedback.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CBC037D320FA9FA6D66EBD7 /* SoundFeedback.swift */; };
 		74F7E12716D64CCFA449EDF8 /* NotePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92BFCE91C2AFC558D1E53CFE /* NotePickerView.swift */; };
 		7B374F86DA4A0185D8AF567E /* TranscriptionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03E3F01E9E6835C4E2BA39DD /* TranscriptionService.swift */; };
+		A0010013 /* ParakeetEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010013 /* ParakeetEngine.swift */; };
 		A0010007 /* AetherLinguisticValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010007 /* AetherLinguisticValidator.swift */; };
 		8580267BDF5EBAA8994647DD /* LaunchAtLoginHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = A33DFF31D403EFBFA043388C /* LaunchAtLoginHelper.swift */; };
 		94E79D85DBC1F87C1915FE93 /* NoteExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21275C02C08F216BDCACFB8D /* NoteExporter.swift */; };
@@ -63,6 +64,7 @@
 		B1010002 /* ObsidianIcon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = ObsidianIcon.png; sourceTree = "<group>"; };
 		B1010003 /* NotionIcon.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = NotionIcon.png; sourceTree = "<group>"; };
 		03E3F01E9E6835C4E2BA39DD /* TranscriptionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionService.swift; sourceTree = "<group>"; };
+		F0010013 /* ParakeetEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParakeetEngine.swift; sourceTree = "<group>"; };
 		F0010007 /* AetherLinguisticValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AetherLinguisticValidator.swift; sourceTree = "<group>"; };
 		F0010001 /* AetherAudioConditioner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AetherAudioConditioner.swift; sourceTree = "<group>"; };
 		F0010002 /* AetherContextEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AetherContextEngine.swift; sourceTree = "<group>"; };
@@ -140,6 +142,7 @@
 				F0010002 /* AetherContextEngine.swift */,
 				F0010007 /* AetherLinguisticValidator.swift */,
 				03E3F01E9E6835C4E2BA39DD /* TranscriptionService.swift */,
+				F0010013 /* ParakeetEngine.swift */,
 			);
 			path = Transcription;
 			sourceTree = "<group>";
@@ -231,6 +234,7 @@
 				AAB19E91900D4083BC190BB7 /* FirebaseAuth */,
 				14047F7F954970563D345122 /* FirebaseFirestore */,
 				9CCAD3105A335A2E5DDA45A9 /* GoogleSignIn */,
+				F2A2B3C4D5E6F7A8B9C0D1E2 /* FluidAudio */,
 			);
 			productName = Scribe;
 			productReference = 11345C81116DC36BA7419B25 /* Scribe.app */;
@@ -261,6 +265,7 @@
 				7EA3A1CBA43F53E1B94CE204 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
 				5B077F580E67245F3CFD203C /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
 				C0BF801CA08972DF3CD817FC /* XCRemoteSwiftPackageReference "WhisperKit" */,
+				F1A1B2C3D4E5F6A7B8C9D0E1 /* XCRemoteSwiftPackageReference "FluidAudio" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 637CC253C48F5DA69FAD3A59 /* Products */;
@@ -314,6 +319,7 @@
 				654788EAF4DDE1E76909FD20 /* SoundFeedback.swift in Sources */,
 				F884AE0AF8654BE0E2DEC1DE /* TranscriptionHistory.swift in Sources */,
 				7B374F86DA4A0185D8AF567E /* TranscriptionService.swift in Sources */,
+				A0010013 /* ParakeetEngine.swift in Sources */,
 				A0010007 /* AetherLinguisticValidator.swift in Sources */,
 				A0010001 /* AetherAudioConditioner.swift in Sources */,
 				A0010002 /* AetherContextEngine.swift in Sources */,
@@ -545,6 +551,14 @@
 				minimumVersion = 0.9.0;
 			};
 		};
+		F1A1B2C3D4E5F6A7B8C9D0E1 /* XCRemoteSwiftPackageReference "FluidAudio" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/FluidInference/FluidAudio.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.4.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -577,6 +591,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 3673031430673EC5A3BD0A49 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseAuth;
+		};
+		F2A2B3C4D5E6F7A8B9C0D1E2 /* FluidAudio */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F1A1B2C3D4E5F6A7B8C9D0E1 /* XCRemoteSwiftPackageReference "FluidAudio" */;
+			productName = FluidAudio;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
