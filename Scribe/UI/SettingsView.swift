@@ -210,7 +210,7 @@ struct SettingsView: View {
                         case .general:
                             GeneralSettingsView()
                         case .appearance:
-                    // SECTION 1: Overlay Theme & Style
+                    // SECTION: Overlay Theme & Style
                     GlassSection(title: appState.l("Overlay Theme"), icon: "sparkles") {
                         VStack(spacing: 16) {
                             // Overlay Theme (Color Accents)
@@ -281,45 +281,6 @@ struct SettingsView: View {
                                 )
                             }
 
-                            // Live Floating Preview Info Bar
-                            HStack {
-                                Label("Live Floating Preview", systemImage: "sparkles")
-                                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                                    .foregroundStyle(.secondary)
-                                Spacer()
-                                let currentStyle = appState.selectedOverlayStyle
-                                let currentSize = appState.selectedOverlaySize
-                                let scaled = RecordingPanel.size(for: currentStyle, overlaySize: currentSize)
-                                Text("\(Int(scaled.width)) × \(Int(scaled.height)) px")
-                                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                                    .foregroundStyle(.tertiary)
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(Color.primary.opacity(0.04))
-                            .cornerRadius(8)
-                        }
-                    }
-
-                    // SECTION 2: Window Appearance & Controls
-                    GlassSection(title: appState.l("Window & Controls"), icon: "macwindow") {
-                        VStack(spacing: 16) {
-                            // Panel Theme (Dark, Light, Liquid Glass)
-                            HStack {
-                                Text(appState.l("Panel Theme"))
-                                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.primary)
-                                Spacer()
-                                LiquidGlassSegmentedPicker(
-                                    items: PanelAppearance.allCases,
-                                    selection: Binding(
-                                        get: { appState.selectedPanelAppearance },
-                                        set: { appState.selectedPanelAppearance = $0 }
-                                    ),
-                                    label: { (appState.l($0.displayName), $0.icon) }
-                                )
-                            }
-
                             // Sound feedback
                             HStack {
                                 Text(appState.l("Sound Feedback"))
@@ -352,6 +313,24 @@ struct SettingsView: View {
                                     .toggleStyle(.switch)
                                     .labelsHidden()
                             }
+
+                            // Live Floating Preview Info Bar
+                            HStack {
+                                Label("Live Floating Preview", systemImage: "sparkles")
+                                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                let currentStyle = appState.selectedOverlayStyle
+                                let currentSize = appState.selectedOverlaySize
+                                let scaled = RecordingPanel.size(for: currentStyle, overlaySize: currentSize)
+                                Text("\(Int(scaled.width)) × \(Int(scaled.height)) px")
+                                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color.primary.opacity(0.04))
+                            .cornerRadius(8)
                         }
                     }
 
