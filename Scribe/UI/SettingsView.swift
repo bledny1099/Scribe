@@ -5966,46 +5966,22 @@ struct GeneralSettingsView: View {
                     }
 
                     if appState.livePreviewEnabled {
-                        VStack(spacing: 14) {
-                            VStack(alignment: .leading, spacing: 10) {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(appState.l("Preview Mode"))
-                                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                                        .foregroundStyle(.primary)
-                                    Text(appState.l("Floating card or real-time typing directly into active window"))
-                                        .font(.system(size: 11))
-                                        .foregroundStyle(.secondary)
-                                }
-
-                                LiquidGlassSegmentedPicker(
-                                    items: LivePreviewMode.allCases,
-                                    selection: Binding(
-                                        get: { appState.livePreviewMode },
-                                        set: { appState.livePreviewMode = $0 }
-                                    ),
-                                    label: { (appState.l($0.displayName), $0.icon) }
-                                )
-                            }
-
-                            if appState.livePreviewMode == .external || appState.livePreviewMode == .both {
-                                HStack {
-                                    Text(appState.l("Preview Background"))
-                                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                                        .foregroundStyle(.primary)
-                                    Spacer()
-                                    LiquidGlassSegmentedPicker(
-                                        items: SubtitleBackground.allCases,
-                                        selection: Binding(
-                                            get: { appState.livePreviewBackground },
-                                            set: {
-                                                appState.livePreviewBackground = $0
-                                                appState.showSettingsPreviewFor5Seconds()
-                                            }
-                                        ),
-                                        label: { (appState.l($0.displayName), $0.icon) }
-                                    )
-                                }
-                            }
+                        HStack {
+                            Text(appState.l("Preview Background"))
+                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            LiquidGlassSegmentedPicker(
+                                items: SubtitleBackground.allCases,
+                                selection: Binding(
+                                    get: { appState.livePreviewBackground },
+                                    set: {
+                                        appState.livePreviewBackground = $0
+                                        appState.showSettingsPreviewFor5Seconds()
+                                    }
+                                ),
+                                label: { (appState.l($0.displayName), $0.icon) }
+                            )
                         }
                         .padding(.top, 4)
                         .transition(.opacity.combined(with: .move(edge: .top)))

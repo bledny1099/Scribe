@@ -883,11 +883,8 @@ final class AppState: ObservableObject {
         guard isRecording else { return }
         stopDurationTimer()
         if livePreviewEnabled { stopLiveStreaming() }
-        if (livePreviewMode == .directInsert || livePreviewMode == .both) && !liveStreamLastInsertedText.isEmpty {
-            PasteService.sendBackspaces(count: liveStreamLastInsertedText.count)
-            liveStreamLastInsertedText = ""
-        }
         livePreviewText = ""
+        liveStreamLastInsertedText = ""
         let audioURL = audioRecorder.stopRecording()
         isRecording = false
         recordingStatus = .idle
@@ -1054,22 +1051,6 @@ final class AppState: ObservableObject {
 
                 logger.info("Transcription result: '\(text)'")
 
-                let isDirectInserted = (self.livePreviewMode == .directInsert || self.livePreviewMode == .both)
-
-                if isDirectInserted && !self.liveStreamLastInsertedText.isEmpty {
-                    // Smoothly reconcile final high-accuracy text with streamed draft
-                    let commonPrefix = self.longestCommonPrefix(self.liveStreamLastInsertedText, text)
-                    let backspacesNeeded = self.liveStreamLastInsertedText.count - commonPrefix.count
-                    if backspacesNeeded > 0 {
-                        PasteService.sendBackspaces(count: backspacesNeeded)
-                    }
-                    let suffixToType = String(text.dropFirst(commonPrefix.count))
-                    if !suffixToType.isEmpty {
-                        PasteService.typeText(suffixToType)
-                    }
-                    self.liveStreamLastInsertedText = ""
-                }
-
                 if text.isEmpty {
                     logger.warning("Transcription returned empty text")
                     recordingStatus = .error("No speech")
@@ -1109,8 +1090,6 @@ final class AppState: ObservableObject {
 
                     if isNotesOnly {
                         logger.info("Integrations-only mode active: Skipping active window paste.")
-                    } else if isDirectInserted {
-                        logger.info("Direct window insertion already completed seamlessly inline.")
                     } else {
                         logger.info("Text copied to clipboard, simulating paste…")
                         // Brief delay so the user sees the checkmark, then paste
@@ -1703,60 +1682,7 @@ final class AppState: ObservableObject {
         return String(format: "%d:%02d", mins, secs)
     }
 
-    // MARK: - Live Preview & Direct Window Streaming
-
-    /// Computes the longest common prefix between two strings to minimize backspacing.
-    private func longestCommonPrefix(_ s1: String, _ s2: String) -> String {
-        let chars1 = Array(s1)
-        let chars2 = Array(s2)
-        var index = 0
-        while index < chars1.count && index < chars2.count && chars1[index] == chars2[index] {
-            index += 1
-        }
-        return String(chars1.prefix(index))
-    }
-
-    /// Smoothly streams live text into the active window without destructive full-sentence erasure.
-    private func streamDirectWindowText(_ newRawText: String) {
-        guard isRecording else { return }
-        
-        let adjustedText = PasteService.adjustCasingForContext(text: newRawText)
-        
-        if liveStreamLastInsertedText.isEmpty {
-            PasteService.typeText(adjustedText)
-            liveStreamLastInsertedText = adjustedText
-            return
-        }
-        
-        if adjustedText == liveStreamLastInsertedText {
-            return
-        }
-        
-        // Find longest common prefix between what was already typed and new text
-        let commonPrefix = longestCommonPrefix(liveStreamLastInsertedText, adjustedText)
-        
-        // If the new text just appends more characters (e.g. "Привет" -> "Привет мир")
-        if commonPrefix.count == liveStreamLastInsertedText.count {
-            let suffix = String(adjustedText.dropFirst(commonPrefix.count))
-            if !suffix.isEmpty {
-                PasteService.typeText(suffix)
-                liveStreamLastInsertedText = adjustedText
-            }
-            return
-        }
-        
-        // If the recognizer changed only the last few characters / words:
-        let backspacesNeeded = liveStreamLastInsertedText.count - commonPrefix.count
-        if backspacesNeeded > 0 {
-            PasteService.sendBackspaces(count: backspacesNeeded)
-        }
-        
-        let suffixToType = String(adjustedText.dropFirst(commonPrefix.count))
-        if !suffixToType.isEmpty {
-            PasteService.typeText(suffixToType)
-        }
-        liveStreamLastInsertedText = adjustedText
-    }
+    // MARK: - Live Preview (Floating Card Overlay)
 
     private func startLiveStreaming() {
         let isSingle = self.recognitionMode == "singleLanguage"
@@ -1768,7 +1694,6 @@ final class AppState: ObservableObject {
         } else {
             langParam = "ru"
         }
-        liveStreamLastInsertedText = ""
         do {
             try transcriptionService.startStreaming(
                 language: langParam,
@@ -1803,13 +1728,7 @@ final class AppState: ObservableObject {
                     to: formatted
                 )
                 
-                if self.livePreviewMode == .external || self.livePreviewMode == .both {
-                    self.livePreviewText = formatted
-                }
-                
-                if (self.livePreviewMode == .directInsert || self.livePreviewMode == .both) && !formatted.isEmpty {
-                    self.streamDirectWindowText(formatted)
-                }
+                self.livePreviewText = formatted
             }
             audioRecorder.onBufferTap = { [weak self] buffer in
                 self?.transcriptionService.append(buffer)
