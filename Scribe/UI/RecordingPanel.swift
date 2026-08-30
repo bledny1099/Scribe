@@ -206,19 +206,25 @@ final class RecordingPanel: NSPanel {
         switch appearance {
         case .dark:
             self.appearance = NSAppearance(named: .vibrantDark)
-            blurView.material = .hudWindow
+            blurView.material = .underWindowBackground
             blurView.wantsLayer = true
-            blurView.layer?.backgroundColor = NSColor(white: 0.06, alpha: 0.94).cgColor
+            blurView.layer?.backgroundColor = NSColor(white: 0.015, alpha: 0.98).cgColor
+            blurView.layer?.borderWidth = 0.8
+            blurView.layer?.borderColor = NSColor(white: 1.0, alpha: 0.08).cgColor
         case .light:
             self.appearance = NSAppearance(named: .vibrantLight)
             blurView.material = .hudWindow
             blurView.wantsLayer = true
-            blurView.layer?.backgroundColor = NSColor(white: 0.94, alpha: 0.90).cgColor
+            blurView.layer?.backgroundColor = NSColor(white: 0.96, alpha: 0.92).cgColor
+            blurView.layer?.borderWidth = 0.8
+            blurView.layer?.borderColor = NSColor(white: 0.0, alpha: 0.10).cgColor
         case .liquidGlass:
             self.appearance = NSAppearance(named: .vibrantDark)
             blurView.material = .hudWindow
             blurView.wantsLayer = true
-            blurView.layer?.backgroundColor = NSColor(white: 0.04, alpha: 0.84).cgColor
+            blurView.layer?.backgroundColor = NSColor(white: 0.05, alpha: 0.50).cgColor
+            blurView.layer?.borderWidth = 1.0
+            blurView.layer?.borderColor = NSColor(white: 1.0, alpha: 0.20).cgColor
         }
     }
 
