@@ -771,6 +771,7 @@ final class TextReplacer {
     /// Built-in vocabulary terms auto-cased & recognized natively
     public static let builtInVocabulary: [String] = [
         "swag", "топчик", "анскилл", "skill", "MCP", "viperr", "Kai Angel", "9mice",
+        "вайб-кодинг", "вайбкодинг", "vibe coding",
         "Claude Code", "Antigravity", "Ollama", "PyTorch", "Supabase", "SwiftData",
         "Docker", "Kubernetes", "Next.js", "Rust", "WhisperKit",
         "HuggingFace", "Vercel", "TailwindCSS", "PostgreSQL", "GraphQL",
@@ -802,6 +803,27 @@ final class TextReplacer {
         Replacement(phrase: "уфлотинг пил", replacement: "Floating Pill"),
         Replacement(phrase: "флотинг пил", replacement: "Floating Pill"),
         
+        // Vibe coding acoustic corrections & variants
+        Replacement(phrase: "вайб кодина", replacement: "вайб-кодинг"),
+        Replacement(phrase: "вайб кодину", replacement: "вайб-кодингу"),
+        Replacement(phrase: "вайб кодинга", replacement: "вайб-кодинга"),
+        Replacement(phrase: "вайб кодингом", replacement: "вайб-кодингом"),
+        Replacement(phrase: "вайб кодинге", replacement: "вайб-кодинге"),
+        Replacement(phrase: "вайб кодинг", replacement: "вайб-кодинг"),
+        Replacement(phrase: "вайп кодинг", replacement: "вайб-кодинг"),
+        Replacement(phrase: "вайп-кодинг", replacement: "вайб-кодинг"),
+        Replacement(phrase: "вайпкодинг", replacement: "вайб-кодинг"),
+        Replacement(phrase: "вайбкодина", replacement: "вайб-кодинг"),
+        Replacement(phrase: "вайп кодина", replacement: "вайб-кодинг"),
+        Replacement(phrase: "вайп кодину", replacement: "вайб-кодингу"),
+        Replacement(phrase: "вайп кодинга", replacement: "вайб-кодинга"),
+        Replacement(phrase: "вайп кодингом", replacement: "вайб-кодингом"),
+        Replacement(phrase: "вайп кодинге", replacement: "вайб-кодинге"),
+        Replacement(phrase: "vibe code", replacement: "vibe coding"),
+        Replacement(phrase: "vibecoding", replacement: "vibe coding"),
+        Replacement(phrase: "вайб кодить", replacement: "вайбкодить"),
+        Replacement(phrase: "вайп кодить", replacement: "вайбкодить"),
+
         // Slang & Music & Community terms
         Replacement(phrase: "top chick", replacement: "топчик"),
         Replacement(phrase: "top chic", replacement: "топчик"),
@@ -848,6 +870,133 @@ final class TextReplacer {
         "Translated by"
     ]
 
+    // MARK: - Game Score Formatting (e.g. "3:0", "2:1", "0:0", "со счетом 3:0")
+
+    private static let verbalNumberMap: [String: Int] = [
+        "ноль": 0, "нуль": 0, "нулю": 0, "нуля": 0, "нолю": 0, "нулем": 0, "нулём": 0,
+        "один": 1, "одна": 1, "одно": 1, "одного": 1, "одному": 1, "одним": 1,
+        "два": 2, "две": 2, "двух": 2, "двум": 2, "двумя": 2,
+        "три": 3, "трех": 3, "трёх": 3, "трем": 3, "трём": 3, "тремя": 3,
+        "четыре": 4, "четырех": 4, "четырёх": 4, "четырем": 4, "четырём": 4, "четырьмя": 4,
+        "пять": 5, "пяти": 5, "пятью": 5,
+        "шесть": 6, "шести": 6, "шестью": 6,
+        "семь": 7, "семи": 7, "семью": 7,
+        "восемь": 8, "восьми": 8, "восьмью": 8,
+        "девять": 9, "девяти": 9, "девятью": 9,
+        "десять": 10, "десяти": 10, "десятью": 10,
+        "одиннадцать": 11, "одиннадцати": 11,
+        "двенадцать": 12, "двенадцати": 12,
+        "тринадцать": 13, "тринадцати": 13,
+        "четырнадцать": 14, "четырнадцати": 14,
+        "пятнадцать": 15, "пятнадцати": 15,
+        "шестнадцать": 16, "шестнадцати": 16,
+        "семнадцать": 17, "семнадцати": 17,
+        "восемнадцать": 18, "восемнадцати": 18,
+        "девятнадцать": 19, "девятнадцати": 19,
+        "двадцать": 20, "двадцати": 20,
+        // English
+        "zero": 0, "nil": 0, "love": 0,
+        "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
+        "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10
+    ]
+
+    private static func parseScoreNumber(_ token: String) -> Int? {
+        let clean = token.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        if let direct = Int(clean) { return direct }
+        return verbalNumberMap[clean]
+    }
+
+    /// Formats game scores dictated verbally or with hyphens/spaces into digit:digit format (e.g. "3:0", "со счетом 2:1").
+    public static func formatGameScores(in text: String) -> String {
+        var result = text
+
+        // 1. Explicit score context trigger: "со счетом X Y", "счет X Y", "score X Y", "сыграли X Y", "вели X Y", "раунд X Y", etc.
+        let triggerPattern = "(?i)\\b(со\\s+счетом|со\\s+счётом|счет|счёт|счетом|счётом|score|выиграли|выиграл|проиграли|проиграл|сыграли|сыграл|победили|победил|вели|ведет|ведёт|ведут|раунд|матч)\\s+(?:в\\s+)?([a-zA-Zа-яА-ЯёЁ0-9]+)\\s*(?:-|–|—|:|[\\s]+|к|to)\\s*([a-zA-Zа-яА-ЯёЁ0-9]+)\\b"
+        if let regex = try? NSRegularExpression(pattern: triggerPattern) {
+            let nsStr = result as NSString
+            let matches = regex.matches(in: result, options: [], range: NSRange(location: 0, length: nsStr.length))
+            for match in matches.reversed() {
+                if match.numberOfRanges >= 4,
+                   let prefixRange = Range(match.range(at: 1), in: result),
+                   let token1Range = Range(match.range(at: 2), in: result),
+                   let token2Range = Range(match.range(at: 3), in: result),
+                   let fullRange = Range(match.range, in: result) {
+                    let prefix = String(result[prefixRange])
+                    let t1 = String(result[token1Range])
+                    let t2 = String(result[token2Range])
+                    if let n1 = parseScoreNumber(t1), let n2 = parseScoreNumber(t2) {
+                        let scoreStr = "\(prefix) \(n1):\(n2)"
+                        result.replaceSubrange(fullRange, with: scoreStr)
+                    }
+                }
+            }
+        }
+
+        // 2. Standalone score expressions with "ноль" / "нуль" / "zero" / "nil":
+        // e.g. "три ноль" -> "3:0", "ноль ноль" -> "0:0", "3 ноль" -> "3:0", "5 ноль" -> "5:0", "10 ноль" -> "10:0"
+        let zeroPattern1 = "(?i)\\b([a-zA-Zа-яА-ЯёЁ0-9]+)\\s*(?:-|–|—|\\s+)\\s*(ноль|нуль|нулю|нуля|zero|nil)\\b"
+        if let regex = try? NSRegularExpression(pattern: zeroPattern1) {
+            let nsStr = result as NSString
+            let matches = regex.matches(in: result, options: [], range: NSRange(location: 0, length: nsStr.length))
+            for match in matches.reversed() {
+                if match.numberOfRanges >= 3,
+                   let token1Range = Range(match.range(at: 1), in: result),
+                   let fullRange = Range(match.range, in: result) {
+                    let t1 = String(result[token1Range])
+                    if let n1 = parseScoreNumber(t1) {
+                        result.replaceSubrange(fullRange, with: "\(n1):0")
+                    }
+                }
+            }
+        }
+
+        // e.g. "ноль один" -> "0:1", "ноль два" -> "0:2", "ноль три" -> "0:3"
+        let zeroPattern2 = "(?i)\\b(ноль|нуль|zero)\\s*(?:-|–|—|\\s+)\\s*([a-zA-Zа-яА-ЯёЁ0-9]+)\\b"
+        if let regex = try? NSRegularExpression(pattern: zeroPattern2) {
+            let nsStr = result as NSString
+            let matches = regex.matches(in: result, options: [], range: NSRange(location: 0, length: nsStr.length))
+            for match in matches.reversed() {
+                if match.numberOfRanges >= 3,
+                   let token2Range = Range(match.range(at: 2), in: result),
+                   let fullRange = Range(match.range, in: result) {
+                    let t2 = String(result[token2Range])
+                    if let n2 = parseScoreNumber(t2) {
+                        result.replaceSubrange(fullRange, with: "0:\(n2)")
+                    }
+                }
+            }
+        }
+
+        // 3. Standalone pairs connected by "к" / "to":
+        // e.g. "три к одному" -> "3:1", "3 к 1" -> "3:1", "два к одному" -> "2:1", "3 to 1" -> "3:1"
+        let toPattern = "(?i)\\b([a-zA-Zа-яА-ЯёЁ0-9]+)\\s+(?:к|to)\\s+([a-zA-Zа-яА-ЯёЁ0-9]+)\\b"
+        if let regex = try? NSRegularExpression(pattern: toPattern) {
+            let nsStr = result as NSString
+            let matches = regex.matches(in: result, options: [], range: NSRange(location: 0, length: nsStr.length))
+            for match in matches.reversed() {
+                if match.numberOfRanges >= 3,
+                   let token1Range = Range(match.range(at: 1), in: result),
+                   let token2Range = Range(match.range(at: 2), in: result),
+                   let fullRange = Range(match.range, in: result) {
+                    let t1 = String(result[token1Range])
+                    let t2 = String(result[token2Range])
+                    if let n1 = parseScoreNumber(t1), let n2 = parseScoreNumber(t2) {
+                        result.replaceSubrange(fullRange, with: "\(n1):\(n2)")
+                    }
+                }
+            }
+        }
+
+        // 4. Standalone digits separated by hyphen/dash when 0 is involved: e.g. "3-0" -> "3:0", "0-3" -> "0:3", "3 - 0" -> "3:0"
+        result = result.replacingOccurrences(of: "(?i)\\b(\\d{1,2})\\s*[-–—]\\s*(0)\\b", with: "$1:0", options: .regularExpression)
+        result = result.replacingOccurrences(of: "(?i)\\b(0)\\s*[-–—]\\s*(\\d{1,2})\\b", with: "0:$2", options: .regularExpression)
+
+        // 5. Clean up colon formatting if surrounded by spaces: e.g. "3 : 0" -> "3:0"
+        result = result.replacingOccurrences(of: "(?<=\\d)\\s*:\\s*(?=\\d)", with: ":", options: .regularExpression)
+
+        return result
+    }
+
     /// Applies default phonetic replacements, custom replacements, vocabulary auto-casing, and blocked words filtering.
     static func apply(replacements: [Replacement], vocabulary: String = "", blockedWords: String = "", blockedAction: String = "remove", to text: String) -> String {
         let allReplacements = defaultPhoneticReplacements + replacements
@@ -889,6 +1038,9 @@ final class TextReplacer {
             result = result.replacingOccurrences(of: "\\s+([.,!?:;])", with: "$1", options: .regularExpression)
             result = result.trimmingCharacters(in: .whitespacesAndNewlines)
         }
+
+        // 4. Game Score Auto-Formatting (e.g. "3:0", "со счетом 2:1", "три ноль")
+        result = formatGameScores(in: result)
 
         return result
     }

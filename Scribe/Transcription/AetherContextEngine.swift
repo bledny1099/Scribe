@@ -217,6 +217,8 @@ public final class AetherContextEngine: @unchecked Sendable {
            bundleId.contains("cursor") ||
            bundleId.contains("antigravity") ||
            bundleId.contains("windsurf") ||
+           bundleId.contains("trae") ||
+           bundleId.contains("fleet") ||
            bundleId.contains("zed") ||
            bundleId.contains("terminal") ||
            bundleId.contains("iterm") ||
@@ -232,6 +234,10 @@ public final class AetherContextEngine: @unchecked Sendable {
            bundleId.contains("android.studio") ||
            nameLower.contains("cursor") ||
            nameLower.contains("xcode") ||
+           nameLower.contains("antigravity") ||
+           nameLower.contains("windsurf") ||
+           nameLower.contains("trae") ||
+           nameLower.contains("zed") ||
            nameLower.contains("terminal") {
             return (name, .ideAndCoding, bundleId, icon)
         }
@@ -373,12 +379,13 @@ public final class AetherContextEngine: @unchecked Sendable {
         switch domain {
         case .ideAndCoding:
             return [
-                "vibe coding", "Claude Code", "Antigravity", "Antigravity 2.0", "Ollama", "PyTorch", "WhisperKit",
+                "вайб-кодинг", "вайбкодинг", "vibe coding", "Claude Code", "Antigravity", "Antigravity 2.0", "Ollama", "PyTorch", "WhisperKit",
                 "TypeScript", "SwiftUI", "SwiftData", "Rust", "Next.js", "TailwindCSS", "PostgreSQL", "GraphQL",
                 "Docker", "Kubernetes", "Supabase", "Vercel", "GitHub", "GitLab", "Xcode", "VS Code", "Terminal",
                 "API", "SDK", "JSON", "regex", "refactor", "pull request", "commit", "merge", "branch", "async",
                 "await", "struct", "class", "enum", "endpoint", "backend", "frontend", "fullstack", "MCP",
-                "коммит", "пул реквест", "ветка", "деплой", "баг", "пофиксить", "рефакторинг", "функция", "эндпоинт"
+                "коммит", "пул реквест", "ветка", "деплой", "баг", "пофиксить", "рефакторинг", "функция", "эндпоинт",
+                "создай", "сделай", "напиши", "добавь", "удали", "запусти", "пофикси", "настрой"
             ]
         case .messengersAndChat:
             return [
@@ -408,11 +415,6 @@ public final class AetherContextEngine: @unchecked Sendable {
             ]
         case .medicalAndHealth:
             return [
-                "МРТ", "КТ", "УЗИ", "ЭКГ", "ЭхоКГ", "Холтер", "ЭЭГ", "ФГДС", "Колоноскопия", "Биопсия", "Лапароскопия",
-                "ОАК", "ОАМ", "Биохимия", "Коагулограмма", "Гликированный гемоглобин", "СОЭ", "С-реактивный белок",
-                "Ферритин", "Д-димер", "Тропонин", "Креатинин", "АЛТ", "АСТ", "Билирубин", "ТТГ", "Т3", "Т4", "Кортизол",
-                "Кардиология", "Неврология", "Эндокринология", "Гастроэнтерология", "Пульмонология", "Онкология", "Хирургия",
-                "Аспирин", "Ибупрофен", "Парацетамол", "Амоксициллин", "Дексаметазон", "Омепразол", "Метформин", "Инсулин",
                 "Гипертензия", "Инфаркт миокарда", "Аритмия", "Инсульт", "Диабет", "Гипотиреоз", "Гастрит", "Пневмония", "Астма"
             ]
         case .nutritionAndBiohacking:
@@ -544,11 +546,11 @@ public final class AetherContextEngine: @unchecked Sendable {
         switch domain {
         case .ideAndCoding:
             if isRussianOnly {
-                return "Команды для разработки, терминала и ИИ-ассистента: создай, сделай, добавь, напиши, удали, пофикси, запусти, проверь, обнови, настрой, открой, закрой, поменяй, переименуй, задеплой, Git, Swift, TypeScript, Python, Docker, API, PR, commit, merge, branch, function, async, await, deploy, bugs."
+                return "Вайб-кодинг и разработка в IDE: команды для ИИ и терминала (создай, сделай, добавь, напиши, удали, пофикси, запусти, проверь, обнови, настрой, открой, закрой, поменяй, переименуй, задеплой, вайб-кодинг, вайбкодинг), термины разработки (Git, Swift, TypeScript, Python, Docker, API, PR, commit, merge, branch, function, async, await, deploy, bugs, MCP, Antigravity, Claude Code)."
             } else if isEnglishOnly {
-                return "Developer commands and AI instructions: create, make, add, write, delete, fix, run, check, update, configure, open, close, change, rename, deploy, Git, Swift, TypeScript, Python, Docker, API, PR, commit, merge, branch, function, async, await, deploy, bugs."
+                return "Vibe coding and IDE development: AI agent instructions (create, make, add, write, delete, fix, run, check, update, configure, open, close, change, rename, deploy, vibe coding), programming terms (Git, Swift, TypeScript, Python, Docker, API, PR, commit, merge, branch, function, async, await, deploy, bugs, MCP, Antigravity, Claude Code)."
             } else {
-                return "Bilingual code development & AI commands (Russian & English): создай, сделай, добавь, напиши, удали, пофикси, запусти, проверь, Git, Swift, Xcode, TypeScript, Python, Docker, API, PR, commit, merge, branch, function, async, await, deploy, bugs."
+                return "Bilingual vibe coding & IDE AI commands (Russian & English): вайб-кодинг, вайбкодинг, vibe coding, создай, сделай, добавь, напиши, удали, пофикси, запусти, проверь, Git, Swift, Xcode, TypeScript, Python, Docker, API, PR, commit, merge, branch, function, async, await, deploy, bugs, MCP, Antigravity, Claude Code."
             }
         case .messengersAndChat:
             if isRussianOnly {

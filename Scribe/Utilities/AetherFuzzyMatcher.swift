@@ -71,6 +71,13 @@ public final class AetherFuzzyMatcher: @unchecked Sendable {
         "клауд": "Claude",
         "клод код": "Claude Code",
         "клауд код": "Claude Code",
+        "вайб кодинг": "вайб-кодинг",
+        "вайп кодинг": "вайб-кодинг",
+        "вайп-кодинг": "вайб-кодинг",
+        "вайбкодина": "вайб-кодинг",
+        "вайб кодина": "вайб-кодинг",
+        "вайп кодина": "вайб-кодинг",
+        "вайбкодинг": "вайбкодинг",
         "гемнай": "Gemini",
         "джеминай": "Gemini",
         "джемини": "Gemini"
@@ -78,6 +85,9 @@ public final class AetherFuzzyMatcher: @unchecked Sendable {
 
     /// Morphological phonetic & acoustic correction patterns (e.g. speech mishearing of roots)
     private let commonPhoneticRules: [(pattern: String, template: String)] = [
+        // Vibe coding acoustic corrections
+        ("(?i)\\bвай[бп]\\s*кодина\\b", "вайб-кодинг"),
+        ("(?i)\\bвай[бп]\\s*кодин([а-яё]*)", "вайб-кодин$1"),
         // Nautical / Geographic / Historical roots (e.g. моревлаватели -> мореплаватели)
         ("(?i)\\bморевлав([а-яё]*)", "мореплав$1"),
         ("(?i)\\bперво открывател([а-яё]*)", "первооткрывател$1"),
