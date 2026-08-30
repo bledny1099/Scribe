@@ -386,14 +386,22 @@ struct SettingsView: View {
                                     Spacer()
                                     LiquidGlassMenu(
                                         items: [
-                                            "Aether Hybrid (Recommended)",
+                                            "Aether Neural (Recommended)",
                                             "Aether Turbo",
                                             "Aether Instant"
                                         ],
                                         selection: $appState.recognitionEngine,
-                                        title: { id in appState.l(id) },
+                                        title: { id in
+                                            if id.contains("Neural") && !appState.isParakeetSupported {
+                                                return appState.l("Aether Neural (RU / EN only)")
+                                            }
+                                            return appState.l(id)
+                                        },
                                         displayTitle: { id in
-                                            id.contains("Hybrid") ? appState.l("Aether Hybrid") : appState.l(id)
+                                            if id.contains("Neural") {
+                                                return appState.isParakeetSupported ? "Aether Neural" : "Aether (Whisper fallback)"
+                                            }
+                                            return appState.l(id)
                                         }
                                     )
                                 }
@@ -463,35 +471,42 @@ struct SettingsView: View {
 
                             // Active Engine & Neural Architecture Info Card
                             HStack(spacing: 12) {
-                                Image(systemName: "cpu.fill")
+                                Image(systemName: appState.isParakeetSupported ? "cpu.fill" : "waveform.badge.magnifyingglass")
                                     .font(.system(size: 18, weight: .semibold))
-                                    .foregroundStyle(.blue)
+                                    .foregroundStyle(appState.isParakeetSupported ? Color.green : Color.blue)
 
                                 VStack(alignment: .leading, spacing: 3) {
-                                    let isParakeet = ParakeetEngine.canHandle(
-                                        language: appState.recognitionMode == "singleLanguage" ? appState.singleDictationLanguage : nil,
-                                        preferredLanguages: appState.recognitionMode == "multilingual" ? appState.multilingualLanguages : []
-                                    ) && !appState.autoTranslate
-
                                     HStack(spacing: 6) {
                                         Text(appState.l("Active Speech Engine:"))
                                             .font(.system(size: 12, weight: .semibold, design: .rounded))
                                             .foregroundStyle(.primary)
 
-                                        Text(isParakeet ? "Parakeet TDT 0.6B v3" : "WhisperKit")
-                                            .font(.system(size: 10.5, weight: .bold, design: .monospaced))
-                                            .foregroundStyle(isParakeet ? Color.green : Color.blue)
-                                            .padding(.horizontal, 6)
-                                            .padding(.vertical, 2)
-                                            .background(
-                                                Capsule()
-                                                    .fill((isParakeet ? Color.green : Color.blue).opacity(0.12))
-                                            )
+                                        if appState.isParakeetSupported {
+                                            Text("Aether Neural (Parakeet TDT 0.6B)")
+                                                .font(.system(size: 10.5, weight: .bold, design: .monospaced))
+                                                .foregroundStyle(Color.green)
+                                                .padding(.horizontal, 6)
+                                                .padding(.vertical, 2)
+                                                .background(
+                                                    Capsule()
+                                                        .fill(Color.green.opacity(0.12))
+                                                )
+                                        } else {
+                                            Text("WhisperKit Multilingual")
+                                                .font(.system(size: 10.5, weight: .bold, design: .monospaced))
+                                                .foregroundStyle(Color.blue)
+                                                .padding(.horizontal, 6)
+                                                .padding(.vertical, 2)
+                                                .background(
+                                                    Capsule()
+                                                        .fill(Color.blue.opacity(0.12))
+                                                )
+                                        }
                                     }
 
-                                    Text(isParakeet
-                                        ? appState.l("High-speed NVIDIA FastConformer + TDT running on Apple Neural Engine (ANE) for Russian, English & 25 EU languages. Instant latency, zero hallucinations & built-in punctuation.")
-                                        : appState.l("Multilingual WhisperKit engine active for 99+ world languages and real-time speech translation.")
+                                    Text(appState.isParakeetSupported
+                                        ? appState.l("High-speed NVIDIA FastConformer + TDT running on Apple Neural Engine (ANE) for Russian, English & EU languages. Instant latency, zero hallucinations & built-in punctuation.")
+                                        : appState.l("WhisperKit multilingual engine active for 99+ languages. Aether Neural (Parakeet) is enabled when Russian or English is selected.")
                                     )
                                     .font(.system(size: 10.5, weight: .regular))
                                     .foregroundStyle(.secondary)

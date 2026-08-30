@@ -548,15 +548,26 @@ final class AppState: ObservableObject {
     }
     @AppStorage("allowAnonymousVocabularyContribution") public var allowAnonymousVocabularyContribution: Bool = false
     @AppStorage("hasPromptedVocabularyDataSharing") public var hasPromptedVocabularyDataSharing: Bool = false
-    @AppStorage("recognitionEngine") public var recognitionEngine: String = "Aether Hybrid (Recommended)"
+    @AppStorage("recognitionEngine") public var recognitionEngine: String = "Aether Neural (Recommended)"
     
+    public var isParakeetSupported: Bool {
+        ParakeetEngine.canHandle(
+            language: recognitionMode == "singleLanguage" ? singleDictationLanguage : nil,
+            preferredLanguages: recognitionMode == "multilingual" ? multilingualLanguages : []
+        ) && !autoTranslate
+    }
+
     public var recognitionEngineDescription: String {
         if recognitionEngine.contains("Instant") {
             return l("Aether Instant uses Apple's built-in native speech engine with zero model downloads (~0 MB) and instant real-time transcription.")
         } else if recognitionEngine.contains("Turbo") {
-            return l("Aether Turbo uses lightweight quantized Whisper models for fast, low-latency offline dictation.")
+            return l("Aether Turbo uses lightweight quantized Whisper models for fast, low-latency offline dictation across 99+ languages.")
         } else {
-            return l("Aether combines Audio VAD, dynamic app context conditioning, and lexical fuzzy matching for zero-hallucination, studio-grade speech transcription.")
+            if isParakeetSupported {
+                return l("Aether Neural uses NVIDIA Parakeet TDT 0.6B on Apple Neural Engine (ANE) with zero hallucinations & native punctuation for Russian & English.")
+            } else {
+                return l("Aether Neural uses WhisperKit for the selected language. Parakeet TDT is enabled when Russian or English is selected.")
+            }
         }
     }
     @AppStorage("recognitionMode") public var recognitionMode: String = "multilingual"
