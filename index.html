@@ -1450,18 +1450,19 @@
       }
     }
 
-    let scribeSiteReleaseVersion = 'v2.5.1';
+    let scribeSiteReleaseVersion = 'v2.5.4';
 
     async function syncHeroReleaseVersion() {
       try {
-        const res = await fetch('https://api.github.com/repos/bledny1099/Scribe/releases/latest');
+        const res = await fetch('https://api.github.com/repos/bledny1099/Scribe/releases?per_page=5&t=' + Date.now());
         if (res.ok) {
           const data = await res.json();
-          if (data && data.tag_name) {
-            scribeSiteReleaseVersion = data.tag_name;
+          const latestTag = Array.isArray(data) && data[0] && data[0].tag_name ? data[0].tag_name : (data.tag_name || null);
+          if (latestTag) {
+            scribeSiteReleaseVersion = latestTag;
             const badge = document.getElementById('heroVersionBadge');
             if (badge) {
-              badge.textContent = data.tag_name;
+              badge.textContent = latestTag;
             }
           }
         }
@@ -1469,6 +1470,7 @@
         console.log('Using default release version:', scribeSiteReleaseVersion);
       }
     }
+    syncHeroReleaseVersion();
 
     function buildMarkdownReport() {
       const title = document.getElementById('reportTitle').value.trim() || 'Scribe Report';

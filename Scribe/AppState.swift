@@ -911,32 +911,7 @@ final class AppState: ObservableObject {
 
     private func stopRecording() {
         stopDurationTimer()
-        if livePreviewEnabled { stopLiveStreaming() }
-        livePreviewText = ""
-        if soundFeedbackEnabled { SoundFeedback.play(.recordingStopped) }
-
-        // Allow in-flight hardware audio tap buffer (~80ms) to flush to file before tearing down tap
-        usleep(80000)
-
-        let audioURL = audioRecorder.stopRecording()
         isRecording = false
-        logger.info("Recording stopped, audioURL=\(audioURL?.path ?? "nil")")
-
-        guard let audioURL else {
-            logger.warning("No audio URL returned")
-            hidePanel()
-            return
-        }
-
-        // Check file exists and has content
-        if let attrs = try? FileManager.default.attributesOfItem(atPath: audioURL.path),
-           let size = attrs[.size] as? UInt64 {
-            logger.info("Audio file size: \(size) bytes")
-            if size < 1000 {
-                logger.warning("Audio file very small (\(size) bytes), might be too short")
-            }
-        }
-
         isTranscribing = true
         recordingStatus = .transcribing
 
@@ -944,8 +919,38 @@ final class AppState: ObservableObject {
         let localMode = self.selectedAIRefinementMode
         let localAPIKey = self.activeCloudAPIKey
         let localEnableCloud = self.enableCloudAI
+        let soundFeedback = self.soundFeedbackEnabled
+        let livePreview = self.livePreviewEnabled
 
         Task {
+            // Keep background recording active for ~500ms trailing speech tail buffer so the user's trailing words/syllables are never cut off,
+            // while the UI immediately transitions to Transcribing animation with 0ms perceived latency.
+            try? await Task.sleep(for: .milliseconds(500))
+
+            if livePreview { self.stopLiveStreaming() }
+            self.livePreviewText = ""
+            if soundFeedback { SoundFeedback.play(.recordingStopped) }
+
+            let audioURL = self.audioRecorder.stopRecording()
+            logger.info("Recording stopped with trailing tail buffer, audioURL=\(audioURL?.path ?? "nil")")
+
+            guard let audioURL else {
+                logger.warning("No audio URL returned")
+                self.isTranscribing = false
+                self.recordingStatus = .idle
+                self.hidePanel()
+                return
+            }
+
+            // Check file exists and has content
+            if let attrs = try? FileManager.default.attributesOfItem(atPath: audioURL.path),
+               let size = attrs[.size] as? UInt64 {
+                logger.info("Audio file size: \(size) bytes")
+                if size < 1000 {
+                    logger.warning("Audio file very small (\(size) bytes), might be too short")
+                }
+            }
+
             do {
                 let isSingle = self.recognitionMode == "singleLanguage"
                 let langParam: String? = isSingle ? (self.singleDictationLanguage == "auto" ? nil : self.singleDictationLanguage) : nil

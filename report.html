@@ -567,11 +567,11 @@
             </thead>
             <tbody>
               <tr>
-                <td id="securitySupportedVer">v2.5.2</td>
+                <td id="securitySupportedVer">v2.5.4</td>
                 <td>✅ Supported</td>
               </tr>
               <tr>
-                <td id="securityUnsupportedVer">&lt; v2.5.1</td>
+                <td id="securityUnsupportedVer">&lt; v2.5.3</td>
                 <td>🚫 Unsupported</td>
               </tr>
             </tbody>
@@ -582,17 +582,17 @@
         <div class="form-group">
           <label class="form-label" for="reportVersion">Scribe Version</label>
           <select id="reportVersion" class="form-select" onchange="onVersionChange()">
-            <option id="optLatestVersion" value="v2.5.2" selected>v2.5.2 (Latest Release)</option>
-            <option id="optOutdatedVersion" value="< v2.5.1">&lt; v2.5.1 (Outdated)</option>
+            <option id="optLatestVersion" value="v2.5.4" selected>v2.5.4 (Latest Release)</option>
+            <option id="optOutdatedVersion" value="< v2.5.3">&lt; v2.5.3 (Outdated)</option>
           </select>
         </div>
 
         <!-- Outdated Version Warning -->
         <div id="versionWarning" class="version-warning">
           <strong>⛔ Unsupported Version for Bug Reports:</strong>
-          <p style="margin-top: 4px;">Bug reports are only accepted for the latest release (<strong id="warnLatestVerText">v2.5.2</strong>). Many issues are already resolved in newer builds. Please update Scribe and check if the issue persists.</p>
+          <p style="margin-top: 4px;">Bug reports are only accepted for the latest release (<strong id="warnLatestVerText">v2.5.4</strong>). Many issues are already resolved in newer builds. Please update Scribe and check if the issue persists.</p>
           <div style="margin-top: 10px;">
-            <a id="warnDownloadBtn" href="https://github.com/bledny1099/Scribe/releases/latest" target="_blank" style="display: inline-block; padding: 7px 14px; background: rgba(52, 211, 153, 0.15); border: 1px solid rgba(52, 211, 153, 0.35); border-radius: 6px; color: #34d399; text-decoration: none; font-weight: 600;">Download v2.5.2</a>
+            <a id="warnDownloadBtn" href="https://github.com/bledny1099/Scribe/releases/latest" target="_blank" style="display: inline-block; padding: 7px 14px; background: rgba(52, 211, 153, 0.15); border: 1px solid rgba(52, 211, 153, 0.35); border-radius: 6px; color: #34d399; text-decoration: none; font-weight: 600;">Download v2.5.4</a>
           </div>
         </div>
 
@@ -704,20 +704,25 @@
 
     async function syncLatestReleaseFromGitHub() {
       try {
-        const res = await fetch('https://api.github.com/repos/bledny1099/Scribe/releases/latest');
+        const res = await fetch('https://api.github.com/repos/bledny1099/Scribe/releases?per_page=10&t=' + Date.now());
         if (res.ok) {
-          const data = await res.json();
-          if (data && data.tag_name) {
-            latestSupportedVersion = data.tag_name;
-            updateVersionUI();
+          const releases = await res.json();
+          if (Array.isArray(releases) && releases.length > 0) {
+            const latest = releases[0];
+            if (latest && latest.tag_name) {
+              latestSupportedVersion = latest.tag_name;
+              updateVersionUI(releases);
+              return;
+            }
           }
         }
       } catch (err) {
-        console.log('Using default release version:', latestSupportedVersion);
+        console.log('Using fallback release version:', latestSupportedVersion);
       }
+      updateVersionUI();
     }
 
-    function updateVersionUI() {
+    function updateVersionUI(releases = []) {
       const verTableLatest = document.getElementById('securitySupportedVer');
       if (verTableLatest) {
         verTableLatest.textContent = latestSupportedVersion;
@@ -727,18 +732,59 @@
         const majorMinor = latestSupportedVersion.replace(/^v/, '').split('.').slice(0, 2).join('.');
         verTableOld.textContent = '< v' + majorMinor + '.0';
       }
-      const topOpt = document.getElementById('optLatestVersion');
-      if (topOpt) {
-        const activeLabel = passedAppVersion ? `${passedAppVersion} (Current App Version)` : `${latestSupportedVersion} (Latest Release)`;
-        topOpt.value = passedAppVersion || latestSupportedVersion;
-        topOpt.textContent = activeLabel;
-      }
-      const outOpt = document.getElementById('optOutdatedVersion');
-      if (outOpt) {
+
+      const verSelect = document.getElementById('reportVersion');
+      if (verSelect && Array.isArray(releases) && releases.length > 0) {
+        const currentSelected = verSelect.value;
+        verSelect.innerHTML = '';
+
+        if (passedAppVersion && !releases.some(r => r.tag_name === passedAppVersion || r.tag_name === 'v' + passedAppVersion.replace(/^v/, ''))) {
+          const optPassed = document.createElement('option');
+          optPassed.value = passedAppVersion;
+          optPassed.textContent = `${passedAppVersion} (Current App Version)`;
+          verSelect.appendChild(optPassed);
+        }
+
+        releases.forEach((r, idx) => {
+          if (!r.tag_name) return;
+          const opt = document.createElement('option');
+          opt.value = r.tag_name;
+          if (idx === 0) {
+            opt.textContent = `${r.tag_name} (Latest Release)`;
+          } else {
+            opt.textContent = r.tag_name;
+          }
+          verSelect.appendChild(opt);
+        });
+
         const majorMinor = latestSupportedVersion.replace(/^v/, '').split('.').slice(0, 2).join('.');
-        outOpt.value = `< v${majorMinor}.0`;
-        outOpt.textContent = `< v${majorMinor}.0 (Outdated)`;
+        const optOld = document.createElement('option');
+        optOld.value = `< v${majorMinor}.0`;
+        optOld.textContent = `< v${majorMinor}.0 (Outdated)`;
+        verSelect.appendChild(optOld);
+
+        if (passedAppVersion) {
+          verSelect.value = passedAppVersion;
+        } else if (currentSelected && [...verSelect.options].some(o => o.value === currentSelected)) {
+          verSelect.value = currentSelected;
+        } else {
+          verSelect.value = latestSupportedVersion;
+        }
+      } else {
+        const topOpt = document.getElementById('optLatestVersion');
+        if (topOpt) {
+          const activeLabel = passedAppVersion ? `${passedAppVersion} (Current App Version)` : `${latestSupportedVersion} (Latest Release)`;
+          topOpt.value = passedAppVersion || latestSupportedVersion;
+          topOpt.textContent = activeLabel;
+        }
+        const outOpt = document.getElementById('optOutdatedVersion');
+        if (outOpt) {
+          const majorMinor = latestSupportedVersion.replace(/^v/, '').split('.').slice(0, 2).join('.');
+          outOpt.value = `< v${majorMinor}.0`;
+          outOpt.textContent = `< v${majorMinor}.0 (Outdated)`;
+        }
       }
+
       const warnLatestVerText = document.getElementById('warnLatestVerText');
       if (warnLatestVerText) {
         warnLatestVerText.textContent = latestSupportedVersion;
