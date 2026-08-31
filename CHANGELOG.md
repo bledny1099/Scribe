@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.5.5] - 2026-08-30
 
 ## Added
-- Automatic game and match score formatting into digit:digit notation (e.g., «3:0», «2:1», «со счетом 3:0»).
+- Automatic game and match score formatting into digit:digit notation (e.g., "3:0", "2:1", "score of 3:0").
 - Native IDE & Vibe Coding domain detection and acoustic rules for AI coding editors (Antigravity IDE, Windsurf, Trae, Fleet, Zed, Cursor, VS Code, Xcode).
 
 ## Changed
@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Injected domain vocabulary and imperative directives for vibe coding into Whisper and Aether context engine.
 
 ## Fixed
-- Fixed misrecognitions of «вайб-кодинг» (corrected variants like «вайб кодина», «вайп кодинг», «вайбкодина»).
+- Fixed acoustic misrecognitions and phoneme variations of "vibe coding" across speech models.
 - Fixed duplicate clipboard paste triggers when completing dictation with active live preview.
 
 ## [2.5.4] - 2026-08-30
@@ -31,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multi-phrase live speech accumulator preventing recognition stalls during pauses in dictation.
 
 ## Fixed
-- Fixed Russian acoustic phonetic errors for goals and case agreement (e.g., proper accusative «твою цель»).
+- Fixed acoustic phonetic errors and accusative case agreement for target goals.
 - Fixed squashed segmented buttons and labels in General settings card.
 - Fixed overlay themes turning white when Light Panel appearance is selected.
 
