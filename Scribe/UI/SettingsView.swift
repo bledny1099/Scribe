@@ -47,11 +47,11 @@ struct SettingsView: View {
     @State private var showingOnboardingNameModal = false
     @State private var showingAppleNotesModal = false
 
-    // Supported multilingual models ordered by quality
+    // 3 Multilingual ASR Tiers: Ultra (Max), Standard (Balanced), Eco (Fast & Lightweight)
     private let models: [(id: String, name: String, desc: String)] = [
-        ("openai_whisper-small", "Small (Recommended)", "Great balance of high accuracy and speed (~460MB)"),
-        ("openai_whisper-large-v3_turbo", "Large V3 Turbo", "Highest quality for complex speech & terms (~950MB)"),
-        ("openai_whisper-base", "Base (Fastest)", "Lightweight and ultra fast, ideal for simple phrases (~140MB)")
+        ("openai_whisper-large-v3_turbo", "Ultra (Large V3 Turbo)", "Maximum precision for all 8 languages, technical speech & mixed dialects (~950MB)"),
+        ("openai_whisper-small", "Standard (Balanced)", "Great balance of high accuracy and speed for everyday dictation (~460MB)"),
+        ("openai_whisper-base", "Eco (Fast & Lightweight)", "Instant response with minimal CPU and battery usage (~140MB)")
     ]
 
     // Main settings categories in order (System as last main category)
@@ -7444,8 +7444,8 @@ public final class BugReportService: ObservableObject, @unchecked Sendable {
             self.errorMessage = nil
         }
 
-        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.5.5"
-        let buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "2.5.5"
+        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.6.0"
+        let buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "2.6.0"
         let osVersion = ProcessInfo.processInfo.operatingSystemVersionString
         let macModel = getMacHardwareModel()
         let author = userNickname.isEmpty ? "Anonymous User" : userNickname

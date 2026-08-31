@@ -99,14 +99,34 @@
       gap: 16px;
     }
 
-    .nav-links a {
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: nowrap;
+      white-space: nowrap;
+    }
+
+    .nav-links a,
+    .nav-link-btn,
+    .footer-link-btn {
       color: rgba(255, 255, 255, 0.55);
       text-decoration: none;
       font-size: 13px;
       transition: color 0.15s ease;
+      background: none;
+      border: none;
+      padding: 0;
+      font-family: inherit;
+      cursor: pointer;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
     }
 
-    .nav-links a:hover {
+    .nav-links a:hover,
+    .nav-link-btn:hover,
+    .footer-link-btn:hover {
       color: #fff;
     }
 
@@ -522,6 +542,7 @@
       <div class="nav-links">
         <a href="https://github.com/bledny1099/Scribe" target="_blank">GitHub</a>
         <a href="https://github.com/bledny1099/Scribe/releases" target="_blank">Releases</a>
+        <button type="button" class="nav-link-btn" onclick="copyContactEmail(event)" title="Click to copy email">Contact Us</button>
         <a href="https://github.com/bledny1099/Scribe/blob/main/SECURITY.md" target="_blank">Security Policy</a>
       </div>
     </div>
@@ -567,11 +588,11 @@
             </thead>
             <tbody>
               <tr>
-                <td id="securitySupportedVer">v2.5.5</td>
+                <td id="securitySupportedVer">v2.6.0</td>
                 <td>✅ Supported</td>
               </tr>
               <tr>
-                <td id="securityUnsupportedVer">&lt; v2.5.4</td>
+                <td id="securityUnsupportedVer">&lt; v2.5.5</td>
                 <td>🚫 Unsupported</td>
               </tr>
             </tbody>
@@ -582,17 +603,17 @@
         <div class="form-group">
           <label class="form-label" for="reportVersion">Scribe Version</label>
           <select id="reportVersion" class="form-select" onchange="onVersionChange()">
-            <option id="optLatestVersion" value="v2.5.5" selected>v2.5.5 (Latest Release)</option>
-            <option id="optOutdatedVersion" value="< v2.5.4">&lt; v2.5.4 (Outdated)</option>
+            <option id="optLatestVersion" value="v2.6.0" selected>v2.6.0 (Latest Release)</option>
+            <option id="optOutdatedVersion" value="< v2.5.5">&lt; v2.5.5 (Outdated)</option>
           </select>
         </div>
 
         <!-- Outdated Version Warning -->
         <div id="versionWarning" class="version-warning">
           <strong>⛔ Unsupported Version for Bug Reports:</strong>
-          <p style="margin-top: 4px;">Bug reports are only accepted for the latest release (<strong id="warnLatestVerText">v2.5.5</strong>). Many issues are already resolved in newer builds. Please update Scribe and check if the issue persists.</p>
+          <p style="margin-top: 4px;">Bug reports are only accepted for the latest release (<strong id="warnLatestVerText">v2.6.0</strong>). Many issues are already resolved in newer builds. Please update Scribe and check if the issue persists.</p>
           <div style="margin-top: 10px;">
-            <a id="warnDownloadBtn" href="https://github.com/bledny1099/Scribe/releases/latest" target="_blank" style="display: inline-block; padding: 7px 14px; background: rgba(52, 211, 153, 0.15); border: 1px solid rgba(52, 211, 153, 0.35); border-radius: 6px; color: #34d399; text-decoration: none; font-weight: 600;">Download v2.5.5</a>
+            <a id="warnDownloadBtn" href="https://github.com/bledny1099/Scribe/releases/latest" target="_blank" style="display: inline-block; padding: 7px 14px; background: rgba(52, 211, 153, 0.15); border: 1px solid rgba(52, 211, 153, 0.35); border-radius: 6px; color: #34d399; text-decoration: none; font-weight: 600;">Download v2.6.0</a>
           </div>
         </div>
 
@@ -673,6 +694,7 @@
       <div>
         <a href="index.html">Home</a> · 
         <a href="https://github.com/bledny1099/Scribe" target="_blank">GitHub</a> · 
+        <button type="button" class="footer-link-btn" onclick="copyContactEmail(event)" title="Click to copy email">Contact Us</button> · 
         <a href="https://github.com/bledny1099/Scribe/issues" target="_blank">Issues</a>
       </div>
     </footer>
@@ -682,7 +704,7 @@
 
   <script>
     let currentType = 'bug';
-    let latestSupportedVersion = 'v2.5.5';
+    let latestSupportedVersion = 'v2.6.0';
     let passedAppVersion = null;
 
     function isSupportedVersion(ver) {
@@ -1213,6 +1235,32 @@
       submitBtn.disabled = false;
       submitBtn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg> <span id="submitLabel">Submit Report</span>';
       switchType(currentType);
+    }
+
+    function copyContactEmail(e) {
+      if (e) e.preventDefault();
+      const email = 'scribe@dosimple.app';
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(email).then(() => {
+          showToast('Copied to clipboard: ' + email);
+        }).catch(() => {
+          fallbackCopyEmail(email);
+        });
+      } else {
+        fallbackCopyEmail(email);
+      }
+    }
+
+    function fallbackCopyEmail(email) {
+      const ta = document.createElement('textarea');
+      ta.value = email;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showToast('Copied to clipboard: ' + email);
     }
 
     function showToast(msg) {

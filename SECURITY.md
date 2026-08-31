@@ -6,6 +6,7 @@ Only the version(s) below are currently supported with security updates and patc
 
 | Version | Supported          |
 | ------- | ------------------ |
+| v2.6.x  | :white_check_mark: |
 | v2.5.x  | :white_check_mark: |
 | < v2.5.0 | 🚫                 |
 

@@ -5,6 +5,22 @@ All notable changes to Scribe will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0] - 2026-08-31
+
+## Added
+- Multilingual grammar and orthographic engines in Aether Linguistic Validator for German (Komposita & capitalization), French (elisions & liaisons), Spanish (inverted punctuation & clitics), Italian (preposition fusions), Chinese (CJK punctuation & alphanumeric spacing), and Hindi (Devanagari NFC normalization & Nukta corrections).
+- Systematic Russian subject-predicate past tense gender agreement engine for neuter, masculine, and feminine proper names, sports clubs, and compound entities.
+- Streamlined 3-tier ASR model selector: Ultra (Large V3 Turbo), Standard (Balanced), and Eco (Fast & Lightweight).
+
+## Changed
+- Expanded Aether Context Engine language dispatch and domain prompts across 10 specialized app environments.
+- Optimized spell checker resolution with native CJK and Devanagari script detection.
+
+## Fixed
+- Fixed timer digit flickering and color shifting between black and gray across overlay styles.
+- Fixed unstressed past tense verb mishearings and gender mismatches across speech models.
+- Fixed elision token splitting in French, Italian, and Spanish transcriptions.
+
 ## [2.5.5] - 2026-08-30
 
 ## Added

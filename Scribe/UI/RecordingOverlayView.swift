@@ -100,10 +100,8 @@ struct ClassicOverlay: View {
             HStack(spacing: 6) {
                 if appState.durationVisible && (appState.recordingStatus == .recording || appState.isShowingPreview) {
                     Text(appState.isShowingPreview ? "0:05" : appState.formattedDuration)
-                        .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                        .contentTransition(.numericText())
-                        .animation(.default, value: appState.recordingDuration)
+                        .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .monospaced).monospacedDigit())
+                        .foregroundStyle(.primary.opacity(0.85))
                 }
 
                 Text(appState.isShowingPreview ? appState.l("Recording…") : statusLabel)
@@ -279,10 +277,9 @@ struct WaveformOverlay: View {
 
                         if isTimerVisible {
                             Text(appState.isShowingPreview ? "0:05" : appState.formattedDuration)
-                                .font(.system(size: 14, weight: .medium, design: .rounded).monospacedDigit())
-                                .foregroundStyle(.secondary)
+                                .font(.system(size: 14, weight: .semibold, design: .rounded).monospacedDigit())
+                                .foregroundStyle(.primary.opacity(0.85))
                                 .frame(minWidth: 42, alignment: .center)
-                                .animation(.default, value: appState.recordingDuration)
                         }
 
                         if appState.recordingStatus == .recording || appState.isShowingPreview {
@@ -451,8 +448,8 @@ struct MinimalOverlay: View {
                 if appState.recordingStatus == .recording || appState.isShowingPreview {
                     if appState.durationVisible {
                         Text(appState.isShowingPreview ? "0:05" : appState.formattedDuration)
-                            .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .monospaced))
-                            .foregroundStyle(.secondary)
+                            .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .monospaced).monospacedDigit())
+                            .foregroundStyle(.primary.opacity(0.85))
                     } else {
                         Text(appState.isShowingPreview ? appState.l("Recording…") : statusLabel)
                             .font(.system(size: 11 * appState.overlayTextCompensation, weight: .medium, design: .rounded))
@@ -551,8 +548,8 @@ struct ECGOverlay: View {
                     
                     if appState.durationVisible && (appState.recordingStatus == .recording || appState.isShowingPreview) {
                         Text(appState.isShowingPreview ? "0:05" : appState.formattedDuration)
-                            .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .monospaced))
-                            .foregroundStyle(.secondary)
+                            .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .monospaced).monospacedDigit())
+                            .foregroundStyle(.primary.opacity(0.85))
                     }
 
                     if appState.recordingStatus == .recording || appState.isShowingPreview {
@@ -695,10 +692,8 @@ struct OrbOverlay: View {
                 HStack(spacing: 6) {
                     if appState.durationVisible && (appState.recordingStatus == .recording || appState.isShowingPreview) {
                         Text(appState.isShowingPreview ? "0:05" : appState.formattedDuration)
-                            .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                            .contentTransition(.numericText())
-                            .animation(.default, value: appState.recordingDuration)
+                            .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .monospaced).monospacedDigit())
+                            .foregroundStyle(.primary.opacity(0.85))
                     }
 
                     Text(appState.isShowingPreview ? appState.l("Recording…") : statusLabel)

@@ -191,6 +191,53 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         "проявлены": "проверены"
     ]
 
+    // MARK: - Russian Subject-Verb Past Tense Gender & Number Agreement
+
+    private struct VerbGenderForms {
+        let m: String   // мужской род
+        let f: String   // женский род
+        let n: String   // средний род
+        let pl: String  // множественное число
+    }
+
+    private static let russianVerbFormsList: [VerbGenderForms] = [
+        // Competition & Sports
+        VerbGenderForms(m: "обыграл", f: "обыграла", n: "обыграло", pl: "обыграли"),
+        VerbGenderForms(m: "победил", f: "победила", n: "победило", pl: "победили"),
+        VerbGenderForms(m: "выиграл", f: "выиграла", n: "выиграло", pl: "выиграли"),
+        VerbGenderForms(m: "проиграл", f: "проиграла", n: "проиграло", pl: "проиграли"),
+        VerbGenderForms(m: "уступил", f: "уступила", n: "уступило", pl: "уступили"),
+        VerbGenderForms(m: "забил", f: "забила", n: "забило", pl: "забили"),
+        VerbGenderForms(m: "сыграл", f: "сыграла", n: "сыграло", pl: "сыграли"),
+        VerbGenderForms(m: "разгромил", f: "разгромила", n: "разгромило", pl: "разгромили"),
+        VerbGenderForms(m: "опередил", f: "опередила", n: "опередило", pl: "опередили"),
+        // Tech & System & General actions
+        VerbGenderForms(m: "сработал", f: "сработала", n: "сработало", pl: "сработали"),
+        VerbGenderForms(m: "запустился", f: "запустилась", n: "запустилось", pl: "запустились"),
+        VerbGenderForms(m: "запустил", f: "запустила", n: "запустило", pl: "запустили"),
+        VerbGenderForms(m: "упал", f: "упала", n: "упало", pl: "упали"),
+        VerbGenderForms(m: "ответил", f: "ответила", n: "ответило", pl: "ответили"),
+        VerbGenderForms(m: "выдал", f: "выдала", n: "выдало", pl: "выдали"),
+        VerbGenderForms(m: "создал", f: "создала", n: "создало", pl: "создали"),
+        VerbGenderForms(m: "сделал", f: "сделала", n: "сделало", pl: "сделали"),
+        VerbGenderForms(m: "написал", f: "написала", n: "написало", pl: "написали"),
+        VerbGenderForms(m: "показал", f: "показала", n: "показало", pl: "показали"),
+        VerbGenderForms(m: "открыл", f: "открыла", n: "открыло", pl: "открыли"),
+        VerbGenderForms(m: "закрыл", f: "закрыла", n: "закрыло", pl: "закрыли"),
+        VerbGenderForms(m: "сломался", f: "сломалась", n: "сломалось", pl: "сломались"),
+        VerbGenderForms(m: "завершился", f: "завершилась", n: "завершилось", pl: "завершились"),
+        VerbGenderForms(m: "отправил", f: "отправила", n: "отправило", pl: "отправили"),
+        VerbGenderForms(m: "вернул", f: "вернула", n: "вернуло", pl: "вернули"),
+        VerbGenderForms(m: "начался", f: "началась", n: "началось", pl: "начались"),
+        VerbGenderForms(m: "произошел", f: "произошла", n: "произошло", pl: "произошли"),
+        VerbGenderForms(m: "произошёл", f: "произошла", n: "произошло", pl: "произошли"),
+        VerbGenderForms(m: "решил", f: "решила", n: "решило", pl: "решили"),
+        VerbGenderForms(m: "передал", f: "передала", n: "передало", pl: "передали"),
+        VerbGenderForms(m: "набрал", f: "набрала", n: "набрало", pl: "набрали")
+    ]
+
+    private let russianVerbLookup: [String: VerbGenderForms]
+
     // Precompiled regex caches for ultra-fast linguistic validation
     private let compiledAcousticCorrections: [(regex: NSRegularExpression, replacement: String)]
     private let compiledBrandRules: [(regex: NSRegularExpression, replacement: String)]
@@ -201,9 +248,23 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
     private let micContextRegex: NSRegularExpression?
     private let transitionRegex: NSRegularExpression?
     private let directiveContextRegex: NSRegularExpression?
+    private let compoundFeminineSubjectRegex: NSRegularExpression?
+    private let compoundMasculineSubjectRegex: NSRegularExpression?
+    private let neuterSubjectVerbRegex: NSRegularExpression?
+    private let masculineSubjectVerbRegex: NSRegularExpression?
+    private let feminineSubjectVerbRegex: NSRegularExpression?
     private let wordExtractorRegex: NSRegularExpression?
 
     private init() {
+        var verbMap: [String: VerbGenderForms] = [:]
+        for entry in Self.russianVerbFormsList {
+            verbMap[entry.m.lowercased()] = entry
+            verbMap[entry.f.lowercased()] = entry
+            verbMap[entry.n.lowercased()] = entry
+            verbMap[entry.pl.lowercased()] = entry
+        }
+        self.russianVerbLookup = verbMap
+
         // Precompile acoustic corrections
         var acousticCompiled: [(regex: NSRegularExpression, replacement: String)] = []
         for (incorrect, correct) in acousticCorrections {
@@ -277,6 +338,22 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         let subjectExclusion = "(?:он|она|оно|сервер|скрипт|система|приложение|процесс|сервис|код|бот|воркер|пользователь|юзер|клиент|фреймворк)"
         self.directiveContextRegex = try? NSRegularExpression(pattern: "(?i)(?:^|(?<!\\b" + subjectExclusion + "\\s))\\b(" + verbKeys + ")\\s+(для\\b|в\\b|на\\b|из\\b|под\\b|отдельн|нов|файл|папк|сервер|компонент|скрипт|функци|класс|модул|роут|проект|таблиц|баз|конфиг|ветк|пул|код|тест|кнопк|баг|ошибк|запрос|ответ)")
 
+        self.compoundFeminineSubjectRegex = try? NSRegularExpression(
+            pattern: "(?i)\\b(команда|сборная|компания|организация|система|программа|утилита|библиотека|группа)\\s+([А-ЯЁа-яёA-Za-z0-9_-]+)\\s+([а-яё]+)\\b"
+        )
+        self.compoundMasculineSubjectRegex = try? NSRegularExpression(
+            pattern: "(?i)\\b(клуб|состав|коллектив|город|сервер|сервис|проект|процесс)\\s+([А-ЯЁа-яёA-Za-z0-9_-]+)\\s+([а-яё]+)\\b"
+        )
+        self.neuterSubjectVerbRegex = try? NSRegularExpression(
+            pattern: "(?i)\\b(Динамо|Торпедо|Монако|Порту|Атлетико|Лацио|Хетафе|Токио|Осло|Чикаго|жюри|метро|кино|пальто|меню|видео|радио|кафе|авто|пианино|резюме|приложение|действие|решение|событие|окно|сообщение|письмо|обновление|устройство|большинство|меньшинство|руководство|правительство|агентство|министерство|издательство|ведомство)\\s+([а-яё]+)\\b"
+        )
+        self.masculineSubjectVerbRegex = try? NSRegularExpression(
+            pattern: "(?i)\\b(Локомотив|Спартак|Зенит|ЦСКА|Краснодар|Ростов|Рубин|Урал|Арсенал|Челси|Реал|Ювентус|Милан|Интер|Ливерпуль|Манчестер|Тоттенхэм|Аякс|ПСЖ|сервер|сервис|проект|бот|скрипт|процесс|код|файл|компьютер|телефон|канал|чат|сайт|бэкенд|фронтенд|терминал|модуль|алгоритм|запрос|ответ|процессор|контроллер|драйвер)\\s+([а-яё]+)\\b"
+        )
+        self.feminineSubjectVerbRegex = try? NSRegularExpression(
+            pattern: "(?i)\\b(Барселона|Бавария|Севилья|Валенсия|Аталанта|Рома|Бенфика|Боруссия|система|программа|функция|утилита|библиотека|база|строка|ошибка|машина|модель|переменная|вкладка|страница|кнопка|задача)\\s+([а-яё]+)\\b"
+        )
+
         self.wordExtractorRegex = try? NSRegularExpression(pattern: "\\b([\\p{L}\\p{M}'-]+)\\b")
     }
 
@@ -345,14 +422,13 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         let langCode = resolveSpellCheckerLanguage(language: language, text: text)
         let isRussian = langCode.hasPrefix("ru")
 
-        // 3a. Sanitize any rogue Ukrainian characters or particles when transcribing in Russian
         if isRussian {
+            // 3a. Russian: Ukrainian sanitization, agreement, and imperative command mapping
             for (regex, rep) in compiledUkrainianWordMap {
                 let range = NSRange(result.startIndex..<result.endIndex, in: result)
                 result = regex.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: rep)
             }
 
-            // Replace single Ukrainian glyphs with Russian equivalents
             let glyphMap: [(String, String)] = [
                 ("і", "и"), ("І", "И"),
                 ("ї", "и"), ("Ї", "И"),
@@ -365,14 +441,31 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
                 }
             }
 
-            // 3b. Grammatical agreement & case declension repairs
             for (regex, rep) in compiledRussianGrammarRules {
                 let range = NSRange(result.startIndex..<result.endIndex, in: result)
                 result = regex.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: rep)
             }
 
-            // 3c. Command and imperative mood repairs for AI & developer directives
+            result = applyRussianSubjectVerbGenderAgreement(result)
             result = applyRussianCommandImperativeRules(result)
+        } else if langCode.hasPrefix("de") {
+            // 3b. German: Compound nouns & Substantiv-Großschreibung
+            result = applyGermanRules(result)
+        } else if langCode.hasPrefix("fr") {
+            // 3c. French: Elision apostrophes & liaison
+            result = applyFrenchRules(result)
+        } else if langCode.hasPrefix("es") {
+            // 3d. Spanish: Inverted punctuation & clitics
+            result = applySpanishRules(result)
+        } else if langCode.hasPrefix("it") {
+            // 3e. Italian: Preposizioni articolate & elisions
+            result = applyItalianRules(result)
+        } else if langCode.hasPrefix("zh") {
+            // 3f. Chinese: Full-width CJK punctuation & alphanumeric spacing
+            result = applyChineseRules(result)
+        } else if langCode.hasPrefix("hi") {
+            // 3g. Hindi: Devanagari Unicode NFC normalization & Nukta correction
+            result = applyHindiRules(result)
         }
 
         let customSet = Set(customVocabulary.map { $0.lowercased() })
@@ -531,6 +624,281 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         return result
     }
 
+    /// Systematically corrects subject-predicate past tense gender and number agreement in Russian.
+    private func applyRussianSubjectVerbGenderAgreement(_ text: String) -> String {
+        var result = text
+
+        // 1. Compound subjects with feminine generic nouns ("команда Динамо обыграло/обыграл" -> "команда Динамо обыграла")
+        if let regex = compoundFeminineSubjectRegex {
+            let nsString = result as NSString
+            let matches = regex.matches(in: result, options: [], range: NSRange(location: 0, length: nsString.length))
+            for match in matches.reversed() {
+                let verbRange = match.range(at: 3)
+                let verbWord = nsString.substring(with: verbRange)
+                let lowerVerb = verbWord.lowercased()
+                if let forms = russianVerbLookup[lowerVerb] {
+                    let matchedCase = matchCapitalization(original: verbWord, target: forms.f)
+                    if let strRange = Range(verbRange, in: result) {
+                        result.replaceSubrange(strRange, with: matchedCase)
+                    }
+                }
+            }
+        }
+
+        // 2. Compound subjects with masculine generic nouns ("клуб Динамо обыграло/обыграла" -> "клуб Динамо обыграл")
+        if let regex = compoundMasculineSubjectRegex {
+            let nsString = result as NSString
+            let matches = regex.matches(in: result, options: [], range: NSRange(location: 0, length: nsString.length))
+            for match in matches.reversed() {
+                let verbRange = match.range(at: 3)
+                let verbWord = nsString.substring(with: verbRange)
+                let lowerVerb = verbWord.lowercased()
+                if let forms = russianVerbLookup[lowerVerb] {
+                    let matchedCase = matchCapitalization(original: verbWord, target: forms.m)
+                    if let strRange = Range(verbRange, in: result) {
+                        result.replaceSubrange(strRange, with: matchedCase)
+                    }
+                }
+            }
+        }
+
+        // 3. Neuter subjects (e.g. "Динамо обыграла" -> "Динамо обыграло", "видео набрала" -> "видео набрало")
+        if let regex = neuterSubjectVerbRegex {
+            let nsString = result as NSString
+            let matches = regex.matches(in: result, options: [], range: NSRange(location: 0, length: nsString.length))
+            for match in matches.reversed() {
+                let verbRange = match.range(at: 2)
+                let verbWord = nsString.substring(with: verbRange)
+                let lowerVerb = verbWord.lowercased()
+                if let forms = russianVerbLookup[lowerVerb] {
+                    let matchedCase = matchCapitalization(original: verbWord, target: forms.n)
+                    if let strRange = Range(verbRange, in: result) {
+                        result.replaceSubrange(strRange, with: matchedCase)
+                    }
+                }
+            }
+        }
+
+        // 4. Masculine subjects (e.g. "Локомотив обыграла" -> "Локомотив обыграл", "сервер упала" -> "сервер упал")
+        if let regex = masculineSubjectVerbRegex {
+            let nsString = result as NSString
+            let matches = regex.matches(in: result, options: [], range: NSRange(location: 0, length: nsString.length))
+            for match in matches.reversed() {
+                let verbRange = match.range(at: 2)
+                let verbWord = nsString.substring(with: verbRange)
+                let lowerVerb = verbWord.lowercased()
+                if let forms = russianVerbLookup[lowerVerb] {
+                    let matchedCase = matchCapitalization(original: verbWord, target: forms.m)
+                    if let strRange = Range(verbRange, in: result) {
+                        result.replaceSubrange(strRange, with: matchedCase)
+                    }
+                }
+            }
+        }
+
+        // 5. Feminine subjects (e.g. "Барселона обыграл" -> "Барселона обыграла", "система сработал" -> "система сработала")
+        if let regex = feminineSubjectVerbRegex {
+            let nsString = result as NSString
+            let matches = regex.matches(in: result, options: [], range: NSRange(location: 0, length: nsString.length))
+            for match in matches.reversed() {
+                let verbRange = match.range(at: 2)
+                let verbWord = nsString.substring(with: verbRange)
+                let lowerVerb = verbWord.lowercased()
+                if let forms = russianVerbLookup[lowerVerb] {
+                    let matchedCase = matchCapitalization(original: verbWord, target: forms.f)
+                    if let strRange = Range(verbRange, in: result) {
+                        result.replaceSubrange(strRange, with: matchedCase)
+                    }
+                }
+            }
+        }
+
+        return result
+    }
+
+    // MARK: - German Language Rules (Komposita & Capitalization)
+
+    private func applyGermanRules(_ text: String) -> String {
+        var result = text
+        let compoundRules: [(pattern: String, replacement: String)] = [
+            ("(?i)\\b(quell|quell-)\\s*(code|texte?)\\b", "Quell$2"),
+            ("(?i)\\b(daten|daten-)\\s*(bank|banken|struktur|strukturen|sätze?)\\b", "Daten$2"),
+            ("(?i)\\b(benutzer|benutzer-)\\s*(oberfläche|oberflächen|name|konten?)\\b", "Benutzer$2"),
+            ("(?i)\\b(sprach|sprach-)\\s*(erkennung|modelle?|assistenten?)\\b", "Sprach$2"),
+            ("(?i)\\b(software|software-)\\s*(entwicklung|ingenieure?|architektur)\\b", "Software$2"),
+            ("(?i)\\b(kommando|kommando-)\\s*(zeile|zeilen)\\b", "Kommando$2"),
+            ("(?i)\\b(entwickler|entwickler-)\\s*(werkzeuge?|tools?)\\b", "Entwickler$2")
+        ]
+        for rule in compoundRules {
+            if let reg = try? NSRegularExpression(pattern: rule.pattern) {
+                let range = NSRange(result.startIndex..<result.endIndex, in: result)
+                result = reg.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: rule.replacement)
+            }
+        }
+        return result
+    }
+
+    // MARK: - French Language Rules (Elision & Liaison)
+
+    private func applyFrenchRules(_ text: String) -> String {
+        var result = text
+        let elisionRules: [(pattern: String, replacement: String)] = [
+            ("(?i)\\b(l|d|c|j|qu|n|s|m|t)\\s+([aàâeéèêëiîïoôuûüyh][a-zàâäéèêëîïôöùûüç-]*)\\b", "$1'$2"),
+            ("(?i)\\bd\\s+accord\\b", "d'accord"),
+            ("(?i)\\bd\\s+exemple\\b", "d'exemple"),
+            ("(?i)\\bc\\s+est\\b", "c'est"),
+            ("(?i)\\bj\\s+ai\\b", "j'ai"),
+            ("(?i)\\bqu\\s+il\\b", "qu'il"),
+            ("(?i)\\bqu\\s+elle\\b", "qu'elle"),
+            ("(?i)\\bn\\s+est\\b", "n'est"),
+            ("(?i)\\bs\\s+il\\b", "s'il")
+        ]
+        for rule in elisionRules {
+            if let reg = try? NSRegularExpression(pattern: rule.pattern) {
+                let range = NSRange(result.startIndex..<result.endIndex, in: result)
+                result = reg.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: rule.replacement)
+            }
+        }
+        return result
+    }
+
+    // MARK: - Spanish Language Rules (Inverted Punctuation & Clitics)
+
+    private func applySpanishRules(_ text: String) -> String {
+        var result = text
+        let spanishInterrogatives = "(?i)(?:^|(?<=[.!?;\n]\\s+))(cómo|qué|por qué|dónde|cuándo|cuál|cuáles|quién|quiénes|cuánto|cuánta|cuántos|cuántas)\\b([^.!?\n]*\\?)"
+        if let reg = try? NSRegularExpression(pattern: spanishInterrogatives) {
+            let range = NSRange(result.startIndex..<result.endIndex, in: result)
+            result = reg.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: "¿$1$2")
+        }
+
+        let cliticRules: [(pattern: String, replacement: String)] = [
+            ("(?i)\\bdimelo\\b", "dímelo"),
+            ("(?i)\\bhacelo\\b", "hacélo"),
+            ("(?i)\\bcompralo\\b", "cómpralo"),
+            ("(?i)\\bexplicame\\b", "explícame")
+        ]
+        for rule in cliticRules {
+            if let reg = try? NSRegularExpression(pattern: rule.pattern) {
+                let range = NSRange(result.startIndex..<result.endIndex, in: result)
+                result = reg.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: rule.replacement)
+            }
+        }
+        return result
+    }
+
+    // MARK: - Italian Language Rules (Preposizioni Articolate & Elisions)
+
+    private func applyItalianRules(_ text: String) -> String {
+        var result = text
+        let prepRules: [(pattern: String, replacement: String)] = [
+            ("(?i)\\bin\\s+il\\b", "nel"),
+            ("(?i)\\bin\\s+lo\\b", "nello"),
+            ("(?i)\\bin\\s+la\\b", "nella"),
+            ("(?i)\\bin\\s+l'\\b", "nell'"),
+            ("(?i)\\bin\\s+i\\b", "nei"),
+            ("(?i)\\bin\\s+gli\\b", "negli"),
+            ("(?i)\\bin\\s+le\\b", "nelle"),
+            ("(?i)\\bdi\\s+il\\b", "del"),
+            ("(?i)\\bdi\\s+lo\\b", "dello"),
+            ("(?i)\\bdi\\s+la\\b", "della"),
+            ("(?i)\\bdi\\s+l'\\b", "dell'"),
+            ("(?i)\\bdi\\s+i\\b", "dei"),
+            ("(?i)\\bdi\\s+gli\\b", "degli"),
+            ("(?i)\\bdi\\s+le\\b", "delle"),
+            ("(?i)\\ba\\s+il\\b", "al"),
+            ("(?i)\\ba\\s+lo\\b", "allo"),
+            ("(?i)\\ba\\s+la\\b", "alla"),
+            ("(?i)\\ba\\s+l'\\b", "all'"),
+            ("(?i)\\ba\\s+i\\b", "ai"),
+            ("(?i)\\ba\\s+gli\\b", "agli"),
+            ("(?i)\\ba\\s+le\\b", "alle"),
+            ("(?i)\\bda\\s+il\\b", "dal"),
+            ("(?i)\\bda\\s+lo\\b", "dallo"),
+            ("(?i)\\bda\\s+la\\b", "dalla"),
+            ("(?i)\\bda\\s+l'\\b", "dall'"),
+            ("(?i)\\bda\\s+i\\b", "dai"),
+            ("(?i)\\bda\\s+gli\\b", "dagli"),
+            ("(?i)\\bda\\s+le\\b", "dalle"),
+            ("(?i)\\bsu\\s+il\\b", "sul"),
+            ("(?i)\\bsu\\s+lo\\b", "sullo"),
+            ("(?i)\\bsu\\s+la\\b", "sulla"),
+            ("(?i)\\bsu\\s+l'\\b", "sull'"),
+            ("(?i)\\bsu\\s+i\\b", "sui"),
+            ("(?i)\\bsu\\s+gli\\b", "sugli"),
+            ("(?i)\\bsu\\s+le\\b", "sulle"),
+            ("(?i)\\bqual'è\\b", "qual è"),
+            ("(?i)\\bun\\s+amica\\b", "un'amica")
+        ]
+        for rule in prepRules {
+            if let reg = try? NSRegularExpression(pattern: rule.pattern) {
+                let range = NSRange(result.startIndex..<result.endIndex, in: result)
+                result = reg.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: rule.replacement)
+            }
+        }
+        return result
+    }
+
+    // MARK: - Chinese Language Rules (CJK Punctuation & Alphanumeric Spacing)
+
+    private func applyChineseRules(_ text: String) -> String {
+        var result = text
+
+        // Convert ASCII punctuation to full-width CJK punctuation when surrounded by or adjacent to Chinese ideograms
+        let cjkPunctuationMap: [(pattern: String, replacement: String)] = [
+            ("(?<=[\u{4E00}-\u{9FFF}\u{3400}-\u{4DBF}]),(?=[\u{4E00}-\u{9FFF}\u{3400}-\u{4DBF}\\s]|$)", "，"),
+            ("(?<=[\u{4E00}-\u{9FFF}\u{3400}-\u{4DBF}])\\.(?=[\\s]|$)", "。"),
+            ("(?<=[\u{4E00}-\u{9FFF}\u{3400}-\u{4DBF}])\\?(?=[\\s]|$)", "？"),
+            ("(?<=[\u{4E00}-\u{9FFF}\u{3400}-\u{4DBF}])!(?=[\\s]|$)", "！"),
+            ("(?<=[\u{4E00}-\u{9FFF}\u{3400}-\u{4DBF}]):(?=[\\s]|$)", "："),
+            ("(?<=[\u{4E00}-\u{9FFF}\u{3400}-\u{4DBF}];)(?=[\\s]|$)", "；")
+        ]
+        for rule in cjkPunctuationMap {
+            if let reg = try? NSRegularExpression(pattern: rule.pattern) {
+                let range = NSRange(result.startIndex..<result.endIndex, in: result)
+                result = reg.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: rule.replacement)
+            }
+        }
+
+        // Clean spacing between Chinese characters and English alphanumeric terms
+        if let reg = try? NSRegularExpression(pattern: "([\u{4E00}-\u{9FFF}\u{3400}-\u{4DBF}])([A-Za-z0-9])") {
+            let range = NSRange(result.startIndex..<result.endIndex, in: result)
+            result = reg.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: "$1 $2")
+        }
+        if let reg = try? NSRegularExpression(pattern: "([A-Za-z0-9])([\u{4E00}-\u{9FFF}\u{3400}-\u{4DBF}])") {
+            let range = NSRange(result.startIndex..<result.endIndex, in: result)
+            result = reg.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: "$1 $2")
+        }
+
+        return result
+    }
+
+    // MARK: - Hindi Language Rules (Devanagari NFC & Nukta Normalization)
+
+    private func applyHindiRules(_ text: String) -> String {
+        // Enforce Unicode NFC normalization
+        var result = text.precomposedStringWithCanonicalMapping
+
+        // Normalize Nukta spacing and composite glyphs (फ़, ज़, ख़, ग़, क़)
+        let nuktaRules: [(pattern: String, replacement: String)] = [
+            ("फ\\s*़", "फ़"),
+            ("ज\\s*़", "ज़"),
+            ("क\\s*़", "क़"),
+            ("ख\\s*़", "ख़"),
+            ("ग\\s*़", "ग़"),
+            ("ड\\s*़", "ड़"),
+            ("ढ\\s*़", "ढ़")
+        ]
+        for rule in nuktaRules {
+            if let reg = try? NSRegularExpression(pattern: rule.pattern) {
+                let range = NSRange(result.startIndex..<result.endIndex, in: result)
+                result = reg.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: rule.replacement)
+            }
+        }
+
+        return result
+    }
+
     /// Scores a candidate guess based on user top vocabulary, community dictionary, and distance
     private func scoreGuess(_ guess: String, original: String, userFreqDict: UserFrequencyDictionary) -> Int {
         let lower = guess.lowercased()
@@ -556,13 +924,29 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
             if lang.hasPrefix("es") { return "es_ES" }
             if lang.hasPrefix("de") { return "de_DE" }
             if lang.hasPrefix("fr") { return "fr_FR" }
+            if lang.hasPrefix("it") { return "it_IT" }
+            if lang.hasPrefix("zh") { return "zh_CN" }
+            if lang.hasPrefix("hi") { return "hi_IN" }
         }
 
-        // Detect Cyrillic presence for automatic Russian / English fallback
+        // Detect Cyrillic presence for automatic Russian
         let cyrillicScalars = text.unicodeScalars.filter { $0.value >= 0x0400 && $0.value <= 0x04FF }
         if cyrillicScalars.count > 0 {
             return "ru_RU"
         }
+
+        // Detect CJK ideographs for Chinese
+        let cjkScalars = text.unicodeScalars.filter { ($0.value >= 0x4E00 && $0.value <= 0x9FFF) || ($0.value >= 0x3400 && $0.value <= 0x4DBF) }
+        if cjkScalars.count > 0 {
+            return "zh_CN"
+        }
+
+        // Detect Devanagari for Hindi
+        let devanagariScalars = text.unicodeScalars.filter { $0.value >= 0x0900 && $0.value <= 0x097F }
+        if devanagariScalars.count > 0 {
+            return "hi_IN"
+        }
+
         return "en_US"
     }
 
