@@ -7444,8 +7444,8 @@ public final class BugReportService: ObservableObject, @unchecked Sendable {
             self.errorMessage = nil
         }
 
-        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.6.0"
-        let buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "2.6.0"
+        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.6.1"
+        let buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "2.6.1"
         let osVersion = ProcessInfo.processInfo.operatingSystemVersionString
         let macModel = getMacHardwareModel()
         let author = userNickname.isEmpty ? "Anonymous User" : userNickname

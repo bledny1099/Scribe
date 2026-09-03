@@ -5,6 +5,17 @@ All notable changes to Scribe will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.1] - 2026-09-03
+
+## Added
+- Clean borderless styling for floating live preview subtitle capsule.
+
+## Changed
+- Refined glassmorphism transparency and background contrast across desktop spaces.
+
+## Fixed
+- Removed harsh drop shadows from the floating live preview capsule and root recording overlay that caused dark blurry halo artifacts.
+
 ## [2.6.0] - 2026-08-31
 
 ## Added

@@ -21,7 +21,6 @@ struct RecordingOverlayView: View {
                 OrbOverlay().environmentObject(appState).environmentObject(audioRecorder)
             }
         }
-        .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 6)
     }
 }
 
@@ -809,7 +808,6 @@ struct SubtitleOverlayView: View {
                         }
                     }
                     .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-                    .shadow(color: Color.black.opacity(0.16), radius: 12, x: 0, y: 4)
                     .frame(maxWidth: 680)
                     .transition(.opacity.combined(with: .scale(scale: 0.96)))
                     .animation(.spring(response: 0.32, dampingFraction: 0.82), value: appState.livePreviewText)
