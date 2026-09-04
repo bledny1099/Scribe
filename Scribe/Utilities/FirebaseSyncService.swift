@@ -24,7 +24,13 @@ final class WebAuthContextProvider: NSObject, ASWebAuthenticationPresentationCon
 public final class AuthService: NSObject, ObservableObject {
     public static let shared = AuthService()
     
-    @Published public var currentUser: AuthUser?
+    private static let userDefaultsCacheKey = "cached_auth_user"
+
+    @Published public var currentUser: AuthUser? {
+        didSet {
+            saveCurrentUserToStorage(currentUser)
+        }
+    }
     @Published public var isSigningIn: Bool = false
     private var oauthListener: NWListener?
     
@@ -44,8 +50,27 @@ public final class AuthService: NSObject, ObservableObject {
             }
         }
     }
+
+    private func saveCurrentUserToStorage(_ user: AuthUser?) {
+        if let user = user {
+            if let data = try? JSONEncoder().encode(user) {
+                UserDefaults.standard.set(data, forKey: Self.userDefaultsCacheKey)
+            }
+        } else {
+            UserDefaults.standard.removeObject(forKey: Self.userDefaultsCacheKey)
+        }
+    }
+
+    private static func loadCachedUser() -> AuthUser? {
+        guard let data = UserDefaults.standard.data(forKey: userDefaultsCacheKey),
+              let user = try? JSONDecoder().decode(AuthUser.self, from: data) else {
+            return nil
+        }
+        return user
+    }
     
     private override init() {
+        self.currentUser = Self.loadCachedUser()
         super.init()
         AuthService.ensureConfigured()
         do {

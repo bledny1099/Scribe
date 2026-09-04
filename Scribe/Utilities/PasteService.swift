@@ -4,9 +4,53 @@ import os.log
 
 private let logger = Logger(subsystem: "com.aleksei.scribe", category: "PasteService")
 
+/// Represents a snapshot of the general pasteboard before dictation paste, allowing exact restoration.
+struct PasteboardSnapshot {
+    struct Item {
+        let types: [NSPasteboard.PasteboardType: Data]
+    }
+    let items: [Item]
+    let hadContent: Bool
+
+    static func capture() -> PasteboardSnapshot {
+        let pb = NSPasteboard.general
+        var captured: [Item] = []
+        for pbItem in pb.pasteboardItems ?? [] {
+            var typeData: [NSPasteboard.PasteboardType: Data] = [:]
+            for type in pbItem.types {
+                if let data = pbItem.data(forType: type) {
+                    typeData[type] = data
+                }
+            }
+            if !typeData.isEmpty {
+                captured.append(Item(types: typeData))
+            }
+        }
+        return PasteboardSnapshot(items: captured, hadContent: !captured.isEmpty)
+    }
+
+    func restore() {
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        guard hadContent else { return }
+        for item in items {
+            let pbItem = NSPasteboardItem()
+            for (type, data) in item.types {
+                pbItem.setData(data, forType: type)
+            }
+            pb.writeObjects([pbItem])
+        }
+    }
+}
+
 /// Handles clipboard operations and simulated keyboard events for pasting.
 @MainActor
 final class PasteService {
+
+    /// Captures the current clipboard state.
+    static func captureClipboard() -> PasteboardSnapshot {
+        return PasteboardSnapshot.capture()
+    }
 
     /// Copies text to the system pasteboard.
     static func copyToClipboard(_ text: String) {

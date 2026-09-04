@@ -304,17 +304,65 @@ public final class AppUpdateService: ObservableObject {
                 return
             }
             
-            // 4. Create atomic replacement script that replaces Scribe.app and relaunches it
+            // 4. Create robust atomic replacement script with PID termination wait, ditto, quarantine clearance, and logging
             let targetPath = currentAppURL.path
+            let myPID = ProcessInfo.processInfo.processIdentifier
+            let logPath = "/tmp/scribe_updater.log"
+            
             let restartScript = """
             #!/bin/sh
-            sleep 0.8
-            rm -rf "\(targetPath)"
-            cp -R "\(mountedAppURL.path)" "\(targetPath)"
-            /usr/bin/hdiutil detach "\(mountPoint)" -force >/dev/null 2>&1
-            rm -rf "\(dmgURL.path)"
-            xattr -dr com.apple.quarantine "\(targetPath)" >/dev/null 2>&1
-            open "\(targetPath)"
+            LOG="\(logPath)"
+            echo "--- Scribe Update Started: $(date) ---" >> "$LOG"
+            echo "Waiting for PID \(myPID) to exit..." >> "$LOG"
+
+            # Wait up to 10 seconds for current process to terminate
+            WAIT_COUNT=0
+            while kill -0 \(myPID) 2>/dev/null; do
+                sleep 0.2
+                WAIT_COUNT=$((WAIT_COUNT + 1))
+                if [ $WAIT_COUNT -gt 50 ]; then
+                    echo "Force killing stuck PID \(myPID)..." >> "$LOG"
+                    kill -9 \(myPID) 2>/dev/null
+                    sleep 0.5
+                    break
+                fi
+            done
+            echo "Process exited cleanly." >> "$LOG"
+
+            # Stage update into a temporary location before replacing
+            STAGE_PATH="\(targetPath).updating"
+            rm -rf "$STAGE_PATH" >> "$LOG" 2>&1
+            
+            echo "Copying from mounted DMG via ditto..." >> "$LOG"
+            /usr/bin/ditto "\(mountedAppURL.path)" "$STAGE_PATH" >> "$LOG" 2>&1
+            
+            if [ -d "$STAGE_PATH" ]; then
+                echo "Removing quarantine attributes from staged app..." >> "$LOG"
+                /usr/bin/xattr -cr "$STAGE_PATH" >> "$LOG" 2>&1
+                
+                echo "Replacing target bundle at \(targetPath)..." >> "$LOG"
+                rm -rf "\(targetPath)" >> "$LOG" 2>&1
+                mv "$STAGE_PATH" "\(targetPath)" >> "$LOG" 2>&1
+            else
+                echo "ERROR: Staging failed!" >> "$LOG"
+            fi
+
+            # Detach DMG
+            echo "Detaching DMG..." >> "$LOG"
+            /usr/bin/hdiutil detach "\(mountPoint)" -force >> "$LOG" 2>&1
+            rm -rf "\(dmgURL.path)" >> "$LOG" 2>&1
+
+            # Ensure permissions and strip quarantine
+            /usr/bin/xattr -cr "\(targetPath)" >> "$LOG" 2>&1
+
+            echo "Relaunching \(targetPath)..." >> "$LOG"
+            # Launch the updated app
+            /usr/bin/open "\(targetPath)" >> "$LOG" 2>&1
+            if [ $? -ne 0 ]; then
+                echo "Fallback: open -n \(targetPath)..." >> "$LOG"
+                /usr/bin/open -n "\(targetPath)" >> "$LOG" 2>&1
+            fi
+            echo "Update complete: $(date)" >> "$LOG"
             """
             
             let scriptURL = FileManager.default.temporaryDirectory.appendingPathComponent("scribe_restart_\(UUID().uuidString).sh")

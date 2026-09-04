@@ -331,6 +331,22 @@ struct SettingsView: View {
                                     .labelsHidden()
                             }
 
+                            // Preserve clipboard
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(appState.l("Preserve Clipboard"))
+                                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                                        .foregroundStyle(.primary)
+                                    Text(appState.l("Keeps previous clipboard content after dictating"))
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Toggle("", isOn: $appState.preserveClipboard)
+                                    .toggleStyle(.switch)
+                                    .labelsHidden()
+                            }
+
                             // Live Floating Preview Info Bar
                             HStack {
                                 Label("Live Floating Preview", systemImage: "sparkles")

@@ -492,6 +492,7 @@ final class AppState: ObservableObject {
     @AppStorage("overlayPositionMode") var overlayPositionModeRaw: String = OverlayPositionMode.screenBottom.rawValue
     @AppStorage("selectedOverlayAppearance") var selectedOverlayAppearanceRaw: String = PanelAppearance.liquidGlass.rawValue
     @AppStorage("selectedPanelAppearance") var selectedPanelAppearanceRaw: String = PanelAppearance.liquidGlass.rawValue
+    @AppStorage("preserveClipboard") public var preserveClipboard: Bool = true
     @AppStorage("soundFeedbackEnabled") var soundFeedbackEnabled: Bool = true
     @AppStorage("livePreviewEnabled") var livePreviewEnabled: Bool = true
     @AppStorage("livePreviewBackground") var livePreviewBackgroundRaw: String = SubtitleBackground.glass.rawValue
@@ -1063,6 +1064,9 @@ final class AppState: ObservableObject {
                     try? await Task.sleep(for: .seconds(1.2))
                     hidePanel()
                 } else {
+                    // Capture snapshot of previous clipboard if preserveClipboard is enabled
+                    let previousClipboard = self.preserveClipboard ? PasteService.captureClipboard() : nil
+
                     // Always populate clipboard
                     switch self.selectedPasteMode {
                     case .paste:  PasteService.copyToClipboard(text)
@@ -1095,6 +1099,13 @@ final class AppState: ObservableObject {
                         // Brief delay so the user sees the checkmark, then paste
                         try? await Task.sleep(for: .milliseconds(400))
                         PasteService.simulatePaste()
+
+                        // If preserving clipboard, restore original user content after target app consumes paste
+                        if let snapshot = previousClipboard {
+                            try? await Task.sleep(for: .milliseconds(250))
+                            snapshot.restore()
+                            logger.info("Previous clipboard contents restored")
+                        }
                     }
 
                     try? await Task.sleep(for: .seconds(0.8))
