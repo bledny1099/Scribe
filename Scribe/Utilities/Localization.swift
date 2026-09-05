@@ -318,7 +318,6 @@ enum Localization {
             "Paste via Clipboard (⌘V)": "Вставка через буфер (⌘V)",
             "Direct Typing (No Clipboard)": "Прямой ввод (без буфера обмена)",
             "Append to Clipboard": "Дописывать в буфер обмена",
-            "Integrations Only": "Только интеграции",
             "Preserve Clipboard": "Сохранять буфер обмена",
             "Keeps previous clipboard content after dictating": "Сохраняет предыдущее содержимое буфера после вставки",
             "Microphone": "Микрофон",
