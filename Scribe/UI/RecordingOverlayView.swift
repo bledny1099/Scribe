@@ -330,24 +330,31 @@ struct WaveformOverlay: View {
                 levels.append(simulated)
             } else if appState.recordingStatus == .recording {
                 let current = audioRecorder.audioLevel
-                // Fast attack, smooth decay
-                if current > smoothedLevel {
-                    smoothedLevel = current
+                let isSpeaking = current > 0.04
+
+                if isSpeaking {
+                    // Voice detected: fast attack and lively waveform bars
+                    if current > smoothedLevel {
+                        smoothedLevel = current
+                    } else {
+                        smoothedLevel = max(0.02, smoothedLevel * 0.84)
+                    }
+
+                    let jitter = Float.random(in: -0.04...0.04) * smoothedLevel
+                    let barValue = min(1.0, max(0.02, smoothedLevel + jitter))
+                    levels.removeFirst()
+                    levels.append(barValue)
                 } else {
-                    smoothedLevel = max(0.02, smoothedLevel * 0.88)
+                    // Silence (no words being spoken): smoothly decay to completely flat rest line
+                    smoothedLevel = max(0.02, smoothedLevel * 0.70)
+                    levels.removeFirst()
+                    levels.append(smoothedLevel)
                 }
-
-                // Add subtle organic jitter so bars look like real audio spectrum
-                let jitter = Float.random(in: -0.04...0.04) * smoothedLevel
-                let barValue = min(1.0, max(0.02, smoothedLevel + jitter))
-
-                levels.removeFirst()
-                levels.append(barValue)
             }
         }
         .onChange(of: audioRecorder.audioLevel) { _, newLevel in
             guard !appState.isShowingPreview else { return }
-            if newLevel > smoothedLevel {
+            if newLevel > 0.04 && newLevel > smoothedLevel {
                 smoothedLevel = newLevel
             }
         }
@@ -552,7 +559,8 @@ struct ECGOverlay: View {
                             for i in 1...segments {
                                 let x = CGFloat(i) * step
                                 let isCenter = (i > 10 && i < 30)
-                                let amplitude = isCenter ? (CGFloat(audioRecorder.audioLevel) * midY) : (CGFloat.random(in: 0...2))
+                                let isSpeaking = audioRecorder.audioLevel > 0.04
+                                let amplitude: CGFloat = isSpeaking ? (isCenter ? (CGFloat(audioRecorder.audioLevel) * midY) : CGFloat.random(in: 0...2)) : 0
                                 let y = midY + (i % 2 == 0 ? amplitude : -amplitude)
                                 path.addLine(to: CGPoint(x: x, y: y))
                             }

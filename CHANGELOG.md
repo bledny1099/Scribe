@@ -5,7 +5,7 @@ All notable changes to Scribe will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.6.2] - 2026-09-05
+## [2.6.3] - 2026-09-05
 
 ## Added
 - Dynamic language-aware neural routing: automatically engages Whisper Large-V3 Turbo for Russian and bilingual code-switching while retaining lightweight Whisper for English.
@@ -22,6 +22,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed atomic multi-item clipboard restoration in `PasteboardSnapshot.restore()`.
 - Fixed user session persistence across updates in `FirebaseSyncService`.
 - Fixed acoustic confusion and hallucination patterns in `AetherLinguisticValidator`.
+
+## [2.6.2] - 2026-09-04
+
+## Added
+- Option to preserve system clipboard contents after dictation insertion.
+- Automatic local caching and persistence of active user accounts across updates and restarts.
+
+## Changed
+- Overhauled in-app update installer with PID termination checks, staged copy, quarantine removal, and reliable auto-relaunch.
+- Lowered audio visualizer noise floor to -68 dB with adaptive power curve for responsive feedback on quiet and distant speech.
+
+## Fixed
+- Prevented Whisper subtitle hallucinations ("а. семки", "а. семкин", "а. егорова").
+- Fixed voice speech recognition slips for clipboard commands ("буфер отмена" -> "буфер обмена") and imperative directive forms ("сделаю" / "сделает" -> "сделай").
 
 ## [2.6.1] - 2026-09-03
 

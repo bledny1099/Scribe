@@ -588,11 +588,11 @@
             </thead>
             <tbody>
               <tr>
-                <td id="securitySupportedVer">v2.6.2</td>
+                <td id="securitySupportedVer">v2.6.3</td>
                 <td>✅ Supported</td>
               </tr>
               <tr>
-                <td id="securityUnsupportedVer">&lt; v2.6.1</td>
+                <td id="securityUnsupportedVer">&lt; v2.6.2</td>
                 <td>🚫 Unsupported</td>
               </tr>
             </tbody>
@@ -603,17 +603,17 @@
         <div class="form-group">
           <label class="form-label" for="reportVersion">Scribe Version</label>
           <select id="reportVersion" class="form-select" onchange="onVersionChange()">
-            <option id="optLatestVersion" value="v2.6.2" selected>v2.6.2 (Latest Release)</option>
-            <option id="optOutdatedVersion" value="< v2.6.1">&lt; v2.6.1 (Outdated)</option>
+            <option id="optLatestVersion" value="v2.6.3" selected>v2.6.3 (Latest Release)</option>
+            <option id="optOutdatedVersion" value="< v2.6.2">&lt; v2.6.2 (Outdated)</option>
           </select>
         </div>
 
         <!-- Outdated Version Warning -->
         <div id="versionWarning" class="version-warning">
           <strong>⛔ Unsupported Version for Bug Reports:</strong>
-          <p style="margin-top: 4px;">Bug reports are only accepted for the latest release (<strong id="warnLatestVerText">v2.6.2</strong>). Many issues are already resolved in newer builds. Please update Scribe and check if the issue persists.</p>
+          <p style="margin-top: 4px;">Bug reports are only accepted for the latest release (<strong id="warnLatestVerText">v2.6.3</strong>). Many issues are already resolved in newer builds. Please update Scribe and check if the issue persists.</p>
           <div style="margin-top: 10px;">
-            <a id="warnDownloadBtn" href="https://github.com/bledny1099/Scribe/releases/latest" target="_blank" style="display: inline-block; padding: 7px 14px; background: rgba(52, 211, 153, 0.15); border: 1px solid rgba(52, 211, 153, 0.35); border-radius: 6px; color: #34d399; text-decoration: none; font-weight: 600;">Download v2.6.2</a>
+            <a id="warnDownloadBtn" href="https://github.com/bledny1099/Scribe/releases/latest" target="_blank" style="display: inline-block; padding: 7px 14px; background: rgba(52, 211, 153, 0.15); border: 1px solid rgba(52, 211, 153, 0.35); border-radius: 6px; color: #34d399; text-decoration: none; font-weight: 600;">Download v2.6.3</a>
           </div>
         </div>
 
@@ -704,7 +704,7 @@
 
   <script>
     let currentType = 'bug';
-    let latestSupportedVersion = 'v2.6.2';
+    let latestSupportedVersion = 'v2.6.3';
     let passedAppVersion = null;
 
     function isSupportedVersion(ver) {

@@ -224,7 +224,7 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
         }
     }
 
-    // MARK: - RMS Metering (vDSP)
+    // MARK: - RMS Metering (vDSP) with Speech Gate
 
     /// Static so it can be called from a non-isolated closure without capturing self.
     private static func computeLevel(_ buffer: AVAudioPCMBuffer) -> Float {
@@ -234,14 +234,19 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
         var rms: Float = 0
         vDSP_rmsqv(channelData[0], 1, &rms, vDSP_Length(buffer.frameLength))
 
-        // Convert to dB with wide sensitivity for quiet speech and distant microphones
-        // Silence floor at -78 dB, quiet speech around -65 to -45 dB, normal speech around -35 to -15 dB
         let db = 20 * log10(max(rms, 1e-5))
-        let minDb: Float = -78.0
-        let maxDb: Float = -12.0
-        let normalized = max(0, min(1, (db - minDb) / (maxDb - minDb)))
 
-        // Adaptive expansion curve (power 0.35) to make quiet speech visually lively without clipping
-        return pow(normalized, 0.35)
+        // Strict speech gate: ambient room noise, microphone self-noise, and breathing
+        // are typically below -45 dB. Below this gate, level returns 0 so visualizer stays calm.
+        // Spoken words (> -44 dB) trigger immediate dynamic level output.
+        let speechGateDb: Float = -45.0
+        let maxDb: Float = -13.0
+
+        guard db > speechGateDb else { return 0 }
+
+        let normalized = max(0, min(1, (db - speechGateDb) / (maxDb - speechGateDb)))
+
+        // Natural dynamic curve for vocal speech
+        return pow(normalized, 0.75)
     }
 }
