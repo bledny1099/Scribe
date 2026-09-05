@@ -47,9 +47,10 @@ struct SettingsView: View {
     @State private var showingOnboardingNameModal = false
     @State private var showingAppleNotesModal = false
 
-    // 3 Multilingual ASR Tiers: Ultra (Max), Standard (Balanced), Eco (Fast & Lightweight)
+    // Multilingual ASR Tiers
     private let models: [(id: String, name: String, desc: String)] = [
-        ("openai_whisper-large-v3_turbo", "Ultra (Large V3 Turbo)", "Maximum precision for all 8 languages, technical speech & mixed dialects (~950MB)"),
+        ("openai_whisper-large-v3_turbo", "Ultra (Large V3 Turbo - Enhanced RU)", "Maximum precision for Russian, English, code-switching & technical speech (~950MB)"),
+        ("openai_whisper-large-v3", "Studio (Large V3 Full)", "Full uncompressed large model for challenging acoustic environments (~1.5GB)"),
         ("openai_whisper-small", "Standard (Balanced)", "Great balance of high accuracy and speed for everyday dictation (~460MB)"),
         ("openai_whisper-base", "Eco (Fast & Lightweight)", "Instant response with minimal CPU and battery usage (~140MB)")
     ]
@@ -331,21 +332,6 @@ struct SettingsView: View {
                                     .labelsHidden()
                             }
 
-                            // Preserve clipboard
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(appState.l("Preserve Clipboard"))
-                                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                                        .foregroundStyle(.primary)
-                                    Text(appState.l("Keeps previous clipboard content after dictating"))
-                                        .font(.system(size: 11))
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                Toggle("", isOn: $appState.preserveClipboard)
-                                    .toggleStyle(.switch)
-                                    .labelsHidden()
-                            }
 
                             // Live Floating Preview Info Bar
                             HStack {
@@ -407,15 +393,14 @@ struct SettingsView: View {
                                             "Aether Instant"
                                         ],
                                         selection: $appState.recognitionEngine,
-                                        title: { id in
-                                            if id.contains("Neural") && !appState.isParakeetSupported {
-                                                return appState.l("Aether Neural (RU / EN only)")
-                                            }
-                                            return appState.l(id)
-                                        },
+                                        title: { id in appState.l(id) },
                                         displayTitle: { id in
                                             if id.contains("Neural") {
-                                                return appState.isParakeetSupported ? "Aether Neural" : "Aether (Whisper fallback)"
+                                                return "Aether Neural"
+                                            } else if id.contains("Turbo") {
+                                                return "Aether Turbo"
+                                            } else if id.contains("Instant") {
+                                                return "Aether Instant"
                                             }
                                             return appState.l(id)
                                         }
@@ -485,11 +470,29 @@ struct SettingsView: View {
                                     .labelsHidden()
                             }
 
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(appState.l("Model Quality"))
+                                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                                        .foregroundStyle(.primary)
+                                    Text(appState.l(models.first(where: { $0.id == appState.selectedModel })?.desc ?? ""))
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                LiquidGlassMenu(
+                                    items: models.map { $0.id },
+                                    selection: $appState.selectedModel,
+                                    title: { id in appState.l(models.first(where: { $0.id == id })?.name ?? id) },
+                                    displayTitle: { id in appState.l(models.first(where: { $0.id == id })?.name ?? id) }
+                                )
+                            }
+
                             // Active Engine & Neural Architecture Info Card
                             HStack(spacing: 12) {
-                                Image(systemName: appState.isParakeetSupported ? "cpu.fill" : "waveform.badge.magnifyingglass")
+                                Image(systemName: "cpu.fill")
                                     .font(.system(size: 18, weight: .semibold))
-                                    .foregroundStyle(appState.isParakeetSupported ? Color.green : Color.blue)
+                                    .foregroundStyle(Color.green)
 
                                 VStack(alignment: .leading, spacing: 3) {
                                     HStack(spacing: 6) {
@@ -497,36 +500,21 @@ struct SettingsView: View {
                                             .font(.system(size: 12, weight: .semibold, design: .rounded))
                                             .foregroundStyle(.primary)
 
-                                        if appState.isParakeetSupported {
-                                            Text("Aether Neural (Parakeet TDT 0.6B)")
-                                                .font(.system(size: 10.5, weight: .bold, design: .monospaced))
-                                                .foregroundStyle(Color.green)
-                                                .padding(.horizontal, 6)
-                                                .padding(.vertical, 2)
-                                                .background(
-                                                    Capsule()
-                                                        .fill(Color.green.opacity(0.12))
-                                                )
-                                        } else {
-                                            Text("WhisperKit Multilingual")
-                                                .font(.system(size: 10.5, weight: .bold, design: .monospaced))
-                                                .foregroundStyle(Color.blue)
-                                                .padding(.horizontal, 6)
-                                                .padding(.vertical, 2)
-                                                .background(
-                                                    Capsule()
-                                                        .fill(Color.blue.opacity(0.12))
-                                                )
-                                        }
+                                        Text(appState.recognitionEngine.contains("Instant") ? "Apple Speech" : (appState.recognitionEngine.contains("Parakeet") ? "Parakeet TDT" : "WhisperKit ANE"))
+                                            .font(.system(size: 10.5, weight: .bold, design: .monospaced))
+                                            .foregroundStyle(Color.green)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(
+                                                Capsule()
+                                                    .fill(Color.green.opacity(0.12))
+                                            )
                                     }
 
-                                    Text(appState.isParakeetSupported
-                                        ? appState.l("High-speed NVIDIA FastConformer + TDT running on Apple Neural Engine (ANE) for Russian, English & EU languages. Instant latency, zero hallucinations & built-in punctuation.")
-                                        : appState.l("WhisperKit multilingual engine active for 99+ languages. Aether Neural (Parakeet) is enabled when Russian or English is selected.")
-                                    )
-                                    .font(.system(size: 10.5, weight: .regular))
-                                    .foregroundStyle(.secondary)
-                                    .fixedSize(horizontal: false, vertical: true)
+                                    Text(appState.recognitionEngineDescription)
+                                        .font(.system(size: 10.5, weight: .regular))
+                                        .foregroundStyle(.secondary)
+                                        .fixedSize(horizontal: false, vertical: true)
                                 }
                                 Spacer()
                             }
@@ -5952,6 +5940,49 @@ struct GeneralSettingsView: View {
             // SECTION: Recording Options
             GlassSection(title: appState.l("Options"), icon: "gearshape") {
                 VStack(spacing: 16) {
+                    // Insertion Method
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(appState.l("Insertion Method"))
+                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                .foregroundStyle(.primary)
+                            Text(appState.l("Choose how dictation is inserted into active applications"))
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Picker("", selection: Binding(
+                            get: { appState.selectedPasteMode },
+                            set: { appState.selectedPasteMode = $0 }
+                        )) {
+                            Text(appState.l("Paste via Clipboard (⌘V)")).tag(PasteMode.paste)
+                            Text(appState.l("Direct Typing (No Clipboard)")).tag(PasteMode.directType)
+                            Text(appState.l("Append to Clipboard")).tag(PasteMode.append)
+                            Text(appState.l("Integrations Only")).tag(PasteMode.integrationsOnly)
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .frame(width: 220)
+                    }
+
+                    // Preserve clipboard
+                    if appState.selectedPasteMode == .paste {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(appState.l("Preserve Clipboard"))
+                                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                Text(appState.l("Keeps previous clipboard content after dictating"))
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Toggle("", isOn: $appState.preserveClipboard)
+                                .toggleStyle(.switch)
+                                .labelsHidden()
+                        }
+                    }
+
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(appState.l("Live Preview"))

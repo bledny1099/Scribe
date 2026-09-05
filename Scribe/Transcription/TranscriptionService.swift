@@ -2,8 +2,8 @@ import Foundation
 import AppKit
 import WhisperKit
 import os.log
-import Speech
-import AVFoundation
+@preconcurrency import Speech
+@preconcurrency import AVFoundation
 
 private let logger = Logger(subsystem: "com.aleksei.scribe", category: "Transcription")
 
@@ -42,17 +42,50 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
     private var whisperKit: WhisperKit?
     private var loadedModelName: String?
 
-    // Apple Speech State
+    // Apple Speech State (Primary + Secondary for Multilingual Streaming)
     private var speechRecognizer: SFSpeechRecognizer?
     private var speechRequest: SFSpeechAudioBufferRecognitionRequest?
     private var speechTask: SFSpeechRecognitionTask?
+
+    private var secondarySpeechRecognizer: SFSpeechRecognizer?
+    private var secondarySpeechRequest: SFSpeechAudioBufferRecognitionRequest?
+    private var secondarySpeechTask: SFSpeechRecognitionTask?
+
     private var currentStreamingText: String = ""
+    private var primaryStreamingText: String = ""
+    private var secondaryStreamingText: String = ""
+    private var isSecondaryEnglish: Bool = false
+
+    // Resampler for streaming audio to standard 16kHz mono Float32 PCM
+    private let streaming16kFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16000, channels: 1, interleaved: false)!
+    private var audioConverter: AVAudioConverter?
+    private var converterSourceFormat: AVAudioFormat?
+    private let resamplerQueue = DispatchQueue(label: "com.aleksei.scribe.resampler")
+
+    /// Maps a language code or identifier to a standard Apple Speech locale identifier.
+    public static func localeIdentifier(for lang: String) -> String {
+        let clean = lang.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        switch clean {
+        case "ru", "ru-ru", "rus": return "ru-RU"
+        case "en", "en-us", "eng": return "en-US"
+        case "es", "es-es": return "es-ES"
+        case "de", "de-de": return "de-DE"
+        case "fr", "fr-fr": return "fr-FR"
+        case "it", "it-it": return "it-IT"
+        case "zh", "zh-cn": return "zh-CN"
+        case "ja", "ja-jp": return "ja-JP"
+        case "uk", "uk-ua": return "uk-UA"
+        case "tr", "tr-tr": return "tr-TR"
+        case "pt", "pt-pt", "pt-br": return "pt-BR"
+        default: return clean.contains("-") ? clean : "\(clean)-\(clean.uppercased())"
+        }
+    }
 
     /// Initial prompt that conditions Whisper to produce punctuation and recognise common brand names.
     /// Whisper uses this as "previous context" so it learns the expected output style.
     private let initialPrompt: [String: String] = [
         "en": "Use proper punctuation, capitalization, commas, and natural sentence structures. Terms: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
-        "ru": "Распознавай русскую речь связно и грамотно, сохраняя правильные падежи, окончания слов, предлоги и пунктуацию (запятые, точки, тире). Мы пишем код, общаемся в чатах, обсуждаем задачи и делимся мыслями. Термины: Bybit, Binance, MetaMask, Solana, Telegram, Viber, ChatGPT, Gemini, Claude, Perplexity, Midjourney, OpenAI, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, Google, Antigravity, IDE, Scribe, транскрибатор, Хабр.",
+        "ru": "Распознавай русскую речь связно и грамотно, сохраняя правильные падежи, окончания слов, предлоги и пунктуацию (запятые, точки, тире). Смешанная русско-английская речь разработчиков и пользователей: коммит, пулл реквест, PR, мердж, пуш, деплой, бэкенд, фронтенд, багфикс, релиз, прод, стейджинг, API, токен, промпт, контекст, репозиторий. Bybit, Binance, Telegram, ChatGPT, Gemini, Claude, OpenAI, Swift, SwiftUI, Xcode, Docker, Kubernetes, Next.js, Rust, WhisperKit, PostgreSQL, TypeScript, Python, LLM, Google, Antigravity, IDE, Scribe, транскрибатор, Хабр.",
         "es": "Términos: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
         "de": "Begriffe: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
         "fr": "Termes: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
@@ -62,7 +95,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         "pt": "Termos: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
         "tr": "Terimler: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
         "uk": "Терміни: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
-        "auto": "Естественная русская и английская речь с правильными падежами, окончаниями, предлогами и пунктуацией. We speak fluent Russian and English. Terms: Bybit, Telegram, ChatGPT, Gemini, Claude, OpenAI, Swift, Xcode, Docker, Kubernetes, TypeScript, Python, LLM, Google, Antigravity, Scribe."
+        "auto": "Естественная русская и английская речь с правильными падежами, окончаниями, предлогами и пунктуацией. Fluent Russian and English code-switching. Terms: Bybit, Telegram, ChatGPT, Gemini, Claude, OpenAI, Swift, SwiftUI, Xcode, Docker, Kubernetes, TypeScript, Python, LLM, commit, pull request, merge, push, deploy, bugfix, backend, frontend, Google, Antigravity, Scribe."
     ]
 
     // MARK: - Model Lifecycle
@@ -88,82 +121,236 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
 
     // MARK: - Apple Speech (Streaming)
 
+    /// Convenience start streaming method supporting a single language or auto.
     @MainActor
     func startStreaming(language: String?, customVocabulary: String = "", userLocation: String = "", targetApp: NSRunningApplication? = nil, onUpdate: @escaping (String) -> Void) throws {
+        let langs = language.map { [$0] } ?? ["ru", "en"]
+        try startStreaming(languages: langs, customVocabulary: customVocabulary, userLocation: userLocation, targetApp: targetApp, onUpdate: onUpdate)
+    }
+
+    /// Starts streaming speech recognition with support for concurrent multilingual recognition.
+    @MainActor
+    func startStreaming(
+        languages: [String],
+        customVocabulary: String = "",
+        userLocation: String = "",
+        targetApp: NSRunningApplication? = nil,
+        onUpdate: @escaping (String) -> Void
+    ) throws {
         state = .transcribing
         currentStreamingText = ""
-        
-        let targetLang = (language ?? "ru").lowercased()
-        let localeIdentifier: String
-        switch targetLang {
-        case "ru", "ru-ru", "rus": localeIdentifier = "ru-RU"
-        case "en", "en-us", "eng": localeIdentifier = "en-US"
-        case "es", "es-es": localeIdentifier = "es-ES"
-        case "de", "de-de": localeIdentifier = "de-DE"
-        case "fr", "fr-fr": localeIdentifier = "fr-FR"
-        case "it", "it-it": localeIdentifier = "it-IT"
-        case "zh", "zh-cn": localeIdentifier = "zh-CN"
-        case "ja", "ja-jp": localeIdentifier = "ja-JP"
-        case "uk", "uk-ua": localeIdentifier = "uk-UA"
-        default: localeIdentifier = targetLang.contains("-") ? targetLang : "\(targetLang)-\(targetLang.uppercased())"
-        }
-        
-        let locale = Locale(identifier: localeIdentifier)
-        
-        guard let recognizer = SFSpeechRecognizer(locale: locale) ?? SFSpeechRecognizer(locale: Locale(identifier: "ru-RU")) ?? SFSpeechRecognizer(locale: Locale.current), recognizer.isAvailable else {
-            throw TranscriptionError.modelNotLoaded
-        }
-        
-        speechRecognizer = recognizer
-        let request = SFSpeechAudioBufferRecognitionRequest()
-        request.shouldReportPartialResults = true
-        request.taskHint = .dictation
-        if #available(macOS 13, *) {
-            request.addsPunctuation = true
-        }
-        
-        let strings = AetherContextEngine.shared.buildContextualStrings(
+        primaryStreamingText = ""
+        secondaryStreamingText = ""
+
+        let contextualStrings = AetherContextEngine.shared.buildContextualStrings(
             customVocabulary: customVocabulary,
             userLocation: userLocation,
             targetApp: targetApp
         )
-        request.contextualStrings = strings
-        
-        speechRequest = request
-        
-        speechTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
+
+        let cleanedLangs = languages
+            .map { $0.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty && $0 != "auto" }
+
+        let primaryLang: String
+        let secondaryLang: String?
+
+        if cleanedLangs.isEmpty {
+            primaryLang = "ru"
+            secondaryLang = "en"
+        } else if cleanedLangs.count == 1 {
+            primaryLang = cleanedLangs[0]
+            secondaryLang = nil
+        } else {
+            // Prioritize Russian as primary recognizer whenever present in multilingual selection
+            if cleanedLangs.contains(where: { $0.starts(with: "ru") }) {
+                primaryLang = "ru"
+                secondaryLang = cleanedLangs.first(where: { !$0.starts(with: "ru") }) ?? "en"
+            } else {
+                primaryLang = cleanedLangs[0]
+                secondaryLang = cleanedLangs.count > 1 ? cleanedLangs[1] : nil
+            }
+        }
+
+        let primaryLocale = Locale(identifier: Self.localeIdentifier(for: primaryLang))
+        guard let primaryRec = SFSpeechRecognizer(locale: primaryLocale) ?? SFSpeechRecognizer(locale: Locale(identifier: "ru-RU")) ?? SFSpeechRecognizer(locale: Locale.current), primaryRec.isAvailable else {
+            throw TranscriptionError.modelNotLoaded
+        }
+
+        self.speechRecognizer = primaryRec
+        let primaryReq = SFSpeechAudioBufferRecognitionRequest()
+        primaryReq.shouldReportPartialResults = true
+        primaryReq.taskHint = .dictation
+        if #available(macOS 13, *) {
+            primaryReq.addsPunctuation = true
+        }
+        if primaryRec.supportsOnDeviceRecognition {
+            primaryReq.requiresOnDeviceRecognition = true
+        }
+        primaryReq.contextualStrings = contextualStrings
+        self.speechRequest = primaryReq
+
+        self.speechTask = primaryRec.recognitionTask(with: primaryReq) { [weak self] result, error in
             guard let self = self else { return }
             if let result = result {
                 let text = result.bestTranscription.formattedString
                 Task { @MainActor in
-                    self.currentStreamingText = text
-                    onUpdate(text)
+                    self.primaryStreamingText = text
+                    self.evaluateStreamingText(onUpdate: onUpdate)
                 }
             }
             if let error = error {
-                logger.debug("Apple Speech stream task info: \(error.localizedDescription)")
+                logger.debug("Apple Speech primary stream task: \(error.localizedDescription)")
             }
         }
-        
-        logger.info("Apple Speech streaming started for locale \(locale.identifier)")
+
+        logger.info("Apple Speech primary stream started for locale \(primaryLocale.identifier)")
+
+        // Configure secondary recognizer if dual language requested
+        if let secLang = secondaryLang {
+            let secLocale = Locale(identifier: Self.localeIdentifier(for: secLang))
+            if let secRec = SFSpeechRecognizer(locale: secLocale), secRec.isAvailable {
+                self.secondarySpeechRecognizer = secRec
+                self.isSecondaryEnglish = secLang.starts(with: "en")
+                let secReq = SFSpeechAudioBufferRecognitionRequest()
+                secReq.shouldReportPartialResults = true
+                secReq.taskHint = .dictation
+                if #available(macOS 13, *) {
+                    secReq.addsPunctuation = true
+                }
+                if secRec.supportsOnDeviceRecognition {
+                    secReq.requiresOnDeviceRecognition = true
+                }
+                secReq.contextualStrings = contextualStrings
+                self.secondarySpeechRequest = secReq
+
+                self.secondarySpeechTask = secRec.recognitionTask(with: secReq) { [weak self] result, error in
+                    guard let self = self else { return }
+                    if let result = result {
+                        let text = result.bestTranscription.formattedString
+                        Task { @MainActor in
+                            self.secondaryStreamingText = text
+                            self.evaluateStreamingText(onUpdate: onUpdate)
+                        }
+                    }
+                    if let error = error {
+                        logger.debug("Apple Speech secondary stream task: \(error.localizedDescription)")
+                    }
+                }
+                logger.info("Apple Speech secondary stream started for locale \(secLocale.identifier)")
+            }
+        }
     }
-    
+
+    @MainActor
+    private func evaluateStreamingText(onUpdate: @escaping (String) -> Void) {
+        let prim = primaryStreamingText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let sec = secondaryStreamingText.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        let selected: String
+        if sec.isEmpty {
+            selected = prim
+        } else if prim.isEmpty {
+            selected = sec
+        } else {
+            let primHasCyrillic = prim.range(of: "\\p{Cyrillic}", options: .regularExpression) != nil
+            let secHasCyrillic = sec.range(of: "\\p{Cyrillic}", options: .regularExpression) != nil
+
+            if primHasCyrillic && !secHasCyrillic {
+                // Russian speech detected by primary recognizer
+                selected = prim
+            } else if !primHasCyrillic && !secHasCyrillic && isSecondaryEnglish {
+                // English speech: secondary English recognizer provides accurate Latin spelling
+                selected = sec
+            } else {
+                // Default to whichever recognized more complete text
+                selected = prim.count >= sec.count ? prim : sec
+            }
+        }
+
+        guard !selected.isEmpty, selected != currentStreamingText else { return }
+        currentStreamingText = selected
+        onUpdate(selected)
+    }
+
+    private final class BufferHolder: @unchecked Sendable {
+        let buffer: AVAudioPCMBuffer
+        var isConsumed = false
+        init(_ buffer: AVAudioPCMBuffer) {
+            self.buffer = buffer
+        }
+    }
+
+    /// Appends audio buffer, automatically resampling to 16,000 Hz mono PCM if needed.
     func append(_ buffer: AVAudioPCMBuffer) {
-        speechRequest?.append(buffer)
+        guard speechRequest != nil || secondarySpeechRequest != nil else { return }
+
+        let targetBuffer: AVAudioPCMBuffer = resamplerQueue.sync {
+            if buffer.format == streaming16kFormat {
+                return buffer
+            }
+            if audioConverter == nil || converterSourceFormat != buffer.format {
+                audioConverter = AVAudioConverter(from: buffer.format, to: streaming16kFormat)
+                converterSourceFormat = buffer.format
+            }
+            guard let converter = audioConverter else {
+                return buffer
+            }
+
+            let ratio = 16000.0 / buffer.format.sampleRate
+            let capacity = AVAudioFrameCount(Double(buffer.frameLength) * ratio + 64)
+            guard let converted = AVAudioPCMBuffer(pcmFormat: streaming16kFormat, frameCapacity: capacity) else {
+                return buffer
+            }
+
+            let holder = BufferHolder(buffer)
+            var convError: NSError?
+            let status = converter.convert(to: converted, error: &convError) { _, outStatus in
+                if !holder.isConsumed {
+                    holder.isConsumed = true
+                    outStatus.pointee = .haveData
+                    return holder.buffer
+                } else {
+                    outStatus.pointee = .noDataNow
+                    return nil
+                }
+            }
+
+            if status != .error && converted.frameLength > 0 {
+                return converted
+            } else {
+                return buffer
+            }
+        }
+
+        speechRequest?.append(targetBuffer)
+        secondarySpeechRequest?.append(targetBuffer)
     }
     
     @MainActor
     func stopStreaming() async -> String {
         speechRequest?.endAudio()
-        
+        secondarySpeechRequest?.endAudio()
+
         // Wait a small bit to allow final results to trickle in if needed
-        try? await Task.sleep(for: .milliseconds(300))
-        
+        try? await Task.sleep(for: .milliseconds(250))
+
         let finalText = currentStreamingText
         speechTask?.cancel()
         speechTask = nil
         speechRequest = nil
-        
+        speechRecognizer = nil
+
+        secondarySpeechTask?.cancel()
+        secondarySpeechTask = nil
+        secondarySpeechRequest = nil
+        secondarySpeechRecognizer = nil
+
+        resamplerQueue.sync {
+            audioConverter = nil
+            converterSourceFormat = nil
+        }
+
         logger.info("Apple Speech streaming stopped. Final text: \(finalText)")
         state = .done(finalText)
         return finalText
@@ -181,9 +368,10 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         autoTranslate: Bool = false,
         customVocabulary: String = "",
         userLocation: String = "",
-        targetApp: NSRunningApplication? = nil
+        targetApp: NSRunningApplication? = nil,
+        recognitionEngine: String = "Aether Neural (Recommended)"
     ) async throws -> String {
-        logger.info("Aether Transcribing: \(audioURL.lastPathComponent), model: \(modelName), language: \(language ?? "auto-detect"), translate: \(autoTranslate)")
+        logger.info("Aether Transcribing: \(audioURL.lastPathComponent), model: \(modelName), engine: \(recognitionEngine), language: \(language ?? "auto-detect"), translate: \(autoTranslate)")
 
         state = .transcribing
 
@@ -196,10 +384,11 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         let path = conditionedURL.path
         let baseLang = language != nil ? baseLanguageCode(for: language!) : "auto"
 
-        // 2. Fast Path: Parakeet TDT 0.6B v3 Engine (NVIDIA FastConformer on Apple Neural Engine)
-        // If preferred languages are within the 25 European languages supported by Parakeet (or default auto RU/EN)
-        // and translation is not requested, use Parakeet for ultra-low latency & superior WER.
-        if !autoTranslate && ParakeetEngine.canHandle(language: language, preferredLanguages: preferredLanguages) {
+        // 2. Optional Fast Path: Parakeet TDT 0.6B v3 Engine (NVIDIA FastConformer on Apple Neural Engine)
+        // Only route to Parakeet if explicitly selected in settings (e.g. "Parakeet").
+        // For Russian and multilingual, WhisperKit is the primary neural engine providing rich
+        // autoregressive transformer language modeling, full grammatical declensions, and coherent sentence structure.
+        if recognitionEngine.contains("Parakeet") && !autoTranslate && ParakeetEngine.canHandle(language: language, preferredLanguages: preferredLanguages) {
             do {
                 logger.info("Routing to Parakeet TDT v3 Engine on Apple Neural Engine...")
                 let rawParakeetText = try await ParakeetEngine.shared.transcribe(
@@ -283,8 +472,9 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
 
         if let tokenizer = kit.tokenizer {
             let tokens = tokenizer.encode(text: promptText)
-            // WhisperKit prompt tokens: keep compact (max 100) for faster attention decoding
-            options.promptTokens = Array(tokens.suffix(min(tokens.count, 100)))
+            // WhisperKit prompt tokens: take the foundational prompt prefix (up to 180 tokens)
+            // so grammar conditioning, tone, and key vocabulary are never truncated.
+            options.promptTokens = Array(tokens.prefix(min(tokens.count, 180)))
             // Must disable prefill cache when using promptTokens (WhisperKit limitation)
             options.usePrefillCache = false
             logger.debug("Aether set initial prompt (\(options.promptTokens?.count ?? 0) tokens) for language '\(langKey)'")
@@ -329,7 +519,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             )
             if let tokenizer = kit.tokenizer {
                 let tokens = tokenizer.encode(text: fallbackPromptText)
-                redecodeOptions.promptTokens = Array(tokens.suffix(min(tokens.count, 100)))
+                redecodeOptions.promptTokens = Array(tokens.prefix(min(tokens.count, 180)))
                 redecodeOptions.usePrefillCache = false
             }
 
@@ -549,8 +739,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         return current
     }
 
-    /// Strips built-in boundary hallucination artifacts.
-    /// If the user's entire recording session was intentionally just that phrase alone, it is preserved.
+    /// Strips built-in boundary hallucination artifacts (subtitles, credits, YouTube noise loops).
     public static func stripBuiltInHallucinations(_ text: String) -> String {
         guard !text.isEmpty else { return text }
 
@@ -558,10 +747,16 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         let stripped = trimmed.trimmingCharacters(in: CharacterSet.punctuationCharacters.union(.whitespacesAndNewlines))
         let lowerStripped = stripped.lowercased()
 
-        // 1. If the ENTIRE transcript is intentionally just that single root phrase, preserve it!
+        // 1. If the text is solely composed of or matches a hallucination root, discard it completely
         for root in builtInWhisperHallucinationRoots {
             if lowerStripped == root {
-                return text
+                return ""
+            }
+            if lowerStripped.contains(root) {
+                let withoutRoot = lowerStripped.replacingOccurrences(of: root, with: "").trimmingCharacters(in: CharacterSet.punctuationCharacters.union(.whitespacesAndNewlines))
+                if withoutRoot.isEmpty || withoutRoot.count < 3 {
+                    return ""
+                }
             }
         }
 
@@ -582,13 +777,9 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         result = result.replacingOccurrences(of: "\\s+([.,!?:;])", with: "$1", options: .regularExpression)
         result = result.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        // If stripping left only orphan punctuation (e.g. "." or "..."), but there was actual text, restore
+        // If stripping left only orphan punctuation (e.g. "." or "..."), discard
         let alphaCheck = result.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) }
-        if alphaCheck.isEmpty && !trimmed.isEmpty {
-            let origAlpha = trimmed.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) }
-            if !origAlpha.isEmpty {
-                return trimmed
-            }
+        if alphaCheck.isEmpty {
             return ""
         }
 

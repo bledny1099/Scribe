@@ -356,6 +356,7 @@ public final class AppUpdateService: ObservableObject {
             /usr/bin/xattr -cr "\(targetPath)" >> "$LOG" 2>&1
 
             echo "Relaunching \(targetPath)..." >> "$LOG"
+            sleep 1
             # Launch the updated app
             /usr/bin/open "\(targetPath)" >> "$LOG" 2>&1
             if [ $? -ne 0 ]; then
@@ -376,13 +377,17 @@ public final class AppUpdateService: ObservableObject {
             chmodProcess.waitUntilExit()
             
             Task { @MainActor in
-                // 5. Execute restart script in background and terminate current process
+                // 5. Execute restart script detached with nohup and terminate current process
                 let launchProcess = Process()
-                launchProcess.executableURL = URL(fileURLWithPath: "/bin/sh")
-                launchProcess.arguments = [scriptURL.path]
+                launchProcess.executableURL = URL(fileURLWithPath: "/usr/bin/nohup")
+                launchProcess.arguments = ["/bin/sh", scriptURL.path]
+                launchProcess.standardOutput = FileHandle.nullDevice
+                launchProcess.standardError = FileHandle.nullDevice
                 try? launchProcess.run()
                 
-                NSApplication.shared.terminate(nil)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    NSApplication.shared.terminate(nil)
+                }
             }
         }
     }

@@ -205,7 +205,8 @@ enum PanelAppearance: String, CaseIterable, Identifiable {
 
 /// How transcribed text is inserted.
 enum PasteMode: String, CaseIterable, Identifiable {
-    case paste             // Replace clipboard and paste
+    case paste             // Replace clipboard and paste (⌘V)
+    case directType        // Direct typing via simulated keystrokes (zero clipboard footprint)
     case append            // Append to current clipboard text and paste
     case integrationsOnly  // Export to notes/integrations only (no active window paste)
 
@@ -213,7 +214,8 @@ enum PasteMode: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .paste:            return "Replace"
+        case .paste:            return "Paste (⌘V)"
+        case .directType:       return "Direct Typing"
         case .append:           return "Append"
         case .integrationsOnly: return "Integrations Only"
         }
@@ -222,6 +224,7 @@ enum PasteMode: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .paste:            return "doc.on.clipboard"
+        case .directType:       return "keyboard"
         case .append:           return "text.append"
         case .integrationsOnly: return "link"
         }
@@ -482,6 +485,25 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// Dynamically selects the optimal model:
+    /// - If English only is active: uses standard Whisper (small/base) for maximum speed and minimal memory.
+    /// - If Russian or multilingual (RU + EN + others) is active: automatically activates the enhanced Russian & code-switching model (Large V3 Turbo).
+    public var effectiveModel: String {
+        let isEnglishOnly = (recognitionMode == "singleLanguage" && singleDictationLanguage == "en") ||
+                            (recognitionMode == "multilingual" && multilingualLanguages.count == 1 && multilingualLanguages.contains("en"))
+        
+        if isEnglishOnly {
+            // Keep lightweight standard Whisper for English
+            return selectedModel.contains("large") ? selectedModel : "openai_whisper-small"
+        } else {
+            // Russian / Multilingual: activate the enhanced Russian model (Large V3 Turbo)
+            if selectedModel == "openai_whisper-large-v3" {
+                return "openai_whisper-large-v3"
+            }
+            return "openai_whisper-large-v3_turbo"
+        }
+    }
+
     /// Helper for string localization using current selected UI language.
     func l(_ key: String) -> String {
         key.loc(selectedUILanguage)
@@ -552,7 +574,7 @@ final class AppState: ObservableObject {
     @AppStorage("recognitionEngine") public var recognitionEngine: String = "Aether Neural (Recommended)"
     
     public var isParakeetSupported: Bool {
-        ParakeetEngine.canHandle(
+        recognitionEngine.contains("Parakeet") && ParakeetEngine.canHandle(
             language: recognitionMode == "singleLanguage" ? singleDictationLanguage : nil,
             preferredLanguages: recognitionMode == "multilingual" ? multilingualLanguages : []
         ) && !autoTranslate
@@ -563,12 +585,10 @@ final class AppState: ObservableObject {
             return l("Aether Instant uses Apple's built-in native speech engine with zero model downloads (~0 MB) and instant real-time transcription.")
         } else if recognitionEngine.contains("Turbo") {
             return l("Aether Turbo uses lightweight quantized Whisper models for fast, low-latency offline dictation across 99+ languages.")
+        } else if recognitionEngine.contains("Parakeet") {
+            return l("Aether Parakeet uses NVIDIA FastConformer TDT 0.6B on Apple Neural Engine (ANE) for ultra-low latency acoustic decoding.")
         } else {
-            if isParakeetSupported {
-                return l("Aether Neural uses NVIDIA Parakeet TDT 0.6B on Apple Neural Engine (ANE) with zero hallucinations & native punctuation for Russian & English.")
-            } else {
-                return l("Aether Neural uses WhisperKit for the selected language. Parakeet TDT is enabled when Russian or English is selected.")
-            }
+            return l("Aether Neural runs high-accuracy WhisperKit on Apple Neural Engine (ANE) & GPU with context conditioning, dynamic vocabulary, and rich grammatical language modeling.")
         }
     }
     @AppStorage("recognitionMode") public var recognitionMode: String = "multilingual"
@@ -916,7 +936,7 @@ final class AppState: ObservableObject {
             // Pre-warm Whisper neural engine and CoreML compute graph during recording
             Task.detached(priority: .userInitiated) { [weak self] in
                 guard let self = self else { return }
-                let model = await self.selectedModel
+                let model = await self.effectiveModel
                 try? await self.transcriptionService.ensureModelLoaded(modelName: model)
             }
             
@@ -975,7 +995,7 @@ final class AppState: ObservableObject {
                 let langParam: String? = isSingle ? (self.singleDictationLanguage == "auto" ? nil : self.singleDictationLanguage) : nil
                 let preferredLangs: [String] = isSingle ? [] : (self.multilingualLanguages.isEmpty ? ["ru", "en"] : self.multilingualLanguages)
 
-                logger.info("Starting transcription with model=\(self.selectedModel), mode=\(self.recognitionMode), lang=\(langParam ?? "auto"), preferred=\(preferredLangs)…")
+                logger.info("Starting transcription with model=\(self.effectiveModel), mode=\(self.recognitionMode), lang=\(langParam ?? "auto"), preferred=\(preferredLangs)…")
                 var text = ""
 
                 if localEnableCloud && !localAPIKey.isEmpty {
@@ -991,25 +1011,27 @@ final class AppState: ObservableObject {
                         logger.warning("Cloud transcription failed (\(error.localizedDescription)), falling back to local WhisperKit…")
                         text = try await transcriptionService.transcribe(
                             audioURL: audioURL,
-                            modelName: self.selectedModel,
+                            modelName: self.effectiveModel,
                             language: langParam,
                             preferredLanguages: preferredLangs,
                             autoTranslate: self.autoTranslate,
                             customVocabulary: self.vocabulary,
                             userLocation: self.effectiveUserLocation,
-                            targetApp: self.targetRunningApplication
+                            targetApp: self.targetRunningApplication,
+                            recognitionEngine: self.recognitionEngine
                         )
                     }
                 } else {
                     text = try await transcriptionService.transcribe(
                         audioURL: audioURL,
-                        modelName: self.selectedModel,
+                        modelName: self.effectiveModel,
                         language: langParam,
                         preferredLanguages: preferredLangs,
                         autoTranslate: self.autoTranslate,
                         customVocabulary: self.vocabulary,
                         userLocation: self.effectiveUserLocation,
-                        targetApp: self.targetRunningApplication
+                        targetApp: self.targetRunningApplication,
+                        recognitionEngine: self.recognitionEngine
                     )
                 }
 
@@ -1067,21 +1089,12 @@ final class AppState: ObservableObject {
                     // Capture snapshot of previous clipboard if preserveClipboard is enabled
                     let previousClipboard = self.preserveClipboard ? PasteService.captureClipboard() : nil
 
-                    // Always populate clipboard
-                    switch self.selectedPasteMode {
-                    case .paste:  PasteService.copyToClipboard(text)
-                    case .append: PasteService.appendToClipboard(text)
-                    case .integrationsOnly: break
-                    }
-                    recordingStatus = .done
-                    if self.soundFeedbackEnabled { SoundFeedback.play(.transcriptionDone) }
-
                     // Save to history
                     let record = TranscriptionRecord(
                         text: text,
                         duration: self.recordingDuration,
                         language: self.selectedLanguage,
-                        model: self.selectedModel
+                        model: self.effectiveModel
                     )
                     TranscriptionHistory.shared.add(record)
 
@@ -1092,9 +1105,23 @@ final class AppState: ObservableObject {
                                       self.selectedPasteMode == .integrationsOnly ||
                                       self.integrationExportMode == "notesOnly"
 
+                    recordingStatus = .done
+                    if self.soundFeedbackEnabled { SoundFeedback.play(.transcriptionDone) }
+
                     if isNotesOnly {
                         logger.info("Integrations-only mode active: Skipping active window paste.")
+                    } else if self.selectedPasteMode == .directType {
+                        logger.info("Direct typing mode: Typing text directly without touching clipboard…")
+                        try? await Task.sleep(for: .milliseconds(350))
+                        PasteService.typeText(text)
                     } else {
+                        // Populate clipboard
+                        switch self.selectedPasteMode {
+                        case .paste:  PasteService.copyToClipboard(text, transient: self.preserveClipboard)
+                        case .append: PasteService.appendToClipboard(text)
+                        case .directType, .integrationsOnly: break
+                        }
+
                         logger.info("Text copied to clipboard, simulating paste…")
                         // Brief delay so the user sees the checkmark, then paste
                         try? await Task.sleep(for: .milliseconds(400))
@@ -1661,8 +1688,9 @@ final class AppState: ObservableObject {
             }
 
             do {
-                logger.info("Preloading WhisperKit model '\(self.selectedModel)'…")
-                try await transcriptionService.ensureModelLoaded(modelName: self.selectedModel)
+                let targetModel = self.effectiveModel
+                logger.info("Preloading WhisperKit model '\(targetModel)'…")
+                try await transcriptionService.ensureModelLoaded(modelName: targetModel)
                 logger.info("WhisperKit model loaded successfully")
             } catch {
                 logger.error("WhisperKit model preload failed: \(error.localizedDescription)")
@@ -1697,17 +1725,16 @@ final class AppState: ObservableObject {
 
     private func startLiveStreaming() {
         let isSingle = self.recognitionMode == "singleLanguage"
-        let langParam: String?
+        let streamingLangs: [String]
         if isSingle && self.singleDictationLanguage != "auto" {
-            langParam = self.singleDictationLanguage
-        } else if self.selectedUILanguage != "auto" {
-            langParam = self.selectedUILanguage
+            streamingLangs = [self.singleDictationLanguage]
         } else {
-            langParam = "ru"
+            let active = self.multilingualLanguages.filter { $0 != "auto" }
+            streamingLangs = active.isEmpty ? ["ru", "en"] : active
         }
         do {
             try transcriptionService.startStreaming(
-                language: langParam,
+                languages: streamingLangs,
                 customVocabulary: vocabulary,
                 userLocation: effectiveUserLocation,
                 targetApp: self.targetRunningApplication
@@ -1727,10 +1754,13 @@ final class AppState: ObservableObject {
                     userLocation: self.effectiveUserLocation
                 )
 
-                // 1. Process dictation mode (Code, Clean, Raw, Chat, Formal)
-                var formatted = ScribeModeProcessor.shared.process(text: streamingText, mode: self.transcriptionMode)
+                // 1. Strip Whisper/Speech boundary hallucinations (credits, noise)
+                let cleanedStream = TranscriptionService.stripBuiltInHallucinations(streamingText)
+
+                // 2. Process dictation mode (Code, Clean, Raw, Chat, Formal)
+                var formatted = ScribeModeProcessor.shared.process(text: cleanedStream, mode: self.transcriptionMode)
                 
-                // 2. Apply Custom Replacements, Canonical Vocabulary & Anti-Hallucination Filtering
+                // 3. Apply Custom Replacements, Canonical Vocabulary & Anti-Hallucination Filtering
                 formatted = TextReplacer.apply(
                     replacements: self.textReplacements,
                     vocabulary: effectiveVocab,

@@ -199,6 +199,7 @@ struct WaveformOverlay: View {
 
     private let barCount = 52
     @State private var levels: [Float] = Array(repeating: 0.02, count: 52)
+    @State private var smoothedLevel: Float = 0.02
     @State private var spinAngle: Double = 0
 
     private var theme: AppTheme { appState.selectedTheme }
@@ -308,31 +309,47 @@ struct WaveformOverlay: View {
             height: cardHeight
         )
         .animation(.spring(response: 0.35, dampingFraction: 0.82), value: cardWidth)
-        .onReceive(Timer.publish(every: 0.045, on: .main, in: .common).autoconnect()) { _ in
-            guard appState.isShowingPreview else { return }
-            let t = Date().timeIntervalSinceReferenceDate
-            let sentenceCycle = t.truncatingRemainder(dividingBy: 4.8)
-            let isSpeaking = sentenceCycle < 3.4
-            let syllable = sin(t * 5.2) * cos(t * 2.6)
-            let modulation = 0.5 + 0.5 * sin(t * 1.6)
+        .onReceive(Timer.publish(every: 0.035, on: .main, in: .common).autoconnect()) { _ in
+            if appState.isShowingPreview {
+                let t = Date().timeIntervalSinceReferenceDate
+                let sentenceCycle = t.truncatingRemainder(dividingBy: 4.8)
+                let isSpeaking = sentenceCycle < 3.4
+                let syllable = sin(t * 5.2) * cos(t * 2.6)
+                let modulation = 0.5 + 0.5 * sin(t * 1.6)
 
-            let simulated: Float
-            if isSpeaking {
-                let base = 0.18 + Float(modulation * 0.28)
-                let syllabicBurst = Float(max(0.0, syllable * 0.24))
-                simulated = min(0.78, base + syllabicBurst)
-            } else {
-                simulated = Float(max(0.02, 0.03 + 0.012 * sin(t * 2.0)))
+                let simulated: Float
+                if isSpeaking {
+                    let base = 0.18 + Float(modulation * 0.28)
+                    let syllabicBurst = Float(max(0.0, syllable * 0.24))
+                    simulated = min(0.78, base + syllabicBurst)
+                } else {
+                    simulated = Float(max(0.02, 0.03 + 0.012 * sin(t * 2.0)))
+                }
+
+                levels.removeFirst()
+                levels.append(simulated)
+            } else if appState.recordingStatus == .recording {
+                let current = audioRecorder.audioLevel
+                // Fast attack, smooth decay
+                if current > smoothedLevel {
+                    smoothedLevel = current
+                } else {
+                    smoothedLevel = max(0.02, smoothedLevel * 0.88)
+                }
+
+                // Add subtle organic jitter so bars look like real audio spectrum
+                let jitter = Float.random(in: -0.04...0.04) * smoothedLevel
+                let barValue = min(1.0, max(0.02, smoothedLevel + jitter))
+
+                levels.removeFirst()
+                levels.append(barValue)
             }
-
-            levels.removeFirst()
-            levels.append(simulated)
         }
         .onChange(of: audioRecorder.audioLevel) { _, newLevel in
             guard !appState.isShowingPreview else { return }
-            let target = min(1.0, max(0.02, newLevel))
-            levels.removeFirst()
-            levels.append(target)
+            if newLevel > smoothedLevel {
+                smoothedLevel = newLevel
+            }
         }
     }
 

@@ -69,6 +69,8 @@ public final class AuthService: NSObject, ObservableObject {
         return user
     }
     
+    private var isExplicitSignOut: Bool = false
+
     private override init() {
         self.currentUser = Self.loadCachedUser()
         super.init()
@@ -83,6 +85,7 @@ public final class AuthService: NSObject, ObservableObject {
             Task { @MainActor [weak self] in
                 guard let self = self else { return }
                 if let user = user {
+                    self.isExplicitSignOut = false
                     self.currentUser = AuthUser(
                         id: user.uid,
                         email: user.email ?? "",
@@ -92,30 +95,11 @@ public final class AuthService: NSObject, ObservableObject {
                         subscriptionExpiresAt: Date.distantFuture
                     )
                     self.syncSupporterStatusFromCloud()
-                } else if self.currentUser == nil {
+                } else if self.isExplicitSignOut {
                     self.currentUser = nil
                 }
-            }
-        }
-    }
-    
-    private func setupAuthStateListener() {
-        authStateListenerHandle = Auth.auth().addStateDidChangeListener { [weak self] _, user in
-            guard let self = self else { return }
-            Task { @MainActor in
-                if let firebaseUser = user {
-                    self.currentUser = AuthUser(
-                        id: firebaseUser.uid,
-                        email: firebaseUser.email ?? "",
-                        name: firebaseUser.displayName ?? (firebaseUser.email?.components(separatedBy: "@").first ?? "User"),
-                        avatarURL: firebaseUser.photoURL?.absoluteString,
-                        subscriptionTier: .pro,
-                        subscriptionExpiresAt: Date.distantFuture
-                    )
-                    self.syncSupporterStatusFromCloud()
-                } else {
-                    self.currentUser = nil
-                }
+                // If user is nil but not an explicit sign out (e.g. app freshly updated or launched offline),
+                // retain the existing cached currentUser from UserDefaults.
             }
         }
     }
@@ -597,6 +581,7 @@ final class SafeVoidContinuation: @unchecked Sendable {
     }
     
     public func signOut() {
+        isExplicitSignOut = true
         do {
             try Auth.auth().signOut()
         } catch {
