@@ -5,6 +5,25 @@ All notable changes to Scribe will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.4] - 2026-09-06
+
+## Added
+- Constrained multilingual language detection via WhisperKit (`kit.detectLanguage`): pre-detects Russian and user-preferred languages in under 150ms before decoding.
+- Interim Whisper neural preview streaming: generates in-flight live preview snapshots directly on Apple Neural Engine with dynamic language classification.
+- Frosted glass blur and soft transition gradient for the settings console top header bar.
+- Provider identification badge in the sidebar profile card, displaying the sign-in provider (Google, GitHub, Apple, Email) with dedicated iconography.
+
+## Changed
+- Moved account email display from the sidebar profile badge into the dedicated Account Settings modal to prevent awkward truncation.
+- Anchored subtitle preview positioning: the live preview capsule now stays strictly under the overlay, automatically shifting the overlay upward when close to the display boundary.
+- Preserved waveform visualizer on speech pause: spectral waveform bars now freeze in place rather than collapsing to a flat baseline when speech pauses.
+- Relocated WhisperKit and Hugging Face model cache to `~/Library/Application Support/huggingface`, eliminating macOS Documents folder permission requests.
+
+## Fixed
+- Fixed Russian dictation incorrectly translating into English due to unassigned language decoding and fallback heuristics.
+- Fixed 26-second transcription delays caused by unconstrained language detection triggering redundant second-pass re-decoding.
+- Fixed decoding loop overhang by re-enabling monotonic timestamp tokens (`withoutTimestamps = false`) with bounded sample length.
+
 ## [2.6.3] - 2026-09-05
 
 ## Added

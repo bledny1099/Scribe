@@ -43,40 +43,36 @@ public final class AetherAudioConditioner: @unchecked Sendable {
             applyHighPassFilter(channelData: channelData, channelCount: channelCount, count: samplesPerChannel, sampleRate: sampleRate)
 
             // 2. VAD: Find speech boundaries (leading & trailing silence)
-            if let (startFrame, endFrame) = detectSpeechBoundaries(
+            guard let (startFrame, endFrame) = detectSpeechBoundaries(
                 channelData: channelData[0],
                 count: samplesPerChannel,
                 sampleRate: sampleRate
-            ) {
-                let trimmedLength = max(1, endFrame - startFrame)
-                if let trimmedBuffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(trimmedLength)) {
-                    trimmedBuffer.frameLength = AVAudioFrameCount(trimmedLength)
-                    for ch in 0..<channelCount {
-                        let srcPtr = channelData[ch].advanced(by: startFrame)
-                        let dstPtr = trimmedBuffer.floatChannelData![ch]
-                        dstPtr.assign(from: srcPtr, count: trimmedLength)
-                    }
-                    normalizeLoudness(buffer: trimmedBuffer)
-
-                    let outputURL = FileManager.default.temporaryDirectory
-                        .appendingPathComponent("aether_conditioned_\(UUID().uuidString).wav")
-                    let outputFile = try AVAudioFile(forWriting: outputURL, settings: format.settings)
-                    try outputFile.write(from: trimmedBuffer)
-                    logger.debug("Aether conditioned audio: trimmed \(samplesPerChannel) -> \(trimmedLength) frames (1.0x natural tempo)")
-                    return outputURL
-                }
+            ) else {
+                logger.info("AetherAudioConditioner: No speech detected in audio file. Returning nil to skip transcription.")
+                return nil
             }
 
-            // Fallback: If speech boundaries were not trimmed, normalize full audio and return it
-            normalizeLoudness(buffer: buffer)
-            let fallbackURL = FileManager.default.temporaryDirectory
+            let trimmedLength = max(1, endFrame - startFrame)
+            guard let trimmedBuffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(trimmedLength)) else {
+                return nil
+            }
+            trimmedBuffer.frameLength = AVAudioFrameCount(trimmedLength)
+            for ch in 0..<channelCount {
+                let srcPtr = channelData[ch].advanced(by: startFrame)
+                let dstPtr = trimmedBuffer.floatChannelData![ch]
+                dstPtr.assign(from: srcPtr, count: trimmedLength)
+            }
+            normalizeLoudness(buffer: trimmedBuffer)
+
+            let outputURL = FileManager.default.temporaryDirectory
                 .appendingPathComponent("aether_conditioned_\(UUID().uuidString).wav")
-            let fallbackFile = try AVAudioFile(forWriting: fallbackURL, settings: format.settings)
-            try fallbackFile.write(from: buffer)
-            return fallbackURL
+            let outputFile = try AVAudioFile(forWriting: outputURL, settings: format.settings)
+            try outputFile.write(from: trimmedBuffer)
+            logger.debug("Aether conditioned audio: trimmed \(samplesPerChannel) -> \(trimmedLength) frames (1.0x natural tempo)")
+            return outputURL
         } catch {
-            logger.warning("Aether audio conditioning failed: \(error.localizedDescription), using raw audio")
-            return audioURL
+            logger.warning("Aether audio conditioning failed: \(error.localizedDescription)")
+            return nil
         }
     }
 
@@ -107,39 +103,66 @@ public final class AetherAudioConditioner: @unchecked Sendable {
 
     private func detectSpeechBoundaries(channelData: UnsafePointer<Float>, count: Int, sampleRate: Float) -> (Int, Int)? {
         let frameSize = Int(sampleRate * 0.02) // 20ms frame
-        guard frameSize > 0, count > frameSize else { return (0, count) }
+        guard frameSize > 0, count > frameSize else { return nil }
 
-        let silenceThresholdDb: Float = -65.0
-        let thresholdRMS = pow(10.0, silenceThresholdDb / 20.0)
+        let totalFrames = count / frameSize
+        guard totalFrames >= 5 else { return nil } // Less than 100ms is not speech
+
+        // 1. Gather frame RMS values
+        var frameRMSValues = [Float](repeating: 0, count: totalFrames)
+        for f in 0..<totalFrames {
+            let offset = f * frameSize
+            var frameRms: Float = 0
+            vDSP_rmsqv(channelData.advanced(by: offset), 1, &frameRms, vDSP_Length(frameSize))
+            frameRMSValues[f] = frameRms
+        }
+
+        // 2. Dynamic energy analysis
+        let sortedRMS = frameRMSValues.sorted()
+        // Use 5th percentile as noise floor to reliably measure ambient room noise even during speech
+        let p05Index = max(0, min(totalFrames - 1, totalFrames / 20))
+        let noiseFloorRMS = sortedRMS[p05Index]
+        let noiseFloorDb = 20 * log10(max(noiseFloorRMS, 1e-5))
+
+        let maxRMS = sortedRMS.last ?? 0
+        let maxDb = 20 * log10(max(maxRMS, 1e-5))
+        let dynamicRange = maxDb - noiseFloorDb
+
+        // Audio is silence if peak is below -58 dBFS (Mac microphone silence floor).
+        // If peak is between -58 dBFS and -50 dBFS, ensure dynamic range > 2.0 dB to separate soft speech from flat fan/AC hum.
+        if maxDb < -58.0 || (maxDb < -50.0 && dynamicRange < 2.0) {
+            logger.info("AetherAudioConditioner: Audio is silence (maxDb: \(maxDb) dBFS, noiseFloor: \(noiseFloorDb) dBFS, dynamicRange: \(dynamicRange) dB).")
+            return nil
+        }
+
+        // Speech threshold: at least 2.0 dB above noise floor, clamped between -56.0 dBFS and -42.0 dBFS
+        let speechThresholdDb = min(-42.0, max(-56.0, noiseFloorDb + 2.0))
+        let speechThresholdRMS = pow(10.0, speechThresholdDb / 20.0)
 
         var firstSpeechFrame: Int?
         var lastSpeechFrame: Int?
         var totalSpeechFrames = 0
 
-        let totalFrames = count / frameSize
-
         for f in 0..<totalFrames {
-            let offset = f * frameSize
-            var frameRms: Float = 0
-            vDSP_rmsqv(channelData.advanced(by: offset), 1, &frameRms, vDSP_Length(frameSize))
-
-            if frameRms > thresholdRMS {
+            if frameRMSValues[f] > speechThresholdRMS {
+                let offset = f * frameSize
                 if firstSpeechFrame == nil {
                     firstSpeechFrame = offset
                 }
-                lastSpeechFrame = min(count, offset + frameSize)
+                lastSpeechFrame = offset + frameSize
                 totalSpeechFrames += 1
             }
         }
 
-        guard let first = firstSpeechFrame, let last = lastSpeechFrame, totalSpeechFrames >= 1 else {
-            // If below threshold, do not drop audio — let full audio through
-            return (0, count)
+        // Must have at least 3 speech frames (~60ms of speech) to avoid single-click transients
+        guard let first = firstSpeechFrame, let last = lastSpeechFrame, totalSpeechFrames >= 3 else {
+            logger.info("AetherAudioConditioner: Only \(totalSpeechFrames) speech frames found (<3). Audio is silence or clicks.")
+            return nil
         }
 
-        // Add generous 600ms tail padding and 350ms lead padding to prevent clipping soft word endings
-        let leadPadding = Int(sampleRate * 0.35)
-        let tailPadding = Int(sampleRate * 0.60)
+        // Add 300ms lead and 450ms tail padding
+        let leadPadding = Int(sampleRate * 0.30)
+        let tailPadding = Int(sampleRate * 0.45)
         let start = max(0, first - leadPadding)
         let end = min(count, last + tailPadding)
 
@@ -188,8 +211,6 @@ public final class AetherAudioConditioner: @unchecked Sendable {
             if avgSpeechRms > 0.005 {
                 gain = min(targetRms / avgSpeechRms, 12.0) // Cap gain boost at +21 dB
             }
-        } else if maxPeak > 0.01 && maxPeak < 0.85 {
-            gain = min(0.85 / maxPeak, 8.0)
         }
 
         // Apply gain across all channels

@@ -431,7 +431,10 @@ final class AppState: ObservableObject {
 
     @Published var recordingDuration: TimeInterval = 0
     @Published var livePreviewText: String = ""
+    @Published var latestWhisperTranscription: String = ""
     private var liveStreamLastInsertedText: String = ""
+    private var interimWhisperTimer: Timer?
+    private var interimWhisperTask: Task<Void, Never>?
     @Published var requestedSettingsTab: SettingsTab? = nil
 
     @Published public var transcribingDotCount: Int = 3
@@ -477,7 +480,7 @@ final class AppState: ObservableObject {
         }
     }
     @AppStorage("selectedUILanguage") var selectedUILanguage: String = "auto"
-    @AppStorage("selectedModel") var selectedModel: String = "openai_whisper-small" {
+    @AppStorage("selectedModel") var selectedModel: String = "openai_whisper-large-v3_turbo" {
         didSet {
             if oldValue != selectedModel {
                 preloadModel()
@@ -486,22 +489,12 @@ final class AppState: ObservableObject {
     }
 
     /// Dynamically selects the optimal model:
-    /// - If English only is active: uses standard Whisper (small/base) for maximum speed and minimal memory.
-    /// - If Russian or multilingual (RU + EN + others) is active: automatically activates the enhanced Russian & code-switching model (Large V3 Turbo).
+    /// Returns the selected model tier (Turbo, Studio, Eco), defaulting to Turbo if unspecified.
     public var effectiveModel: String {
-        let isEnglishOnly = (recognitionMode == "singleLanguage" && singleDictationLanguage == "en") ||
-                            (recognitionMode == "multilingual" && multilingualLanguages.count == 1 && multilingualLanguages.contains("en"))
-        
-        if isEnglishOnly {
-            // Keep lightweight standard Whisper for English
-            return selectedModel.contains("large") ? selectedModel : "openai_whisper-small"
-        } else {
-            // Russian / Multilingual: activate the enhanced Russian model (Large V3 Turbo)
-            if selectedModel == "openai_whisper-large-v3" {
-                return "openai_whisper-large-v3"
-            }
+        if selectedModel.isEmpty {
             return "openai_whisper-large-v3_turbo"
         }
+        return selectedModel
     }
 
     /// Helper for string localization using current selected UI language.
@@ -573,6 +566,10 @@ final class AppState: ObservableObject {
     @AppStorage("hasPromptedVocabularyDataSharing") public var hasPromptedVocabularyDataSharing: Bool = false
     @AppStorage("recognitionEngine") public var recognitionEngine: String = "Aether Neural (Recommended)"
     
+    public var isInstantEngine: Bool {
+        recognitionEngine.contains("Instant")
+    }
+
     public var isParakeetSupported: Bool {
         recognitionEngine.contains("Parakeet") && ParakeetEngine.canHandle(
             language: recognitionMode == "singleLanguage" ? singleDictationLanguage : nil,
@@ -581,8 +578,8 @@ final class AppState: ObservableObject {
     }
 
     public var recognitionEngineDescription: String {
-        if recognitionEngine.contains("Instant") {
-            return l("Aether Instant uses Apple's built-in native speech engine with zero model downloads (~0 MB) and instant real-time transcription.")
+        if isInstantEngine {
+            return l("Aether Instant uses Apple's built-in native speech engine with zero model downloads (~0 MB) strictly for English (en-US).")
         } else if recognitionEngine.contains("Turbo") {
             return l("Aether Turbo uses lightweight quantized Whisper models for fast, low-latency offline dictation across 99+ languages.")
         } else if recognitionEngine.contains("Parakeet") {
@@ -763,10 +760,15 @@ final class AppState: ObservableObject {
 
     @AppStorage("selectedPasteMode") var selectedPasteModeRaw: String = PasteMode.paste.rawValue
 
-    /// Computed property for type-safe paste mode access.
+    /// Computed property for type-safe paste mode access (restricted to paste or directType).
     var selectedPasteMode: PasteMode {
-        get { PasteMode(rawValue: selectedPasteModeRaw) ?? .paste }
-        set { selectedPasteModeRaw = newValue.rawValue }
+        get {
+            let mode = PasteMode(rawValue: selectedPasteModeRaw) ?? .paste
+            return (mode == .directType) ? .directType : .paste
+        }
+        set {
+            selectedPasteModeRaw = (newValue == .directType) ? PasteMode.directType.rawValue : PasteMode.paste.rawValue
+        }
     }
 
     // MARK: Services
@@ -903,6 +905,7 @@ final class AppState: ObservableObject {
         }
         guard isRecording else { return }
         stopDurationTimer()
+        stopInterimWhisperGeneration()
         if livePreviewEnabled { stopLiveStreaming() }
         livePreviewText = ""
         liveStreamLastInsertedText = ""
@@ -929,15 +932,23 @@ final class AppState: ObservableObject {
             recordingDuration = 0
             livePreviewText = ""
             startDurationTimer()
-            if livePreviewEnabled { startLiveStreaming() }
+            if livePreviewEnabled {
+                if isInstantEngine {
+                    startLiveStreaming()
+                } else {
+                    startInterimWhisperGeneration()
+                }
+            }
             showPanel()
             if soundFeedbackEnabled { SoundFeedback.play(.recordingStarted) }
             
-            // Pre-warm Whisper neural engine and CoreML compute graph during recording
-            Task.detached(priority: .userInitiated) { [weak self] in
-                guard let self = self else { return }
-                let model = await self.effectiveModel
-                try? await self.transcriptionService.ensureModelLoaded(modelName: model)
+            // Pre-warm Whisper neural engine and CoreML compute graph during recording (neural engine only)
+            if !isInstantEngine {
+                Task.detached(priority: .userInitiated) { [weak self] in
+                    guard let self = self else { return }
+                    let model = await self.effectiveModel
+                    try? await self.transcriptionService.ensureModelLoaded(modelName: model)
+                }
             }
             
             logger.info("Recording started")
@@ -950,9 +961,11 @@ final class AppState: ObservableObject {
 
     private func stopRecording() {
         stopDurationTimer()
+        stopInterimWhisperGeneration()
         isRecording = false
         isTranscribing = true
         recordingStatus = .transcribing
+        self.audioRecorder.audioLevel = 0
 
         let localProvider = self.cloudAIProvider
         let localMode = self.selectedAIRefinementMode
@@ -962,12 +975,11 @@ final class AppState: ObservableObject {
         let livePreview = self.livePreviewEnabled
 
         Task {
-            // Keep background recording active for ~500ms trailing speech tail buffer so the user's trailing words/syllables are never cut off,
-            // while the UI immediately transitions to Transcribing animation with 0ms perceived latency.
-            try? await Task.sleep(for: .milliseconds(500))
+            // Keep background recording active for ~60ms trailing speech tail buffer so trailing syllables are never cut off
+            try? await Task.sleep(for: .milliseconds(60))
 
             if livePreview { self.stopLiveStreaming() }
-            self.livePreviewText = ""
+            // Keep livePreviewText intact so preview panel displays intermediate/final recognized words smoothly
             if soundFeedback { SoundFeedback.play(.recordingStopped) }
 
             let audioURL = self.audioRecorder.stopRecording()
@@ -1001,20 +1013,30 @@ final class AppState: ObservableObject {
                 if localEnableCloud && !localAPIKey.isEmpty {
                     logger.info("Using Cloud AI transcription via \(localProvider.displayName)…")
                     do {
-                        text = try await CloudAIService.shared.transcribeAudio(
-                            audioURL: audioURL,
-                            provider: localProvider,
-                            apiKey: localAPIKey,
-                            language: langParam
-                        )
+                        if let conditionedURL = AetherAudioConditioner.shared.condition(audioURL: audioURL) {
+                            defer {
+                                if conditionedURL != audioURL {
+                                    try? FileManager.default.removeItem(at: conditionedURL)
+                                }
+                            }
+                            text = try await CloudAIService.shared.transcribeAudio(
+                                audioURL: conditionedURL,
+                                provider: localProvider,
+                                apiKey: localAPIKey,
+                                language: langParam
+                            )
+                        } else {
+                            logger.info("No audible speech detected, skipping Cloud AI transcription.")
+                            text = ""
+                        }
                     } catch {
                         logger.warning("Cloud transcription failed (\(error.localizedDescription)), falling back to local WhisperKit…")
                         text = try await transcriptionService.transcribe(
                             audioURL: audioURL,
                             modelName: self.effectiveModel,
-                            language: langParam,
-                            preferredLanguages: preferredLangs,
-                            autoTranslate: self.autoTranslate,
+                            language: self.isInstantEngine ? "en" : langParam,
+                            preferredLanguages: self.isInstantEngine ? ["en"] : preferredLangs,
+                            autoTranslate: self.isInstantEngine ? false : self.autoTranslate,
                             customVocabulary: self.vocabulary,
                             userLocation: self.effectiveUserLocation,
                             targetApp: self.targetRunningApplication,
@@ -1025,14 +1047,31 @@ final class AppState: ObservableObject {
                     text = try await transcriptionService.transcribe(
                         audioURL: audioURL,
                         modelName: self.effectiveModel,
-                        language: langParam,
-                        preferredLanguages: preferredLangs,
-                        autoTranslate: self.autoTranslate,
+                        language: self.isInstantEngine ? "en" : langParam,
+                        preferredLanguages: self.isInstantEngine ? ["en"] : preferredLangs,
+                        autoTranslate: self.isInstantEngine ? false : self.autoTranslate,
                         customVocabulary: self.vocabulary,
                         userLocation: self.effectiveUserLocation,
                         targetApp: self.targetRunningApplication,
                         recognitionEngine: self.recognitionEngine
                     )
+                }
+
+                // Fast exit if no speech was detected
+                if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    if !self.latestWhisperTranscription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        text = self.latestWhisperTranscription
+                        logger.info("Using interim Whisper live preview text as final transcription: '\(text)'")
+                    } else {
+                        logger.info("Transcription returned empty text (no speech detected)")
+                        recordingStatus = .error("No speech")
+                        try? await Task.sleep(for: .milliseconds(750))
+                        hidePanel()
+                        isTranscribing = false
+                        self.audioRecorder.purgeMemory()
+                        try? FileManager.default.removeItem(at: audioURL)
+                        return
+                    }
                 }
 
                 let effectiveBlocked = AetherContextEngine.shared.activeEffectiveBlockedWords(
@@ -1073,11 +1112,12 @@ final class AppState: ObservableObject {
                 text = PasteService.adjustCasingForContext(text: text)
 
                 logger.info("Transcription result: '\(text)'")
+                self.livePreviewText = text
 
                 if text.isEmpty {
                     logger.warning("Transcription returned empty text")
                     recordingStatus = .error("No speech")
-                    try? await Task.sleep(for: .seconds(1.5))
+                    try? await Task.sleep(for: .milliseconds(750))
                     hidePanel()
                 } else if TranscriptionService.isVoiceCancelCommand(text) {
                     logger.info("Voice cancel command detected: '\(text)'")
@@ -1101,9 +1141,7 @@ final class AppState: ObservableObject {
                     // Export to notes (Apple Notes, Obsidian, Notion)
                     NoteExporter.export(text: text, state: self)
 
-                    let isNotesOnly = self.isDirectNoteRecording ||
-                                      self.selectedPasteMode == .integrationsOnly ||
-                                      self.integrationExportMode == "notesOnly"
+                    let isNotesOnly = self.isDirectNoteRecording
 
                     recordingStatus = .done
                     if self.soundFeedbackEnabled { SoundFeedback.play(.transcriptionDone) }
@@ -1186,7 +1224,7 @@ final class AppState: ObservableObject {
             hasAIMode: hasAI
         )
 
-        panel.positionPanel(mode: overlayPositionMode)
+        panel.positionPanel(mode: overlayPositionMode, targetApp: targetRunningApplication)
 
         panel.orderFrontRegardless()
         recordingPanel = panel
@@ -1220,24 +1258,31 @@ final class AppState: ObservableObject {
         let screen = mainPanel.screen ?? NSScreen.main ?? NSScreen.screens.first
         let screenFrame = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
 
-        let subWidth: CGFloat = min(740, screenFrame.width - 48)
-        let subHeight: CGFloat = 120
-
-        // Ensure main panel is high enough so subtitle ALWAYS fits comfortably BELOW it
-        let minRequiredMainY = screenFrame.minY + subHeight + 10
-        if mainPanel.frame.minY < minRequiredMainY {
-            var adjustedFrame = mainPanel.frame
-            adjustedFrame.origin.y = minRequiredMainY
-            mainPanel.setFrame(adjustedFrame, display: true)
-        }
+        let textLen = livePreviewText.count
+        let estimatedLines = max(1, min(4, (textLen / 45) + 1))
+        let subHeight: CGFloat = max(54, CGFloat(estimatedLines * 24 + 18))
+        let baseSubWidth = max(mainPanel.frame.width + 80, 520)
+        let subWidth: CGFloat = min(baseSubWidth, screenFrame.width - 48)
 
         let frame = mainPanel.frame
         let subX = frame.midX - subWidth / 2
-        let subY = frame.minY - subHeight - 6
+
+        // Always position the subtitle panel UNDER mainPanel.
+        // If there isn't enough room below mainPanel on the screen, shift mainPanel upwards so both fit comfortably.
+        let rawSubY = frame.minY - subHeight - 10
+        let subY: CGFloat
+        if rawSubY < screenFrame.minY + 8 {
+            let neededShift = (screenFrame.minY + 8) - rawSubY
+            let newMainY = min(screenFrame.maxY - mainPanel.frame.height - 8, mainPanel.frame.origin.y + neededShift)
+            mainPanel.setFrameOrigin(NSPoint(x: mainPanel.frame.origin.x, y: newMainY))
+            subY = max(screenFrame.minY + 4, mainPanel.frame.minY - subHeight - 10)
+        } else {
+            subY = rawSubY
+        }
 
         let finalRect = NSRect(
             x: max(screenFrame.minX + 16, min(subX, screenFrame.maxX - subWidth - 16)),
-            y: max(screenFrame.minY + 4, subY),
+            y: max(screenFrame.minY + 4, min(subY, screenFrame.maxY - subHeight - 4)),
             width: subWidth,
             height: subHeight
         )
@@ -1264,73 +1309,48 @@ final class AppState: ObservableObject {
 
     // MARK: - Live Preview Panel Resizing (during recording)
 
-    /// Observe `livePreviewText` changes and resize the recording panel dynamically.
+    /// Observe `livePreviewText` changes and dynamically update subtitle panel frames.
     private func setupLivePreviewResizing() {
         $livePreviewText
             .removeDuplicates()
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
-                self?.resizeRecordingPanelForEmbeddedPreview()
+                guard let self = self else { return }
+                if let main = self.recordingPanel, let sub = self.subtitlePanel {
+                    self.updateSubtitlePanelFrame(for: main, subPanel: sub)
+                }
+                if let main = self.settingsPreviewPanel, let sub = self.settingsSubtitlePanel {
+                    self.updateSubtitlePanelFrame(for: main, subPanel: sub)
+                }
             }
             .store(in: &cancellables)
     }
 
     /// Resize the live recording panel's NSWindow when embedded preview text changes.
     private func resizeRecordingPanelForEmbeddedPreview() {
-        guard let panel = recordingPanel, (isRecording || isTranscribing) else { return }
-        return // Embedded preview removed
-
-        let isEmbedded = !livePreviewText.isEmpty
-        let newSize = RecordingPanel.size(
-            for: selectedOverlayStyle,
-            overlaySize: selectedOverlaySize,
-            isEmbeddedPreviewActive: isEmbedded,
-            previewTextLength: livePreviewText.count
-        )
-
-        let overlay = RecordingOverlayView()
-            .environmentObject(self)
-            .environmentObject(audioRecorder)
-        panel.setContent(
-            overlay,
-            style: selectedOverlayStyle,
-            overlaySize: selectedOverlaySize,
-            isEmbeddedPreviewActive: isEmbedded,
-            previewTextLength: livePreviewText.count
-        )
-
-        let oldFrame = panel.frame
-        // Keep the top edge anchored; expand downward
-        let newY = oldFrame.maxY - newSize.height
-        let newFrame = NSRect(x: oldFrame.origin.x, y: newY, width: newSize.width, height: newSize.height)
-
-        if oldFrame != newFrame {
-            NSAnimationContext.runAnimationGroup { ctx in
-                ctx.duration = 0.25
-                ctx.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-                panel.animator().setFrame(newFrame, display: true)
-            }
-        }
+        // Embedded preview was moved to dedicated floating subtitle panel
     }
 
     // MARK: - Floating Preview Panel for Settings (5-second auto-dismiss)
 
     private var settingsPreviewPanel: RecordingPanel?
     private var settingsSubtitlePanel: NSPanel?
-    var isShowingPreview: Bool { settingsPreviewPanel != nil }
+    @Published public var isPreviewStageActive: Bool = false
+    public var isFloatingPreviewActive: Bool { settingsPreviewPanel != nil }
+    var isShowingPreview: Bool { settingsPreviewPanel != nil || isPreviewStageActive }
     private var settingsPreviewAnimTimer: Timer?
     private var previewDismissTimer: Timer?
 
-    func showSettingsPreviewFor5Seconds() {
+    func showSettingsPreviewFor5Seconds(includeSubtitle: Bool = false) {
         guard !isRecording && !isTranscribing else { return }
 
-        if livePreviewEnabled {
+        if includeSubtitle && livePreviewEnabled {
             livePreviewText = l("Scribe transcribes your speech live…")
         } else {
             livePreviewText = ""
         }
 
-        updateSettingsPreviewPanel()
+        updateSettingsPreviewPanel(includeSubtitle: includeSubtitle)
 
         if settingsPreviewAnimTimer == nil {
             settingsPreviewAnimTimer = Timer.scheduledTimer(withTimeInterval: 0.08, repeats: true) { [weak self] _ in
@@ -1388,23 +1408,27 @@ final class AppState: ObservableObject {
         }
 
         let padding: CGFloat = 16
-
-        // Position directly BELOW the settings window, centered horizontally
-        let centeredX = settingsFrame.midX - size.width / 2
-        let clampedX = max(screenFrame.minX + padding, min(centeredX, screenFrame.maxX - size.width - padding))
-        
-        let preferredY = settingsFrame.minY - size.height - padding
-        let clampedY: CGFloat
-        if preferredY >= screenFrame.minY + padding {
-            clampedY = preferredY
-        } else {
-            clampedY = max(screenFrame.minY + 8, settingsFrame.minY - size.height - 6)
+        // Ensure there is room below the settings window
+        let neededSpaceBelow = size.height + padding + 12
+        let minRequiredSettingsY = screenFrame.minY + neededSpaceBelow
+        if settingsFrame.minY < minRequiredSettingsY {
+            SettingsWindowManager.shared.ensureMinimumY(minRequiredSettingsY)
         }
+
+        let currentSettingsFrame = SettingsWindowManager.shared.windowFrame ?? settingsFrame
+
+        // Center horizontally with the settings window
+        let centeredX = currentSettingsFrame.midX - size.width / 2
+        let clampedX = max(screenFrame.minX + padding, min(centeredX, screenFrame.maxX - size.width - padding))
+
+        // Position directly below the settings window
+        let targetY = currentSettingsFrame.minY - size.height - 12
+        let clampedY = max(screenFrame.minY + 8, min(targetY, currentSettingsFrame.minY - size.height - 4))
 
         return NSPoint(x: clampedX, y: clampedY)
     }
 
-    func updateSettingsPreviewPanel(isDragging: Bool = false) {
+    func updateSettingsPreviewPanel(isDragging: Bool = false, includeSubtitle: Bool = false) {
         guard !isRecording && !isTranscribing else { return }
         if isDragging && (settingsPreviewPanel == nil || settingsPreviewPanel?.isVisible == false) {
             return
@@ -1511,7 +1535,7 @@ final class AppState: ObservableObject {
         }
 
         // Handle Subtitle Panel for preview mode
-        if livePreviewEnabled {
+        if includeSubtitle && livePreviewEnabled {
             if livePreviewText.isEmpty {
                 livePreviewText = l("Scribe transcribes your speech live…")
             }
@@ -1724,13 +1748,23 @@ final class AppState: ObservableObject {
     // MARK: - Live Preview (Floating Card Overlay)
 
     private func startLiveStreaming() {
-        let isSingle = self.recognitionMode == "singleLanguage"
+        // When using Aether Neural, Live Preview is powered directly by Whisper snapshots
+        guard isInstantEngine else {
+            logger.info("Aether Neural active: Live preview powered natively by Whisper on Apple Neural Engine")
+            return
+        }
+
         let streamingLangs: [String]
-        if isSingle && self.singleDictationLanguage != "auto" {
-            streamingLangs = [self.singleDictationLanguage]
+        if isInstantEngine {
+            streamingLangs = ["en"]
         } else {
-            let active = self.multilingualLanguages.filter { $0 != "auto" }
-            streamingLangs = active.isEmpty ? ["ru", "en"] : active
+            let isSingle = self.recognitionMode == "singleLanguage"
+            if isSingle && self.singleDictationLanguage != "auto" {
+                streamingLangs = [self.singleDictationLanguage]
+            } else {
+                let active = self.multilingualLanguages.filter { $0 != "auto" }
+                streamingLangs = active.isEmpty ? ["ru", "en"] : active
+            }
         }
         do {
             try transcriptionService.startStreaming(
@@ -1784,5 +1818,77 @@ final class AppState: ObservableObject {
         Task {
             _ = await transcriptionService.stopStreaming()
         }
+    }
+
+    // MARK: - Native Whisper Live Streaming & Interim Generation
+
+    private func startInterimWhisperGeneration() {
+        stopInterimWhisperGeneration()
+        latestWhisperTranscription = ""
+
+        let preferredLangs = multilingualLanguages.isEmpty ? ["ru", "en"] : multilingualLanguages
+        let isSingle = recognitionMode == "singleLanguage"
+        let lang = isSingle ? (singleDictationLanguage == "auto" ? nil : singleDictationLanguage) : nil
+        let model = effectiveModel
+
+        let effectiveBlocked = AetherContextEngine.shared.activeEffectiveBlockedWords(
+            targetApp: self.targetRunningApplication,
+            userBlockedWords: self.blockedWords,
+            recognitionLanguages: isSingle ? [self.singleDictationLanguage] : preferredLangs
+        )
+        let effectiveVocab = AetherContextEngine.shared.activeEffectiveVocabulary(
+            targetApp: self.targetRunningApplication,
+            userVocabulary: self.vocabulary,
+            userLocation: self.effectiveUserLocation
+        )
+
+        // Poll every 0.75 seconds to track user speech in real-time on Apple Neural Engine
+        interimWhisperTimer = Timer.scheduledTimer(withTimeInterval: 0.75, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self = self, self.isRecording, self.recordingDuration >= 0.5 else { return }
+                guard self.interimWhisperTask == nil else { return }
+
+                guard let snapshotURL = self.audioRecorder.createSnapshot() else { return }
+
+                self.interimWhisperTask = Task.detached(priority: .userInitiated) { [weak self] in
+                    guard let self = self else { return }
+                    defer {
+                        try? FileManager.default.removeItem(at: snapshotURL)
+                        Task { @MainActor in
+                            self.interimWhisperTask = nil
+                        }
+                    }
+
+                    if let rawSnapshot = await self.transcriptionService.transcribeSnapshot(
+                        audioURL: snapshotURL,
+                        modelName: model,
+                        language: lang
+                    ), !rawSnapshot.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        await MainActor.run {
+                            if self.isRecording && !rawSnapshot.isEmpty {
+                                let cleaned = TranscriptionService.stripBuiltInHallucinations(rawSnapshot)
+                                var formatted = ScribeModeProcessor.shared.process(text: cleaned, mode: self.transcriptionMode)
+                                formatted = TextReplacer.apply(
+                                    replacements: self.textReplacements,
+                                    vocabulary: effectiveVocab,
+                                    blockedWords: effectiveBlocked,
+                                    blockedAction: self.blockedWordsActionRaw,
+                                    to: formatted
+                                )
+                                self.latestWhisperTranscription = formatted
+                                self.livePreviewText = formatted
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func stopInterimWhisperGeneration() {
+        interimWhisperTimer?.invalidate()
+        interimWhisperTimer = nil
+        interimWhisperTask?.cancel()
+        interimWhisperTask = nil
     }
 }

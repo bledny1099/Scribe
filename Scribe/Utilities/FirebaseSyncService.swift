@@ -86,13 +86,25 @@ public final class AuthService: NSObject, ObservableObject {
                 guard let self = self else { return }
                 if let user = user {
                     self.isExplicitSignOut = false
+                    let providerId = user.providerData.first?.providerID ?? ""
+                    let providerName: String
+                    if providerId.contains("google") || (user.email?.hasSuffix("@gmail.com") == true) {
+                        providerName = "Google"
+                    } else if providerId.contains("github") {
+                        providerName = "GitHub"
+                    } else if providerId.contains("apple") {
+                        providerName = "Apple"
+                    } else {
+                        providerName = "Email"
+                    }
                     self.currentUser = AuthUser(
                         id: user.uid,
                         email: user.email ?? "",
                         name: user.displayName ?? (user.email?.components(separatedBy: "@").first ?? "User"),
                         avatarURL: user.photoURL?.absoluteString,
                         subscriptionTier: .pro,
-                        subscriptionExpiresAt: Date.distantFuture
+                        subscriptionExpiresAt: Date.distantFuture,
+                        provider: providerName
                     )
                     self.syncSupporterStatusFromCloud()
                 } else if self.isExplicitSignOut {

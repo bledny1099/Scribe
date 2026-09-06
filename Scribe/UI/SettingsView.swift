@@ -47,25 +47,7 @@ struct SettingsView: View {
     @State private var showingOnboardingNameModal = false
     @State private var showingAppleNotesModal = false
 
-    // Multilingual ASR Tiers
-    private let models: [(id: String, name: String, desc: String)] = [
-        ("openai_whisper-large-v3_turbo", "Ultra (Large V3 Turbo - Enhanced RU)", "Maximum precision for Russian, English, code-switching & technical speech (~950MB)"),
-        ("openai_whisper-large-v3", "Studio (Large V3 Full)", "Full uncompressed large model for challenging acoustic environments (~1.5GB)"),
-        ("openai_whisper-small", "Standard (Balanced)", "Great balance of high accuracy and speed for everyday dictation (~460MB)"),
-        ("openai_whisper-base", "Eco (Fast & Lightweight)", "Instant response with minimal CPU and battery usage (~140MB)")
-    ]
 
-    // Main settings categories in order (System as last main category)
-    private let mainTabs: [SettingsTab] = [
-        .general,
-        .appearance,
-        .recognition,
-        .integrations,
-        .vocabulary,
-        .replacements,
-        .history,
-        .system
-    ]
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -80,624 +62,77 @@ struct SettingsView: View {
             )
             
             HStack(alignment: .top, spacing: 0) {
-                // Sidebar — Cyber Command Dock
-                VStack(alignment: .leading, spacing: 6) {
-                    // Main Categories (ending with System)
-                    ForEach(mainTabs, id: \.self) { tab in
-                        SidebarTabButton(
-                            tab: tab,
-                            isSelected: selectedTab == tab,
-                            panelAppearance: appState.selectedPanelAppearance,
-                            themeGradientColor: .blue,
-                            title: appState.l(tab.rawValue)
-                        ) {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                selectedTab = tab
-                            }
-                        }
-                    }
-
-                    // Divider Line after System
-                    Divider()
-                        .opacity(0.4)
-                        .padding(.vertical, 4)
-
-                    // Statistics Tab Button
-                    SidebarTabButton(
-                        tab: .statistics,
-                        isSelected: selectedTab == .statistics,
-                        panelAppearance: appState.selectedPanelAppearance,
-                        themeGradientColor: .blue,
-                        title: appState.l(SettingsTab.statistics.rawValue)
-                    ) {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                            selectedTab = .statistics
-                        }
-                    }
-                    Button(action: {
-                        showingSupportModal = true
-                    }) {
-                        HStack(spacing: 8) {
-                            ZStack {
-                                Circle()
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [Color.pink.opacity(0.25), Color.orange.opacity(0.25)],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        )
-                                    )
-                                    .frame(width: 22, height: 22)
-                                
-                                Image(systemName: "heart.fill")
-                                    .font(.system(size: 10, weight: .bold))
-                                    .foregroundStyle(
-                                        LinearGradient(
-                                            colors: [.pink, .orange],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        )
-                                    )
-                            }
-
-                            Text(appState.l("Support Scribe"))
-                                .font(.system(size: 12, weight: .semibold, design: .rounded))
-                                .foregroundStyle(.primary)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.8)
-
-                            Spacer(minLength: 4)
-
-                            Image(systemName: "cup.and.saucer.fill")
-                                .font(.system(size: 10, weight: .semibold))
-                                .foregroundStyle(.secondary.opacity(0.7))
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 6)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .fill(Color.primary.opacity(0.03))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .strokeBorder(Color.pink.opacity(0.25), lineWidth: 0.8)
-                        )
-                    }
-                    .buttonStyle(.plain)
-
-                    Spacer()
-
-                    // Bottom Left Account & Subscription Footer
-                    SidebarAccountFooterView(
-                        showingAuthModal: $showingAuthModal,
-                        showingAccountSettingsModal: $showingAccountSettingsModal
-                    )
-                }
-                .frame(width: 200)
-                .padding(.top, 88)
-                .padding(.bottom, 16)
-                .padding(.horizontal, 10)
-                .background(Color.primary.opacity(0.015))
-                .sheet(isPresented: $showingSupportModal) {
-                    SupportDeveloperModal(onOpenStatistics: {
-                        selectedTab = .statistics
-                    })
-                }
-                .sheet(isPresented: $showingAuthModal) {
-                    AuthModalView()
-                }
-                .sheet(isPresented: $showingAccountSettingsModal) {
-                    AccountSettingsModalView()
-                }
-                .sheet(isPresented: $showingOnboardingNameModal) {
-                    OnboardingNameModalView()
-                }
-                .sheet(isPresented: $showingAppleNotesModal) {
-                    AppleNotesPermissionModalView()
-                }
-                .onAppear {
-                    if !UserDefaults.standard.bool(forKey: "hasCompletedOnboardingNamePrompt") {
-                        showingOnboardingNameModal = true
-                    }
-                }
+                SettingsSidebarView(
+                    selectedTab: $selectedTab,
+                    showingSupportModal: $showingSupportModal,
+                    showingAuthModal: $showingAuthModal,
+                    showingAccountSettingsModal: $showingAccountSettingsModal,
+                    showingOnboardingNameModal: $showingOnboardingNameModal,
+                    showingAppleNotesModal: $showingAppleNotesModal
+                )
 
                 Rectangle()
                     .fill(Color.primary.opacity(0.06))
                     .frame(width: 1)
 
-                // Main Content
-                ScrollView(.vertical, showsIndicators: true) {
-                    VStack(spacing: 20) {
-                        switch selectedTab {
-                        case .general:
-                            GeneralSettingsView()
-                        case .appearance:
-                    // SECTION: Overlay Theme & Style
-                    GlassSection(title: appState.l("Overlay Theme"), icon: "sparkles") {
-                        VStack(spacing: 16) {
-                            // Overlay Theme (Color Accents)
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text(appState.l("Color Theme"))
-                                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.primary)
-                                HStack(alignment: .top, spacing: 14) {
-                                    ForEach(AppTheme.allCases) { theme in
-                                        ThemeSwatchButton(
-                                            theme: theme,
-                                            isSelected: appState.selectedTheme == theme
-                                        ) {
-                                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                                appState.selectedTheme = theme
-                                            }
-                                        }
-                                    }
-                                }
-                                .frame(maxWidth: .infinity)
-                            }
-
-                            // Overlay Theme (Dark, Light, Liquid Glass)
-                            HStack {
-                                Text(appState.l("Overlay Theme"))
-                                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.primary)
-                                Spacer()
-                                LiquidGlassSegmentedPicker(
-                                    items: PanelAppearance.allCases,
-                                    selection: Binding(
-                                        get: { appState.selectedOverlayAppearance },
-                                        set: { appState.selectedOverlayAppearance = $0 }
-                                    ),
-                                    label: { (appState.l($0.displayName), $0.icon) }
-                                )
-                            }
-
-                            // Overlay style picker
-                            HStack {
-                                Text(appState.l("Overlay Style"))
-                                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.primary)
-                                Spacer()
-                                LiquidGlassSegmentedPicker(
-                                    items: OverlayStyle.allCases,
-                                    selection: Binding(
-                                        get: { appState.selectedOverlayStyle },
-                                        set: { appState.selectedOverlayStyle = $0 }
-                                    ),
-                                    label: { ("", $0.icon) }
-                                )
-                            }
-
-                            // Overlay size picker
-                            HStack {
-                                Text(appState.l("Overlay Size"))
-                                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.primary)
-                                Spacer()
-                                LiquidGlassSegmentedPicker(
-                                    items: OverlaySize.allCases,
-                                    selection: Binding(
-                                        get: { appState.selectedOverlaySize },
-                                        set: { appState.selectedOverlaySize = $0 }
-                                    ),
-                                    label: { (appState.l($0.shortName), $0.icon) }
-                                )
-                            }
-
-                            // Overlay placement / position mode picker
-                            HStack {
-                                Text(appState.l("Overlay Position"))
-                                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.primary)
-                                Spacer()
-                                LiquidGlassSegmentedPicker(
-                                    items: OverlayPositionMode.allCases,
-                                    selection: Binding(
-                                        get: { appState.overlayPositionMode },
-                                        set: { appState.overlayPositionMode = $0 }
-                                    ),
-                                    label: { (appState.l($0.displayName), $0.icon) }
-                                )
-                            }
-
-                            // Sound feedback
-                            HStack {
-                                Text(appState.l("Sound Feedback"))
-                                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.primary)
-                                Spacer()
-                                Toggle("", isOn: $appState.soundFeedbackEnabled)
-                                    .toggleStyle(.switch)
-                                    .labelsHidden()
-                            }
-
-                            // Show recording timer
-                            HStack {
-                                Text(appState.l("Show Recording Timer"))
-                                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.primary)
-                                Spacer()
-                                Toggle("", isOn: $appState.durationVisible)
-                                    .toggleStyle(.switch)
-                                    .labelsHidden()
-                            }
-
-                            // Show target application
-                            HStack {
-                                Text(appState.l("Show Target Application"))
-                                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.primary)
-                                Spacer()
-                                Toggle("", isOn: $appState.showTargetAppInOverlay)
-                                    .toggleStyle(.switch)
-                                    .labelsHidden()
-                            }
-
-
-                            // Live Floating Preview Info Bar
-                            HStack {
-                                Label("Live Floating Preview", systemImage: "sparkles")
-                                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                                    .foregroundStyle(.secondary)
-                                Spacer()
-                                let currentStyle = appState.selectedOverlayStyle
-                                let currentSize = appState.selectedOverlaySize
-                                let scaled = RecordingPanel.size(for: currentStyle, overlaySize: currentSize)
-                                Text("\(Int(scaled.width)) × \(Int(scaled.height)) px")
-                                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                                    .foregroundStyle(.tertiary)
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(Color.primary.opacity(0.04))
-                            .cornerRadius(8)
-                        }
-                    }
-
-                        case .recognition:
-                    // SECTION: Language & Model
-                    GlassSection(title: appState.l("Recognition"), icon: "waveform.and.mic") {
-                        VStack(spacing: 16) {
-                            // Aether Presentation
-                            VStack(alignment: .leading, spacing: 10) {
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 3) {
-                                        HStack(spacing: 6) {
-                                            Text("Aether")
-                                                .font(.system(size: 15, weight: .semibold, design: .rounded))
-                                                .foregroundStyle(.primary)
-                                            
-                                            HStack(spacing: 4) {
-                                                Circle()
-                                                    .fill(Color.green)
-                                                    .frame(width: 6, height: 6)
-                                                Text(appState.l("3-Stage Pipeline Active"))
-                                                    .font(.system(size: 10, weight: .medium, design: .rounded))
-                                                    .foregroundStyle(.primary.opacity(0.85))
-                                            }
-                                            .padding(.horizontal, 7)
-                                            .padding(.vertical, 2.5)
-                                            .background(
-                                                Capsule()
-                                                    .fill(Color.primary.opacity(0.08))
-                                                    .overlay(
-                                                        Capsule().stroke(Color.primary.opacity(0.12), lineWidth: 0.5)
-                                                    )
-                                            )
-                                        }
-                                    }
-                                    Spacer()
-                                    LiquidGlassMenu(
-                                        items: [
-                                            "Aether Neural (Recommended)",
-                                            "Aether Turbo",
-                                            "Aether Instant"
-                                        ],
-                                        selection: $appState.recognitionEngine,
-                                        title: { id in appState.l(id) },
-                                        displayTitle: { id in
-                                            if id.contains("Neural") {
-                                                return "Aether Neural"
-                                            } else if id.contains("Turbo") {
-                                                return "Aether Turbo"
-                                            } else if id.contains("Instant") {
-                                                return "Aether Instant"
-                                            }
-                                            return appState.l(id)
-                                        }
-                                    )
-                                }
-                                
-                                Text(appState.recognitionEngineDescription)
-                                    .font(.system(size: 11, weight: .regular))
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(3)
-                            }
-
-                            HStack {
-                                Text(appState.l("Recognition Mode"))
-                                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.primary)
-                                Spacer()
-                                LiquidGlassMenu(
-                                    items: ["multilingual", "singleLanguage"],
-                                    selection: $appState.recognitionMode,
-                                    title: { id in
-                                        id == "multilingual" ? appState.l("Multilingual Mode (2-3 Languages)") : appState.l("Single Language Mode")
-                                    },
-                                    displayTitle: { id in
-                                        id == "multilingual" ? appState.l("Multilingual Mode") : appState.l("Single Language Mode")
-                                    }
-                                )
-                            }
-                            
-                            if appState.recognitionMode == "singleLanguage" {
-                                HStack {
-                                    Text(appState.l("Single Language"))
-                                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                                        .foregroundStyle(.primary)
-                                    Spacer()
-                                    LiquidGlassLanguageMenu(
-                                        items: supportedLanguages.filter { $0.id != "auto" },
-                                        selection: $appState.singleDictationLanguage
-                                    )
-                                }
-                            } else {
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(appState.l("Dictation Languages"))
-                                            .font(.system(size: 14, weight: .medium, design: .rounded))
-                                            .foregroundStyle(.primary)
-                                        Text(appState.l("Select up to 3 languages for auto-switching"))
-                                            .font(.system(size: 11))
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    Spacer()
-                                    LiquidGlassMultiLanguageMenu(
-                                        items: supportedLanguages,
-                                        selectedLanguages: appState.multilingualLanguages,
-                                        onToggle: { appState.toggleMultilingualLanguage($0) }
-                                    )
-                                }
-                            }
-
-                            HStack {
-                                Text(appState.l("Auto Translate to Selected Language"))
-                                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.primary)
-                                Spacer()
-                                Toggle("", isOn: $appState.autoTranslate)
-                                    .toggleStyle(.switch)
-                                    .labelsHidden()
-                            }
-
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(appState.l("Model Quality"))
-                                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                                        .foregroundStyle(.primary)
-                                    Text(appState.l(models.first(where: { $0.id == appState.selectedModel })?.desc ?? ""))
-                                        .font(.system(size: 11))
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                LiquidGlassMenu(
-                                    items: models.map { $0.id },
-                                    selection: $appState.selectedModel,
-                                    title: { id in appState.l(models.first(where: { $0.id == id })?.name ?? id) },
-                                    displayTitle: { id in appState.l(models.first(where: { $0.id == id })?.name ?? id) }
-                                )
-                            }
-
-                            // Active Engine & Neural Architecture Info Card
-                            HStack(spacing: 12) {
-                                Image(systemName: "cpu.fill")
-                                    .font(.system(size: 18, weight: .semibold))
-                                    .foregroundStyle(Color.green)
-
-                                VStack(alignment: .leading, spacing: 3) {
-                                    HStack(spacing: 6) {
-                                        Text(appState.l("Active Speech Engine:"))
-                                            .font(.system(size: 12, weight: .semibold, design: .rounded))
-                                            .foregroundStyle(.primary)
-
-                                        Text(appState.recognitionEngine.contains("Instant") ? "Apple Speech" : (appState.recognitionEngine.contains("Parakeet") ? "Parakeet TDT" : "WhisperKit ANE"))
-                                            .font(.system(size: 10.5, weight: .bold, design: .monospaced))
-                                            .foregroundStyle(Color.green)
-                                            .padding(.horizontal, 6)
-                                            .padding(.vertical, 2)
-                                            .background(
-                                                Capsule()
-                                                    .fill(Color.green.opacity(0.12))
-                                            )
-                                    }
-
-                                    Text(appState.recognitionEngineDescription)
-                                        .font(.system(size: 10.5, weight: .regular))
-                                        .foregroundStyle(.secondary)
-                                        .fixedSize(horizontal: false, vertical: true)
-                                }
-                                Spacer()
-                            }
-                            .padding(12)
-                            .background(
-                                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                    .fill(Color.primary.opacity(0.04))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                            .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.8)
-                                    )
-                            )
-                        }
-                    }
-
-                    // SECTION: Dictation Modes
-                    GlassSection(title: appState.l("Dictation Mode"), icon: "text.quote") {
-                        VStack(alignment: .leading, spacing: 14) {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(appState.l("Active Transcription Mode"))
-                                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                                        .foregroundStyle(.primary)
-                                    Text(appState.l("Adapts filler cleaning, formatting, code syntax, and structure"))
-                                        .font(.system(size: 11))
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                            }
-
-                            LiquidGlassSegmentedPicker(
-                                items: ScribeMode.allCases,
-                                selection: Binding(
-                                    get: { appState.transcriptionMode },
-                                    set: { appState.transcriptionMode = $0 }
-                                ),
-                                label: { (appState.l($0.displayName), $0.icon) }
-                            )
-
-                            HStack(spacing: 8) {
-                                Image(systemName: "info.circle.fill")
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(.blue)
-                                Text(appState.l(appState.transcriptionMode.description))
-                                    .font(.system(size: 11.5, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(2)
-                            }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(Color.primary.opacity(0.04))
-                            )
-                        }
-                    }
-
-
-
-                        case .statistics:
-                            StatisticsSectionView()
-                        case .replacements:
-                            ReplacementsSettingsView()
-                        case .integrations:
-                            IntegrationsSettingsView()
-                        case .vocabulary:
-                            VocabularySettingsView()
-                        case .history:
-                            GlassSection(title: appState.l("History"), icon: "clock.arrow.circlepath") {
-                                HistoryView(inSettings: true)
-                            }
-                        case .system:
-                            // SECTION: Software Updates
-                            GlassSection(title: appState.l("Software Updates"), icon: "arrow.triangle.2.circlepath.circle.fill") {
-                                AppUpdatesView()
-                            }
-
-                            // SECTION: Audio Input
-                            GlassSection(title: appState.l("Audio Input"), icon: "mic.fill") {
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(appState.l("Microphone Source"))
-                                            .font(.system(size: 14, weight: .medium, design: .rounded))
-                                            .foregroundStyle(.primary)
-                                        Text(appState.l("Select the audio input source for dictation"))
-                                            .font(.system(size: 11))
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    Spacer()
-                                    LiquidGlassAudioInputMenu()
-                                }
-                            }
-
-                            // SECTION: System
-                            GlassSection(title: appState.l("System"), icon: "lock.shield") {
-                                VStack(alignment: .leading, spacing: 16) {
-                                    // Launch at login
-                                    HStack {
-                                        Text(appState.l("Launch at Login"))
-                                            .font(.system(size: 14, weight: .medium, design: .rounded))
-                                            .foregroundStyle(.primary)
-                                        Spacer()
-                                        Toggle("", isOn: Binding(
-                                            get: { LaunchAtLoginHelper.isEnabled },
-                                            set: { LaunchAtLoginHelper.setEnabled($0) }
-                                        ))
-                                        .toggleStyle(.switch)
-                                        .labelsHidden()
-                                    }
-
-                                    PermissionsCard()
-                                }
-                            }
-
-                            // SECTION: Bug & Crash Reporting (Only visible if user is registered/signed in)
-                            if authService.currentUser != nil {
-                                GlassSection(title: appState.l("Feedback & Bug Reports"), icon: "ladybug.fill") {
-                                    BugReportView()
-                                }
-                            }
-                    }
-                    }
-                    .padding(.horizontal, 24)
-                    .padding(.top, 88)
-                    .padding(.bottom, 24)
-                }
+                SettingsContentView(selectedTab: selectedTab)
             }
             
-            // Header — Draggable Cyber Glass Console Header
+            // Header — Draggable Cyber Glass Console Header with Frosted Top Blur
             VStack(spacing: 0) {
                 SettingsHeaderView()
+
+                // Subtle gradient fade below the header
+                LinearGradient(
+                    colors: [
+                        (appState.selectedPanelAppearance == .light ? Color.white : Color.black).opacity(0.12),
+                        Color.clear
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: 12)
+                .allowsHitTesting(false)
             }
         }
         .ignoresSafeArea(.container, edges: .top)
         .frame(height: 620)
-        .onAppear {
-            if let tab = appState.requestedSettingsTab {
-                selectedTab = tab
-                appState.requestedSettingsTab = nil
-            }
-            if selectedTab == .statistics {
-                triggerLevelUpSweepIfNeeded()
-            }
-        }
-        .onChange(of: appState.requestedSettingsTab) { newTab in
-            if let tab = newTab {
-                selectedTab = tab
-                appState.requestedSettingsTab = nil
-                if tab == .statistics {
-                    triggerLevelUpSweepIfNeeded()
-                }
-            }
-        }
-        .onChange(of: selectedTab) { newTab in
-            if newTab == .statistics {
-                triggerLevelUpSweepIfNeeded()
-            }
-        }
+        .onAppear(perform: handleAppear)
+        .onChange(of: appState.requestedSettingsTab, perform: handleRequestedTabChange)
+        .onChange(of: selectedTab, perform: handleSelectedTabChange)
         .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
         .onDisappear {
             appState.hideSettingsPreviewPanel()
         }
-        .onChange(of: appState.selectedOverlaySize) { _ in
-            appState.showSettingsPreviewFor5Seconds()
-        }
-        .onChange(of: appState.selectedOverlayStyle) { _ in
-            appState.showSettingsPreviewFor5Seconds()
-        }
-        .onChange(of: appState.selectedTheme) { _ in
-            appState.onThemeChangedPreview()
-        }
-        .onChange(of: appState.selectedPanelAppearance) { _ in
-            appState.showSettingsPreviewFor5Seconds()
-        }
-        .onChange(of: appState.durationVisible) { _ in
-            appState.showSettingsPreviewFor5Seconds()
-        }
-        .onChange(of: appState.showTargetAppInOverlay) { _ in
-            appState.showSettingsPreviewFor5Seconds()
-        }
+        .modifier(SettingsPreviewSyncModifier(appState: appState))
         .preferredColorScheme(
             appState.selectedPanelAppearance == .light ? .light : .dark
         )
+    }
+
+    private func handleAppear() {
+        if let tab = appState.requestedSettingsTab {
+            selectedTab = tab
+            appState.requestedSettingsTab = nil
+        }
+        if selectedTab == .statistics {
+            triggerLevelUpSweepIfNeeded()
+        }
+    }
+
+    private func handleRequestedTabChange(_ newTab: SettingsTab?) {
+        guard let tab = newTab else { return }
+        selectedTab = tab
+        appState.requestedSettingsTab = nil
+        if tab == .statistics {
+            triggerLevelUpSweepIfNeeded()
+        }
+    }
+
+    private func handleSelectedTabChange(_ newTab: SettingsTab) {
+        if newTab == .statistics {
+            triggerLevelUpSweepIfNeeded()
+        }
     }
 
     private func triggerLevelUpSweepIfNeeded() {
@@ -715,6 +150,219 @@ struct SettingsView: View {
             }
         } else {
             lastSeenLevel = current
+        }
+    }
+}
+
+// MARK: - Settings Preview Sync Modifier
+struct SettingsPreviewSyncModifier: ViewModifier {
+    @ObservedObject var appState: AppState
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: appState.selectedOverlaySize) { _ in
+                appState.showSettingsPreviewFor5Seconds()
+            }
+            .onChange(of: appState.selectedOverlayStyle) { _ in
+                appState.showSettingsPreviewFor5Seconds()
+            }
+            .onChange(of: appState.selectedTheme) { _ in
+                appState.onThemeChangedPreview()
+            }
+            .onChange(of: appState.selectedOverlayAppearance) { _ in
+                appState.showSettingsPreviewFor5Seconds()
+            }
+            .onChange(of: appState.selectedPanelAppearance) { _ in
+                appState.showSettingsPreviewFor5Seconds()
+            }
+            .onChange(of: appState.durationVisible) { _ in
+                appState.showSettingsPreviewFor5Seconds()
+            }
+            .onChange(of: appState.showTargetAppInOverlay) { _ in
+                appState.showSettingsPreviewFor5Seconds()
+            }
+    }
+}
+
+// MARK: - Settings Sidebar View
+struct SettingsSidebarView: View {
+    @Binding var selectedTab: SettingsTab
+    @Binding var showingSupportModal: Bool
+    @Binding var showingAuthModal: Bool
+    @Binding var showingAccountSettingsModal: Bool
+    @Binding var showingOnboardingNameModal: Bool
+    @Binding var showingAppleNotesModal: Bool
+    @EnvironmentObject var appState: AppState
+
+    private let mainTabs: [SettingsTab] = [
+        .general,
+        .appearance,
+        .recognition,
+        .integrations,
+        .vocabulary,
+        .replacements,
+        .history,
+        .system
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            // Main Categories (ending with System)
+            ForEach(mainTabs, id: \.self) { tab in
+                SidebarTabButton(
+                    tab: tab,
+                    isSelected: selectedTab == tab,
+                    panelAppearance: appState.selectedPanelAppearance,
+                    themeGradientColor: .blue,
+                    title: appState.l(tab.rawValue)
+                ) {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        selectedTab = tab
+                    }
+                }
+            }
+
+            // Divider Line after System
+            Divider()
+                .opacity(0.4)
+                .padding(.vertical, 4)
+
+            // Statistics Tab Button
+            SidebarTabButton(
+                tab: .statistics,
+                isSelected: selectedTab == .statistics,
+                panelAppearance: appState.selectedPanelAppearance,
+                themeGradientColor: .blue,
+                title: appState.l(SettingsTab.statistics.rawValue)
+            ) {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                    selectedTab = .statistics
+                }
+            }
+
+            Button(action: {
+                showingSupportModal = true
+            }) {
+                HStack(spacing: 8) {
+                    ZStack {
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color.pink.opacity(0.25), Color.orange.opacity(0.25)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 22, height: 22)
+                        
+                        Image(systemName: "heart.fill")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [.pink, .orange],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                    }
+
+                    Text(appState.l("Support Scribe"))
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+
+                    Spacer(minLength: 4)
+
+                    Image(systemName: "cup.and.saucer.fill")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.secondary.opacity(0.7))
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color.primary.opacity(0.03))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .strokeBorder(Color.pink.opacity(0.25), lineWidth: 0.8)
+                )
+            }
+            .buttonStyle(.plain)
+
+            Spacer()
+
+            // Bottom Left Account & Subscription Footer
+            SidebarAccountFooterView(
+                showingAuthModal: $showingAuthModal,
+                showingAccountSettingsModal: $showingAccountSettingsModal
+            )
+        }
+        .frame(width: 200)
+        .padding(.top, 88)
+        .padding(.bottom, 16)
+        .padding(.horizontal, 10)
+        .background(Color.primary.opacity(0.015))
+        .sheet(isPresented: $showingSupportModal) {
+            SupportDeveloperModal(onOpenStatistics: {
+                selectedTab = .statistics
+            })
+        }
+        .sheet(isPresented: $showingAuthModal) {
+            AuthModalView()
+        }
+        .sheet(isPresented: $showingAccountSettingsModal) {
+            AccountSettingsModalView()
+        }
+        .sheet(isPresented: $showingOnboardingNameModal) {
+            OnboardingNameModalView()
+        }
+        .sheet(isPresented: $showingAppleNotesModal) {
+            AppleNotesPermissionModalView()
+        }
+        .onAppear {
+            if !UserDefaults.standard.bool(forKey: "hasCompletedOnboardingNamePrompt") {
+                showingOnboardingNameModal = true
+            }
+        }
+    }
+}
+
+// MARK: - Settings Content View
+struct SettingsContentView: View {
+    let selectedTab: SettingsTab
+    @EnvironmentObject var appState: AppState
+
+    var body: some View {
+        ScrollView(.vertical, showsIndicators: true) {
+            VStack(spacing: 20) {
+                switch selectedTab {
+                case .general:
+                    GeneralSettingsView()
+                case .appearance:
+                    AppearanceSettingsView()
+                case .recognition:
+                    RecognitionSettingsView()
+                case .statistics:
+                    StatisticsSectionView()
+                case .replacements:
+                    ReplacementsSettingsView()
+                case .integrations:
+                    IntegrationsSettingsView()
+                case .vocabulary:
+                    VocabularySettingsView()
+                case .history:
+                    GlassSection(title: appState.l("History"), icon: "clock.arrow.circlepath") {
+                        HistoryView(inSettings: true)
+                    }
+                case .system:
+                    SystemSettingsView()
+                }
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 88)
+            .padding(.bottom, 24)
         }
     }
 }
@@ -828,7 +476,29 @@ struct SettingsHeaderView: View {
         .padding(.trailing, 16)
         .padding(.top, 14)
         .padding(.bottom, 12)
-        .background(WindowDragView())
+        .background(
+            ZStack(alignment: .bottom) {
+                // Top frosted blur covering header
+                Rectangle()
+                    .fill(.ultraThinMaterial)
+
+                LinearGradient(
+                    colors: [
+                        (appState.selectedPanelAppearance == .light ? Color.white : Color.black).opacity(0.35),
+                        (appState.selectedPanelAppearance == .light ? Color.white : Color.black).opacity(0.12),
+                        Color.clear
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+
+                // Ultra-thin subtle bottom border
+                Rectangle()
+                    .fill(Color.primary.opacity(0.08))
+                    .frame(height: 0.5)
+            }
+            .background(WindowDragView())
+        )
     }
 }
 
@@ -2438,6 +2108,174 @@ struct ThemeSwatchButton: View {
             }
         }
         .buttonStyle(.plain)
+    }
+}
+
+// MARK: - In-Window Live Overlay Preview Stage
+
+struct OverlayPreviewStageView: View {
+    @EnvironmentObject var appState: AppState
+
+    private var currentStyle: OverlayStyle { appState.selectedOverlayStyle }
+    private var currentSize: OverlaySize { appState.selectedOverlaySize }
+    private var currentAppearance: PanelAppearance { appState.selectedOverlayAppearance }
+
+    var body: some View {
+        let previewAppName = appState.showTargetAppInOverlay ? "Scribe" : ""
+        let isTimerVis = appState.durationVisible
+        let hasAI = appState.enableCloudAI && appState.selectedAIRefinementMode != .raw
+
+        let baseSize = RecordingPanel.size(
+            for: currentStyle,
+            overlaySize: .s100,
+            isEmbeddedPreviewActive: false,
+            previewTextLength: 0,
+            targetAppName: previewAppName,
+            isTimerVisible: isTimerVis,
+            hasAIMode: hasAI
+        )
+        let targetSize = RecordingPanel.size(
+            for: currentStyle,
+            overlaySize: currentSize,
+            isEmbeddedPreviewActive: false,
+            previewTextLength: 0,
+            targetAppName: previewAppName,
+            isTimerVisible: isTimerVis,
+            hasAIMode: hasAI
+        )
+        let targetRadius = RecordingPanel.radius(
+            for: currentStyle,
+            overlaySize: currentSize,
+            isEmbeddedPreviewActive: false,
+            previewTextLength: 0,
+            targetAppName: previewAppName,
+            isTimerVisible: isTimerVis,
+            hasAIMode: hasAI
+        )
+
+        VStack(spacing: 10) {
+            // Stage Canvas
+            ZStack {
+                // Realistic dark glass desktop backdrop
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.black.opacity(0.38),
+                                Color.black.opacity(0.64)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .strokeBorder(Color.white.opacity(0.10), lineWidth: 1)
+                    )
+
+                // Subtle mesh glow reflecting current theme accent
+                Circle()
+                    .fill(appState.selectedTheme.glowColor.opacity(0.16))
+                    .frame(width: 220, height: 100)
+                    .blur(radius: 36)
+
+                // Actual Overlay View
+                RecordingOverlayView()
+                    .environmentObject(appState)
+                    .environmentObject(appState.audioRecorder)
+                    .frame(width: baseSize.width, height: baseSize.height)
+                    .scaleEffect(currentSize.scale)
+                    .frame(width: targetSize.width, height: targetSize.height)
+                    .background(panelBackground(for: currentAppearance, radius: targetRadius))
+                    .clipShape(RoundedRectangle(cornerRadius: targetRadius, style: .continuous))
+                    .overlay(panelBorder(for: currentAppearance, radius: targetRadius))
+                    .shadow(color: Color.black.opacity(0.40), radius: 14, x: 0, y: 7)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: max(130, targetSize.height + 40))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+            // Footer info bar
+            HStack {
+                HStack(spacing: 6) {
+                    Image(systemName: "sparkles")
+                        .foregroundStyle(appState.selectedTheme.gradientColors.first ?? .blue)
+                        .font(.system(size: 11, weight: .semibold))
+                    Text(appState.l("Live Preview"))
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.primary)
+                    Text("•")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                    Text("\(Int(targetSize.width)) × \(Int(targetSize.height)) px")
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Button {
+                    appState.showSettingsPreviewFor5Seconds()
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "macwindow.on.rectangle")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text(appState.l("Test on Screen"))
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    }
+                    .foregroundStyle(.primary.opacity(0.9))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(
+                        Capsule()
+                            .fill(Color.primary.opacity(0.08))
+                            .overlay(Capsule().stroke(Color.primary.opacity(0.12), lineWidth: 0.5))
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 4)
+        }
+        .onAppear {
+            appState.isPreviewStageActive = true
+        }
+        .onDisappear {
+            appState.isPreviewStageActive = false
+        }
+    }
+
+    @ViewBuilder
+    private func panelBackground(for appearance: PanelAppearance, radius: CGFloat) -> some View {
+        switch appearance {
+        case .dark:
+            RoundedRectangle(cornerRadius: radius, style: .continuous)
+                .fill(Color(white: 0.015).opacity(0.98))
+        case .light:
+            RoundedRectangle(cornerRadius: radius, style: .continuous)
+                .fill(Color(white: 0.96).opacity(0.92))
+        case .liquidGlass:
+            RoundedRectangle(cornerRadius: radius, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: radius, style: .continuous)
+                        .fill(Color.white.opacity(0.05))
+                )
+        }
+    }
+
+    @ViewBuilder
+    private func panelBorder(for appearance: PanelAppearance, radius: CGFloat) -> some View {
+        switch appearance {
+        case .dark:
+            RoundedRectangle(cornerRadius: radius, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.8)
+        case .light:
+            RoundedRectangle(cornerRadius: radius, style: .continuous)
+                .strokeBorder(Color.black.opacity(0.10), lineWidth: 0.8)
+        case .liquidGlass:
+            RoundedRectangle(cornerRadius: radius, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.20), lineWidth: 1.0)
+        }
     }
 }
 
@@ -5524,7 +5362,7 @@ struct VocabularySettingsView: View {
                             Circle()
                                 .fill(Color.green)
                                 .frame(width: 7, height: 7)
-                            Text(appState.l("Auto-sync active (every 5 min)"))
+                            Text(appState.l("Auto-sync active"))
                                 .font(.system(size: 12, weight: .semibold, design: .rounded))
                                 .foregroundStyle(.primary)
                         }
@@ -5547,7 +5385,7 @@ struct VocabularySettingsView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(appState.l("Contribute New Words Anonymously"))
                                 .font(.system(size: 12, weight: .semibold, design: .rounded))
-                            Text(appState.l("Syncs and uploads unique custom words to the global community dictionary every 5 minutes."))
+                            Text(appState.l("Syncs and uploads unique custom words to the global community dictionary."))
                                 .font(.system(size: 10.5, weight: .regular))
                                 .foregroundStyle(.secondary)
                         }
@@ -5952,13 +5790,11 @@ struct GeneralSettingsView: View {
                         }
                         Spacer()
                         Picker("", selection: Binding(
-                            get: { appState.selectedPasteMode },
+                            get: { (appState.selectedPasteMode == .directType) ? PasteMode.directType : PasteMode.paste },
                             set: { appState.selectedPasteMode = $0 }
                         )) {
                             Text(appState.l("Paste via Clipboard (⌘V)")).tag(PasteMode.paste)
                             Text(appState.l("Direct Typing (No Clipboard)")).tag(PasteMode.directType)
-                            Text(appState.l("Append to Clipboard")).tag(PasteMode.append)
-                            Text(appState.l("Integrations Only")).tag(PasteMode.integrationsOnly)
                         }
                         .labelsHidden()
                         .pickerStyle(.menu)
@@ -6001,7 +5837,7 @@ struct GeneralSettingsView: View {
                                 }
                                 DispatchQueue.main.async {
                                     if newValue {
-                                        appState.showSettingsPreviewFor5Seconds()
+                                        appState.showSettingsPreviewFor5Seconds(includeSubtitle: true)
                                     } else {
                                         appState.hideSettingsPreviewPanel()
                                     }
@@ -6024,7 +5860,7 @@ struct GeneralSettingsView: View {
                                     get: { appState.livePreviewBackground },
                                     set: {
                                         appState.livePreviewBackground = $0
-                                        appState.showSettingsPreviewFor5Seconds()
+                                        appState.showSettingsPreviewFor5Seconds(includeSubtitle: true)
                                     }
                                 ),
                                 label: { (appState.l($0.displayName), $0.icon) }
@@ -6038,6 +5874,427 @@ struct GeneralSettingsView: View {
         }
         .sheet(isPresented: $showingAppleNotesModal) {
             AppleNotesPermissionModalView()
+        }
+    }
+}
+
+// MARK: - Appearance Settings View
+struct AppearanceSettingsView: View {
+    @EnvironmentObject var appState: AppState
+
+    var body: some View {
+        VStack(spacing: 16) {
+            // SECTION: Overlay Theme & Style
+            GlassSection(title: appState.l("Overlay Theme"), icon: "sparkles") {
+                VStack(spacing: 16) {
+                    // Overlay Theme (Color Accents)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(appState.l("Color Theme"))
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .foregroundStyle(.primary)
+                        HStack(alignment: .top, spacing: 14) {
+                            ForEach(AppTheme.allCases) { theme in
+                                ThemeSwatchButton(
+                                    theme: theme,
+                                    isSelected: appState.selectedTheme == theme
+                                ) {
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                        appState.selectedTheme = theme
+                                    }
+                                }
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+
+                    // Overlay Theme (Dark, Light, Liquid Glass)
+                    HStack {
+                        Text(appState.l("Overlay Theme"))
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        LiquidGlassSegmentedPicker(
+                            items: PanelAppearance.allCases,
+                            selection: Binding(
+                                get: { appState.selectedOverlayAppearance },
+                                set: { appState.selectedOverlayAppearance = $0 }
+                            ),
+                            label: { (appState.l($0.displayName), $0.icon) }
+                        )
+                    }
+
+                    // Overlay style picker
+                    HStack {
+                        Text(appState.l("Overlay Style"))
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        LiquidGlassSegmentedPicker(
+                            items: OverlayStyle.allCases,
+                            selection: Binding(
+                                get: { appState.selectedOverlayStyle },
+                                set: { appState.selectedOverlayStyle = $0 }
+                            ),
+                            label: { ("", $0.icon) }
+                        )
+                    }
+
+                    // Overlay size picker
+                    HStack {
+                        Text(appState.l("Overlay Size"))
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        LiquidGlassSegmentedPicker(
+                            items: OverlaySize.allCases,
+                            selection: Binding(
+                                get: { appState.selectedOverlaySize },
+                                set: { appState.selectedOverlaySize = $0 }
+                            ),
+                            label: { (appState.l($0.shortName), $0.icon) }
+                        )
+                    }
+
+                    // Overlay placement / position mode picker
+                    HStack {
+                        Text(appState.l("Overlay Position"))
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        LiquidGlassSegmentedPicker(
+                            items: OverlayPositionMode.allCases,
+                            selection: Binding(
+                                get: { appState.overlayPositionMode },
+                                set: { appState.overlayPositionMode = $0 }
+                            ),
+                            label: { (appState.l($0.displayName), $0.icon) }
+                        )
+                    }
+
+                    // Sound feedback
+                    HStack {
+                        Text(appState.l("Sound Feedback"))
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Toggle("", isOn: $appState.soundFeedbackEnabled)
+                            .toggleStyle(.switch)
+                            .labelsHidden()
+                    }
+
+                    // Show recording timer
+                    HStack {
+                        Text(appState.l("Show Recording Timer"))
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Toggle("", isOn: $appState.durationVisible)
+                            .toggleStyle(.switch)
+                            .labelsHidden()
+                    }
+
+                    // Show target application
+                    HStack {
+                        Text(appState.l("Show Target Application"))
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Toggle("", isOn: $appState.showTargetAppInOverlay)
+                            .toggleStyle(.switch)
+                            .labelsHidden()
+                    }
+                }
+            }
+        }
+        .onAppear {
+            appState.showSettingsPreviewFor5Seconds()
+        }
+    }
+}
+
+// MARK: - Recognition Settings View
+struct RecognitionSettingsView: View {
+    @EnvironmentObject var appState: AppState
+
+    private let models: [(id: String, name: String, desc: String)] = [
+        ("openai_whisper-large-v3_turbo", "Turbo (Recommended)", "Smart language routing: enhanced Russian & code-switching, fast English (~950MB)"),
+        ("openai_whisper-large-v3", "Studio (Max Precision)", "Full uncompressed large model for challenging acoustic environments (~1.5GB)"),
+        ("openai_whisper-small", "Eco (Lightweight)", "Fast everyday dictation with minimal memory & battery usage (~460MB)")
+    ]
+
+    private var singleLanguages: [LanguageOption] {
+        supportedLanguages.filter { $0.id != "auto" }
+    }
+
+    var body: some View {
+        VStack(spacing: 16) {
+            // SECTION: Language & Model
+            GlassSection(title: appState.l("Recognition"), icon: "waveform.and.mic") {
+                VStack(spacing: 16) {
+                    // Aether Engine Selector
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(appState.l("Aether Engine"))
+                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                .foregroundStyle(.primary)
+                            Text(appState.isInstantEngine ? 
+                                 appState.l("Native Apple Speech (~0 MB) • English Only") : 
+                                 appState.l("Offline Neural ANE & GPU • 99+ Languages"))
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        LiquidGlassSegmentedPicker(
+                            items: ["Aether Neural", "Aether Instant"],
+                            selection: Binding(
+                                get: { appState.isInstantEngine ? "Aether Instant" : "Aether Neural" },
+                                set: { newValue in
+                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
+                                        appState.recognitionEngine = newValue == "Aether Instant" ? "Aether Instant" : "Aether Neural (Recommended)"
+                                    }
+                                }
+                            ),
+                            label: { item in
+                                if item == "Aether Instant" {
+                                    return (appState.l("Aether Instant"), "bolt.fill")
+                                } else {
+                                    return (appState.l("Aether Neural"), "brain")
+                                }
+                            }
+                        )
+                    }
+
+                    if appState.isInstantEngine {
+                        // Apple Speech (English Only) Info & Details
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack(spacing: 10) {
+                                Image(systemName: "apple.logo")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(.primary.opacity(0.85))
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(appState.l("Apple Speech Engine (English Only)"))
+                                        .font(.system(size: 12.5, weight: .semibold, design: .rounded))
+                                        .foregroundStyle(.primary)
+                                    Text(appState.l("Built-in macOS speech recognizer with zero model downloads (~0 MB). Strictly restricted to English (en-US). For Russian or multilingual dictation, switch to Aether Neural."))
+                                        .font(.system(size: 11, weight: .regular, design: .rounded))
+                                        .foregroundStyle(.secondary)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 10)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(Color.primary.opacity(0.04))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
+                                    )
+                            )
+
+                            HStack {
+                                Text(appState.l("Supported Language"))
+                                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                HStack(spacing: 6) {
+                                    Text("English (US)")
+                                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                        .foregroundStyle(.primary)
+                                    Circle()
+                                        .fill(Color.green)
+                                        .frame(width: 6, height: 6)
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(
+                                    Capsule()
+                                        .fill(Color.primary.opacity(0.06))
+                                )
+                            }
+                        }
+                    } else {
+                        // Aether Neural (WhisperKit) Controls
+                        VStack(spacing: 16) {
+                            HStack {
+                                Text(appState.l("Recognition Mode"))
+                                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                LiquidGlassMenu(
+                                    items: ["multilingual", "singleLanguage"],
+                                    selection: $appState.recognitionMode,
+                                    title: { id in
+                                        id == "multilingual" ? appState.l("Multilingual Mode (2-3 Languages)") : appState.l("Single Language Mode")
+                                    },
+                                    displayTitle: { id in
+                                        id == "multilingual" ? appState.l("Multilingual Mode") : appState.l("Single Language Mode")
+                                    }
+                                )
+                            }
+                            
+                            if appState.recognitionMode == "singleLanguage" {
+                                HStack {
+                                    Text(appState.l("Single Language"))
+                                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                                        .foregroundStyle(.primary)
+                                    Spacer()
+                                    LiquidGlassLanguageMenu(
+                                        items: singleLanguages,
+                                        selection: $appState.singleDictationLanguage
+                                    )
+                                }
+                            } else {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(appState.l("Dictation Languages"))
+                                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                                            .foregroundStyle(.primary)
+                                        Text(appState.l("Select up to 3 languages for auto-switching"))
+                                            .font(.system(size: 11))
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                    LiquidGlassMultiLanguageMenu(
+                                        items: supportedLanguages,
+                                        selectedLanguages: appState.multilingualLanguages,
+                                        onToggle: { appState.toggleMultilingualLanguage($0) }
+                                    )
+                                }
+                            }
+
+                            HStack {
+                                Text(appState.l("Auto Translate to Selected Language"))
+                                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                Toggle("", isOn: $appState.autoTranslate)
+                                    .toggleStyle(.switch)
+                                    .labelsHidden()
+                            }
+
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(appState.l("Model Quality"))
+                                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                                        .foregroundStyle(.primary)
+                                    Text(appState.l(models.first(where: { $0.id == appState.selectedModel })?.desc ?? ""))
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                LiquidGlassMenu(
+                                    items: models.map { $0.id },
+                                    selection: $appState.selectedModel,
+                                    title: { id in appState.l(models.first(where: { $0.id == id })?.name ?? id) },
+                                    displayTitle: { id in appState.l(models.first(where: { $0.id == id })?.name ?? id) }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // SECTION: Dictation Modes
+            GlassSection(title: appState.l("Dictation Mode"), icon: "text.quote") {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(appState.l("Active Transcription Mode"))
+                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                .foregroundStyle(.primary)
+                            Text(appState.l("Adapts filler cleaning, formatting, code syntax, and structure"))
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                    }
+
+                    LiquidGlassSegmentedPicker(
+                        items: ScribeMode.allCases,
+                        selection: Binding(
+                            get: { appState.transcriptionMode },
+                            set: { appState.transcriptionMode = $0 }
+                        ),
+                        label: { (appState.l($0.displayName), $0.icon) }
+                    )
+
+                    HStack(spacing: 8) {
+                        Image(systemName: "info.circle.fill")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.blue)
+                        Text(appState.l(appState.transcriptionMode.description))
+                            .font(.system(size: 11.5, weight: .medium, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.primary.opacity(0.04))
+                    )
+                }
+            }
+        }
+    }
+}
+
+// MARK: - System Settings View
+struct SystemSettingsView: View {
+    @EnvironmentObject var appState: AppState
+    @ObservedObject private var authService = AuthService.shared
+
+    var body: some View {
+        VStack(spacing: 16) {
+            // SECTION: Software Updates
+            GlassSection(title: appState.l("Software Updates"), icon: "arrow.triangle.2.circlepath.circle.fill") {
+                AppUpdatesView()
+            }
+
+            // SECTION: Audio Input
+            GlassSection(title: appState.l("Audio Input"), icon: "mic.fill") {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(appState.l("Microphone Source"))
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .foregroundStyle(.primary)
+                        Text(appState.l("Select the audio input source for dictation"))
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    LiquidGlassAudioInputMenu()
+                }
+            }
+
+            // SECTION: System
+            GlassSection(title: appState.l("System"), icon: "lock.shield") {
+                VStack(alignment: .leading, spacing: 16) {
+                    // Launch at login
+                    HStack {
+                        Text(appState.l("Launch at Login"))
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Toggle("", isOn: Binding(
+                            get: { LaunchAtLoginHelper.isEnabled },
+                            set: { LaunchAtLoginHelper.setEnabled($0) }
+                        ))
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                    }
+
+                    PermissionsCard()
+                }
+            }
+
+            // SECTION: Bug & Crash Reporting (Only visible if user is registered/signed in)
+            if authService.currentUser != nil {
+                GlassSection(title: appState.l("Feedback & Bug Reports"), icon: "ladybug.fill") {
+                    BugReportView()
+                }
+            }
         }
     }
 }
@@ -6204,18 +6461,20 @@ struct SidebarAccountFooterView: View {
                                     .foregroundStyle(Color.blue)
                             }
 
-                            VStack(alignment: .leading, spacing: 1) {
+                            VStack(alignment: .leading, spacing: 2) {
                                 Text(user.name.isEmpty ? "User" : user.name)
                                     .font(.system(size: 11, weight: .bold, design: .rounded))
                                     .foregroundStyle(.primary)
                                     .lineLimit(1)
 
-                                if !user.email.isEmpty && !user.email.contains("noreply.github.com") && !user.email.hasSuffix("@github.com") {
-                                    Text(user.email)
-                                        .font(.system(size: 9, weight: .semibold))
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(1)
+                                HStack(spacing: 3) {
+                                    Image(systemName: user.providerIcon)
+                                        .font(.system(size: 8))
+                                    Text(user.providerDisplayName)
+                                        .font(.system(size: 9, weight: .semibold, design: .rounded))
                                 }
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
                             }
                         }
                     }
@@ -6328,10 +6587,22 @@ struct AccountSettingsModalView: View {
                                 .foregroundStyle(.primary)
 
                             if !user.email.isEmpty && !user.email.contains("noreply.github.com") && !user.email.hasSuffix("@github.com") {
-                                Text(user.email)
-                                    .font(.system(size: 11, weight: .medium))
-                                    .foregroundStyle(.secondary)
+                                HStack(spacing: 4) {
+                                    Image(systemName: "envelope.fill")
+                                        .font(.system(size: 9))
+                                    Text(user.email)
+                                        .font(.system(size: 11, weight: .medium))
+                                }
+                                .foregroundStyle(.secondary)
                             }
+
+                            HStack(spacing: 4) {
+                                Image(systemName: user.providerIcon)
+                                    .font(.system(size: 9))
+                                Text(user.providerDisplayName)
+                                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                            }
+                            .foregroundStyle(.tertiary)
                         }
                         Spacer()
                     }
@@ -7491,8 +7762,8 @@ public final class BugReportService: ObservableObject, @unchecked Sendable {
             self.errorMessage = nil
         }
 
-        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.6.3"
-        let buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "2.6.3"
+        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.6.4"
+        let buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "2.6.4"
         let osVersion = ProcessInfo.processInfo.operatingSystemVersionString
         let macModel = getMacHardwareModel()
         let author = userNickname.isEmpty ? "Anonymous User" : userNickname

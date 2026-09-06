@@ -41,6 +41,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
 
     private var whisperKit: WhisperKit?
     private var loadedModelName: String?
+    private var modelLoadingTask: Task<Void, Error>?
 
     // Apple Speech State (Primary + Secondary for Multilingual Streaming)
     private var speechRecognizer: SFSpeechRecognizer?
@@ -55,6 +56,11 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
     private var primaryStreamingText: String = ""
     private var secondaryStreamingText: String = ""
     private var isSecondaryEnglish: Bool = false
+
+    // Throttled streaming delivery timer
+    private var streamingUpdateTimer: Timer?
+    private var pendingStreamingText: String = ""
+    private var lastStreamUpdateTime: Date = .distantPast
 
     // Resampler for streaming audio to standard 16kHz mono Float32 PCM
     private let streaming16kFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 16000, channels: 1, interleaved: false)!
@@ -98,6 +104,50 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         "auto": "Естественная русская и английская речь с правильными падежами, окончаниями, предлогами и пунктуацией. Fluent Russian and English code-switching. Terms: Bybit, Telegram, ChatGPT, Gemini, Claude, OpenAI, Swift, SwiftUI, Xcode, Docker, Kubernetes, TypeScript, Python, LLM, commit, pull request, merge, push, deploy, bugfix, backend, frontend, Google, Antigravity, Scribe."
     ]
 
+    /// Resolves on-disk path for pre-downloaded WhisperKit CoreML model folders
+    public static func localModelFolder(for modelName: String) -> String? {
+        let fileManager = FileManager.default
+        let searchRoots = [
+            fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appendingPathComponent("huggingface/models/argmaxinc/whisperkit-coreml"),
+            fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first?.appendingPathComponent("huggingface/models/argmaxinc/whisperkit-coreml")
+        ].compactMap { $0 }
+
+        for root in searchRoots {
+            let candidate = root.appendingPathComponent(modelName)
+            if fileManager.fileExists(atPath: candidate.path) {
+                return candidate.path
+            }
+        }
+        return nil
+    }
+
+    /// Resolves on-disk path for pre-downloaded HuggingFace Whisper tokenizer folders
+    public static func localTokenizerFolder(for modelName: String) -> String? {
+        let fileManager = FileManager.default
+        let tokenizerBaseName: String
+        if modelName.contains("large") {
+            tokenizerBaseName = "whisper-large-v3"
+        } else if modelName.contains("small") {
+            tokenizerBaseName = "whisper-small"
+        } else if modelName.contains("base") {
+            tokenizerBaseName = "whisper-base"
+        } else {
+            tokenizerBaseName = "whisper-large-v3"
+        }
+
+        let searchRoots = [
+            fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appendingPathComponent("huggingface/models/openai").appendingPathComponent(tokenizerBaseName),
+            fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first?.appendingPathComponent("huggingface/models/openai").appendingPathComponent(tokenizerBaseName)
+        ].compactMap { $0 }
+
+        for root in searchRoots {
+            if fileManager.fileExists(atPath: root.path) {
+                return root.path
+            }
+        }
+        return nil
+    }
+
     // MARK: - Model Lifecycle
 
     /// Downloads / loads the model if it hasn't been loaded yet or if model changed.
@@ -108,18 +158,49 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             return
         }
 
+        if let inFlight = modelLoadingTask, loadedModelName == modelName {
+            logger.debug("Awaiting in-flight model loading task for \(modelName)…")
+            try await inFlight.value
+            return
+        }
+
         state = .loadingModel
         logger.info("Loading WhisperKit model '\(modelName)'…")
         
-        let config = WhisperKitConfig(model: modelName)
-        let kit = try await WhisperKit(config)
-        whisperKit = kit
+        let task = Task.detached(priority: .userInitiated) {
+            let config = WhisperKitConfig(model: modelName)
+            if let folder = Self.localModelFolder(for: modelName) {
+                config.modelFolder = folder
+                logger.info("Using local WhisperKit model folder: \(folder)")
+            }
+            if let tokenizerFolder = Self.localTokenizerFolder(for: modelName) {
+                config.tokenizerFolder = URL(fileURLWithPath: tokenizerFolder)
+                logger.info("Using local WhisperKit tokenizer folder: \(tokenizerFolder)")
+            }
+            let kit = try await WhisperKit(config)
+            await MainActor.run {
+                self.whisperKit = kit
+                self.loadedModelName = modelName
+                self.state = .idle
+                logger.info("WhisperKit model '\(modelName)' loaded successfully")
+            }
+        }
+        modelLoadingTask = task
         loadedModelName = modelName
-        state = .idle
-        logger.info("WhisperKit model '\(modelName)' loaded successfully")
+
+        do {
+            try await task.value
+            self.modelLoadingTask = nil
+        } catch {
+            self.modelLoadingTask = nil
+            self.loadedModelName = nil
+            await MainActor.run { self.state = .idle }
+            logger.error("Failed to load WhisperKit model: \(error.localizedDescription)")
+            throw error
+        }
     }
 
-    // MARK: - Apple Speech (Streaming)
+    // MARK: - Apple Speech (Streaming for Live Preview)
 
     /// Convenience start streaming method supporting a single language or auto.
     @MainActor
@@ -128,7 +209,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         try startStreaming(languages: langs, customVocabulary: customVocabulary, userLocation: userLocation, targetApp: targetApp, onUpdate: onUpdate)
     }
 
-    /// Starts streaming speech recognition with support for concurrent multilingual recognition.
+    /// Starts streaming speech recognition with support for concurrent multilingual recognition (Russian + English).
     @MainActor
     func startStreaming(
         languages: [String],
@@ -184,10 +265,9 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         if #available(macOS 13, *) {
             primaryReq.addsPunctuation = true
         }
-        if primaryRec.supportsOnDeviceRecognition {
-            primaryReq.requiresOnDeviceRecognition = true
+        if !contextualStrings.isEmpty {
+            primaryReq.contextualStrings = contextualStrings
         }
-        primaryReq.contextualStrings = contextualStrings
         self.speechRequest = primaryReq
 
         self.speechTask = primaryRec.recognitionTask(with: primaryReq) { [weak self] result, error in
@@ -218,10 +298,9 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
                 if #available(macOS 13, *) {
                     secReq.addsPunctuation = true
                 }
-                if secRec.supportsOnDeviceRecognition {
-                    secReq.requiresOnDeviceRecognition = true
+                if !contextualStrings.isEmpty {
+                    secReq.contextualStrings = contextualStrings
                 }
-                secReq.contextualStrings = contextualStrings
                 self.secondarySpeechRequest = secReq
 
                 self.secondarySpeechTask = secRec.recognitionTask(with: secReq) { [weak self] result, error in
@@ -269,8 +348,28 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         }
 
         guard !selected.isEmpty, selected != currentStreamingText else { return }
-        currentStreamingText = selected
-        onUpdate(selected)
+        pendingStreamingText = selected
+
+        // Throttle updates to at most once per 220ms so live preview stays calm, readable, and doesn't flicker
+        let now = Date()
+        let elapsed = now.timeIntervalSince(lastStreamUpdateTime)
+        if elapsed >= 0.22 {
+            lastStreamUpdateTime = now
+            currentStreamingText = selected
+            onUpdate(selected)
+        } else if streamingUpdateTimer == nil {
+            let remaining = max(0.04, 0.22 - elapsed)
+            streamingUpdateTimer = Timer.scheduledTimer(withTimeInterval: remaining, repeats: false) { [weak self] _ in
+                guard let self = self else { return }
+                self.streamingUpdateTimer = nil
+                self.lastStreamUpdateTime = Date()
+                let update = self.pendingStreamingText
+                if update != self.currentStreamingText && !update.isEmpty {
+                    self.currentStreamingText = update
+                    onUpdate(update)
+                }
+            }
+        }
     }
 
     private final class BufferHolder: @unchecked Sendable {
@@ -329,11 +428,14 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
     
     @MainActor
     func stopStreaming() async -> String {
+        streamingUpdateTimer?.invalidate()
+        streamingUpdateTimer = nil
+
         speechRequest?.endAudio()
         secondarySpeechRequest?.endAudio()
 
-        // Wait a small bit to allow final results to trickle in if needed
-        try? await Task.sleep(for: .milliseconds(250))
+        // Give a short 50ms window to drain pending results
+        try? await Task.sleep(for: .milliseconds(50))
 
         let finalText = currentStreamingText
         speechTask?.cancel()
@@ -352,14 +454,121 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         }
 
         logger.info("Apple Speech streaming stopped. Final text: \(finalText)")
-        state = .done(finalText)
         return finalText
+    }
+
+    // MARK: - Interim Live Snapshot Transcription (Whisper / Neural Engine during speech)
+
+    /// Fast greedy transcription of an in-flight audio snapshot for live preview updates while user is speaking.
+    /// Runs on background cooperative pool without secondary passes or heavy post-processing.
+    func transcribeSnapshot(
+        audioURL: URL,
+        modelName: String,
+        language: String?
+    ) async -> String? {
+        guard let kit = whisperKit else { return nil }
+
+        // Short-circuit if audio snapshot is silence to avoid unnecessary background neural inference
+        guard let conditionedURL = AetherAudioConditioner.shared.condition(audioURL: audioURL) else {
+            return nil
+        }
+        defer {
+            if conditionedURL != audioURL {
+                try? FileManager.default.removeItem(at: conditionedURL)
+            }
+        }
+
+        var options = DecodingOptions(task: .transcribe)
+        options.temperature = 0.0
+        options.temperatureFallbackCount = 0
+        options.withoutTimestamps = false
+        options.skipSpecialTokens = true
+        options.sampleLength = 224
+        options.noSpeechThreshold = 0.6
+        options.logProbThreshold = -1.0
+        options.compressionRatioThreshold = 2.4
+        if let lang = language, lang != "auto" {
+            options.language = baseLanguageCode(for: lang)
+            options.detectLanguage = false
+        } else {
+            options.language = nil
+            options.detectLanguage = true
+        }
+
+        do {
+            let results = try await kit.transcribe(audioPath: conditionedURL.path, decodeOptions: options)
+            let text = results.map(\.text).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+            return text.isEmpty ? nil : text
+        } catch {
+            return nil
+        }
+    }
+
+    // MARK: - Apple Speech (Offline / File Transcription - English Only)
+
+    @MainActor
+    func transcribeWithAppleSpeech(audioURL: URL, contextualStrings: [String] = []) async throws -> String {
+        let englishLocale = Locale(identifier: "en-US")
+        guard let recognizer = SFSpeechRecognizer(locale: englishLocale) ?? SFSpeechRecognizer(locale: Locale.current), recognizer.isAvailable else {
+            throw TranscriptionError.modelNotLoaded
+        }
+
+        return try await withCheckedThrowingContinuation { continuation in
+            var hasResponded = false
+            var lastText = ""
+
+            let request = SFSpeechURLRecognitionRequest(url: audioURL)
+            request.shouldReportPartialResults = true
+            request.taskHint = .dictation
+            if #available(macOS 13, *) {
+                request.addsPunctuation = true
+            }
+            if recognizer.supportsOnDeviceRecognition {
+                request.requiresOnDeviceRecognition = true
+            }
+            if !contextualStrings.isEmpty {
+                request.contextualStrings = contextualStrings
+            }
+
+            var task: SFSpeechRecognitionTask?
+            task = recognizer.recognitionTask(with: request) { result, error in
+                if hasResponded { return }
+
+                if let result = result {
+                    lastText = result.bestTranscription.formattedString
+                    if result.isFinal {
+                        hasResponded = true
+                        continuation.resume(returning: lastText)
+                        return
+                    }
+                }
+
+                if let error = error {
+                    hasResponded = true
+                    if !lastText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        continuation.resume(returning: lastText)
+                    } else {
+                        continuation.resume(throwing: error)
+                    }
+                }
+            }
+
+            // Safety timeout: 15 seconds
+            Task {
+                try? await Task.sleep(for: .seconds(15))
+                if !hasResponded {
+                    hasResponded = true
+                    task?.cancel()
+                    continuation.resume(returning: lastText)
+                }
+            }
+        }
     }
 
     // MARK: - WhisperKit (High Accuracy File Transcription)
 
     /// Transcribes the audio file at `audioURL` using the specified language (nil for auto-detect).
-    @MainActor
+    /// Executes on background cooperative pool so MainActor/UI remains 100% fluid at 60 FPS.
     func transcribe(
         audioURL: URL,
         modelName: String = "openai_whisper-small",
@@ -373,16 +582,56 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
     ) async throws -> String {
         logger.info("Aether Transcribing: \(audioURL.lastPathComponent), model: \(modelName), engine: \(recognitionEngine), language: \(language ?? "auto-detect"), translate: \(autoTranslate)")
 
-        state = .transcribing
+        await MainActor.run { state = .transcribing }
 
         // 1. Stage B: Audio Conditioning (VAD, high-pass filter, loudness normalization)
         guard let conditionedURL = AetherAudioConditioner.shared.condition(audioURL: audioURL) else {
             logger.info("Audio contains no audible speech, skipping decoding to prevent hallucinations")
-            state = .done("")
+            await MainActor.run { state = .done("") }
             return ""
+        }
+        defer {
+            if conditionedURL != audioURL {
+                try? FileManager.default.removeItem(at: conditionedURL)
+            }
         }
         let path = conditionedURL.path
         let baseLang = language != nil ? baseLanguageCode(for: language!) : "auto"
+
+        // 2. Fast Path: Aether Instant Engine (Native Apple Speech - English only)
+        if recognitionEngine.contains("Instant") {
+            do {
+                logger.info("Routing to Aether Instant (Native Apple Speech en-US)...")
+                let rawText = try await transcribeWithAppleSpeech(
+                    audioURL: conditionedURL,
+                    contextualStrings: AetherContextEngine.shared.buildContextualStrings(
+                        customVocabulary: customVocabulary,
+                        userLocation: userLocation,
+                        targetApp: targetApp
+                    )
+                )
+
+                if !rawText.isEmpty {
+                    var text = Self.cleanTranscription(rawText, preferredLanguages: ["en"], targetLanguage: "en")
+                    let customVocabList = customVocabulary.components(separatedBy: CharacterSet(charactersIn: ",\n;")).map { $0.trimmingCharacters(in: .whitespaces) }
+                    text = AetherLinguisticValidator.shared.validateAndCorrect(
+                        text: text,
+                        language: "en",
+                        customVocabulary: customVocabList
+                    )
+                    UserFrequencyDictionary.shared.record(text: text)
+                    logger.info("Aether Instant transcription completed: '\(text)'")
+                    await MainActor.run { state = .done(text) }
+                    return text
+                } else {
+                    await MainActor.run { state = .done("") }
+                    return ""
+                }
+            } catch {
+                logger.error("Aether Instant Apple Speech failed: \(error.localizedDescription)")
+                throw error
+            }
+        }
 
         // 2. Optional Fast Path: Parakeet TDT 0.6B v3 Engine (NVIDIA FastConformer on Apple Neural Engine)
         // Only route to Parakeet if explicitly selected in settings (e.g. "Parakeet").
@@ -406,7 +655,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
                     )
                     UserFrequencyDictionary.shared.record(text: text)
                     logger.info("Parakeet TDT v3 transcription completed: '\(text)'")
-                    state = .done(text)
+                    await MainActor.run { state = .done(text) }
                     return text
                 }
             } catch {
@@ -427,8 +676,12 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         var options = DecodingOptions(task: autoTranslate ? .translate : .transcribe)
         options.temperature = 0.0
         options.temperatureFallbackCount = 0
-        options.withoutTimestamps = true
+        options.withoutTimestamps = false
         options.skipSpecialTokens = true
+        options.sampleLength = 224
+        options.noSpeechThreshold = 0.6
+        options.logProbThreshold = -1.0
+        options.compressionRatioThreshold = 2.4
 
         var resolvedLang = baseLang
         if baseLang != "auto" {
@@ -436,6 +689,53 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             options.language = baseLang
             options.detectLanguage = false
             logger.info("Single language mode: Locked to '\(baseLang)'")
+        } else if !preferredLanguages.isEmpty {
+            // Multilingual mode with user preferred languages:
+            // Fast language pre-detection constrained to allowed languages (e.g. Russian vs English)
+            let allowedBases = preferredLanguages.map { baseLanguageCode(for: $0).lowercased() }
+            if let kit = whisperKit {
+                do {
+                    let detectStart = Date()
+                    let (_, langProbs) = try await kit.detectLanguage(audioPath: path)
+
+                    var bestLang: String? = nil
+                    var bestProb: Float = -Float.infinity
+                    for code in allowedBases {
+                        if let prob = langProbs[code], prob > bestProb {
+                            bestProb = prob
+                            bestLang = code
+                        }
+                    }
+
+                    // Slavic variants heuristic: Ukrainian, Belarusian, Bulgarian detection strongly indicates Russian speech
+                    if allowedBases.contains("ru") {
+                        let slavicCodes = ["uk", "be", "bg", "mk", "sr"]
+                        for code in slavicCodes {
+                            if let prob = langProbs[code], prob > bestProb {
+                                bestProb = prob
+                                bestLang = "ru"
+                            }
+                        }
+                    }
+
+                    if let selected = bestLang {
+                        resolvedLang = selected
+                        options.language = selected
+                        options.detectLanguage = false
+                        logger.info("Aether fast language detection: locked to '\(selected)' from allowed \(allowedBases) (confidence: \(bestProb), duration: \(String(format: "%.3f", Date().timeIntervalSince(detectStart)))s)")
+                    } else {
+                        options.language = nil
+                        options.detectLanguage = true
+                    }
+                } catch {
+                    logger.warning("WhisperKit.detectLanguage failed: \(error.localizedDescription); falling back to dynamic detection")
+                    options.language = nil
+                    options.detectLanguage = true
+                }
+            } else {
+                options.language = nil
+                options.detectLanguage = true
+            }
         } else {
             // Multilingual / Dynamic auto mode:
             // Do NOT lock Whisper to one language; allow seamless switching between Russian, English, and other languages.
@@ -470,31 +770,45 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             language: resolvedLang != "auto" ? resolvedLang : language
         )
 
-        if let tokenizer = kit.tokenizer {
+        if resolvedLang != "auto", let tokenizer = kit.tokenizer {
             let tokens = tokenizer.encode(text: promptText)
-            // WhisperKit prompt tokens: take the foundational prompt prefix (up to 180 tokens)
-            // so grammar conditioning, tone, and key vocabulary are never truncated.
-            options.promptTokens = Array(tokens.prefix(min(tokens.count, 180)))
-            // Must disable prefill cache when using promptTokens (WhisperKit limitation)
+            // WhisperKit prompt tokens: take foundational prefix (up to 32 tokens) for fast, responsive decoding
+            options.promptTokens = Array(tokens.prefix(min(tokens.count, 32)))
             options.usePrefillCache = false
-            logger.debug("Aether set initial prompt (\(options.promptTokens?.count ?? 0) tokens) for language '\(langKey)'")
+            logger.debug("Aether set initial prompt (\(options.promptTokens?.count ?? 0) tokens) for locked language '\(langKey)'")
         }
         
         logger.debug("Calling WhisperKit.transcribe(audioPath: \(path), language: \(options.language ?? "auto"))")
 
+        // Execute WhisperKit neural network inference off the MainActor on background cooperative pool
         var results: [TranscriptionResult] = try await kit.transcribe(audioPath: path, decodeOptions: options)
 
         let detectedLang = results.first?.language.lowercased()
         logger.info("WhisperKit returned \(results.count) result(s), detected language: '\(detectedLang ?? "unknown")'")
 
         // Language Lock Enforcement for Multilingual Mode:
-        // If Whisper detected a language outside the user's enabled preferred languages, re-decode to the proper enabled language.
-        let allowedLanguages = preferredLanguages.map { $0.lowercased() }
-        if !allowedLanguages.isEmpty, let detected = detectedLang, !allowedLanguages.contains(detected) {
+        // Use base language codes (e.g. en-US -> en) so dialect identifiers match WhisperKit 2-letter codes.
+        let allowedLanguages = preferredLanguages.map { baseLanguageCode(for: $0).lowercased() }
+        let detectedBase = detectedLang != nil ? baseLanguageCode(for: detectedLang!).lowercased() : nil
+        let preliminaryText = results.map(\.text).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+        let wordCount = preliminaryText.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.count
+
+        // Do not trigger costly second-pass on minor dialect variants (e.g. uk/be when ru is allowed)
+        let isSlavicVariantOfRussian = allowedLanguages.contains("ru") && (detectedBase == "uk" || detectedBase == "be")
+
+        // Only re-decode if audio has substantive speech (>= 3 words) in an unselected language
+        if !allowedLanguages.isEmpty, let detected = detectedBase, !allowedLanguages.contains(detected), !isSlavicVariantOfRussian, wordCount >= 3 {
             let slavicUnselected: Set<String> = ["uk", "be", "bg", "mk", "sr", "pl", "cs", "sk", "hr", "sl"]
+            let latinCount = preliminaryText.unicodeScalars.filter { ($0.value >= 0x0041 && $0.value <= 0x005A) || ($0.value >= 0x0061 && $0.value <= 0x007A) }.count
+            let cyrillicCount = preliminaryText.unicodeScalars.filter { $0.value >= 0x0400 && $0.value <= 0x04FF }.count
+
             let targetFallback: String
             if allowedLanguages.contains("ru") && slavicUnselected.contains(detected) {
                 targetFallback = "ru"
+            } else if allowedLanguages.contains("ru") && cyrillicCount >= latinCount {
+                targetFallback = "ru"
+            } else if allowedLanguages.contains("en") && latinCount > cyrillicCount {
+                targetFallback = "en"
             } else if allowedLanguages.contains("ru") {
                 targetFallback = "ru"
             } else if allowedLanguages.contains("en") {
@@ -509,7 +823,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             redecodeOptions.detectLanguage = false
 
             // Update base prompt for the target fallback
-            let fallbackBasePrompt = initialPrompt[targetFallback] ?? initialPrompt["ru"]!
+            let fallbackBasePrompt = initialPrompt[targetFallback] ?? (initialPrompt["ru"] ?? initialPrompt["auto"]!)
             let fallbackPromptText = AetherContextEngine.shared.buildConditioningPrompt(
                 basePrompt: fallbackBasePrompt,
                 customVocabulary: customVocabulary,
@@ -519,7 +833,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             )
             if let tokenizer = kit.tokenizer {
                 let tokens = tokenizer.encode(text: fallbackPromptText)
-                redecodeOptions.promptTokens = Array(tokens.prefix(min(tokens.count, 180)))
+                redecodeOptions.promptTokens = Array(tokens.prefix(min(tokens.count, 32)))
                 redecodeOptions.usePrefillCache = false
             }
 
@@ -533,15 +847,17 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         let rawText = results.map(\.text).joined(separator: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
+        let effectiveOutputLang = resolvedLang != "auto" ? resolvedLang : (detectedBase ?? language)
+
         // Strip non-speech annotations that Whisper sometimes inserts,
         // e.g. [keyboard clicking], (music), *laughs*, [BLANK_AUDIO], rogue scripts
-        var text = Self.cleanTranscription(rawText, preferredLanguages: preferredLanguages, targetLanguage: resolvedLang)
+        var text = Self.cleanTranscription(rawText, preferredLanguages: preferredLanguages, targetLanguage: effectiveOutputLang)
 
         // Stage C: Linguistic validation against native macOS dictionary and phonetic correction
         let customVocabList = customVocabulary.components(separatedBy: CharacterSet(charactersIn: ",\n;")).map { $0.trimmingCharacters(in: .whitespaces) }
         text = AetherLinguisticValidator.shared.validateAndCorrect(
             text: text,
-            language: resolvedLang != "auto" ? resolvedLang : language,
+            language: effectiveOutputLang,
             customVocabulary: customVocabList
         )
 
@@ -550,7 +866,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
 
         logger.info("Transcribed text (\(text.count) chars): \(text.prefix(100))")
 
-        state = .done(text)
+        await MainActor.run { state = .done(text) }
         return text
     }
 
@@ -1462,6 +1778,59 @@ public struct AuthUser: Codable, Identifiable, Sendable {
     public let avatarURL: String?
     public var subscriptionTier: SubscriptionTier
     public var subscriptionExpiresAt: Date?
+    public var provider: String?
+
+    public init(
+        id: String,
+        email: String,
+        name: String,
+        avatarURL: String?,
+        subscriptionTier: SubscriptionTier,
+        subscriptionExpiresAt: Date?,
+        provider: String? = nil
+    ) {
+        self.id = id
+        self.email = email
+        self.name = name
+        self.avatarURL = avatarURL
+        self.subscriptionTier = subscriptionTier
+        self.subscriptionExpiresAt = subscriptionExpiresAt
+        self.provider = provider
+    }
+
+    public var providerDisplayName: String {
+        if let p = provider, !p.isEmpty {
+            return p
+        }
+        if id.starts(with: "google_") || email.hasSuffix("@gmail.com") || (avatarURL?.contains("google") == true) {
+            return "Google"
+        }
+        if id.starts(with: "github_") || email.contains("github.com") {
+            return "GitHub"
+        }
+        if id.starts(with: "apple_") || email.contains("privaterelay.appleid.com") || email.contains("apple.com") {
+            return "Apple"
+        }
+        if !email.isEmpty {
+            return "Email"
+        }
+        return "Account"
+    }
+
+    public var providerIcon: String {
+        switch providerDisplayName {
+        case "Google":
+            return "g.circle.fill"
+        case "GitHub":
+            return "chevron.left.forwardslash.chevron.right"
+        case "Apple":
+            return "apple.logo"
+        case "Email":
+            return "envelope.fill"
+        default:
+            return "person.crop.circle"
+        }
+    }
 
     public var initials: String {
         let components = name.components(separatedBy: " ")
