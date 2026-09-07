@@ -1,9 +1,0 @@
-@@ -339,7 +396,7 @@
- 
-                             // History Button
-                             Button(action: {
--                                HistoryWindowManager.shared.showWindow()
-+                                HistoryWindowManager.shared.showWindow(appState: appState)
-                             }) {
-                                 HStack {
-                                     Image(systemName: "clock.arrow.circlepath")

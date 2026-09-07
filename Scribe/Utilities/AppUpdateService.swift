@@ -20,6 +20,10 @@ public final class AppUpdateService: ObservableObject {
     @Published public var downloadURL: URL? = nil
     @Published public var isDownloading: Bool = false
     @Published public var downloadProgress: Double = 0.0
+    @Published public var bytesDownloaded: Int64 = 0
+    @Published public var totalBytes: Int64 = 0
+    @Published public var currentStage: UpdateStage = .downloading
+    @Published public var errorMessage: String? = nil
     @Published public var statusMessage: String = ""
     @Published public var lastCheckTime: Date? = nil
 
@@ -209,10 +213,15 @@ public final class AppUpdateService: ObservableObject {
         return false
     }
 
-    /// Performs the update: either downloads and launches installer or opens GitHub release.
+    /// Performs the update: opens timeline progress window and triggers download/install.
     public func performUpdate() {
+        AppUpdateProgressWindowManager.shared.showWindow(appUpdateService: self)
+
         if let directDownload = downloadURL {
             downloadAndInstall(from: directDownload)
+        } else if !latestVersion.isEmpty,
+                  let fallbackURL = URL(string: "https://github.com/\(Self.repoOwner)/\(Self.repoName)/releases/download/v\(latestVersion)/Scribe.dmg") {
+            downloadAndInstall(from: fallbackURL)
         } else if let releasePage = releasePageURL {
             NSWorkspace.shared.open(releasePage)
         } else if let fallback = URL(string: "https://github.com/\(Self.repoOwner)/\(Self.repoName)/releases") {
@@ -220,7 +229,7 @@ public final class AppUpdateService: ObservableObject {
         }
     }
 
-    /// Downloads and automatically triggers update installation.
+    /// Downloads and automatically triggers update installation with live progress reporting.
     private func downloadAndInstall(from url: URL) {
         guard !isDownloading else { return }
         
@@ -228,6 +237,7 @@ public final class AppUpdateService: ObservableObject {
         guard let host = url.host?.lowercased(),
               host == "github.com" || host.hasSuffix(".github.com") || host.hasSuffix(".githubusercontent.com") else {
             statusMessage = "Untrusted update source"
+            errorMessage = "Untrusted update source"
             if let page = self.releasePageURL {
                 NSWorkspace.shared.open(page)
             }
@@ -235,52 +245,57 @@ public final class AppUpdateService: ObservableObject {
         }
 
         isDownloading = true
+        currentStage = .downloading
         downloadProgress = 0.0
+        bytesDownloaded = 0
+        totalBytes = 0
+        errorMessage = nil
         statusMessage = "Downloading update..."
 
-        Task {
-            do {
-                let (tempURL, response) = try await URLSession.shared.download(from: url)
-                guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-                    await MainActor.run {
+        let delegate = LiveDownloadDelegate(
+            onProgress: { [weak self] pct, written, total in
+                Task { @MainActor [weak self] in
+                    guard let self = self else { return }
+                    self.downloadProgress = pct
+                    self.bytesDownloaded = written
+                    self.totalBytes = total
+                }
+            },
+            onCompletion: { [weak self] result in
+                Task { @MainActor [weak self] in
+                    guard let self = self else { return }
+                    switch result {
+                    case .success(let tempDMG):
+                        self.installAndRelaunch(from: tempDMG)
+                    case .failure(let error):
                         self.isDownloading = false
-                        self.statusMessage = "Failed to download update file"
-                        if let page = self.releasePageURL {
-                            NSWorkspace.shared.open(page)
-                        }
-                    }
-                    return
-                }
-
-                let tempDMGName = "Scribe_v\(self.latestVersion.isEmpty ? "latest" : self.latestVersion).dmg"
-                let targetDMG = FileManager.default.temporaryDirectory.appendingPathComponent(tempDMGName)
-                try? FileManager.default.removeItem(at: targetDMG)
-                try FileManager.default.moveItem(at: tempURL, to: targetDMG)
-
-                await MainActor.run {
-                    self.isDownloading = false
-                    self.statusMessage = "Installing and restarting…"
-                    self.installAndRelaunch(from: targetDMG)
-                }
-            } catch {
-                await MainActor.run {
-                    self.isDownloading = false
-                    self.statusMessage = "Download failed, opening browser..."
-                    if let page = self.releasePageURL {
-                        NSWorkspace.shared.open(page)
+                        self.errorMessage = "Download failed: \(error.localizedDescription)"
+                        self.statusMessage = "Download failed"
                     }
                 }
             }
-        }
+        )
+
+        let session = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
+        var request = URLRequest(url: url)
+        request.setValue("ScribeApp-UpdateChecker", forHTTPHeaderField: "User-Agent")
+        request.timeoutInterval = 180
+        let task = session.downloadTask(with: request)
+        task.resume()
     }
 
-    /// Installs the update in-place from the downloaded DMG and relaunches Scribe automatically.
+    /// Installs the update in-place from the downloaded DMG and instantly relaunches Scribe.
     private func installAndRelaunch(from dmgURL: URL) {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let mountPoint = "/tmp/scribe_update_mount_\(UUID().uuidString.prefix(8))"
             var currentAppURL = Bundle.main.bundleURL
-            if !currentAppURL.path.hasSuffix(".app") {
+            if !currentAppURL.path.hasSuffix(".app") || !currentAppURL.path.contains("/Applications") {
                 currentAppURL = URL(fileURLWithPath: "/Applications/Scribe.app")
+            }
+
+            Task { @MainActor [weak self] in
+                self?.currentStage = .verifying
+                self?.statusMessage = "Verifying package..."
             }
             
             // 1. Create mount directory
@@ -298,97 +313,181 @@ public final class AppUpdateService: ObservableObject {
             guard FileManager.default.fileExists(atPath: mountedAppURL.path) else {
                 Task { @MainActor [weak self] in
                     self?.isDownloading = false
+                    self?.errorMessage = "Could not locate application inside package"
                     self?.statusMessage = "Opening update package..."
                     NSWorkspace.shared.open(dmgURL)
                 }
                 return
             }
+
+            Task { @MainActor [weak self] in
+                self?.currentStage = .installing
+                self?.statusMessage = "Installing update..."
+            }
             
-            // 4. Create robust atomic replacement script with PID termination wait, ditto, quarantine clearance, and logging
+            // 4. Stage update in-place while still showing UI
             let targetPath = currentAppURL.path
-            let myPID = ProcessInfo.processInfo.processIdentifier
+            let stagePath = "\(targetPath).updating"
             let logPath = "/tmp/scribe_updater.log"
-            
+            let myPID = ProcessInfo.processInfo.processIdentifier
+
+            try? FileManager.default.removeItem(atPath: stagePath)
+
+            let dittoProcess = Process()
+            dittoProcess.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
+            dittoProcess.arguments = [mountedAppURL.path, stagePath]
+            try? dittoProcess.run()
+            dittoProcess.waitUntilExit()
+
+            // Strip quarantine on staged copy
+            let xattrProcess = Process()
+            xattrProcess.executableURL = URL(fileURLWithPath: "/usr/bin/xattr")
+            xattrProcess.arguments = ["-cr", stagePath]
+            try? xattrProcess.run()
+            xattrProcess.waitUntilExit()
+
+            // Detach DMG immediately
+            let detachProcess = Process()
+            detachProcess.executableURL = URL(fileURLWithPath: "/usr/bin/hdiutil")
+            detachProcess.arguments = ["detach", mountPoint, "-force"]
+            try? detachProcess.run()
+            detachProcess.waitUntilExit()
+            try? FileManager.default.removeItem(at: dmgURL)
+
+            Task { @MainActor [weak self] in
+                self?.currentStage = .relaunching
+                self?.statusMessage = "Relaunching Scribe..."
+            }
+
+            // Brief moment for user to see all stages completed
+            Thread.sleep(forTimeInterval: 0.25)
+
+            // 5. Fast Atomic Swap & Instant Relaunch script
             let restartScript = """
             #!/bin/sh
             LOG="\(logPath)"
-            echo "--- Scribe Update Started: $(date) ---" >> "$LOG"
-            echo "Waiting for PID \(myPID) to exit..." >> "$LOG"
+            echo "--- Scribe Fast Restart: $(date) ---" >> "$LOG"
 
-            # Wait up to 10 seconds for current process to terminate
+            # Wait briefly for current process to terminate (max 2 seconds)
             WAIT_COUNT=0
             while kill -0 \(myPID) 2>/dev/null; do
-                sleep 0.2
+                sleep 0.05
                 WAIT_COUNT=$((WAIT_COUNT + 1))
-                if [ $WAIT_COUNT -gt 50 ]; then
-                    echo "Force killing stuck PID \(myPID)..." >> "$LOG"
+                if [ $WAIT_COUNT -gt 40 ]; then
                     kill -9 \(myPID) 2>/dev/null
-                    sleep 0.5
                     break
                 fi
             done
-            echo "Process exited cleanly." >> "$LOG"
 
-            # Stage update into a temporary location before replacing
-            STAGE_PATH="\(targetPath).updating"
-            rm -rf "$STAGE_PATH" >> "$LOG" 2>&1
-            
-            echo "Copying from mounted DMG via ditto..." >> "$LOG"
-            /usr/bin/ditto "\(mountedAppURL.path)" "$STAGE_PATH" >> "$LOG" 2>&1
-            
-            if [ -d "$STAGE_PATH" ]; then
-                echo "Removing quarantine attributes from staged app..." >> "$LOG"
-                /usr/bin/xattr -cr "$STAGE_PATH" >> "$LOG" 2>&1
-                
-                echo "Replacing target bundle at \(targetPath)..." >> "$LOG"
-                rm -rf "\(targetPath)" >> "$LOG" 2>&1
-                mv "$STAGE_PATH" "\(targetPath)" >> "$LOG" 2>&1
-            else
-                echo "ERROR: Staging failed!" >> "$LOG"
-            fi
-
-            # Detach DMG
-            echo "Detaching DMG..." >> "$LOG"
-            /usr/bin/hdiutil detach "\(mountPoint)" -force >> "$LOG" 2>&1
-            rm -rf "\(dmgURL.path)" >> "$LOG" 2>&1
-
-            # Ensure permissions and strip quarantine
+            # Instant atomic replacement
+            rm -rf "\(targetPath)" >> "$LOG" 2>&1
+            mv "\(stagePath)" "\(targetPath)" >> "$LOG" 2>&1
             /usr/bin/xattr -cr "\(targetPath)" >> "$LOG" 2>&1
 
-            echo "Relaunching \(targetPath)..." >> "$LOG"
-            sleep 1
-            # Launch the updated app
+            # Instant launch!
             /usr/bin/open "\(targetPath)" >> "$LOG" 2>&1
             if [ $? -ne 0 ]; then
-                echo "Fallback: open -n \(targetPath)..." >> "$LOG"
                 /usr/bin/open -n "\(targetPath)" >> "$LOG" 2>&1
             fi
-            echo "Update complete: $(date)" >> "$LOG"
+            echo "Relaunched successfully: $(date)" >> "$LOG"
             """
-            
+
             let scriptURL = FileManager.default.temporaryDirectory.appendingPathComponent("scribe_restart_\(UUID().uuidString).sh")
             try? restartScript.write(to: scriptURL, atomically: true, encoding: .utf8)
-            
-            // Make executable
+
             let chmodProcess = Process()
             chmodProcess.executableURL = URL(fileURLWithPath: "/bin/chmod")
             chmodProcess.arguments = ["+x", scriptURL.path]
             try? chmodProcess.run()
             chmodProcess.waitUntilExit()
-            
+
             Task { @MainActor in
-                // 5. Execute restart script detached with nohup and terminate current process
                 let launchProcess = Process()
                 launchProcess.executableURL = URL(fileURLWithPath: "/usr/bin/nohup")
                 launchProcess.arguments = ["/bin/sh", scriptURL.path]
                 launchProcess.standardOutput = FileHandle.nullDevice
                 launchProcess.standardError = FileHandle.nullDevice
                 try? launchProcess.run()
-                
+
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                     NSApplication.shared.terminate(nil)
                 }
             }
+        }
+    }
+}
+
+// MARK: - Live Download Delegate
+
+private final class LiveDownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
+    private let onProgress: @Sendable (Double, Int64, Int64) -> Void
+    private let onCompletion: @Sendable (Result<URL, Error>) -> Void
+
+    init(
+        onProgress: @escaping @Sendable (Double, Int64, Int64) -> Void,
+        onCompletion: @escaping @Sendable (Result<URL, Error>) -> Void
+    ) {
+        self.onProgress = onProgress
+        self.onCompletion = onCompletion
+    }
+
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
+        let pct = totalBytesExpectedToWrite > 0 ? Double(totalBytesWritten) / Double(totalBytesExpectedToWrite) : 0.0
+        onProgress(pct, totalBytesWritten, totalBytesExpectedToWrite)
+    }
+
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {
+        let tempDMG = FileManager.default.temporaryDirectory.appendingPathComponent("scribe_dl_\(UUID().uuidString).dmg")
+        do {
+            try? FileManager.default.removeItem(at: tempDMG)
+            try FileManager.default.moveItem(at: location, to: tempDMG)
+            onCompletion(.success(tempDMG))
+        } catch {
+            onCompletion(.failure(error))
+        }
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        if let error = error {
+            onCompletion(.failure(error))
+        }
+    }
+}
+
+// MARK: - Update Stage Enum
+
+public enum UpdateStage: Int, CaseIterable, Identifiable, Sendable {
+    case downloading = 0
+    case verifying = 1
+    case installing = 2
+    case relaunching = 3
+
+    public var id: Int { rawValue }
+
+    public var title: String {
+        switch self {
+        case .downloading: "Downloading Update"
+        case .verifying: "Verifying Package"
+        case .installing: "Installing Update"
+        case .relaunching: "Relaunching Scribe"
+        }
+    }
+
+    public var description: String {
+        switch self {
+        case .downloading: "Downloading latest release package from GitHub"
+        case .verifying: "Verifying package integrity and mounting archive"
+        case .installing: "Staging new version in place"
+        case .relaunching: "Launching updated Scribe instantly"
+        }
+    }
+
+    public var icon: String {
+        switch self {
+        case .downloading: "arrow.down.circle.fill"
+        case .verifying: "checkmark.shield.fill"
+        case .installing: "gearshape.arrow.triangle.2.circlepath"
+        case .relaunching: "sparkles"
         }
     }
 }

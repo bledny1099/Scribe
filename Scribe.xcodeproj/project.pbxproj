@@ -16,6 +16,8 @@
 		16496219C494A82E4F8E12A0 /* PasteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83B4865575EEDC52C327959E /* PasteService.swift */; };
 		24625C66C056DA51236D47BB /* FirebaseSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8292B0055A0E08315F0E6894 /* FirebaseSyncService.swift */; };
 		A0010004 /* AppUpdateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010004 /* AppUpdateService.swift */; };
+		A0010014 /* AppUpdateProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010014 /* AppUpdateProgressView.swift */; };
+		A0010015 /* HardwareAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010015 /* HardwareAnalyzer.swift */; };
 		3362D9645EC24874B59A8BDF /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = DD7B4611D68C13775268CE9F /* GoogleService-Info.plist */; };
 		3D0F8BC643B9E29439CB9A26 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 296BEB4DD4C8D78B9941E8AE /* SettingsView.swift */; };
 		3D4CEB771322E81FADBEFEF5 /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A23B5CC789E8DE4D6091ED9 /* AppTheme.swift */; };
@@ -85,6 +87,8 @@
 		57EAB6F0DCC91FC7E7CD8CC2 /* Localization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Localization.swift; sourceTree = "<group>"; };
 		8292B0055A0E08315F0E6894 /* FirebaseSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseSyncService.swift; sourceTree = "<group>"; };
 		F0010004 /* AppUpdateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpdateService.swift; sourceTree = "<group>"; };
+		F0010014 /* AppUpdateProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpdateProgressView.swift; sourceTree = "<group>"; };
+		F0010015 /* HardwareAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareAnalyzer.swift; sourceTree = "<group>"; };
 		83B4865575EEDC52C327959E /* PasteService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PasteService.swift; sourceTree = "<group>"; };
 		92BFCE91C2AFC558D1E53CFE /* NotePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotePickerView.swift; sourceTree = "<group>"; };
 		9A23B5CC789E8DE4D6091ED9 /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
@@ -152,6 +156,7 @@
 			children = (
 				F0010010 /* TelemetryService.swift */,
 				F0010004 /* AppUpdateService.swift */,
+				F0010015 /* HardwareAnalyzer.swift */,
 				F0010005 /* CommunityVocabularyService.swift */,
 				F0010011 /* EmbeddedVocabularyData.swift */,
 				F0010006 /* KeychainHelper.swift */,
@@ -179,6 +184,7 @@
 				FDBC9A85A8E71D647F586CE8 /* RecordingPanel.swift */,
 				296BEB4DD4C8D78B9941E8AE /* SettingsView.swift */,
 				E12FF7D7CD8AD8DB3095BDFF /* SettingsWindowManager.swift */,
+				F0010014 /* AppUpdateProgressView.swift */,
 			);
 			path = UI;
 			sourceTree = "<group>";
@@ -332,6 +338,8 @@
 				A0010009 /* UserFrequencyDictionary.swift in Sources */,
 				A0010010 /* TelemetryService.swift in Sources */,
 				A0010012 /* ScribeMode.swift in Sources */,
+				A0010014 /* AppUpdateProgressView.swift in Sources */,
+				A0010015 /* HardwareAnalyzer.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

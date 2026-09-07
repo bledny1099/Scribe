@@ -380,6 +380,8 @@ func baseLanguageCode(for code: String) -> String {
 @MainActor
 final class AppState: ObservableObject {
 
+    public static weak var shared: AppState?
+
     // MARK: Published UI State
 
     @Published var isRecording    = false
@@ -789,6 +791,7 @@ final class AppState: ObservableObject {
     // MARK: Init
 
     init() {
+        AppState.shared = self
         logger.info("AppState init")
         setupHotkeyHandler()
         setupEscHandler()

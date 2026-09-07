@@ -737,6 +737,7 @@ final class SafeVoidContinuation: @unchecked Sendable {
     }
 
     public func saveBugReport(description: String, appVersion: String, osVersion: String, hardwareModel: String, author: String) {
+        guard let db = db else { return }
         let reportData: [String: Any] = [
             "description": description,
             "appVersion": appVersion,
@@ -746,7 +747,7 @@ final class SafeVoidContinuation: @unchecked Sendable {
             "userId": Auth.auth().currentUser?.uid ?? "anonymous",
             "createdAt": FieldValue.serverTimestamp()
         ]
-        db?.collection("bug_reports").addDocument(data: reportData)
+        db.collection("bug_reports").addDocument(data: reportData)
     }
 }
 

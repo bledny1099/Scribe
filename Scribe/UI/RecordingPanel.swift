@@ -487,7 +487,7 @@ final class RecordingPanel: NSPanel {
             guard let screen = NSScreen.main ?? NSScreen.screens.first else { center(); return }
             let screenFrame = screen.visibleFrame
             let x = screenFrame.midX - frame.width / 2
-            let y = screenFrame.minY + 160 + yOffset
+            let y = screenFrame.minY + 24 + yOffset
             setFrameOrigin(NSPoint(x: x, y: y))
 
         case .activeWindow:
@@ -500,25 +500,25 @@ final class RecordingPanel: NSPanel {
                     ?? NSScreen.screens.first
                 let screenFrame = targetScreen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
 
-                // If the active window is full screen / maximized, position at screen bottom
+                // If the active window is full screen / maximized, position docked at screen bottom
                 let isNearlyFullScreen = windowFrame.width >= (screenFrame.width - 60) && windowFrame.height >= (screenFrame.height - 60)
                 let isValidWindowFrame = windowFrame.intersects(screenFrame) && windowFrame.width >= 200
 
                 if isNearlyFullScreen || !isValidWindowFrame {
                     let x = screenFrame.midX - frame.width / 2
-                    let y = screenFrame.minY + 160 + yOffset
+                    let y = screenFrame.minY + 24 + yOffset
                     setFrameOrigin(NSPoint(x: x, y: y))
                 } else {
                     // Center horizontally within the active target window
                     var x = windowFrame.midX - frame.width / 2
-                    // Place comfortably in lower portion of the active target window
-                    var y = windowFrame.minY + 36 + yOffset
+                    // Place docked at bottom edge of active target window (20pt from bottom)
+                    var y = windowFrame.minY + 20 + yOffset
 
                     // Keep strictly inside the target screen visible bounds with comfortable padding
-                    let minAllowedY = screenFrame.minY + 24
-                    let maxAllowedY = screenFrame.maxY - frame.height - 24
-                    let minAllowedX = screenFrame.minX + 24
-                    let maxAllowedX = screenFrame.maxX - frame.width - 24
+                    let minAllowedY = screenFrame.minY + 16
+                    let maxAllowedY = screenFrame.maxY - frame.height - 16
+                    let minAllowedX = screenFrame.minX + 16
+                    let maxAllowedX = screenFrame.maxX - frame.width - 16
 
                     x = max(minAllowedX, min(x, maxAllowedX))
                     y = max(minAllowedY, min(y, maxAllowedY))
@@ -528,7 +528,7 @@ final class RecordingPanel: NSPanel {
                 guard let screen = NSScreen.main ?? NSScreen.screens.first else { center(); return }
                 let screenFrame = screen.visibleFrame
                 let x = screenFrame.midX - frame.width / 2
-                let y = screenFrame.minY + 160 + yOffset
+                let y = screenFrame.minY + 24 + yOffset
                 setFrameOrigin(NSPoint(x: x, y: y))
             }
         }
@@ -539,7 +539,7 @@ final class RecordingPanel: NSPanel {
         guard let screen = NSScreen.main else { center(); return }
         let screenFrame = screen.visibleFrame
         let x = screenFrame.midX - frame.width / 2
-        let y = screenFrame.minY + 160 + yOffset
+        let y = screenFrame.minY + 24 + yOffset
         setFrameOrigin(NSPoint(x: x, y: y))
     }
 
@@ -547,8 +547,8 @@ final class RecordingPanel: NSPanel {
     func positionAtBottomRight() {
         guard let screen = NSScreen.main else { center(); return }
         let screenFrame = screen.visibleFrame
-        let x = screenFrame.maxX - frame.width - 60
-        let y = screenFrame.minY + 160
+        let x = screenFrame.maxX - frame.width - 40
+        let y = screenFrame.minY + 24
         setFrameOrigin(NSPoint(x: x, y: y))
     }
 

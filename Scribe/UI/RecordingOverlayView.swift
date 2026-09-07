@@ -787,22 +787,24 @@ struct SubtitleOverlayView: View {
             if !appState.livePreviewText.isEmpty && (appState.recordingStatus == .recording || appState.recordingStatus == .transcribing || appState.isShowingPreview) {
                 Text(appState.livePreviewText)
                     .font(.system(size: 13.5, weight: .medium, design: .rounded))
-                    .foregroundStyle(appState.livePreviewBackground == .dark ? Color.white : Color.primary)
+                    .foregroundStyle(appState.livePreviewBackground == .glass ? Color.primary : Color.white)
                     .multilineTextAlignment(.center)
                     .lineLimit(4)
                     .lineSpacing(3)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 10)
+                    .shadow(color: appState.livePreviewBackground == .transparent ? Color.black.opacity(0.85) : Color.clear, radius: 3, x: 0, y: 1)
                     .background {
-                        if appState.livePreviewBackground == .dark {
+                        switch appState.livePreviewBackground {
+                        case .dark:
                             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                                 .fill(Color.black.opacity(0.82))
                                 .overlay(
                                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                                         .strokeBorder(Color.white.opacity(0.18), lineWidth: 0.8)
                                 )
-                        } else {
+                        case .glass:
                             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                                 .fill(.ultraThinMaterial)
                                 .overlay(
@@ -813,6 +815,9 @@ struct SubtitleOverlayView: View {
                                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                                         .strokeBorder(Color.white.opacity(0.3), lineWidth: 0.8)
                                 )
+                        case .transparent:
+                            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                                .fill(Color.clear)
                         }
                     }
                     .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))

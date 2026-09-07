@@ -78,22 +78,8 @@ struct SettingsView: View {
                 SettingsContentView(selectedTab: selectedTab)
             }
             
-            // Header — Draggable Cyber Glass Console Header with Frosted Top Blur
-            VStack(spacing: 0) {
-                SettingsHeaderView()
-
-                // Subtle gradient fade below the header
-                LinearGradient(
-                    colors: [
-                        (appState.selectedPanelAppearance == .light ? Color.white : Color.black).opacity(0.12),
-                        Color.clear
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .frame(height: 12)
-                .allowsHitTesting(false)
-            }
+            // Header — Draggable Console Header (transparent background, no dividing line)
+            SettingsHeaderView()
         }
         .ignoresSafeArea(.container, edges: .top)
         .frame(height: 620)
@@ -364,6 +350,18 @@ struct SettingsContentView: View {
             .padding(.top, 88)
             .padding(.bottom, 24)
         }
+        .mask(
+            LinearGradient(
+                stops: [
+                    .init(color: .clear, location: 0.0),
+                    .init(color: .clear, location: 0.04),
+                    .init(color: .black, location: 0.12),
+                    .init(color: .black, location: 1.0)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
     }
 }
 
@@ -476,29 +474,7 @@ struct SettingsHeaderView: View {
         .padding(.trailing, 16)
         .padding(.top, 14)
         .padding(.bottom, 12)
-        .background(
-            ZStack(alignment: .bottom) {
-                // Top frosted blur covering header
-                Rectangle()
-                    .fill(.ultraThinMaterial)
-
-                LinearGradient(
-                    colors: [
-                        (appState.selectedPanelAppearance == .light ? Color.white : Color.black).opacity(0.35),
-                        (appState.selectedPanelAppearance == .light ? Color.white : Color.black).opacity(0.12),
-                        Color.clear
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-
-                // Ultra-thin subtle bottom border
-                Rectangle()
-                    .fill(Color.primary.opacity(0.08))
-                    .frame(height: 0.5)
-            }
-            .background(WindowDragView())
-        )
+        .background(WindowDragView())
     }
 }
 
@@ -2856,10 +2832,6 @@ struct AppIconHelper {
                 return img
             }
             if let path = Bundle.main.path(forResource: res, ofType: "png"), let img = NSImage(contentsOfFile: path) {
-                return img
-            }
-            let devPath = "/Users/aleksei/Documents/Scribe/Scribe/\(res).png"
-            if FileManager.default.fileExists(atPath: devPath), let img = NSImage(contentsOfFile: devPath) {
                 return img
             }
         }
@@ -6015,6 +5987,24 @@ struct AppearanceSettingsView: View {
 // MARK: - Recognition Settings View
 struct RecognitionSettingsView: View {
     @EnvironmentObject var appState: AppState
+    private let hardware = HardwareAnalyzer.shared.profile
+    @State private var temporaryHardwareHint: String? = nil
+    @State private var hintTask: Task<Void, Never>? = nil
+
+    private func triggerHardwareHint(for modelId: String) {
+        hintTask?.cancel()
+        withAnimation(.easeInOut(duration: 0.2)) {
+            temporaryHardwareHint = hardware.shortAdvice(for: modelId)
+        }
+        hintTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
+            if !Task.isCancelled {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    temporaryHardwareHint = nil
+                }
+            }
+        }
+    }
 
     private let models: [(id: String, name: String, desc: String)] = [
         ("openai_whisper-large-v3_turbo", "Turbo (Recommended)", "Smart language routing: enhanced Russian & code-switching, fast English (~950MB)"),
@@ -6178,17 +6168,34 @@ struct RecognitionSettingsView: View {
                                     Text(appState.l("Model Quality"))
                                         .font(.system(size: 14, weight: .medium, design: .rounded))
                                         .foregroundStyle(.primary)
-                                    Text(appState.l(models.first(where: { $0.id == appState.selectedModel })?.desc ?? ""))
+                                    Text(appState.l(temporaryHardwareHint ?? (models.first(where: { $0.id == appState.selectedModel })?.desc ?? "")))
                                         .font(.system(size: 11))
                                         .foregroundStyle(.secondary)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                        .id(temporaryHardwareHint ?? "desc")
+                                        .transition(.opacity)
+                                        .animation(.easeInOut(duration: 0.25), value: temporaryHardwareHint)
                                 }
                                 Spacer()
                                 LiquidGlassMenu(
                                     items: models.map { $0.id },
-                                    selection: $appState.selectedModel,
+                                    selection: Binding(
+                                        get: { appState.selectedModel },
+                                        set: { newModel in
+                                            appState.selectedModel = newModel
+                                            triggerHardwareHint(for: newModel)
+                                        }
+                                    ),
                                     title: { id in appState.l(models.first(where: { $0.id == id })?.name ?? id) },
                                     displayTitle: { id in appState.l(models.first(where: { $0.id == id })?.name ?? id) }
                                 )
+                            }
+                            .onChange(of: appState.selectedModel) { newModel in
+                                triggerHardwareHint(for: newModel)
+                            }
+                            .onDisappear {
+                                hintTask?.cancel()
+                                hintTask = nil
                             }
                         }
                     }
@@ -7785,62 +7792,46 @@ public final class BugReportService: ObservableObject, @unchecked Sendable {
             text += "\n\n📋 *Diagnostics:* `\(diagnostic)`"
         }
 
-        let urlString = "https://api.telegram.org/bot\(telegramBotToken)/sendMessage"
-        guard let url = URL(string: urlString) else {
-            await MainActor.run {
-                self.isSending = false
-                self.errorMessage = "Invalid Telegram endpoint URL"
+        // 1. Instant local persistence & background sync via Firestore
+        await AuthService.shared.saveBugReport(
+            description: trimmed,
+            appVersion: appVersion,
+            osVersion: osVersion,
+            hardwareModel: macModel,
+            author: author
+        )
+
+        // 2. Dispatch Telegram notification asynchronously in the background so it never hangs the UI
+        let botToken = telegramBotToken
+        let chatId = telegramChatId
+        Task.detached(priority: .utility) {
+            guard let url = URL(string: "https://api.telegram.org/bot\(botToken)/sendMessage") else { return }
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.timeoutInterval = 3.0
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+            let payload: [String: Any] = [
+                "chat_id": chatId,
+                "text": text,
+                "parse_mode": "Markdown"
+            ]
+
+            if let body = try? JSONSerialization.data(withJSONObject: payload) {
+                request.httpBody = body
+                _ = try? await URLSession.shared.data(for: request)
             }
-            return false
         }
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        // Brief tactile pause for smooth animation (0.35s)
+        try? await Task.sleep(nanoseconds: 350_000_000)
 
-        let payload: [String: Any] = [
-            "chat_id": telegramChatId,
-            "text": text,
-            "parse_mode": "Markdown"
-        ]
-
-        do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: payload)
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            let httpResponse = response as? HTTPURLResponse
-            let statusCode = httpResponse?.statusCode ?? 0
-
-            if statusCode == 200 {
-                await AuthService.shared.saveBugReport(
-                    description: trimmed,
-                    appVersion: appVersion,
-                    osVersion: osVersion,
-                    hardwareModel: macModel,
-                    author: author
-                )
-
-                await MainActor.run {
-                    self.isSending = false
-                    self.sendSuccess = true
-                    self.errorMessage = nil
-                }
-                return true
-            } else {
-                let responseBody = String(data: data, encoding: .utf8) ?? "Unknown response"
-                await MainActor.run {
-                    self.isSending = false
-                    self.errorMessage = "Failed to deliver report (HTTP \(statusCode))"
-                }
-                return false
-            }
-        } catch {
-            await MainActor.run {
-                self.isSending = false
-                self.errorMessage = error.localizedDescription
-            }
-            return false
+        await MainActor.run {
+            self.isSending = false
+            self.sendSuccess = true
+            self.errorMessage = nil
         }
+        return true
     }
 
     private func getMacHardwareModel() -> String {
