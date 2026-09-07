@@ -11,16 +11,18 @@ enum SoundFeedback {
         case recordingStopped
         case transcriptionDone
         case error
+        case supporterCelebration
     }
 
     /// Play the appropriate system sound for the event.
     static func play(_ event: Event) {
         let soundName: String?
         switch event {
-        case .recordingStarted:  soundName = nil // User requested to remove start sound
-        case .recordingStopped:  soundName = "Pop"
-        case .transcriptionDone: soundName = "Glass"
-        case .error:             soundName = "Basso"
+        case .recordingStarted:      soundName = nil // User requested to remove start sound
+        case .recordingStopped:      soundName = "Pop"
+        case .transcriptionDone:     soundName = "Glass"
+        case .error:                 soundName = "Basso"
+        case .supporterCelebration:  soundName = "Hero"
         }
 
         if let name = soundName {

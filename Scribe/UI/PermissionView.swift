@@ -817,6 +817,23 @@ struct PermissionWelcomeView: View {
             // Force a fresh permission check when the view appears
             permissionManager.checkPermissions()
         }
+        .overlay {
+            if let celebration = appState.supporterCelebrationData {
+                SupporterCelebrationOverlayView(
+                    data: celebration,
+                    onDismiss: {
+                        withAnimation(.easeInOut(duration: 0.35)) {
+                            appState.supporterCelebrationData = nil
+                        }
+                    }
+                )
+                .transition(.asymmetric(
+                    insertion: .opacity.combined(with: .scale(scale: 0.95)),
+                    removal: .opacity.combined(with: .scale(scale: 1.03))
+                ))
+                .zIndex(9999)
+            }
+        }
     }
     
     private func startVoiceTest() {

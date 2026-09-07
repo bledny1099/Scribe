@@ -374,6 +374,24 @@ func baseLanguageCode(for code: String) -> String {
     code.components(separatedBy: "-").first ?? code
 }
 
+// MARK: - Supporter Celebration Data
+
+struct SupporterCelebrationData: Equatable, Sendable {
+    let tier: SupporterTier
+    let amount: Double
+    let currency: String
+    let txHash: String
+    let isPreview: Bool
+
+    init(tier: SupporterTier, amount: Double = 0, currency: String = "", txHash: String = "", isPreview: Bool = false) {
+        self.tier = tier
+        self.amount = amount
+        self.currency = currency
+        self.txHash = txHash
+        self.isPreview = isPreview
+    }
+}
+
 // MARK: - App State
 
 /// Central orchestrator that connects recording, transcription and paste services.
@@ -438,6 +456,22 @@ final class AppState: ObservableObject {
     private var interimWhisperTimer: Timer?
     private var interimWhisperTask: Task<Void, Never>?
     @Published var requestedSettingsTab: SettingsTab? = nil
+    @Published var supporterCelebrationData: SupporterCelebrationData? = nil
+
+    func triggerSupporterCelebration(
+        tier: SupporterTier,
+        amount: Double = 0,
+        currency: String = "",
+        txHash: String = "",
+        isPreview: Bool = false
+    ) {
+        let effectiveTier = tier == .none ? .tier2 : tier
+        let data = SupporterCelebrationData(tier: effectiveTier, amount: amount, currency: currency, txHash: txHash, isPreview: isPreview)
+        withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
+            self.supporterCelebrationData = data
+        }
+        SoundFeedback.play(.supporterCelebration)
+    }
 
     @Published public var transcribingDotCount: Int = 3
     private var transcribingDotTimer: Timer?

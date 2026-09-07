@@ -80,6 +80,23 @@ struct SettingsView: View {
             
             // Header — Draggable Console Header (transparent background, no dividing line)
             SettingsHeaderView()
+
+            // Supporter Celebration Full-Window Overlay
+            if let celebration = appState.supporterCelebrationData {
+                SupporterCelebrationOverlayView(
+                    data: celebration,
+                    onDismiss: {
+                        withAnimation(.easeInOut(duration: 0.35)) {
+                            appState.supporterCelebrationData = nil
+                        }
+                    }
+                )
+                .transition(.asymmetric(
+                    insertion: .opacity.combined(with: .scale(scale: 0.95)),
+                    removal: .opacity.combined(with: .scale(scale: 1.03))
+                ))
+                .zIndex(9999)
+            }
         }
         .ignoresSafeArea(.container, edges: .top)
         .frame(height: 620)
@@ -2349,24 +2366,53 @@ struct SupportDeveloperModal: View {
 
                             Spacer()
 
-                            Button(action: {
-                                dismiss()
-                                onOpenStatistics?()
-                            }) {
-                                HStack(spacing: 5) {
-                                    Image(systemName: "chart.bar.fill")
-                                        .font(.system(size: 10, weight: .bold))
-                                    Text(appState.l("Go to Statistics"))
-                                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                            HStack(spacing: 8) {
+                                Button(action: {
+                                    dismiss()
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                                        appState.triggerSupporterCelebration(
+                                            tier: supporterTier,
+                                            amount: supporterDonationAmount,
+                                            currency: supporterDonationCurrency,
+                                            txHash: supporterTxHash,
+                                            isPreview: true
+                                        )
+                                    }
+                                }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "sparkles")
+                                            .font(.system(size: 10, weight: .bold))
+                                        Text(appState.l("Replay Celebration"))
+                                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                                    }
+                                    .padding(.horizontal, 9)
+                                    .padding(.vertical, 6)
+                                    .background(Color.primary.opacity(0.06))
+                                    .foregroundStyle(Color.primary)
+                                    .cornerRadius(7)
+                                    .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.primary.opacity(0.15), lineWidth: 0.8))
                                 }
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .background((supporterTier.gradientColors.first ?? .yellow).opacity(0.18))
-                                .foregroundStyle(Color.primary)
-                                .cornerRadius(7)
-                                .overlay(RoundedRectangle(cornerRadius: 7).stroke((supporterTier.gradientColors.first ?? .yellow).opacity(0.45), lineWidth: 0.8))
+                                .buttonStyle(.plain)
+
+                                Button(action: {
+                                    dismiss()
+                                    onOpenStatistics?()
+                                }) {
+                                    HStack(spacing: 5) {
+                                        Image(systemName: "chart.bar.fill")
+                                            .font(.system(size: 10, weight: .bold))
+                                        Text(appState.l("Go to Statistics"))
+                                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                                    }
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                                    .background((supporterTier.gradientColors.first ?? .yellow).opacity(0.18))
+                                    .foregroundStyle(Color.primary)
+                                    .cornerRadius(7)
+                                    .overlay(RoundedRectangle(cornerRadius: 7).stroke((supporterTier.gradientColors.first ?? .yellow).opacity(0.45), lineWidth: 0.8))
+                                }
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
                         }
                         .padding(10)
                         .background(Color.primary.opacity(0.035))
@@ -2726,6 +2772,17 @@ struct SupportDeveloperModal: View {
                             currency: result.currency,
                             txHash: result.txHash
                         )
+
+                        // Dismiss sheet and launch the full-window celebration across Scribe
+                        dismiss()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                            appState.triggerSupporterCelebration(
+                                tier: result.tier,
+                                amount: result.amount,
+                                currency: result.currency,
+                                txHash: result.txHash
+                            )
+                        }
                     }
                 } else {
                     await MainActor.run {
@@ -7954,3 +8011,334 @@ struct BugReportView: View {
         }
     }
 }
+
+// MARK: - Supporter Celebration Overlay View
+
+struct SupporterCelebrationOverlayView: View {
+    let data: SupporterCelebrationData
+    var onDismiss: () -> Void
+    @EnvironmentObject var appState: AppState
+
+    @State private var appeared = false
+    @State private var ringScale: CGFloat = 0.85
+    @State private var ringOpacity: Double = 0.8
+    @State private var orbFloat = false
+    @State private var sparkleRotation: Double = 0
+    @State private var progress: CGFloat = 0.0
+    @State private var autoDismissTask: Task<Void, Never>? = nil
+
+    private var tierColors: [Color] {
+        data.tier.gradientColors.isEmpty ? [.yellow, .orange] : data.tier.gradientColors
+    }
+
+    private var primaryColor: Color {
+        tierColors.first ?? Color(red: 1.0, green: 0.84, blue: 0.0)
+    }
+
+    private var secondaryColor: Color {
+        tierColors.count > 1 ? tierColors.last! : primaryColor.opacity(0.8)
+    }
+
+    private struct SparkleParticle: Identifiable {
+        let id: Int
+        let xRatio: CGFloat
+        let yRatio: CGFloat
+        let size: CGFloat
+        let opacity: Double
+        let floatOffset: CGFloat
+    }
+
+    private let particles: [SparkleParticle] = (0..<24).map { i in
+        let seed = Double(i) * 137.5
+        let x = CGFloat(0.12 + 0.76 * abs(sin(seed)))
+        let y = CGFloat(0.10 + 0.80 * abs(cos(seed)))
+        let sz = CGFloat(2.0 + (Double(i % 5) * 1.2))
+        let op = 0.35 + (Double(i % 4) * 0.18)
+        let float = CGFloat(6.0 + Double(i % 6) * 3.0)
+        return SparkleParticle(id: i, xRatio: x, yRatio: y, size: sz, opacity: op, floatOffset: float)
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack {
+                // Layer 0: Velvety dark glass background
+                Color(red: 0.04, green: 0.05, blue: 0.08)
+                    .opacity(0.90)
+                    .background(.ultraThinMaterial)
+
+                // Layer 1: Ambient breathing light orbs
+                RadialGradient(
+                    colors: [primaryColor.opacity(0.38), .clear],
+                    center: .center,
+                    startRadius: 10,
+                    endRadius: 280
+                )
+                .scaleEffect(orbFloat ? 1.15 : 0.88)
+                .offset(y: orbFloat ? -15 : 15)
+                .blur(radius: 24)
+
+                RadialGradient(
+                    colors: [secondaryColor.opacity(0.24), .clear],
+                    center: UnitPoint(x: 0.3, y: 0.75),
+                    startRadius: 20,
+                    endRadius: 320
+                )
+                .scaleEffect(orbFloat ? 0.9 : 1.1)
+                .blur(radius: 32)
+
+                // Layer 2: Floating Sparkles
+                ForEach(particles) { p in
+                    Circle()
+                        .fill(primaryColor.opacity(p.opacity))
+                        .frame(width: p.size, height: p.size)
+                        .position(x: geo.size.width * p.xRatio, y: geo.size.height * p.yRatio + (orbFloat ? -p.floatOffset : p.floatOffset))
+                        .shadow(color: primaryColor.opacity(0.8), radius: p.size * 2)
+                }
+
+                // Layer 3: Central Content Card
+                VStack(spacing: 20) {
+                    Spacer()
+
+                    // Glowing Emblem Crest with pulsing aura
+                    ZStack {
+                        // Expanding pulsing aura ring
+                        Circle()
+                            .stroke(
+                                LinearGradient(colors: tierColors, startPoint: .topLeading, endPoint: .bottomTrailing),
+                                lineWidth: 2
+                            )
+                            .frame(width: 88, height: 88)
+                            .scaleEffect(ringScale)
+                            .opacity(ringOpacity)
+
+                        // Outer glowing rim
+                        Circle()
+                            .strokeBorder(
+                                LinearGradient(colors: [primaryColor.opacity(0.7), secondaryColor.opacity(0.3)], startPoint: .topLeading, endPoint: .bottomTrailing),
+                                lineWidth: 1.5
+                            )
+                            .frame(width: 84, height: 84)
+
+                        // Glass disc base
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        Color.white.opacity(0.18),
+                                        primaryColor.opacity(0.15),
+                                        Color.black.opacity(0.45)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 78, height: 78)
+                            .shadow(color: primaryColor.opacity(0.55), radius: 24, x: 0, y: 8)
+
+                        // Center Tier Icon
+                        Image(systemName: data.tier.icon)
+                            .font(.system(size: 34, weight: .bold))
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [Color.white, primaryColor, secondaryColor],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .shadow(color: primaryColor.opacity(0.9), radius: 14)
+
+                        // Rotating orbital sparkles
+                        ForEach(0..<4) { idx in
+                            Image(systemName: "sparkle")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(primaryColor)
+                                .offset(x: 54 * cos(Double(idx) * .pi / 2 + sparkleRotation),
+                                        y: 54 * sin(Double(idx) * .pi / 2 + sparkleRotation))
+                                .opacity(0.85)
+                                .shadow(color: primaryColor, radius: 4)
+                        }
+                    }
+                    .scaleEffect(appeared ? 1.0 : 0.6)
+                    .opacity(appeared ? 1.0 : 0.0)
+
+                    // Typography & Headings
+                    VStack(spacing: 8) {
+                        Text(appState.l("Thanks!"))
+                            .font(.system(size: 42, weight: .black, design: .rounded))
+                            .foregroundStyle(
+                                LinearGradient(
+                                    colors: [
+                                        Color(white: 1.0),
+                                        Color(red: 1.0, green: 0.94, blue: 0.8),
+                                        primaryColor
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .shadow(color: primaryColor.opacity(0.45), radius: 18, x: 0, y: 6)
+
+                        Text(appState.l("Thanks for contributing to this project"))
+                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .foregroundStyle(Color.primary.opacity(0.95))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 24)
+                    }
+                    .offset(y: appeared ? 0 : 16)
+                    .opacity(appeared ? 1.0 : 0.0)
+
+                    // Tier & Contribution Badge Capsule
+                    HStack(spacing: 8) {
+                        Image(systemName: data.tier.icon)
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(primaryColor)
+
+                        Text("✦ \(data.tier.badgeText) ✦")
+                            .font(.system(size: 11, weight: .heavy, design: .monospaced))
+                            .foregroundStyle(
+                                LinearGradient(colors: tierColors, startPoint: .leading, endPoint: .trailing)
+                            )
+
+                        if data.amount > 0 {
+                            Text("•")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundStyle(.secondary)
+                            Text("\(String(format: "%.2f", data.amount)) \(data.currency)")
+                                .font(.system(size: 11.5, weight: .bold, design: .monospaced))
+                                .foregroundStyle(.primary.opacity(0.9))
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(
+                        Capsule()
+                            .fill(.ultraThinMaterial)
+                    )
+                    .overlay(
+                        Capsule()
+                            .fill(primaryColor.opacity(0.12))
+                    )
+                    .overlay(
+                        Capsule()
+                            .strokeBorder(
+                                LinearGradient(
+                                    colors: [primaryColor.opacity(0.55), secondaryColor.opacity(0.2)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1
+                            )
+                    )
+                    .shadow(color: primaryColor.opacity(0.25), radius: 12, y: 4)
+                    .scaleEffect(appeared ? 1.0 : 0.85)
+                    .opacity(appeared ? 1.0 : 0.0)
+
+                    // Appreciation Subtitle
+                    Text(appState.l("Your contribution helps Scribe remain fast, private, and 100% offline."))
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(.secondary.opacity(0.85))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 40)
+                        .opacity(appeared ? 1.0 : 0.0)
+
+                    Spacer()
+
+                    // Bottom Countdown Bar & Dismiss Hint
+                    VStack(spacing: 10) {
+                        // Countdown progress bar (3.5 seconds)
+                        GeometryReader { barGeo in
+                            ZStack(alignment: .leading) {
+                                Capsule()
+                                    .fill(Color.white.opacity(0.12))
+                                    .frame(height: 3)
+
+                                Capsule()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: tierColors,
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .frame(width: barGeo.size.width * progress, height: 3)
+                                    .shadow(color: primaryColor.opacity(0.7), radius: 4)
+                            }
+                        }
+                        .frame(width: 140, height: 3)
+
+                        Button(action: {
+                            dismissWithAnimation()
+                        }) {
+                            HStack(spacing: 6) {
+                                Text(appState.l("Press anywhere or Esc to continue"))
+                                    .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(.secondary.opacity(0.75))
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.bottom, 24)
+                    .opacity(appeared ? 1.0 : 0.0)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                dismissWithAnimation()
+            }
+            .onExitCommand {
+                dismissWithAnimation()
+            }
+            .onAppear {
+                startAnimations()
+            }
+            .onDisappear {
+                autoDismissTask?.cancel()
+            }
+        }
+    }
+
+    private func startAnimations() {
+        SoundFeedback.play(.supporterCelebration)
+
+        withAnimation(.spring(response: 0.55, dampingFraction: 0.72)) {
+            appeared = true
+        }
+
+        withAnimation(.easeInOut(duration: 3.2).repeatForever(autoreverses: true)) {
+            orbFloat = true
+        }
+
+        withAnimation(.linear(duration: 10.0).repeatForever(autoreverses: false)) {
+            sparkleRotation = 2 * .pi
+        }
+
+        withAnimation(.easeOut(duration: 1.6).repeatForever(autoreverses: false)) {
+            ringScale = 1.45
+            ringOpacity = 0.0
+        }
+
+        // Animate countdown progress bar over 3.5 seconds
+        withAnimation(.linear(duration: 3.5)) {
+            progress = 1.0
+        }
+
+        // Auto dismiss after 3.5s
+        autoDismissTask = Task {
+            try? await Task.sleep(nanoseconds: 3_500_000_000)
+            if !Task.isCancelled {
+                await MainActor.run {
+                    dismissWithAnimation()
+                }
+            }
+        }
+    }
+
+    private func dismissWithAnimation() {
+        autoDismissTask?.cancel()
+        withAnimation(.easeInOut(duration: 0.35)) {
+            onDismiss()
+        }
+    }
+}
+
