@@ -232,13 +232,30 @@ public final class AetherContextEngine: @unchecked Sendable {
            bundleId.contains("clion") ||
            bundleId.contains("sublime") ||
            bundleId.contains("android.studio") ||
+           bundleId.contains("openai") ||
+           bundleId.contains("chatgpt") ||
+           bundleId.contains("claude") ||
+           bundleId.contains("anthropic") ||
+           bundleId.contains("perplexity") ||
+           bundleId.contains("deepseek") ||
+           bundleId.contains("ollama") ||
+           bundleId.contains("lmstudio") ||
+           bundleId.contains("jan") ||
+           bundleId.contains("copilot") ||
            nameLower.contains("cursor") ||
            nameLower.contains("xcode") ||
            nameLower.contains("antigravity") ||
            nameLower.contains("windsurf") ||
            nameLower.contains("trae") ||
            nameLower.contains("zed") ||
-           nameLower.contains("terminal") {
+           nameLower.contains("terminal") ||
+           nameLower.contains("chatgpt") ||
+           nameLower.contains("claude") ||
+           nameLower.contains("perplexity") ||
+           nameLower.contains("deepseek") ||
+           nameLower.contains("ollama") ||
+           nameLower.contains("lm studio") ||
+           nameLower.contains("copilot") {
             return (name, .ideAndCoding, bundleId, icon)
         }
 
@@ -289,6 +306,13 @@ public final class AetherContextEngine: @unchecked Sendable {
            nameLower.contains("safari") ||
            nameLower.contains("chrome") ||
            nameLower.contains("arc") {
+            let winContext = inspectActiveWindowContext(targetApp: app)
+            if let wt = winContext.windowTitle?.lowercased(),
+               wt.contains("chatgpt") || wt.contains("claude") || wt.contains("perplexity") ||
+               wt.contains("deepseek") || wt.contains("v0.dev") || wt.contains("bolt.new") ||
+               wt.contains("ai studio") || wt.contains("antigravity") {
+                return (name, .ideAndCoding, bundleId, icon)
+            }
             return (name, .browsersAndResearch, bundleId, icon)
         }
 
@@ -385,7 +409,8 @@ public final class AetherContextEngine: @unchecked Sendable {
                 "API", "SDK", "JSON", "regex", "refactor", "pull request", "commit", "merge", "branch", "async",
                 "await", "struct", "class", "enum", "endpoint", "backend", "frontend", "fullstack", "MCP",
                 "коммит", "пул реквест", "ветка", "деплой", "баг", "пофиксить", "рефакторинг", "функция", "эндпоинт",
-                "создай", "сделай", "напиши", "добавь", "удали", "запусти", "пофикси", "настрой"
+                "сделай", "сделай что-то", "создай", "напиши", "добавь", "удали", "пофикси", "запусти", "проверь", "обнови", "настрой", "исправь", "покажи", "сгенерируй",
+                "ChatGPT", "Claude", "Perplexity", "DeepSeek"
             ]
         case .messengersAndChat:
             return [
@@ -546,11 +571,11 @@ public final class AetherContextEngine: @unchecked Sendable {
         switch domain {
         case .ideAndCoding:
             if isRussianOnly {
-                return "Вайб-кодинг и разработка в IDE: команды для ИИ и терминала (создай, сделай, добавь, напиши, удали, пофикси, запусти, проверь, обнови, настрой, открой, закрой, поменяй, переименуй, задеплой, вайб-кодинг, вайбкодинг), термины разработки (Git, Swift, TypeScript, Python, Docker, API, PR, commit, merge, branch, function, async, await, deploy, bugs, MCP, Antigravity, Claude Code)."
+                return "Вайб-кодинг, разработка и управление ИИ-агентами: голосовые директивы и команды в повелительном наклонении (сделай, сделай что-то, создай, добавь, напиши, удали, пофикси, запусти, проверь, обнови, настрой, открой, закрой, поменяй, переименуй, задеплой, исправь, покажи, сгенерируй, вайб-кодинг, вайбкодинг), термины разработки (Git, Swift, TypeScript, Python, Docker, API, PR, commit, merge, branch, function, async, await, deploy, bugs, MCP, Antigravity, Claude Code, ChatGPT, Claude)."
             } else if isEnglishOnly {
-                return "Vibe coding and IDE development: AI agent instructions (create, make, add, write, delete, fix, run, check, update, configure, open, close, change, rename, deploy, vibe coding), programming terms (Git, Swift, TypeScript, Python, Docker, API, PR, commit, merge, branch, function, async, await, deploy, bugs, MCP, Antigravity, Claude Code)."
+                return "Vibe coding, IDE development, and AI agent instructions: imperative commands (create, make, do, add, write, delete, fix, run, check, update, configure, open, close, change, rename, deploy, show, vibe coding), programming terms (Git, Swift, TypeScript, Python, Docker, API, PR, commit, merge, branch, function, async, await, deploy, bugs, MCP, Antigravity, Claude Code, ChatGPT, Claude)."
             } else {
-                return "Bilingual vibe coding & IDE AI commands (Russian & English): вайб-кодинг, вайбкодинг, vibe coding, создай, сделай, добавь, напиши, удали, пофикси, запусти, проверь, Git, Swift, Xcode, TypeScript, Python, Docker, API, PR, commit, merge, branch, function, async, await, deploy, bugs, MCP, Antigravity, Claude Code."
+                return "Bilingual vibe coding & IDE AI commands (Russian & English): вайб-кодинг, вайбкодинг, vibe coding, сделай, сделай что-то, создай, добавь, напиши, удали, пофикси, запусти, проверь, исправь, Git, Swift, Xcode, TypeScript, Python, Docker, API, PR, commit, merge, branch, function, async, await, deploy, bugs, MCP, Antigravity, Claude Code, ChatGPT, Claude."
             }
         case .messengersAndChat:
             if isRussianOnly {
@@ -618,7 +643,7 @@ public final class AetherContextEngine: @unchecked Sendable {
             }
         case .general:
             if isRussianOnly {
-                return "Команды и естественная речь: создай, сделай, добавь, напиши, проверь, используйте правильную пунктуацию, запятые и заглавные буквы."
+                return "Команды и естественная речь: сделай, сделай что-то, создай, добавь, напиши, проверь, используйте правильную пунктуацию, запятые и заглавные буквы."
             } else if isEnglishOnly {
                 return "Use proper punctuation, capitalization, and formatting."
             } else {

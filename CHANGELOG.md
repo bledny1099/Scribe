@@ -5,6 +5,20 @@ All notable changes to Scribe will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.5] - 2026-09-07
+
+## Added
+- Native AI application domain detection (`.ideAndCoding`) for ChatGPT, Claude, Perplexity, DeepSeek, Ollama, LM Studio, and browser tabs with AI programming assistants.
+- Imperative directive domain biasing in `AetherContextEngine` to prioritize 2nd-person command verbs in vibe coding and AI workflow contexts.
+
+## Changed
+- Decoupled website documentation, security disclosures, and issue reporting from the core desktop application repository into `scribe-site`.
+- Overhauled command verb pattern matching in `AetherLinguisticValidator` with unified regex evaluation across punctuation, introductory words, and start-of-sentence boundaries.
+
+## Fixed
+- Fixed speech recognition slips where imperative Russian commands were mistakenly transcribed in 1st person (`сделаю`), 3rd person (`сделает`), or 2nd future (`сделаешь`).
+- Fixed imperative conversion regressions occurring after commas, conjunctions, and leading whitespace while preserving statements with explicit subject nouns or pronouns.
+
 ## [2.6.4] - 2026-09-06
 
 ## Added

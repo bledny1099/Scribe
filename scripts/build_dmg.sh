@@ -42,6 +42,9 @@ else
     codesign --force --deep --identifier "com.aleksei.scribe" --sign - "$APP_PATH"
 fi
 
+# Ensure existing mounts are unmounted before recreating DMG
+hdiutil detach "/Volumes/Scribe Installer" 2>/dev/null || true
+hdiutil detach "/Volumes/Scribe" 2>/dev/null || true
 rm -f "$DIST_DIR/$DMG_NAME"
 
 echo "🎨 Generating installer gradient background..."

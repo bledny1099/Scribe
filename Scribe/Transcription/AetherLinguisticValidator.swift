@@ -121,6 +121,10 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         ("(?i)\\b(долж(?:ен|на|но|ны)|нужно|надо|следует|стоит|мож(?:ет|но|ем|ете|ут))\\s+(?:(вс[её]|всегда|тоже|также|уже|ещ[её]|вроде|сейчас)\\s+)?(?:(нормально|хорошо|качественно|правильно|корректно|быстро|стабильно|ч[её]тко)\\s+)?функционирует\\b", "$1 $2 $3 функционировать"),
 
         // Common adverb agreement & acoustic mishearings
+        ("(?i)\\b(сделаю|сделает|делает|сделаешь)\\s+что-?то\\b", "сделай что-то"),
+        ("(?i)\\b(сделаю|сделает|делает|сделаешь)\\s+мне\\b", "сделай мне"),
+        ("(?i)\\b(сделаю|сделает|делает|сделаешь)\\s+так\\b", "сделай так"),
+        ("(?i)\\b(сделаю|сделает|делает|сделаешь)\\s+это\\b", "сделай это"),
         ("(?i)\\bбыстренькое\\b", "быстренько"),
         ("(?i)\\bбыстренький\\b(?=\\s+(?:сдела|поправ|постав|напиш|провер|запуст))", "быстренько"),
         ("(?i)\\bя\\s+часто\\s+справился\\b", "я сейчас справлюсь"),
@@ -148,32 +152,108 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         ("(?i)\\bа\\.\\s*семки\\s*а\\.\\s*егорова\\b", "")
     ]
 
-    /// Systematic Russian command verb mappings: 3rd person singular present tense -> 2nd person imperative mood.
+    /// Systematic Russian command verb mappings: 1st/3rd person and 2nd future slips -> 2nd person imperative mood.
     private let russianCommandVerbMap: [String: String] = [
-        "создает": "создай",
-        "создаёт": "создай",
+        // 1st person singular -> 2nd person imperative
+        "сделаю": "сделай",
+        "делаю": "делай",
+        "напишу": "напиши",
+        "пишу": "пиши",
+        "добавлю": "добавь",
+        "добавляю": "добавь",
+        "удалю": "удали",
+        "удаляю": "удали",
+        "создам": "создай",
+        "создаю": "создай",
+        "настрою": "настрой",
+        "настраиваю": "настрой",
+        "исправлю": "исправь",
+        "исправляю": "исправь",
+        "поправлю": "поправь",
+        "поправляю": "поправь",
+        "проверю": "проверь",
+        "проверяю": "проверь",
+        "запущу": "запусти",
+        "запускаю": "запусти",
+        "перезапущу": "перезапусти",
+        "перезапускаю": "перезапусти",
+        "обновлю": "обнови",
+        "обновляю": "обнови",
+        "покажу": "покажи",
+        "показываю": "покажи",
+        "открою": "открой",
+        "открываю": "открой",
+        "закрою": "закрой",
+        "закрываю": "закрой",
+        "поменяю": "поменяй",
+        "меняю": "поменяй",
+        "изменю": "измени",
+        "изменяю": "измени",
+        "подключу": "подключи",
+        "подключаю": "подключи",
+        "вынесу": "вынеси",
+        "выношу": "вынеси",
+        "перенесу": "перенеси",
+        "переношу": "перенеси",
+        "переименую": "переименуй",
+        "переименовываю": "переименуй",
+        "сгенерирую": "сгенерируй",
+        "генерирую": "сгенерируй",
+        "закоммичу": "закоммить",
+        "коммичу": "закоммить",
+        "запушу": "запушь",
+        "пушу": "запушь",
+        "задеплою": "задеплой",
+        "деплою": "задеплой",
+        "пофикшу": "пофикси",
+        "фикшу": "пофикси",
+
+        // 3rd person singular present / future -> 2nd person imperative
         "делает": "сделай",
         "сделает": "сделай",
-        "сделаю": "сделай",
         "пишет": "напиши",
+        "напишет": "напиши",
         "добавляет": "добавь",
+        "добавит": "добавь",
         "удаляет": "удали",
+        "удалит": "удали",
+        "создает": "создай",
+        "создаёт": "создай",
+        "создаст": "создай",
         "настраивает": "настрой",
+        "настроит": "настрой",
         "исправляет": "исправь",
+        "исправит": "исправь",
+        "поправляет": "поправь",
+        "поправит": "поправь",
         "проверяет": "проверь",
+        "проверит": "проверь",
         "запускает": "запусти",
+        "запустит": "запусти",
         "перезапускает": "перезапусти",
+        "перезапустит": "перезапусти",
         "обновляет": "обнови",
+        "обновит": "обнови",
         "показывает": "покажи",
+        "покажет": "покажи",
         "открывает": "открой",
+        "откроет": "открой",
         "закрывает": "закрой",
+        "закроет": "закрой",
         "меняет": "поменяй",
         "поменяет": "поменяй",
+        "изменяет": "измени",
+        "изменит": "измени",
         "подключает": "подключи",
+        "подключит": "подключи",
         "выносит": "вынеси",
+        "вынесет": "вынеси",
         "переносит": "перенеси",
+        "перенесет": "перенеси",
         "переименовывает": "переименуй",
+        "переименует": "переименуй",
         "генерирует": "сгенерируй",
+        "сгенерирует": "сгенерируй",
         "импортирует": "импортируй",
         "экспортирует": "экспортируй",
         "коммитит": "закоммить",
@@ -181,7 +261,27 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         "пушит": "запушь",
         "запушит": "запушь",
         "деплоит": "задеплой",
-        "задеплоит": "задеплой"
+        "задеплоит": "задеплой",
+        "фиксит": "пофикси",
+        "пофиксит": "пофикси",
+
+        // 2nd person future slips -> 2nd person imperative
+        "сделаешь": "сделай",
+        "делаешь": "делай",
+        "напишешь": "напиши",
+        "добавишь": "добавь",
+        "удалишь": "удали",
+        "создашь": "создай",
+        "проверишь": "проверь",
+        "исправишь": "исправь",
+        "поправишь": "поправь",
+        "запустишь": "запусти",
+        "обновишь": "обнови",
+        "покажешь": "покажи",
+        "откроешь": "открой",
+        "закроешь": "закрой",
+        "поменяешь": "поменяй",
+        "пофиксишь": "пофикси"
     ]
 
     /// Systematic AI and developer tooling brand name normalizations
@@ -297,8 +397,7 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
     private let compiledNonPhotoRules: [(regex: NSRegularExpression, replacement: String)]
     private let micCheckRegex: NSRegularExpression?
     private let micContextRegex: NSRegularExpression?
-    private let transitionRegex: NSRegularExpression?
-    private let directiveContextRegex: NSRegularExpression?
+    private let commandImperativeRegex: NSRegularExpression?
     private let compoundFeminineSubjectRegex: NSRegularExpression?
     private let compoundMasculineSubjectRegex: NSRegularExpression?
     private let neuterSubjectVerbRegex: NSRegularExpression?
@@ -384,10 +483,10 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         self.micContextRegex = try? NSRegularExpression(pattern: "(?i)\\bпроявк([а-яё]*)\\s+(микрофон|связ|звук|работ|код|гипотез|систем|слух|качеств|данны|файло|тест)")
 
         let verbKeys = russianCommandVerbMap.keys.sorted { $0.count > $1.count }.joined(separator: "|")
-        self.transitionRegex = try? NSRegularExpression(pattern: "(?i)(?:^|(?<=[.!?;\n])|\\b(?:и|а|потом|затем|теперь|дальше|ещ[её]|также|давай|просто|пожалуйста)\\s+)(" + verbKeys + ")\\b")
-
-        let subjectExclusion = "(?:он|она|оно|сервер|скрипт|система|приложение|процесс|сервис|код|бот|воркер|пользователь|юзер|клиент|фреймворк)"
-        self.directiveContextRegex = try? NSRegularExpression(pattern: "(?i)(?:^|(?<!\\b" + subjectExclusion + "\\s))\\b(" + verbKeys + ")\\s+(для\\b|в\\b|на\\b|из\\b|под\\b|отдельн|нов|файл|папк|сервер|компонент|скрипт|функци|класс|модул|роут|проект|таблиц|баз|конфиг|ветк|пул|код|тест|кнопк|баг|ошибк|запрос|ответ)")
+        let subjectExclusion = "(?:я|он|она|оно|они|мы|вы|сервер|скрипт|система|программа|приложение|процесс|сервис|код|бот|воркер|пользователь|юзер|клиент|фреймворк|модель|база|нейросеть)"
+        self.commandImperativeRegex = try? NSRegularExpression(
+            pattern: "(?i)(^|\\b" + subjectExclusion + "\\s+|[.!?;\n,«\"„“—–-]\\s*|\\b(?:и|а|потом|затем|теперь|дальше|ещ[её]|также|давай|просто|пожалуйста|слушай|смотри|короче|лучше|тогда|ну|ты|вместо\\s+этого)\\s*|\\s+)?\\b(" + verbKeys + ")\\b"
+        )
 
         self.compoundFeminineSubjectRegex = try? NSRegularExpression(
             pattern: "(?i)\\b(команда|сборная|компания|организация|система|программа|утилита|библиотека|группа)\\s+([А-ЯЁа-яёA-Za-z0-9_-]+)\\s+([а-яё]+)\\b"
@@ -631,43 +730,39 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
     }
 
     /// Systematic command directive repair for Russian speech:
-    /// Converts 3rd person singular present tense verbs to 2nd person imperative mood
-    /// when used as direct commands to AI agents, IDEs, or in instructional speech (without a 3rd person subject noun/pronoun).
+    /// Converts 1st/3rd person singular and future slips to 2nd person imperative mood
+    /// when used as direct commands to AI agents, IDEs, or in instructional speech (without an explicit subject noun/pronoun).
     private func applyRussianCommandImperativeRules(_ text: String) -> String {
+        guard let regex = commandImperativeRegex else { return text }
         var result = text
+        let nsString = result as NSString
+        let matches = regex.matches(in: result, options: [], range: NSRange(location: 0, length: nsString.length))
 
-        // 1. Initial / transitional commands: "создает...", "и создает...", "потом делает...", "ну создает..."
-        if let regex = transitionRegex {
-            let nsString = result as NSString
-            let matches = regex.matches(in: result, options: [], range: NSRange(location: 0, length: nsString.length))
-            for match in matches.reversed() {
-                let verbRange = match.range(at: 1)
-                let verbWord = nsString.substring(with: verbRange)
-                let lowerVerb = verbWord.lowercased()
+        let subjectNouns = Set([
+            "я", "он", "она", "оно", "они", "мы", "вы",
+            "сервер", "скрипт", "система", "программа", "приложение",
+            "процесс", "сервис", "код", "бот", "воркер", "пользователь",
+            "юзер", "клиент", "фреймворк", "модель", "база", "нейросеть"
+        ])
 
-                if let imperative = russianCommandVerbMap[lowerVerb] {
-                    let matchedCase = matchCapitalization(original: verbWord, target: imperative)
-                    if let strRange = Range(verbRange, in: result) {
-                        result.replaceSubrange(strRange, with: matchedCase)
-                    }
-                }
+        for match in matches.reversed() {
+            let prefixRange = match.range(at: 1)
+            let prefix = prefixRange.location != NSNotFound ? nsString.substring(with: prefixRange).lowercased() : ""
+
+            // If the preceding token ends with a true subject (e.g. "я сделаю", "сервер запускает", "он сделает"), skip
+            let trimmedPrefix = prefix.trimmingCharacters(in: .whitespacesAndNewlines)
+            if subjectNouns.contains(where: { trimmedPrefix.hasSuffix($0) }) {
+                continue
             }
-        }
 
-        // 2. Direct object / preposition directive context without explicit subject
-        if let regex = directiveContextRegex {
-            let nsString = result as NSString
-            let matches = regex.matches(in: result, options: [], range: NSRange(location: 0, length: nsString.length))
-            for match in matches.reversed() {
-                let verbRange = match.range(at: 1)
-                let verbWord = nsString.substring(with: verbRange)
-                let lowerVerb = verbWord.lowercased()
+            let verbRange = match.range(at: 2)
+            let verbWord = nsString.substring(with: verbRange)
+            let lowerVerb = verbWord.lowercased()
 
-                if let imperative = russianCommandVerbMap[lowerVerb] {
-                    let matchedCase = matchCapitalization(original: verbWord, target: imperative)
-                    if let strRange = Range(verbRange, in: result) {
-                        result.replaceSubrange(strRange, with: matchedCase)
-                    }
+            if let imperative = russianCommandVerbMap[lowerVerb] {
+                let matchedCase = matchCapitalization(original: verbWord, target: imperative)
+                if let strRange = Range(verbRange, in: result) {
+                    result.replaceSubrange(strRange, with: matchedCase)
                 }
             }
         }
