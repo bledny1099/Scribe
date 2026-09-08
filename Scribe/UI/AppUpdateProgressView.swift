@@ -88,7 +88,7 @@ struct AppUpdateProgressView: View {
     @EnvironmentObject var appState: AppState
 
     private var currentVersion: String {
-        updateService.currentVersion.isEmpty ? "2.6.5" : updateService.currentVersion
+        updateService.currentVersion.isEmpty ? "2.6.6" : updateService.currentVersion
     }
 
     private var targetVersion: String {

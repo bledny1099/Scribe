@@ -5,6 +5,22 @@ All notable changes to Scribe will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.6] - 2026-09-08
+
+## Added
+- Full-screen celebration overlay with particle animations, floating stars, and progress countdown triggered upon supporter verification.
+- Interactive celebration preview controls in both the developer support modal header and active status ribbon.
+
+## Changed
+- Redesigned the developer support rank section with a solid minimalist Apple HIG aesthetic, replacing linear gradients with clean tier colors.
+- Formatted supporter rank badges in Title Case across all UI views and statistics certificates.
+- Synchronized statistics certificate card styling to dynamically match the user's level color without manual switcher toggles.
+
+## Fixed
+- Fixed speech pipeline regex evaluation to prevent unselected script blocking during active dictation.
+- Fixed Minecraft and gaming domain terminology recognition in speech post-processing.
+- Improved imperative command normalization for Russian directive dictation.
+
 ## [2.6.5] - 2026-09-07
 
 ## Added
