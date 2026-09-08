@@ -203,8 +203,8 @@ struct SettingsSidebarView: View {
         SupporterTier.tier(for: supporterDonationAmount > 0 ? supporterDonationAmount : 10.0)
     }
 
-    private var supporterColors: [Color] {
-        isScribeSupporter ? supporterTier.gradientColors : [Color.supportAccentPrimary, Color.supportAccentSecondary]
+    private var supporterColor: Color {
+        isScribeSupporter ? supporterTier.color : Color.supportAccentPrimary
     }
 
     private let mainTabs: [SettingsTab] = [
@@ -259,24 +259,12 @@ struct SettingsSidebarView: View {
                 HStack(spacing: 8) {
                     ZStack {
                         Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [supporterColors.first?.opacity(0.18) ?? Color.supportAccentPrimary.opacity(0.18), (supporterColors.count > 1 ? supporterColors[1] : supporterColors[0]).opacity(0.18)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
+                            .fill(supporterColor.opacity(0.14))
                             .frame(width: 22, height: 22)
                         
                         Image(systemName: isScribeSupporter ? supporterTier.icon : "heart.fill")
                             .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: supporterColors,
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
+                            .foregroundStyle(supporterColor)
                     }
 
                     Text(appState.l("Support Scribe"))
@@ -299,7 +287,7 @@ struct SettingsSidebarView: View {
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .strokeBorder(supporterColors.first?.opacity(0.24) ?? Color.supportAccentPrimary.opacity(0.22), lineWidth: 0.8)
+                        .strokeBorder(supporterColor.opacity(0.20), lineWidth: 0.8)
                 )
             }
             .buttonStyle(.plain)
@@ -2282,12 +2270,8 @@ struct SupportDeveloperModal: View {
         SupporterTier.tier(for: supporterDonationAmount > 0 ? supporterDonationAmount : 10.0)
     }
 
-    private var tierPrimaryColor: Color {
-        supporterTier.gradientColors.first ?? Color.accentColor
-    }
-
-    private var tierSecondaryColor: Color {
-        supporterTier.gradientColors.last ?? tierPrimaryColor
+    private var tierColor: Color {
+        supporterTier.color
     }
 
     private var personalMemoCode: String {
@@ -2328,40 +2312,24 @@ struct SupportDeveloperModal: View {
 
             ScrollView(.vertical, showsIndicators: true) {
                 VStack(spacing: 18) {
-                    // Supporter Active Status Ribbon (Clean & Neutral)
+                    // Supporter Active Status Ribbon (Clean, Minimalist & Solid)
                     if isScribeSupporter {
                         VStack(spacing: 12) {
                             HStack(spacing: 12) {
                                 ZStack {
                                     Circle()
-                                        .fill(
-                                            LinearGradient(
-                                                colors: supporterTier.gradientColors,
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing
-                                            )
-                                        )
+                                        .fill(tierColor.opacity(0.14))
                                         .frame(width: 34, height: 34)
-                                        .overlay(
-                                            Circle()
-                                                .strokeBorder(Color.white.opacity(0.22), lineWidth: 0.8)
-                                        )
 
                                     Image(systemName: supporterTier.icon)
-                                        .font(.system(size: 14.5, weight: .bold))
-                                        .foregroundStyle(.white)
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundStyle(tierColor)
                                 }
 
-                                VStack(alignment: .leading, spacing: 3) {
+                                VStack(alignment: .leading, spacing: 2) {
                                     Text(supporterTier.badgeText)
                                         .font(.system(size: 11.5, weight: .bold, design: .rounded))
-                                        .foregroundStyle(
-                                            LinearGradient(
-                                                colors: supporterTier.gradientColors,
-                                                startPoint: .leading,
-                                                endPoint: .trailing
-                                            )
-                                        )
+                                        .foregroundStyle(tierColor)
                                         .lineLimit(1)
                                         .fixedSize(horizontal: true, vertical: false)
 
@@ -2398,12 +2366,12 @@ struct SupportDeveloperModal: View {
                                     }
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 7.5)
-                                    .background(Color.primary.opacity(0.06))
+                                    .background(Color.primary.opacity(0.05))
                                     .foregroundStyle(Color.primary)
-                                    .cornerRadius(8)
+                                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                                     .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .stroke(Color.primary.opacity(0.14), lineWidth: 0.8)
+                                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                            .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.8)
                                     )
                                 }
                                 .buttonStyle(.plain)
@@ -2420,23 +2388,23 @@ struct SupportDeveloperModal: View {
                                     }
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 7.5)
-                                    .background(tierPrimaryColor.opacity(0.12))
-                                    .foregroundStyle(Color.primary)
-                                    .cornerRadius(8)
+                                    .background(tierColor.opacity(0.12))
+                                    .foregroundStyle(tierColor)
+                                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                                     .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .stroke(tierPrimaryColor.opacity(0.28), lineWidth: 0.8)
+                                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                            .strokeBorder(tierColor.opacity(0.24), lineWidth: 0.8)
                                     )
                                 }
                                 .buttonStyle(.plain)
                             }
                         }
                         .padding(12)
-                        .background(Color.primary.opacity(0.035))
-                        .cornerRadius(10)
+                        .background(Color.primary.opacity(0.03))
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(tierPrimaryColor.opacity(0.22), lineWidth: 0.8)
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .strokeBorder(tierColor.opacity(0.20), lineWidth: 0.8)
                         )
                         .padding(.horizontal, 18)
                         .padding(.top, 4)
@@ -2455,7 +2423,7 @@ struct SupportDeveloperModal: View {
                             if isScribeSupporter {
                                 Text(supporterTier.title)
                                     .font(.system(size: 10, weight: .bold, design: .rounded))
-                                    .foregroundStyle(LinearGradient(colors: supporterTier.gradientColors, startPoint: .leading, endPoint: .trailing))
+                                    .foregroundStyle(tierColor)
                             } else {
                                 Text("Аккаунт подключен")
                                     .font(.system(size: 10, weight: .semibold, design: .rounded))
@@ -2614,20 +2582,12 @@ struct SupportDeveloperModal: View {
                                 }
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 8)
-                                .background(
-                                    LinearGradient(
-                                        colors: isScribeSupporter ?
-                                            [tierPrimaryColor.opacity(0.24), tierSecondaryColor.opacity(0.18)] :
-                                            [Color.accentColor.opacity(0.20), Color.accentColor.opacity(0.14)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .foregroundStyle(Color.primary)
-                                .cornerRadius(8)
+                                .background((isScribeSupporter ? tierColor : Color.accentColor).opacity(0.14))
+                                .foregroundStyle(isScribeSupporter ? tierColor : Color.accentColor)
+                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                                 .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke((isScribeSupporter ? tierPrimaryColor : Color.accentColor).opacity(0.35), lineWidth: 1)
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                        .strokeBorder((isScribeSupporter ? tierColor : Color.accentColor).opacity(0.28), lineWidth: 0.8)
                                 )
                             }
                             .buttonStyle(.plain)
@@ -2655,7 +2615,7 @@ struct SupportDeveloperModal: View {
                             HStack(spacing: 12) {
                                 Image(systemName: res.tier.icon)
                                     .font(.system(size: 18, weight: .bold))
-                                    .foregroundStyle(LinearGradient(colors: res.tier.gradientColors, startPoint: .topLeading, endPoint: .bottomTrailing))
+                                    .foregroundStyle(res.tier.color)
 
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(appState.l("Donation verified!") + " 💛")

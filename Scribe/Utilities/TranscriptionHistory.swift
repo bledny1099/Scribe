@@ -431,6 +431,17 @@ enum SupporterTier: Int, CaseIterable, Codable, Sendable {
         }
     }
 
+    var color: Color {
+        switch self {
+        case .none: return .secondary
+        case .tier1: return Color(red: 0.88, green: 0.60, blue: 0.38) // Warm Amber Bronze
+        case .tier2: return Color(red: 0.65, green: 0.78, blue: 0.88) // Moonlight Silver
+        case .tier3: return Color(red: 1.0, green: 0.82, blue: 0.0)   // Radiant Gold
+        case .tier4: return Color(red: 0.25, green: 0.85, blue: 0.98) // Celestial Cyan
+        case .tier5: return Color(red: 0.82, green: 0.50, blue: 1.0)  // Cosmic Sovereign
+        }
+    }
+
     var gradientColors: [Color] {
         switch self {
         case .none: return [.secondary]
