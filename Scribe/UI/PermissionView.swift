@@ -304,7 +304,13 @@ struct PermissionWelcomeView: View {
                     }) {
                         HStack(spacing: 8) {
                             Image(systemName: "heart.fill")
-                                .foregroundStyle(.pink)
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: [Color.supportAccentPrimary, Color.supportAccentSecondary],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
                             Text("Support Scribe ☕️")
                                 .font(.system(size: 14, weight: .semibold, design: .rounded))
                                 .foregroundStyle(.primary)
@@ -316,12 +322,12 @@ struct PermissionWelcomeView: View {
                                 RoundedRectangle(cornerRadius: 12)
                                     .fill(.ultraThinMaterial)
                                 RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color.primary.opacity(0.04))
+                                    .fill(Color.supportAccentPrimary.opacity(0.04))
                             }
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
-                                .strokeBorder(Color.primary.opacity(0.15), lineWidth: 1)
+                                .strokeBorder(Color.supportAccentPrimary.opacity(0.22), lineWidth: 1)
                         )
                     }
                     .buttonStyle(.plain)

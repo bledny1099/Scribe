@@ -251,7 +251,7 @@ struct SettingsSidebarView: View {
                         Circle()
                             .fill(
                                 LinearGradient(
-                                    colors: [Color.pink.opacity(0.25), Color.orange.opacity(0.25)],
+                                    colors: [Color.supportAccentPrimary.opacity(0.18), Color.supportAccentSecondary.opacity(0.18)],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 )
@@ -262,7 +262,7 @@ struct SettingsSidebarView: View {
                             .font(.system(size: 10, weight: .bold))
                             .foregroundStyle(
                                 LinearGradient(
-                                    colors: [.pink, .orange],
+                                    colors: [Color.supportAccentPrimary, Color.supportAccentSecondary],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 )
@@ -289,7 +289,7 @@ struct SettingsSidebarView: View {
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .strokeBorder(Color.pink.opacity(0.25), lineWidth: 0.8)
+                        .strokeBorder(Color.supportAccentPrimary.opacity(0.22), lineWidth: 0.8)
                 )
             }
             .buttonStyle(.plain)
@@ -1066,18 +1066,18 @@ struct GoldCertificateCardView: View {
     }
 
     private var themeColor: Color {
-        isLevelTheme ? history.currentLevelColor : .yellow
+        isLevelTheme ? history.currentLevelColor : Color.supportChampagne
     }
 
     private var secondaryThemeColor: Color {
-        isLevelTheme ? history.currentLevelColor.opacity(0.8) : .orange
+        isLevelTheme ? history.currentLevelColor.opacity(0.8) : Color.supportChampagneSecondary
     }
 
     private var themeGradient: LinearGradient {
         if isLevelTheme {
             return LinearGradient(colors: [history.currentLevelColor, history.currentLevelColor.opacity(0.7), history.currentLevelColor], startPoint: .leading, endPoint: .trailing)
         } else {
-            return LinearGradient(colors: [.yellow, Color(red: 0.95, green: 0.75, blue: 0.2), .yellow], startPoint: .leading, endPoint: .trailing)
+            return LinearGradient(colors: [Color.supportChampagne, Color.supportChampagneSecondary, Color.supportChampagne], startPoint: .leading, endPoint: .trailing)
         }
     }
 
@@ -1113,9 +1113,9 @@ struct GoldCertificateCardView: View {
                             .foregroundStyle(LinearGradient(colors: supporterTier.gradientColors, startPoint: .topLeading, endPoint: .bottomTrailing))
                             .padding(.horizontal, 7)
                             .padding(.vertical, 2.5)
-                            .background(supporterTier.gradientColors.first?.opacity(0.16) ?? Color.yellow.opacity(0.16))
+                            .background(supporterTier.gradientColors.first?.opacity(0.16) ?? Color.supportChampagne.opacity(0.16))
                             .cornerRadius(5)
-                            .overlay(RoundedRectangle(cornerRadius: 5).stroke(supporterTier.gradientColors.first?.opacity(0.45) ?? Color.yellow.opacity(0.45), lineWidth: 0.8))
+                            .overlay(RoundedRectangle(cornerRadius: 5).stroke(supporterTier.gradientColors.first?.opacity(0.45) ?? Color.supportChampagne.opacity(0.45), lineWidth: 0.8))
                         }
                         .buttonStyle(.plain)
                         .help(appState.l("Preview Animation"))
@@ -1163,7 +1163,7 @@ struct GoldCertificateCardView: View {
                             LinearGradient(
                                 colors: isLevelTheme ?
                                     [history.currentLevelColor, history.currentLevelColor.opacity(0.7), history.currentLevelColor] :
-                                    [.yellow, .orange, Color(red: 0.8, green: 0.5, blue: 0.0)],
+                                    [Color.supportChampagne, Color.supportChampagneSecondary, Color(red: 0.65, green: 0.56, blue: 0.44)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -2349,10 +2349,10 @@ struct SupportDeveloperModal: View {
                     }
                     .padding(.horizontal, 9)
                     .padding(.vertical, 5)
-                    .background(Color.accentColor.opacity(0.12))
-                    .foregroundStyle(Color.accentColor)
+                    .background(Color.supportAccentPrimary.opacity(0.12))
+                    .foregroundStyle(Color.supportAccentPrimary)
                     .cornerRadius(7)
-                    .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.accentColor.opacity(0.25), lineWidth: 0.8))
+                    .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.supportAccentPrimary.opacity(0.25), lineWidth: 0.8))
                 }
                 .buttonStyle(.plain)
                 .help(appState.l("Preview Animation"))
@@ -2380,7 +2380,7 @@ struct SupportDeveloperModal: View {
                                 Circle()
                                     .fill(LinearGradient(colors: supporterTier.gradientColors, startPoint: .topLeading, endPoint: .bottomTrailing))
                                     .frame(width: 36, height: 36)
-                                    .shadow(color: (supporterTier.gradientColors.first ?? .yellow).opacity(0.35), radius: 5)
+                                    .shadow(color: (supporterTier.gradientColors.first ?? Color.supportChampagne).opacity(0.25), radius: 5)
 
                                 Image(systemName: supporterTier.icon)
                                     .font(.system(size: 16, weight: .bold))
@@ -2444,10 +2444,10 @@ struct SupportDeveloperModal: View {
                                     }
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 6)
-                                    .background((supporterTier.gradientColors.first ?? .yellow).opacity(0.18))
+                                    .background((supporterTier.gradientColors.first ?? Color.supportChampagne).opacity(0.16))
                                     .foregroundStyle(Color.primary)
                                     .cornerRadius(7)
-                                    .overlay(RoundedRectangle(cornerRadius: 7).stroke((supporterTier.gradientColors.first ?? .yellow).opacity(0.45), lineWidth: 0.8))
+                                    .overlay(RoundedRectangle(cornerRadius: 7).stroke((supporterTier.gradientColors.first ?? Color.supportChampagne).opacity(0.35), lineWidth: 0.8))
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -2455,7 +2455,7 @@ struct SupportDeveloperModal: View {
                         .padding(10)
                         .background(Color.primary.opacity(0.035))
                         .cornerRadius(10)
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke((supporterTier.gradientColors.first ?? .yellow).opacity(0.3), lineWidth: 0.8))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke((supporterTier.gradientColors.first ?? Color.supportChampagne).opacity(0.25), lineWidth: 0.8))
                         .padding(.horizontal, 18)
                         .padding(.top, 4)
                     }
@@ -2632,10 +2632,10 @@ struct SupportDeveloperModal: View {
                                 }
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 8)
-                                .background(LinearGradient(colors: [Color.yellow.opacity(0.25), Color.orange.opacity(0.2)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                .background(LinearGradient(colors: [Color.supportAccentPrimary.opacity(0.20), Color.supportAccentSecondary.opacity(0.16)], startPoint: .topLeading, endPoint: .bottomTrailing))
                                 .foregroundStyle(Color.primary)
                                 .cornerRadius(8)
-                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.yellow.opacity(0.45), lineWidth: 1))
+                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.supportAccentPrimary.opacity(0.35), lineWidth: 1))
                             }
                             .buttonStyle(.plain)
                             .disabled(inputAddressOrTx.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isVerifying)
@@ -8058,302 +8058,199 @@ struct SupporterCelebrationOverlayView: View {
     @EnvironmentObject var appState: AppState
 
     @State private var appeared = false
-    @State private var ringScale: CGFloat = 0.85
-    @State private var ringOpacity: Double = 0.8
-    @State private var orbFloat = false
-    @State private var sparkleRotation: Double = 0
     @State private var progress: CGFloat = 0.0
     @State private var autoDismissTask: Task<Void, Never>? = nil
 
     private var tierColors: [Color] {
-        data.tier.gradientColors.isEmpty ? [.yellow, .orange] : data.tier.gradientColors
+        data.tier.gradientColors.isEmpty ? [Color.supportChampagne, Color.supportChampagneSecondary] : data.tier.gradientColors
     }
 
     private var primaryColor: Color {
-        tierColors.first ?? Color(red: 1.0, green: 0.84, blue: 0.0)
+        tierColors.first ?? Color.supportChampagne
     }
 
     private var secondaryColor: Color {
-        tierColors.count > 1 ? tierColors.last! : primaryColor.opacity(0.8)
-    }
-
-    private struct SparkleParticle: Identifiable {
-        let id: Int
-        let xRatio: CGFloat
-        let yRatio: CGFloat
-        let size: CGFloat
-        let opacity: Double
-        let floatOffset: CGFloat
-    }
-
-    private let particles: [SparkleParticle] = (0..<24).map { i in
-        let seed = Double(i) * 137.5
-        let x = CGFloat(0.12 + 0.76 * abs(sin(seed)))
-        let y = CGFloat(0.10 + 0.80 * abs(cos(seed)))
-        let sz = CGFloat(2.0 + (Double(i % 5) * 1.2))
-        let op = 0.35 + (Double(i % 4) * 0.18)
-        let float = CGFloat(6.0 + Double(i % 6) * 3.0)
-        return SparkleParticle(id: i, xRatio: x, yRatio: y, size: sz, opacity: op, floatOffset: float)
+        tierColors.count > 1 ? tierColors.last! : Color.supportChampagneSecondary
     }
 
     var body: some View {
-        GeometryReader { geo in
-            ZStack {
-                // Layer 0: Velvety dark glass background
-                Color(red: 0.04, green: 0.05, blue: 0.08)
-                    .opacity(0.90)
-                    .background(.ultraThinMaterial)
+        ZStack {
+            // Layer 0: Calm darkened backdrop with native blur
+            Color.black
+                .opacity(0.60)
+                .background(.ultraThinMaterial)
 
-                // Layer 1: Ambient breathing light orbs
-                RadialGradient(
-                    colors: [primaryColor.opacity(0.38), .clear],
-                    center: .center,
-                    startRadius: 10,
-                    endRadius: 280
-                )
-                .scaleEffect(orbFloat ? 1.15 : 0.88)
-                .offset(y: orbFloat ? -15 : 15)
-                .blur(radius: 24)
+            // Layer 1: Subtle, calm ambient backlight centered behind crest
+            RadialGradient(
+                colors: [primaryColor.opacity(0.12), primaryColor.opacity(0.02), .clear],
+                center: .center,
+                startRadius: 10,
+                endRadius: 200
+            )
+            .blur(radius: 30)
 
-                RadialGradient(
-                    colors: [secondaryColor.opacity(0.24), .clear],
-                    center: UnitPoint(x: 0.3, y: 0.75),
-                    startRadius: 20,
-                    endRadius: 320
-                )
-                .scaleEffect(orbFloat ? 0.9 : 1.1)
-                .blur(radius: 32)
+            // Layer 2: Clean Central Content
+            VStack(spacing: 18) {
+                Spacer()
 
-                // Layer 2: Floating Sparkles
-                ForEach(particles) { p in
+                // Minimalist Emblem Disc
+                ZStack {
                     Circle()
-                        .fill(primaryColor.opacity(p.opacity))
-                        .frame(width: p.size, height: p.size)
-                        .position(x: geo.size.width * p.xRatio, y: geo.size.height * p.yRatio + (orbFloat ? -p.floatOffset : p.floatOffset))
-                        .shadow(color: primaryColor.opacity(0.8), radius: p.size * 2)
+                        .fill(.ultraThinMaterial)
+                        .frame(width: 74, height: 74)
+                        .overlay(
+                            Circle()
+                                .fill(primaryColor.opacity(0.08))
+                        )
+                        .overlay(
+                            Circle()
+                                .strokeBorder(
+                                    LinearGradient(
+                                        colors: [
+                                            Color.white.opacity(0.24),
+                                            primaryColor.opacity(0.35),
+                                            Color.white.opacity(0.08)
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 1
+                                )
+                        )
+                        .shadow(color: Color.black.opacity(0.25), radius: 14, x: 0, y: 5)
+
+                    Image(systemName: data.tier.icon)
+                        .font(.system(size: 30, weight: .semibold))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [Color.white.opacity(0.96), primaryColor],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .shadow(color: primaryColor.opacity(0.25), radius: 6)
                 }
+                .scaleEffect(appeared ? 1.0 : 0.92)
+                .opacity(appeared ? 1.0 : 0.0)
 
-                // Layer 3: Central Content Card
-                VStack(spacing: 20) {
-                    Spacer()
+                // Typography & Headings
+                VStack(spacing: 8) {
+                    Text(appState.l("Thanks!"))
+                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color(white: 0.96))
+                        .shadow(color: Color.black.opacity(0.3), radius: 6, x: 0, y: 2)
 
-                    // Glowing Emblem Crest with pulsing aura
-                    ZStack {
-                        // Expanding pulsing aura ring
-                        Circle()
-                            .stroke(
-                                LinearGradient(colors: tierColors, startPoint: .topLeading, endPoint: .bottomTrailing),
-                                lineWidth: 2
-                            )
-                            .frame(width: 88, height: 88)
-                            .scaleEffect(ringScale)
-                            .opacity(ringOpacity)
-
-                        // Outer glowing rim
-                        Circle()
-                            .strokeBorder(
-                                LinearGradient(colors: [primaryColor.opacity(0.7), secondaryColor.opacity(0.3)], startPoint: .topLeading, endPoint: .bottomTrailing),
-                                lineWidth: 1.5
-                            )
-                            .frame(width: 84, height: 84)
-
-                        // Glass disc base
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [
-                                        Color.white.opacity(0.18),
-                                        primaryColor.opacity(0.15),
-                                        Color.black.opacity(0.45)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .frame(width: 78, height: 78)
-                            .shadow(color: primaryColor.opacity(0.55), radius: 24, x: 0, y: 8)
-
-                        // Center Tier Icon
-                        Image(systemName: data.tier.icon)
-                            .font(.system(size: 34, weight: .bold))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [Color.white, primaryColor, secondaryColor],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .shadow(color: primaryColor.opacity(0.9), radius: 14)
-
-                        // Rotating orbital sparkles
-                        ForEach(0..<4) { idx in
-                            Image(systemName: "sparkle")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(primaryColor)
-                                .offset(x: 54 * cos(Double(idx) * .pi / 2 + sparkleRotation),
-                                        y: 54 * sin(Double(idx) * .pi / 2 + sparkleRotation))
-                                .opacity(0.85)
-                                .shadow(color: primaryColor, radius: 4)
-                        }
-                    }
-                    .scaleEffect(appeared ? 1.0 : 0.6)
-                    .opacity(appeared ? 1.0 : 0.0)
-
-                    // Typography & Headings
-                    VStack(spacing: 8) {
-                        Text(appState.l("Thanks!"))
-                            .font(.system(size: 42, weight: .black, design: .rounded))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [
-                                        Color(white: 1.0),
-                                        Color(red: 1.0, green: 0.94, blue: 0.8),
-                                        primaryColor
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .shadow(color: primaryColor.opacity(0.45), radius: 18, x: 0, y: 6)
-
-                        Text(appState.l("Thanks for contributing to this project"))
-                            .font(.system(size: 16, weight: .bold, design: .rounded))
-                            .foregroundStyle(Color.primary.opacity(0.95))
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 24)
-                    }
-                    .offset(y: appeared ? 0 : 16)
-                    .opacity(appeared ? 1.0 : 0.0)
-
-                    // Tier & Contribution Badge Capsule
-                    HStack(spacing: 8) {
-                        Image(systemName: data.tier.icon)
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(primaryColor)
-
-                        Text("✦ \(data.tier.badgeText) ✦")
-                            .font(.system(size: 11, weight: .heavy, design: .monospaced))
-                            .foregroundStyle(
-                                LinearGradient(colors: tierColors, startPoint: .leading, endPoint: .trailing)
-                            )
-
-                        if data.amount > 0 {
-                            Text("•")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundStyle(.secondary)
-                            Text("\(String(format: "%.2f", data.amount)) \(data.currency)")
-                                .font(.system(size: 11.5, weight: .bold, design: .monospaced))
-                                .foregroundStyle(.primary.opacity(0.9))
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(
-                        Capsule()
-                            .fill(.ultraThinMaterial)
-                    )
-                    .overlay(
-                        Capsule()
-                            .fill(primaryColor.opacity(0.12))
-                    )
-                    .overlay(
-                        Capsule()
-                            .strokeBorder(
-                                LinearGradient(
-                                    colors: [primaryColor.opacity(0.55), secondaryColor.opacity(0.2)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
-                            )
-                    )
-                    .shadow(color: primaryColor.opacity(0.25), radius: 12, y: 4)
-                    .scaleEffect(appeared ? 1.0 : 0.85)
-                    .opacity(appeared ? 1.0 : 0.0)
-
-                    // Appreciation Subtitle
-                    Text(appState.l("Your contribution helps Scribe remain fast, private, and 100% offline."))
-                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                        .foregroundStyle(.secondary.opacity(0.85))
+                    Text(appState.l("Thanks for contributing to this project"))
+                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                        .foregroundStyle(Color.secondary)
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal, 40)
-                        .opacity(appeared ? 1.0 : 0.0)
-
-                    Spacer()
-
-                    // Bottom Countdown Bar & Dismiss Hint
-                    VStack(spacing: 10) {
-                        // Countdown progress bar (3.5 seconds)
-                        GeometryReader { barGeo in
-                            ZStack(alignment: .leading) {
-                                Capsule()
-                                    .fill(Color.white.opacity(0.12))
-                                    .frame(height: 3)
-
-                                Capsule()
-                                    .fill(
-                                        LinearGradient(
-                                            colors: tierColors,
-                                            startPoint: .leading,
-                                            endPoint: .trailing
-                                        )
-                                    )
-                                    .frame(width: barGeo.size.width * progress, height: 3)
-                                    .shadow(color: primaryColor.opacity(0.7), radius: 4)
-                            }
-                        }
-                        .frame(width: 140, height: 3)
-
-                        Button(action: {
-                            dismissWithAnimation()
-                        }) {
-                            HStack(spacing: 6) {
-                                Text(appState.l("Press anywhere or Esc to continue"))
-                                    .font(.system(size: 10.5, weight: .semibold, design: .rounded))
-                                    .foregroundStyle(.secondary.opacity(0.75))
-                            }
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .padding(.bottom, 24)
-                    .opacity(appeared ? 1.0 : 0.0)
+                        .padding(.horizontal, 32)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .offset(y: appeared ? 0 : 8)
+                .opacity(appeared ? 1.0 : 0.0)
+
+                // Tier & Contribution Badge Capsule
+                HStack(spacing: 7) {
+                    Image(systemName: data.tier.icon)
+                        .font(.system(size: 10.5, weight: .bold))
+                        .foregroundStyle(primaryColor)
+
+                    Text(data.tier.badgeText)
+                        .font(.system(size: 10.5, weight: .bold, design: .monospaced))
+                        .foregroundStyle(
+                            LinearGradient(colors: tierColors, startPoint: .leading, endPoint: .trailing)
+                        )
+
+                    if data.amount > 0 {
+                        Text("•")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.secondary)
+                        Text("\(String(format: "%.2f", data.amount)) \(data.currency)")
+                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(.primary.opacity(0.9))
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
+                .background(
+                    Capsule()
+                        .fill(.ultraThinMaterial)
+                )
+                .overlay(
+                    Capsule()
+                        .fill(primaryColor.opacity(0.08))
+                )
+                .overlay(
+                    Capsule()
+                        .strokeBorder(primaryColor.opacity(0.25), lineWidth: 0.8)
+                )
+                .scaleEffect(appeared ? 1.0 : 0.95)
+                .opacity(appeared ? 1.0 : 0.0)
+
+                // Appreciation Subtitle
+                Text(appState.l("Your contribution helps Scribe remain fast, private, and 100% offline."))
+                    .font(.system(size: 12, weight: .regular, design: .rounded))
+                    .foregroundStyle(.secondary.opacity(0.80))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
+                    .opacity(appeared ? 1.0 : 0.0)
+
+                Spacer()
+
+                // Bottom Hairline Countdown & Dismiss Hint
+                VStack(spacing: 8) {
+                    // Countdown progress bar (3.5 seconds)
+                    GeometryReader { barGeo in
+                        ZStack(alignment: .leading) {
+                            Capsule()
+                                .fill(Color.white.opacity(0.10))
+                                .frame(height: 2)
+
+                            Capsule()
+                                .fill(
+                                    LinearGradient(
+                                        colors: tierColors,
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .frame(width: barGeo.size.width * progress, height: 2)
+                        }
+                    }
+                    .frame(width: 110, height: 2)
+
+                    Button(action: {
+                        dismissWithAnimation()
+                    }) {
+                        Text(appState.l("Press anywhere or Esc to continue"))
+                            .font(.system(size: 10, weight: .medium, design: .rounded))
+                            .foregroundStyle(.secondary.opacity(0.65))
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.bottom, 24)
+                .opacity(appeared ? 1.0 : 0.0)
             }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                dismissWithAnimation()
-            }
-            .onExitCommand {
-                dismissWithAnimation()
-            }
-            .onAppear {
-                startAnimations()
-            }
-            .onDisappear {
-                autoDismissTask?.cancel()
-            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            dismissWithAnimation()
+        }
+        .onExitCommand {
+            dismissWithAnimation()
+        }
+        .onAppear {
+            startAnimations()
+        }
+        .onDisappear {
+            autoDismissTask?.cancel()
         }
     }
 
     private func startAnimations() {
-        SoundFeedback.play(.supporterCelebration)
-
-        withAnimation(.spring(response: 0.55, dampingFraction: 0.72)) {
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.84)) {
             appeared = true
-        }
-
-        withAnimation(.easeInOut(duration: 3.2).repeatForever(autoreverses: true)) {
-            orbFloat = true
-        }
-
-        withAnimation(.linear(duration: 10.0).repeatForever(autoreverses: false)) {
-            sparkleRotation = 2 * .pi
-        }
-
-        withAnimation(.easeOut(duration: 1.6).repeatForever(autoreverses: false)) {
-            ringScale = 1.45
-            ringOpacity = 0.0
         }
 
         // Animate countdown progress bar over 3.5 seconds
@@ -8374,7 +8271,7 @@ struct SupporterCelebrationOverlayView: View {
 
     private func dismissWithAnimation() {
         autoDismissTask?.cancel()
-        withAnimation(.easeInOut(duration: 0.35)) {
+        withAnimation(.easeInOut(duration: 0.25)) {
             onDismiss()
         }
     }

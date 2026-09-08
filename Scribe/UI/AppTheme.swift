@@ -121,3 +121,17 @@ enum AppTheme: String, CaseIterable, Identifiable {
         (gradientColors[0], gradientColors[1])
     }
 }
+
+// MARK: - Supporter & Donation Theme Palette
+
+extension Color {
+    /// Refined warm rose-gold terracotta for support accents
+    static let supportAccentPrimary = Color(red: 0.84, green: 0.55, blue: 0.48)
+    /// Warm champagne pearl tone paired with support accent
+    static let supportAccentSecondary = Color(red: 0.88, green: 0.76, blue: 0.66)
+    /// Muted luxury champagne cashmere gold
+    static let supportChampagne = Color(red: 0.88, green: 0.80, blue: 0.68)
+    /// Darker muted sand gold for secondary gradients
+    static let supportChampagneSecondary = Color(red: 0.73, green: 0.64, blue: 0.52)
+}
+
