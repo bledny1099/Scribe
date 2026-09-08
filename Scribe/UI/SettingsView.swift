@@ -1095,19 +1095,30 @@ struct GoldCertificateCardView: View {
 
                 HStack(spacing: 8) {
                     if isScribeSupporter {
-                        HStack(spacing: 4) {
-                            Image(systemName: supporterTier.icon)
-                                .font(.system(size: 8, weight: .bold))
-                            Text(supporterTier.badgeText)
-                                .font(.system(size: 8, weight: .black, design: .rounded))
-                                .tracking(0.4)
+                        Button {
+                            appState.triggerSupporterCelebration(
+                                tier: supporterTier,
+                                amount: supporterDonationAmount,
+                                currency: "USDT",
+                                isPreview: true
+                            )
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: supporterTier.icon)
+                                    .font(.system(size: 8, weight: .bold))
+                                Text(supporterTier.badgeText)
+                                    .font(.system(size: 8, weight: .black, design: .rounded))
+                                    .tracking(0.4)
+                            }
+                            .foregroundStyle(LinearGradient(colors: supporterTier.gradientColors, startPoint: .topLeading, endPoint: .bottomTrailing))
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 2.5)
+                            .background(supporterTier.gradientColors.first?.opacity(0.16) ?? Color.yellow.opacity(0.16))
+                            .cornerRadius(5)
+                            .overlay(RoundedRectangle(cornerRadius: 5).stroke(supporterTier.gradientColors.first?.opacity(0.45) ?? Color.yellow.opacity(0.45), lineWidth: 0.8))
                         }
-                        .foregroundStyle(LinearGradient(colors: supporterTier.gradientColors, startPoint: .topLeading, endPoint: .bottomTrailing))
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 2.5)
-                        .background(supporterTier.gradientColors.first?.opacity(0.16) ?? Color.yellow.opacity(0.16))
-                        .cornerRadius(5)
-                        .overlay(RoundedRectangle(cornerRadius: 5).stroke(supporterTier.gradientColors.first?.opacity(0.45) ?? Color.yellow.opacity(0.45), lineWidth: 0.8))
+                        .buttonStyle(.plain)
+                        .help(appState.l("Preview Animation"))
                     }
 
                     Text("EST. 2026")
@@ -2318,6 +2329,33 @@ struct SupportDeveloperModal: View {
                 }
 
                 Spacer()
+
+                Button(action: {
+                    dismiss()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                        appState.triggerSupporterCelebration(
+                            tier: isScribeSupporter ? supporterTier : .tier3,
+                            amount: isScribeSupporter ? supporterDonationAmount : 25.0,
+                            currency: isScribeSupporter && !supporterDonationCurrency.isEmpty ? supporterDonationCurrency : "USDT",
+                            isPreview: true
+                        )
+                    }
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 11, weight: .bold))
+                        Text(appState.l("Preview Animation"))
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    }
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 5)
+                    .background(Color.accentColor.opacity(0.12))
+                    .foregroundStyle(Color.accentColor)
+                    .cornerRadius(7)
+                    .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.accentColor.opacity(0.25), lineWidth: 0.8))
+                }
+                .buttonStyle(.plain)
+                .help(appState.l("Preview Animation"))
 
                 Button {
                     dismiss()
