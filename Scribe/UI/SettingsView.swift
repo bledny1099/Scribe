@@ -196,6 +196,16 @@ struct SettingsSidebarView: View {
     @Binding var showingOnboardingNameModal: Bool
     @Binding var showingAppleNotesModal: Bool
     @EnvironmentObject var appState: AppState
+    @AppStorage("isScribeSupporter") private var isScribeSupporter: Bool = false
+    @AppStorage("supporterDonationAmount") private var supporterDonationAmount: Double = 0
+
+    private var supporterTier: SupporterTier {
+        SupporterTier.tier(for: supporterDonationAmount > 0 ? supporterDonationAmount : 10.0)
+    }
+
+    private var supporterColors: [Color] {
+        isScribeSupporter ? supporterTier.gradientColors : [Color.supportAccentPrimary, Color.supportAccentSecondary]
+    }
 
     private let mainTabs: [SettingsTab] = [
         .general,
@@ -251,18 +261,18 @@ struct SettingsSidebarView: View {
                         Circle()
                             .fill(
                                 LinearGradient(
-                                    colors: [Color.supportAccentPrimary.opacity(0.18), Color.supportAccentSecondary.opacity(0.18)],
+                                    colors: [supporterColors.first?.opacity(0.18) ?? Color.supportAccentPrimary.opacity(0.18), (supporterColors.count > 1 ? supporterColors[1] : supporterColors[0]).opacity(0.18)],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 )
                             )
                             .frame(width: 22, height: 22)
                         
-                        Image(systemName: "heart.fill")
+                        Image(systemName: isScribeSupporter ? supporterTier.icon : "heart.fill")
                             .font(.system(size: 10, weight: .bold))
                             .foregroundStyle(
                                 LinearGradient(
-                                    colors: [Color.supportAccentPrimary, Color.supportAccentSecondary],
+                                    colors: supporterColors,
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 )
@@ -289,7 +299,7 @@ struct SettingsSidebarView: View {
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .strokeBorder(Color.supportAccentPrimary.opacity(0.22), lineWidth: 0.8)
+                        .strokeBorder(supporterColors.first?.opacity(0.24) ?? Color.supportAccentPrimary.opacity(0.22), lineWidth: 0.8)
                 )
             }
             .buttonStyle(.plain)
@@ -638,25 +648,13 @@ struct LevelUpSweepOverlay: View {
     }
 }
 
-enum CertificateColorTheme: String, CaseIterable, Identifiable {
-    case gold = "Gold Theme"
-    case levelColor = "Level Theme"
-
-    var id: String { rawValue }
-}
-
 struct StatisticsSectionView: View {
     @EnvironmentObject var appState: AppState
     @ObservedObject var history = TranscriptionHistory.shared
     var isLevelUpSweepActive: Bool = false
     var previousLevel: Int = 1
     @State private var timeFrame: StatsTimeFrame = .today
-    @AppStorage("goldCertColorTheme") private var certColorThemeRaw: String = CertificateColorTheme.levelColor.rawValue
     @State private var showTopWords: Bool = false
-
-    private var selectedTheme: CertificateColorTheme {
-        CertificateColorTheme(rawValue: certColorThemeRaw) ?? .levelColor
-    }
     
     // Animation states
     @State private var isPulsing = false
@@ -729,22 +727,6 @@ struct StatisticsSectionView: View {
                 .shadow(color: history.currentLevelColor.opacity(0.3), radius: 12, x: 0, y: 4)
                 .transition(.asymmetric(insertion: .scale.combined(with: .opacity), removal: .opacity))
             }
-            // Certificate Color Theme Switcher Row
-            HStack {
-                Text(appState.l("Certificate Color"))
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
-                Spacer()
-                LiquidGlassSegmentedPicker(
-                    items: CertificateColorTheme.allCases,
-                    selection: Binding(
-                        get: { selectedTheme },
-                        set: { certColorThemeRaw = $0.rawValue }
-                    ),
-                    label: { (appState.l($0.rawValue), "") }
-                )
-            }
 
             // Imperial Certificate Card
             GoldCertificateCardView(
@@ -754,7 +736,6 @@ struct StatisticsSectionView: View {
             )
             .scaleEffect(appearAnimation ? 1 : 0.96)
             .opacity(appearAnimation ? 1 : 0)
-            .animation(.spring(response: 0.5, dampingFraction: 0.8), value: certColorThemeRaw)
             
             // Top Spoken Words Expansion Drawer
             if showTopWords {
@@ -1050,7 +1031,6 @@ struct CyberShieldCardView: View {
 struct GoldCertificateCardView: View {
     @EnvironmentObject var appState: AppState
     @ObservedObject var history = TranscriptionHistory.shared
-    @AppStorage("goldCertColorTheme") private var colorThemeRaw: String = CertificateColorTheme.levelColor.rawValue
     @AppStorage("isScribeSupporter") private var isScribeSupporter: Bool = false
     @AppStorage("supporterDonationAmount") private var supporterDonationAmount: Double = 0
     var isPulsing: Bool
@@ -1061,24 +1041,20 @@ struct GoldCertificateCardView: View {
         SupporterTier.tier(for: supporterDonationAmount > 0 ? supporterDonationAmount : 10.0)
     }
 
-    private var isLevelTheme: Bool {
-        colorThemeRaw == CertificateColorTheme.levelColor.rawValue
-    }
-
     private var themeColor: Color {
-        isLevelTheme ? history.currentLevelColor : .yellow
+        history.currentLevelColor
     }
 
     private var secondaryThemeColor: Color {
-        isLevelTheme ? history.currentLevelColor.opacity(0.8) : .orange
+        history.currentLevelColor.opacity(0.8)
     }
 
     private var themeGradient: LinearGradient {
-        if isLevelTheme {
-            return LinearGradient(colors: [history.currentLevelColor, history.currentLevelColor.opacity(0.7), history.currentLevelColor], startPoint: .leading, endPoint: .trailing)
-        } else {
-            return LinearGradient(colors: [.yellow, Color(red: 0.95, green: 0.75, blue: 0.2), .yellow], startPoint: .leading, endPoint: .trailing)
-        }
+        LinearGradient(
+            colors: [history.currentLevelColor, history.currentLevelColor.opacity(0.7), history.currentLevelColor],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
     }
 
     var body: some View {
@@ -1110,12 +1086,12 @@ struct GoldCertificateCardView: View {
                                     .font(.system(size: 8, weight: .bold, design: .rounded))
                                     .tracking(0.3)
                             }
-                            .foregroundStyle(LinearGradient(colors: supporterTier.gradientColors, startPoint: .topLeading, endPoint: .bottomTrailing))
+                            .foregroundStyle(themeColor)
                             .padding(.horizontal, 7)
                             .padding(.vertical, 2.5)
-                            .background(supporterTier.gradientColors.first?.opacity(0.14) ?? Color.yellow.opacity(0.14))
+                            .background(themeColor.opacity(0.14))
                             .cornerRadius(5)
-                            .overlay(RoundedRectangle(cornerRadius: 5).stroke(supporterTier.gradientColors.first?.opacity(0.35) ?? Color.yellow.opacity(0.35), lineWidth: 0.8))
+                            .overlay(RoundedRectangle(cornerRadius: 5).stroke(themeColor.opacity(0.35), lineWidth: 0.8))
                         }
                         .buttonStyle(.plain)
                         .help(appState.l("Preview Animation"))
@@ -1123,7 +1099,7 @@ struct GoldCertificateCardView: View {
 
                     Text("EST. 2026")
                         .font(.system(size: 8.5, weight: .bold, design: .serif))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(themeColor.opacity(0.65))
                         .lineLimit(1)
                 }
             }
@@ -1161,15 +1137,13 @@ struct GoldCertificateCardView: View {
                     Circle()
                         .fill(
                             LinearGradient(
-                                colors: isLevelTheme ?
-                                    [history.currentLevelColor, history.currentLevelColor.opacity(0.7), history.currentLevelColor] :
-                                    [.yellow, .orange, Color(red: 0.8, green: 0.5, blue: 0.0)],
+                                colors: [history.currentLevelColor, history.currentLevelColor.opacity(0.7), history.currentLevelColor],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
                         )
                         .frame(width: 48, height: 48)
-                        .shadow(color: secondaryThemeColor.opacity(0.5), radius: 8)
+                        .shadow(color: history.currentLevelColor.opacity(0.4), radius: 8)
 
                     Circle()
                         .stroke(Color.white.opacity(0.4), lineWidth: 1)
@@ -2308,6 +2282,14 @@ struct SupportDeveloperModal: View {
         SupporterTier.tier(for: supporterDonationAmount > 0 ? supporterDonationAmount : 10.0)
     }
 
+    private var tierPrimaryColor: Color {
+        supporterTier.gradientColors.first ?? Color.accentColor
+    }
+
+    private var tierSecondaryColor: Color {
+        supporterTier.gradientColors.last ?? tierPrimaryColor
+    }
+
     private var personalMemoCode: String {
         if supporterPersonalMemoCode.isEmpty {
             let code = "SCR-" + String(format: "%04X", Int.random(in: 0x1000...0xFFFF))
@@ -2438,12 +2420,12 @@ struct SupportDeveloperModal: View {
                                     }
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 7.5)
-                                    .background((supporterTier.gradientColors.first ?? Color(red: 1.0, green: 0.84, blue: 0.0)).opacity(0.12))
+                                    .background(tierPrimaryColor.opacity(0.12))
                                     .foregroundStyle(Color.primary)
                                     .cornerRadius(8)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 8)
-                                            .stroke((supporterTier.gradientColors.first ?? Color(red: 1.0, green: 0.84, blue: 0.0)).opacity(0.28), lineWidth: 0.8)
+                                            .stroke(tierPrimaryColor.opacity(0.28), lineWidth: 0.8)
                                     )
                                 }
                                 .buttonStyle(.plain)
@@ -2454,7 +2436,7 @@ struct SupportDeveloperModal: View {
                         .cornerRadius(10)
                         .overlay(
                             RoundedRectangle(cornerRadius: 10)
-                                .stroke((supporterTier.gradientColors.first ?? Color(red: 1.0, green: 0.84, blue: 0.0)).opacity(0.20), lineWidth: 0.8)
+                                .stroke(tierPrimaryColor.opacity(0.22), lineWidth: 0.8)
                         )
                         .padding(.horizontal, 18)
                         .padding(.top, 4)
@@ -2632,10 +2614,21 @@ struct SupportDeveloperModal: View {
                                 }
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 8)
-                                .background(LinearGradient(colors: [Color.yellow.opacity(0.24), Color.orange.opacity(0.18)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                .background(
+                                    LinearGradient(
+                                        colors: isScribeSupporter ?
+                                            [tierPrimaryColor.opacity(0.24), tierSecondaryColor.opacity(0.18)] :
+                                            [Color.accentColor.opacity(0.20), Color.accentColor.opacity(0.14)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
                                 .foregroundStyle(Color.primary)
                                 .cornerRadius(8)
-                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.yellow.opacity(0.35), lineWidth: 1))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke((isScribeSupporter ? tierPrimaryColor : Color.accentColor).opacity(0.35), lineWidth: 1)
+                                )
                             }
                             .buttonStyle(.plain)
                             .disabled(inputAddressOrTx.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isVerifying)
