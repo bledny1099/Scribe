@@ -2330,33 +2330,6 @@ struct SupportDeveloperModal: View {
 
                 Spacer()
 
-                Button(action: {
-                    dismiss()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                        appState.triggerSupporterCelebration(
-                            tier: isScribeSupporter ? supporterTier : .tier3,
-                            amount: isScribeSupporter ? supporterDonationAmount : 25.0,
-                            currency: isScribeSupporter && !supporterDonationCurrency.isEmpty ? supporterDonationCurrency : "USDT",
-                            isPreview: true
-                        )
-                    }
-                }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 11, weight: .bold))
-                        Text(appState.l("Preview Animation"))
-                            .font(.system(size: 11, weight: .semibold, design: .rounded))
-                    }
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 5)
-                    .background(Color.supportAccentPrimary.opacity(0.12))
-                    .foregroundStyle(Color.supportAccentPrimary)
-                    .cornerRadius(7)
-                    .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.supportAccentPrimary.opacity(0.25), lineWidth: 0.8))
-                }
-                .buttonStyle(.plain)
-                .help(appState.l("Preview Animation"))
-
                 Button {
                     dismiss()
                 } label: {
@@ -2373,37 +2346,52 @@ struct SupportDeveloperModal: View {
 
             ScrollView(.vertical, showsIndicators: true) {
                 VStack(spacing: 18) {
-                    // Supporter Active Status Ribbon (Compact & Clean)
+                    // Supporter Active Status Ribbon (Clean & Neutral)
                     if isScribeSupporter {
-                        HStack(spacing: 12) {
-                            ZStack {
-                                Circle()
-                                    .fill(LinearGradient(colors: supporterTier.gradientColors, startPoint: .topLeading, endPoint: .bottomTrailing))
-                                    .frame(width: 36, height: 36)
-                                    .shadow(color: (supporterTier.gradientColors.first ?? Color.supportChampagne).opacity(0.25), radius: 5)
+                        VStack(spacing: 12) {
+                            HStack(spacing: 12) {
+                                ZStack {
+                                    Circle()
+                                        .fill(
+                                            LinearGradient(
+                                                colors: [
+                                                    Color.white.opacity(0.20),
+                                                    Color.white.opacity(0.06)
+                                                ],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            )
+                                        )
+                                        .frame(width: 36, height: 36)
+                                        .overlay(
+                                            Circle()
+                                                .strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
+                                        )
 
-                                Image(systemName: supporterTier.icon)
-                                    .font(.system(size: 16, weight: .bold))
-                                    .foregroundStyle(.white)
-                            }
-
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(supporterTier.badgeText)
-                                    .font(.system(size: 11.5, weight: .black, design: .rounded))
-                                    .foregroundStyle(LinearGradient(colors: supporterTier.gradientColors, startPoint: .topLeading, endPoint: .bottomTrailing))
-                                    .lineLimit(1)
-                                    .fixedSize(horizontal: true, vertical: false)
-
-                                if supporterDonationAmount > 0 {
-                                    Text("\(String(format: "%.2f", supporterDonationAmount)) \(supporterDonationCurrency)")
-                                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(1)
+                                    Image(systemName: supporterTier.icon)
+                                        .font(.system(size: 16, weight: .bold))
+                                        .foregroundStyle(Color.primary.opacity(0.92))
                                 }
+
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(supporterTier.badgeText)
+                                        .font(.system(size: 11.5, weight: .black, design: .rounded))
+                                        .foregroundStyle(Color.primary.opacity(0.92))
+                                        .lineLimit(1)
+                                        .fixedSize(horizontal: true, vertical: false)
+
+                                    if supporterDonationAmount > 0 {
+                                        Text("\(String(format: "%.2f", supporterDonationAmount)) \(supporterDonationCurrency)")
+                                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                                            .foregroundStyle(.secondary)
+                                            .lineLimit(1)
+                                    }
+                                }
+
+                                Spacer()
                             }
 
-                            Spacer()
-
+                            // Horizontal side-by-side action buttons dividing the space evenly
                             HStack(spacing: 8) {
                                 Button(action: {
                                     dismiss()
@@ -2417,18 +2405,21 @@ struct SupportDeveloperModal: View {
                                         )
                                     }
                                 }) {
-                                    HStack(spacing: 4) {
+                                    HStack(spacing: 5) {
                                         Image(systemName: "sparkles")
-                                            .font(.system(size: 10, weight: .bold))
+                                            .font(.system(size: 11, weight: .semibold))
                                         Text(appState.l("Replay Celebration"))
-                                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                                            .font(.system(size: 11.5, weight: .semibold, design: .rounded))
                                     }
-                                    .padding(.horizontal, 9)
-                                    .padding(.vertical, 6)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 7.5)
                                     .background(Color.primary.opacity(0.06))
                                     .foregroundStyle(Color.primary)
-                                    .cornerRadius(7)
-                                    .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.primary.opacity(0.15), lineWidth: 0.8))
+                                    .cornerRadius(8)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Color.primary.opacity(0.14), lineWidth: 0.8)
+                                    )
                                 }
                                 .buttonStyle(.plain)
 
@@ -2438,24 +2429,30 @@ struct SupportDeveloperModal: View {
                                 }) {
                                     HStack(spacing: 5) {
                                         Image(systemName: "chart.bar.fill")
-                                            .font(.system(size: 10, weight: .bold))
+                                            .font(.system(size: 11, weight: .semibold))
                                         Text(appState.l("Go to Statistics"))
-                                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                                            .font(.system(size: 11.5, weight: .semibold, design: .rounded))
                                     }
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 6)
-                                    .background((supporterTier.gradientColors.first ?? Color.supportChampagne).opacity(0.16))
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 7.5)
+                                    .background(Color.primary.opacity(0.09))
                                     .foregroundStyle(Color.primary)
-                                    .cornerRadius(7)
-                                    .overlay(RoundedRectangle(cornerRadius: 7).stroke((supporterTier.gradientColors.first ?? Color.supportChampagne).opacity(0.35), lineWidth: 0.8))
+                                    .cornerRadius(8)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Color.primary.opacity(0.18), lineWidth: 0.8)
+                                    )
                                 }
                                 .buttonStyle(.plain)
                             }
                         }
-                        .padding(10)
+                        .padding(12)
                         .background(Color.primary.opacity(0.035))
                         .cornerRadius(10)
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke((supporterTier.gradientColors.first ?? Color.supportChampagne).opacity(0.25), lineWidth: 0.8))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(Color.primary.opacity(0.12), lineWidth: 0.8)
+                        )
                         .padding(.horizontal, 18)
                         .padding(.top, 4)
                     }
@@ -8062,15 +8059,15 @@ struct SupporterCelebrationOverlayView: View {
     @State private var autoDismissTask: Task<Void, Never>? = nil
 
     private var tierColors: [Color] {
-        data.tier.gradientColors.isEmpty ? [Color.supportChampagne, Color.supportChampagneSecondary] : data.tier.gradientColors
+        data.tier.gradientColors.isEmpty ? [Color(white: 0.94), Color(white: 0.76)] : data.tier.gradientColors
     }
 
     private var primaryColor: Color {
-        tierColors.first ?? Color.supportChampagne
+        tierColors.first ?? Color(white: 0.94)
     }
 
     private var secondaryColor: Color {
-        tierColors.count > 1 ? tierColors.last! : Color.supportChampagneSecondary
+        tierColors.count > 1 ? tierColors.last! : Color(white: 0.76)
     }
 
     var body: some View {
@@ -8249,6 +8246,8 @@ struct SupporterCelebrationOverlayView: View {
     }
 
     private func startAnimations() {
+        SoundFeedback.play(.supporterCelebration)
+
         withAnimation(.spring(response: 0.5, dampingFraction: 0.84)) {
             appeared = true
         }

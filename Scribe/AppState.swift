@@ -1042,7 +1042,9 @@ final class AppState: ObservableObject {
             do {
                 let isSingle = self.recognitionMode == "singleLanguage"
                 let langParam: String? = isSingle ? (self.singleDictationLanguage == "auto" ? nil : self.singleDictationLanguage) : nil
-                let preferredLangs: [String] = isSingle ? [] : (self.multilingualLanguages.isEmpty ? ["ru", "en"] : self.multilingualLanguages)
+                let preferredLangs: [String] = isSingle ?
+                    (self.singleDictationLanguage == "auto" ? (self.multilingualLanguages.isEmpty ? ["ru", "en"] : self.multilingualLanguages) : [self.singleDictationLanguage]) :
+                    (self.multilingualLanguages.isEmpty ? ["ru", "en"] : self.multilingualLanguages)
 
                 logger.info("Starting transcription with model=\(self.effectiveModel), mode=\(self.recognitionMode), lang=\(langParam ?? "auto"), preferred=\(preferredLangs)…")
                 var text = ""

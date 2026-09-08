@@ -121,6 +121,14 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         ("(?i)\\b(долж(?:ен|на|но|ны)|нужно|надо|следует|стоит|мож(?:ет|но|ем|ете|ут))\\s+(?:(вс[её]|всегда|тоже|также|уже|ещ[её]|вроде|сейчас)\\s+)?(?:(нормально|хорошо|качественно|правильно|корректно|быстро|стабильно|ч[её]тко)\\s+)?функционирует\\b", "$1 $2 $3 функционировать"),
 
         // Common adverb agreement & acoustic mishearings
+        // Hortative agreement with "давай / давайте" (e.g. "давай пока Minecraft не будем трогать", "давай не будем делать")
+        ("(?i)\\b(давай|давайте)((?:\\s+[А-ЯЁа-яёA-Za-z0-9_-]+){0,5})\\s+не\\s+будет\\s+([а-яё]+ть(?:ся)?)\\b", "$1$2 не будем $3"),
+        ("(?i)\\b(давай|давайте)((?:\\s+[А-ЯЁа-яёA-Za-z0-9_-]+){0,5})\\s+будет\\s+([а-яё]+ть(?:ся)?)\\b", "$1$2 будем $3"),
+
+        // Command imperative repair for "сделай" (Whisper monologue acoustic slip to "сделаю")
+        ("(?i)(?<!\\bя\\s)(?<!\\bмы\\s)\\bсделаю\\b", "сделай"),
+        ("(?i)^\\s*сделаю\\b", "Сделай"),
+
         ("(?i)\\b(сделаю|сделает|делает|сделаешь)\\s+что-?то\\b", "сделай что-то"),
         ("(?i)\\b(сделаю|сделает|делает|сделаешь)\\s+мне\\b", "сделай мне"),
         ("(?i)\\b(сделаю|сделает|делает|сделаешь)\\s+так\\b", "сделай так"),
@@ -316,7 +324,9 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         ("(?i)\\b(?:свифт[\\s-]*дата|свифтдата)\\b", "SwiftData"),
         ("(?i)\\b(?:виспер[\\s-]*кит|виспур[\\s-]*кит)\\b", "WhisperKit"),
         ("(?i)\\b(?:тайп[\\s-]*скрипт|тайпскрипт)\\b", "TypeScript"),
-        ("(?i)\\b(?:пайтон|питон)\\b", "Python")
+        ("(?i)\\b(?:пайтон|питон)\\b", "Python"),
+        ("(?i)\\bмайнкрафте\\s+его\\b", "Minecraft"),
+        ("(?i)\\bмайн[\\s-]*крафт(?:а|е|у|ом)?\\b", "Minecraft")
     ]
 
     /// Systematic mappings for "проявка" forms -> "проверка" forms outside photography context.
@@ -570,7 +580,8 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
 
         // 3. Token-level dictionary validation via Top 100 User Vocabulary & NSSpellChecker
         let langCode = resolveSpellCheckerLanguage(language: language, text: text)
-        let isRussian = langCode.hasPrefix("ru")
+        let hasCyrillic = text.unicodeScalars.contains { ($0.value >= 0x0400 && $0.value <= 0x04FF) || ($0.value >= 0x0500 && $0.value <= 0x052F) }
+        let isRussian = langCode.hasPrefix("ru") || hasCyrillic
 
         if isRussian {
             // 3a. Russian: Ukrainian sanitization, agreement, and imperative command mapping
@@ -1064,6 +1075,14 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
 
     /// Resolves appropriate spell checker language tag
     private func resolveSpellCheckerLanguage(language: String?, text: String) -> String {
+        let cyrillicCount = text.unicodeScalars.filter { ($0.value >= 0x0400 && $0.value <= 0x04FF) || ($0.value >= 0x0500 && $0.value <= 0x052F) }.count
+        let latinCount = text.unicodeScalars.filter { ($0.value >= 0x0041 && $0.value <= 0x005A) || ($0.value >= 0x0061 && $0.value <= 0x007A) }.count
+
+        // If text contains Cyrillic characters and is not overwhelmingly Latin, treat as Russian
+        if cyrillicCount > 0 && cyrillicCount >= latinCount {
+            return "ru_RU"
+        }
+
         if let lang = language?.lowercased() {
             if lang.hasPrefix("ru") { return "ru_RU" }
             if lang.hasPrefix("en") { return "en_US" }
@@ -1076,8 +1095,7 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         }
 
         // Detect Cyrillic presence for automatic Russian
-        let cyrillicScalars = text.unicodeScalars.filter { $0.value >= 0x0400 && $0.value <= 0x04FF }
-        if cyrillicScalars.count > 0 {
+        if cyrillicCount > 0 {
             return "ru_RU"
         }
 

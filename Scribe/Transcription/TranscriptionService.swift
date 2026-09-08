@@ -796,11 +796,11 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         // Do not trigger costly second-pass on minor dialect variants (e.g. uk/be when ru is allowed)
         let isSlavicVariantOfRussian = allowedLanguages.contains("ru") && (detectedBase == "uk" || detectedBase == "be")
 
-        // Only re-decode if audio has substantive speech (>= 3 words) in an unselected language
-        if !allowedLanguages.isEmpty, let detected = detectedBase, !allowedLanguages.contains(detected), !isSlavicVariantOfRussian, wordCount >= 3 {
+        // Re-decode if audio was recognized in an unselected language (e.g. hallucinated Arabic or foreign speech on noise)
+        if !allowedLanguages.isEmpty, let detected = detectedBase, !allowedLanguages.contains(detected), !isSlavicVariantOfRussian {
             let slavicUnselected: Set<String> = ["uk", "be", "bg", "mk", "sr", "pl", "cs", "sk", "hr", "sl"]
             let latinCount = preliminaryText.unicodeScalars.filter { ($0.value >= 0x0041 && $0.value <= 0x005A) || ($0.value >= 0x0061 && $0.value <= 0x007A) }.count
-            let cyrillicCount = preliminaryText.unicodeScalars.filter { $0.value >= 0x0400 && $0.value <= 0x04FF }.count
+            let cyrillicCount = preliminaryText.unicodeScalars.filter { ($0.value >= 0x0400 && $0.value <= 0x04FF) || ($0.value >= 0x0500 && $0.value <= 0x052F) }.count
 
             let targetFallback: String
             if allowedLanguages.contains("ru") && slavicUnselected.contains(detected) {
@@ -847,7 +847,18 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         let rawText = results.map(\.text).joined(separator: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
-        let effectiveOutputLang = resolvedLang != "auto" ? resolvedLang : (detectedBase ?? language)
+        let effectiveOutputLang: String
+        if resolvedLang != "auto" {
+            effectiveOutputLang = resolvedLang
+        } else if let detected = detectedBase, allowedLanguages.isEmpty || allowedLanguages.contains(detected) {
+            effectiveOutputLang = detected
+        } else if let firstAllowed = allowedLanguages.first {
+            effectiveOutputLang = firstAllowed
+        } else if let lang = language, lang != "auto" {
+            effectiveOutputLang = lang
+        } else {
+            effectiveOutputLang = "ru"
+        }
 
         // Strip non-speech annotations that Whisper sometimes inserts,
         // e.g. [keyboard clicking], (music), *laughs*, [BLANK_AUDIO], rogue scripts
@@ -909,8 +920,85 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         "let me know in the comments below",
         "link in the description below",
         "see you in the next video",
-        "what is the best place to live in home city"
+        "what is the best place to live in home city",
+        // Arabic boundary hallucination phrases common in Whisper
+        "اشترك",
+        "اشتركوا",
+        "اشترك في القناة",
+        "اشترك بالقناة",
+        "شكرا للمشاهدة",
+        "شكراً للمشاهدة",
+        "شكرا على المشاهدة",
+        "شكرا على المتابعة",
+        "شكرا جزيلا",
+        "شكرا لكم",
+        "شكرا",
+        "شكراً",
+        "بسم الله الرحمن الرحيم",
+        "بسم الله",
+        "الحمد لله",
+        "سبحان الله",
+        "السلام عليكم ورحمة الله",
+        "السلام عليكم",
+        "مع السلامة",
+        "لا تنسوا الاشتراك",
+        "لا تنسى الاشتراك",
+        "تفعيل الجرس",
+        "مشاهدة ممتعة"
     ]
+
+    /// Identifies Arabic, Persian, Urdu, and related Semitic/Thaana/NKo script unicode scalars.
+    private static func isArabicScalar(_ val: UInt32) -> Bool {
+        return (val >= 0x0600 && val <= 0x06FF) || // Arabic
+               (val >= 0x0750 && val <= 0x077F) || // Arabic Supplement
+               (val >= 0x0870 && val <= 0x089F) || // Arabic Extended-B
+               (val >= 0x08A0 && val <= 0x08FF) || // Arabic Extended-A
+               (val >= 0xFB50 && val <= 0xFDFF) || // Arabic Presentation Forms-A
+               (val >= 0xFE70 && val <= 0xFEFF) || // Arabic Presentation Forms-B
+               (val >= 0x10EC0 && val <= 0x10EFF) || // Arabic Extended-C
+               (val >= 0x1EE00 && val <= 0x1EEFF) || // Arabic Mathematical Alphabetic Symbols
+               (val >= 0x0700 && val <= 0x074F) || // Syriac
+               (val >= 0x0780 && val <= 0x07BF) || // Thaana
+               (val >= 0x07C0 && val <= 0x07FF)    // NKo
+    }
+
+    /// Identifies Hebrew script unicode scalars.
+    private static func isHebrewScalar(_ val: UInt32) -> Bool {
+        return (val >= 0x0590 && val <= 0x05FF) || // Hebrew
+               (val >= 0xFB1D && val <= 0xFB4F)    // Hebrew Presentation Forms
+    }
+
+    /// Identifies CJK ideograph unicode scalars.
+    private static func isCJKScalar(_ val: UInt32) -> Bool {
+        return (val >= 0x4E00 && val <= 0x9FFF) ||
+               (val >= 0x3400 && val <= 0x4DBF) ||
+               (val >= 0x20000 && val <= 0x2A6DF)
+    }
+
+    /// Checks if a Unicode scalar belongs to a foreign script disallowed by user preferences.
+    private static func isDisallowedScriptScalar(
+        _ val: UInt32,
+        allowsArabic: Bool,
+        allowsChinese: Bool,
+        allowsJapanese: Bool,
+        allowsKorean: Bool,
+        allowsThai: Bool,
+        allowsHebrew: Bool,
+        allowsDevanagari: Bool,
+        allowsGreek: Bool,
+        allowsCyrillic: Bool
+    ) -> Bool {
+        if !allowsArabic && isArabicScalar(val) { return true }
+        if !allowsHebrew && isHebrewScalar(val) { return true }
+        if !allowsChinese && !allowsJapanese && isCJKScalar(val) { return true }
+        if !allowsJapanese && ((val >= 0x3040 && val <= 0x30FF) || (val >= 0x31F0 && val <= 0x31FF)) { return true }
+        if !allowsKorean && ((val >= 0xAC00 && val <= 0xD7AF) || (val >= 0x1100 && val <= 0x11FF) || (val >= 0x3130 && val <= 0x318F)) { return true }
+        if !allowsThai && (val >= 0x0E00 && val <= 0x0E7F) { return true }
+        if !allowsDevanagari && (val >= 0x0900 && val <= 0x097F) { return true }
+        if !allowsGreek && ((val >= 0x0370 && val <= 0x03FF) || (val >= 0x1F00 && val <= 0x1FFF)) { return true }
+        if !allowsCyrillic && ((val >= 0x0400 && val <= 0x04FF) || (val >= 0x0500 && val <= 0x052F)) { return true }
+        return false
+    }
 
     /// Removes non-speech annotations and boundary hallucinations from Whisper output.
     private static func cleanTranscription(_ text: String, preferredLanguages: [String] = [], targetLanguage: String? = nil) -> String {
@@ -942,10 +1030,10 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             cleaned = cleaned.replacingOccurrences(of: "ǎr", with: "")
         }
 
-        // 5. Strip leading hallucinated speaker labels (e.g. "Brooklyn: ", "Speaker 1: ")
+        // 5. Remove hallucinated speaker labels (e.g. "Speaker 1:", "Narrator:")
         cleaned = stripLeadingSpeakerLabels(cleaned)
 
-        // 6. Strip trailing repetitive loops (e.g. "Top 10. Top 10.")
+        // 6. Strip trailing repetitive phrases at end of speech
         cleaned = stripTrailingRepetitions(cleaned)
 
         // 7. Apply built-in boundary hallucination filter
@@ -955,51 +1043,89 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         cleaned = stripTrailingRepetitions(cleaned)
 
         // 9. Strict language script filtering: if a script is not part of enabled languages, eliminate foreign glyphs & hallucinations
-        let activeLangs = Set(preferredLanguages.map { $0.lowercased() } + (targetLanguage != nil ? [targetLanguage!.lowercased()] : []))
-        let allowsArabic = activeLangs.contains("ar") || activeLangs.contains("arabic")
-        let allowsChinese = activeLangs.contains("zh") || activeLangs.contains("chinese")
-        let allowsJapanese = activeLangs.contains("ja") || activeLangs.contains("japanese")
-        let allowsKorean = activeLangs.contains("ko") || activeLangs.contains("korean")
-        let allowsThai = activeLangs.contains("th") || activeLangs.contains("thai")
-        let allowsHebrew = activeLangs.contains("he") || activeLangs.contains("hebrew")
-        let allowsDevanagari = activeLangs.contains("hi") || activeLangs.contains("hindi")
-        let allowsCyrillic = activeLangs.contains("ru") || activeLangs.contains("uk") || activeLangs.contains("be") || activeLangs.contains("bg") || activeLangs.contains("sr") || activeLangs.contains("mk") || activeLangs.contains("kk") || activeLangs.isEmpty
+        // Note: Disallowed scripts can never be enabled by an unselected detected language.
+        let allowedScriptLangs: Set<String>
+        if !preferredLanguages.isEmpty {
+            allowedScriptLangs = Set(preferredLanguages.map { baseLanguageCode(for: $0).lowercased() })
+        } else if let target = targetLanguage, target != "auto" {
+            allowedScriptLangs = [baseLanguageCode(for: target).lowercased()]
+        } else {
+            allowedScriptLangs = []
+        }
+
+        let allowsArabic = allowedScriptLangs.contains("ar") || allowedScriptLangs.contains("fa") || allowedScriptLangs.contains("ur")
+        let allowsChinese = allowedScriptLangs.contains("zh")
+        let allowsJapanese = allowedScriptLangs.contains("ja")
+        let allowsKorean = allowedScriptLangs.contains("ko")
+        let allowsThai = allowedScriptLangs.contains("th")
+        let allowsHebrew = allowedScriptLangs.contains("he")
+        let allowsDevanagari = allowedScriptLangs.contains("hi")
+        let allowsGreek = allowedScriptLangs.contains("el")
+        let allowsCyrillic = allowedScriptLangs.contains("ru") || allowedScriptLangs.contains("uk") || allowedScriptLangs.contains("be") || allowedScriptLangs.contains("bg") || allowedScriptLangs.contains("sr") || allowedScriptLangs.contains("mk") || allowedScriptLangs.contains("kk") || allowedScriptLangs.isEmpty
+
+        // Universal Disallowed Script Hallucination Killer:
+        // If text contains foreign script glyphs (Hebrew, Arabic, CJK, etc.) not selected in user preferences:
+        let hasDisallowedScript = cleaned.unicodeScalars.contains { scalar in
+            isDisallowedScriptScalar(
+                scalar.value,
+                allowsArabic: allowsArabic,
+                allowsChinese: allowsChinese,
+                allowsJapanese: allowsJapanese,
+                allowsKorean: allowsKorean,
+                allowsThai: allowsThai,
+                allowsHebrew: allowsHebrew,
+                allowsDevanagari: allowsDevanagari,
+                allowsGreek: allowsGreek,
+                allowsCyrillic: allowsCyrillic
+            )
+        }
+
+        if hasDisallowedScript {
+            let allowedLetters = cleaned.unicodeScalars.filter { scalar in
+                let v = scalar.value
+                let isLatin = (v >= 0x0041 && v <= 0x005A) || (v >= 0x0061 && v <= 0x007A)
+                let isCyr = (v >= 0x0400 && v <= 0x04FF) || (v >= 0x0500 && v <= 0x052F)
+                return isLatin || (allowsCyrillic && isCyr)
+            }.count
+
+            // If there are no substantial allowed letters (>= 3), the entire output is a noise/silence hallucination -> DISCARD completely
+            if allowedLetters < 3 {
+                return ""
+            }
+
+            // Otherwise, strip any individual words containing disallowed script glyphs
+            let words = cleaned.components(separatedBy: .whitespaces)
+            cleaned = words.filter { word in
+                !word.unicodeScalars.contains { scalar in
+                    isDisallowedScriptScalar(
+                        scalar.value,
+                        allowsArabic: allowsArabic,
+                        allowsChinese: allowsChinese,
+                        allowsJapanese: allowsJapanese,
+                        allowsKorean: allowsKorean,
+                        allowsThai: allowsThai,
+                        allowsHebrew: allowsHebrew,
+                        allowsDevanagari: allowsDevanagari,
+                        allowsGreek: allowsGreek,
+                        allowsCyrillic: allowsCyrillic
+                    )
+                }
+            }.joined(separator: " ")
+        }
 
         cleaned = String(cleaned.unicodeScalars.filter { scalar in
-            let val = scalar.value
-            if !allowsArabic {
-                let isArabic = (val >= 0x0600 && val <= 0x06FF) || (val >= 0x0750 && val <= 0x077F) || (val >= 0x08A0 && val <= 0x08FF) || (val >= 0xFB50 && val <= 0xFDFF) || (val >= 0xFE70 && val <= 0xFEFF)
-                if isArabic { return false }
-            }
-            if !allowsChinese && !allowsJapanese {
-                let isCJK = (val >= 0x4E00 && val <= 0x9FFF) || (val >= 0x3400 && val <= 0x4DBF)
-                if isCJK { return false }
-            }
-            if !allowsJapanese {
-                let isKana = (val >= 0x3040 && val <= 0x30FF)
-                if isKana { return false }
-            }
-            if !allowsKorean {
-                let isHangul = (val >= 0xAC00 && val <= 0xD7AF) || (val >= 0x1100 && val <= 0x11FF)
-                if isHangul { return false }
-            }
-            if !allowsThai {
-                let isThai = (val >= 0x0E00 && val <= 0x0E7F)
-                if isThai { return false }
-            }
-            if !allowsHebrew {
-                let isHebrew = (val >= 0x0590 && val <= 0x05FF)
-                if isHebrew { return false }
-            }
-            if !allowsDevanagari {
-                let isDevanagari = (val >= 0x0900 && val <= 0x097F)
-                if isDevanagari { return false }
-            }
-            if !allowsCyrillic {
-                let isCyrillic = (val >= 0x0400 && val <= 0x04FF) || (val >= 0x0500 && val <= 0x052F)
-                if isCyrillic { return false }
-            }
-            return true
+            !isDisallowedScriptScalar(
+                scalar.value,
+                allowsArabic: allowsArabic,
+                allowsChinese: allowsChinese,
+                allowsJapanese: allowsJapanese,
+                allowsKorean: allowsKorean,
+                allowsThai: allowsThai,
+                allowsHebrew: allowsHebrew,
+                allowsDevanagari: allowsDevanagari,
+                allowsGreek: allowsGreek,
+                allowsCyrillic: allowsCyrillic
+            )
         })
 
         // Collapse multiple spaces into one and trim

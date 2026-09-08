@@ -434,11 +434,11 @@ enum SupporterTier: Int, CaseIterable, Codable, Sendable {
     var gradientColors: [Color] {
         switch self {
         case .none: return [.secondary]
-        case .tier1: return [Color(red: 0.84, green: 0.60, blue: 0.44), Color(red: 0.68, green: 0.44, blue: 0.32)] // Soft Amber Bronze
-        case .tier2: return [Color(white: 0.94), Color(red: 0.70, green: 0.78, blue: 0.86)] // Moonlight Silver
-        case .tier3: return [Color(red: 0.88, green: 0.80, blue: 0.68), Color(red: 0.73, green: 0.64, blue: 0.52)] // Champagne Cashmere Gold
-        case .tier4: return [Color(red: 0.52, green: 0.82, blue: 0.90), Color(red: 0.30, green: 0.62, blue: 0.80)] // Calm Glacier Blue
-        case .tier5: return [Color(red: 0.82, green: 0.65, blue: 0.92), Color(red: 0.62, green: 0.72, blue: 0.90)] // Quiet Opal Iris
+        case .tier1: return [Color(white: 0.86), Color(white: 0.68)] // Neutral Titanium
+        case .tier2: return [Color(white: 0.90), Color(white: 0.72)] // Sleek Silver
+        case .tier3: return [Color(white: 0.94), Color(white: 0.76)] // Platinum White
+        case .tier4: return [Color(red: 0.88, green: 0.91, blue: 0.94), Color(red: 0.68, green: 0.72, blue: 0.78)] // Cool Slate
+        case .tier5: return [Color(white: 0.96), Color(white: 0.82)] // Pure Platinum
         }
     }
 }
