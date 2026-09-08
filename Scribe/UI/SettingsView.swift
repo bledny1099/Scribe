@@ -8109,7 +8109,7 @@ struct SupporterCelebrationOverlayView: View {
                         .foregroundStyle(primaryColor)
 
                     Text(data.tier.badgeText)
-                        .font(.system(size: 10.5, weight: .bold, design: .monospaced))
+                        .font(.system(size: 10.5, weight: .bold, design: .rounded))
                         .foregroundStyle(
                             LinearGradient(colors: tierColors, startPoint: .leading, endPoint: .trailing)
                         )

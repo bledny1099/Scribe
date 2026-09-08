@@ -412,11 +412,11 @@ enum SupporterTier: Int, CaseIterable, Codable, Sendable {
     var badgeText: String {
         switch self {
         case .none: return ""
-        case .tier1: return "INITIATE SUPPORTER"
-        case .tier2: return "VANGUARD SUPPORTER"
-        case .tier3: return "CHRONICLER SUPPORTER"
-        case .tier4: return "ARCHON SUPPORTER"
-        case .tier5: return "SOVEREIGN SUPPORTER"
+        case .tier1: return "Initiate Supporter"
+        case .tier2: return "Vanguard Supporter"
+        case .tier3: return "Chronicler Supporter"
+        case .tier4: return "Archon Supporter"
+        case .tier5: return "Sovereign Supporter"
         }
     }
 
