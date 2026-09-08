@@ -1066,18 +1066,18 @@ struct GoldCertificateCardView: View {
     }
 
     private var themeColor: Color {
-        isLevelTheme ? history.currentLevelColor : Color.supportChampagne
+        isLevelTheme ? history.currentLevelColor : .yellow
     }
 
     private var secondaryThemeColor: Color {
-        isLevelTheme ? history.currentLevelColor.opacity(0.8) : Color.supportChampagneSecondary
+        isLevelTheme ? history.currentLevelColor.opacity(0.8) : .orange
     }
 
     private var themeGradient: LinearGradient {
         if isLevelTheme {
             return LinearGradient(colors: [history.currentLevelColor, history.currentLevelColor.opacity(0.7), history.currentLevelColor], startPoint: .leading, endPoint: .trailing)
         } else {
-            return LinearGradient(colors: [Color.supportChampagne, Color.supportChampagneSecondary, Color.supportChampagne], startPoint: .leading, endPoint: .trailing)
+            return LinearGradient(colors: [.yellow, Color(red: 0.95, green: 0.75, blue: 0.2), .yellow], startPoint: .leading, endPoint: .trailing)
         }
     }
 
@@ -1107,15 +1107,15 @@ struct GoldCertificateCardView: View {
                                 Image(systemName: supporterTier.icon)
                                     .font(.system(size: 8, weight: .bold))
                                 Text(supporterTier.badgeText)
-                                    .font(.system(size: 8, weight: .black, design: .rounded))
-                                    .tracking(0.4)
+                                    .font(.system(size: 8, weight: .bold, design: .rounded))
+                                    .tracking(0.3)
                             }
                             .foregroundStyle(LinearGradient(colors: supporterTier.gradientColors, startPoint: .topLeading, endPoint: .bottomTrailing))
                             .padding(.horizontal, 7)
                             .padding(.vertical, 2.5)
-                            .background(supporterTier.gradientColors.first?.opacity(0.16) ?? Color.supportChampagne.opacity(0.16))
+                            .background(supporterTier.gradientColors.first?.opacity(0.14) ?? Color.yellow.opacity(0.14))
                             .cornerRadius(5)
-                            .overlay(RoundedRectangle(cornerRadius: 5).stroke(supporterTier.gradientColors.first?.opacity(0.45) ?? Color.supportChampagne.opacity(0.45), lineWidth: 0.8))
+                            .overlay(RoundedRectangle(cornerRadius: 5).stroke(supporterTier.gradientColors.first?.opacity(0.35) ?? Color.yellow.opacity(0.35), lineWidth: 0.8))
                         }
                         .buttonStyle(.plain)
                         .help(appState.l("Preview Animation"))
@@ -1163,7 +1163,7 @@ struct GoldCertificateCardView: View {
                             LinearGradient(
                                 colors: isLevelTheme ?
                                     [history.currentLevelColor, history.currentLevelColor.opacity(0.7), history.currentLevelColor] :
-                                    [Color.supportChampagne, Color.supportChampagneSecondary, Color(red: 0.65, green: 0.56, blue: 0.44)],
+                                    [.yellow, .orange, Color(red: 0.8, green: 0.5, blue: 0.0)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
@@ -2354,29 +2354,32 @@ struct SupportDeveloperModal: View {
                                     Circle()
                                         .fill(
                                             LinearGradient(
-                                                colors: [
-                                                    Color.white.opacity(0.20),
-                                                    Color.white.opacity(0.06)
-                                                ],
+                                                colors: supporterTier.gradientColors,
                                                 startPoint: .topLeading,
                                                 endPoint: .bottomTrailing
                                             )
                                         )
-                                        .frame(width: 36, height: 36)
+                                        .frame(width: 34, height: 34)
                                         .overlay(
                                             Circle()
-                                                .strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
+                                                .strokeBorder(Color.white.opacity(0.22), lineWidth: 0.8)
                                         )
 
                                     Image(systemName: supporterTier.icon)
-                                        .font(.system(size: 16, weight: .bold))
-                                        .foregroundStyle(Color.primary.opacity(0.92))
+                                        .font(.system(size: 14.5, weight: .bold))
+                                        .foregroundStyle(.white)
                                 }
 
                                 VStack(alignment: .leading, spacing: 3) {
                                     Text(supporterTier.badgeText)
-                                        .font(.system(size: 11.5, weight: .black, design: .rounded))
-                                        .foregroundStyle(Color.primary.opacity(0.92))
+                                        .font(.system(size: 11.5, weight: .bold, design: .rounded))
+                                        .foregroundStyle(
+                                            LinearGradient(
+                                                colors: supporterTier.gradientColors,
+                                                startPoint: .leading,
+                                                endPoint: .trailing
+                                            )
+                                        )
                                         .lineLimit(1)
                                         .fixedSize(horizontal: true, vertical: false)
 
@@ -2435,12 +2438,12 @@ struct SupportDeveloperModal: View {
                                     }
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 7.5)
-                                    .background(Color.primary.opacity(0.09))
+                                    .background((supporterTier.gradientColors.first ?? Color(red: 1.0, green: 0.84, blue: 0.0)).opacity(0.12))
                                     .foregroundStyle(Color.primary)
                                     .cornerRadius(8)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 8)
-                                            .stroke(Color.primary.opacity(0.18), lineWidth: 0.8)
+                                            .stroke((supporterTier.gradientColors.first ?? Color(red: 1.0, green: 0.84, blue: 0.0)).opacity(0.28), lineWidth: 0.8)
                                     )
                                 }
                                 .buttonStyle(.plain)
@@ -2451,7 +2454,7 @@ struct SupportDeveloperModal: View {
                         .cornerRadius(10)
                         .overlay(
                             RoundedRectangle(cornerRadius: 10)
-                                .stroke(Color.primary.opacity(0.12), lineWidth: 0.8)
+                                .stroke((supporterTier.gradientColors.first ?? Color(red: 1.0, green: 0.84, blue: 0.0)).opacity(0.20), lineWidth: 0.8)
                         )
                         .padding(.horizontal, 18)
                         .padding(.top, 4)
@@ -2629,10 +2632,10 @@ struct SupportDeveloperModal: View {
                                 }
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 8)
-                                .background(LinearGradient(colors: [Color.supportAccentPrimary.opacity(0.20), Color.supportAccentSecondary.opacity(0.16)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                .background(LinearGradient(colors: [Color.yellow.opacity(0.24), Color.orange.opacity(0.18)], startPoint: .topLeading, endPoint: .bottomTrailing))
                                 .foregroundStyle(Color.primary)
                                 .cornerRadius(8)
-                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.supportAccentPrimary.opacity(0.35), lineWidth: 1))
+                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.yellow.opacity(0.35), lineWidth: 1))
                             }
                             .buttonStyle(.plain)
                             .disabled(inputAddressOrTx.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isVerifying)
@@ -8059,15 +8062,15 @@ struct SupporterCelebrationOverlayView: View {
     @State private var autoDismissTask: Task<Void, Never>? = nil
 
     private var tierColors: [Color] {
-        data.tier.gradientColors.isEmpty ? [Color(white: 0.94), Color(white: 0.76)] : data.tier.gradientColors
+        data.tier.gradientColors.isEmpty ? [Color(red: 1.0, green: 0.84, blue: 0.0), Color(red: 1.0, green: 0.55, blue: 0.0)] : data.tier.gradientColors
     }
 
     private var primaryColor: Color {
-        tierColors.first ?? Color(white: 0.94)
+        tierColors.first ?? Color(red: 1.0, green: 0.84, blue: 0.0)
     }
 
     private var secondaryColor: Color {
-        tierColors.count > 1 ? tierColors.last! : Color(white: 0.76)
+        tierColors.count > 1 ? tierColors.last! : primaryColor.opacity(0.8)
     }
 
     var body: some View {
