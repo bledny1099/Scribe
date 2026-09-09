@@ -1353,7 +1353,9 @@ final class AppState: ObservableObject {
         if rawSubY < screenFrame.minY + 8 {
             let neededShift = (screenFrame.minY + 8) - rawSubY
             let newMainY = min(screenFrame.maxY - mainPanel.frame.height - 8, mainPanel.frame.origin.y + neededShift)
-            mainPanel.setFrameOrigin(NSPoint(x: mainPanel.frame.origin.x, y: newMainY))
+            if abs(mainPanel.frame.origin.y - newMainY) > 1.0 {
+                mainPanel.setFrameOrigin(NSPoint(x: mainPanel.frame.origin.x, y: newMainY))
+            }
             subY = max(screenFrame.minY + 4, mainPanel.frame.minY - subHeight - 10)
         } else {
             subY = rawSubY
@@ -1365,7 +1367,9 @@ final class AppState: ObservableObject {
             width: subWidth,
             height: subHeight
         )
-        subPanel.setFrame(finalRect, display: true)
+        if subPanel.frame != finalRect {
+            subPanel.setFrame(finalRect, display: true)
+        }
     }
 
     private func hidePanel() {
@@ -1921,10 +1925,10 @@ final class AppState: ObservableObject {
             userLocation: self.effectiveUserLocation
         )
 
-        // Poll every 0.75 seconds to track user speech in real-time on Apple Neural Engine
-        interimWhisperTimer = Timer.scheduledTimer(withTimeInterval: 0.75, repeats: true) { [weak self] _ in
+        // Poll every 1.8 seconds to track user speech in real-time without starving GPU/Neural Engine
+        interimWhisperTimer = Timer.scheduledTimer(withTimeInterval: 1.8, repeats: true) { [weak self] _ in
             Task { @MainActor in
-                guard let self = self, self.isRecording, self.recordingDuration >= 0.5 else { return }
+                guard let self = self, self.isRecording, self.recordingDuration >= 0.8 else { return }
                 guard self.interimWhisperTask == nil else { return }
 
                 guard let snapshotURL = self.audioRecorder.createSnapshot() else { return }

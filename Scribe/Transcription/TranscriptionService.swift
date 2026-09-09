@@ -471,22 +471,14 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
     ) async -> String? {
         guard let kit = whisperKit else { return nil }
 
-        // Short-circuit if audio snapshot is silence to avoid unnecessary background neural inference
-        guard let conditionedURL = AetherAudioConditioner.shared.condition(audioURL: audioURL) else {
-            return nil
-        }
-        defer {
-            if conditionedURL != audioURL {
-                try? FileManager.default.removeItem(at: conditionedURL)
-            }
-        }
+        guard FileManager.default.fileExists(atPath: audioURL.path) else { return nil }
 
         var options = DecodingOptions(task: .transcribe)
         options.temperature = 0.0
         options.temperatureFallbackCount = 0
         options.withoutTimestamps = false
         options.skipSpecialTokens = true
-        options.sampleLength = 224
+        options.sampleLength = 96
         options.noSpeechThreshold = 0.6
         options.logProbThreshold = -1.0
         options.compressionRatioThreshold = 2.4
@@ -499,51 +491,17 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             resolvedLang = base
         } else if !preferredLanguages.isEmpty {
             let allowedBases = preferredLanguages.map { baseLanguageCode(for: $0).lowercased() }
-            if let (_, langProbs) = try? await kit.detectLanguage(audioPath: conditionedURL.path) {
-                let ruProb = langProbs["ru"] ?? 0.0
-                let enProb = langProbs["en"] ?? 0.0
-
-                // Code-switching & Mixed Speech Heuristic:
-                // If Russian is among preferred languages and user speaks Russian with English terms
-                // (e.g. "что такое ammonium chloride", "как настроить useState"), English audio fragments
-                // can inflate 'en' probability in short snapshots. If 'en' is chosen, Whisper operates
-                // in English mode and translates Russian grammar to English ("what is").
-                // In Russian mode ('ru'), Whisper outputs Cyrillic for Russian and Latin for English terms natively.
-                if allowedBases.contains("ru") && (ruProb > 0.12 || ruProb >= enProb * 0.35) {
-                    options.language = "ru"
-                    options.detectLanguage = false
-                    resolvedLang = "ru"
-                } else {
-                    var bestLang: String? = nil
-                    var bestProb: Float = -Float.infinity
-                    for code in allowedBases {
-                        if let prob = langProbs[code], prob > bestProb {
-                            bestProb = prob
-                            bestLang = code
-                        }
-                    }
-                    if let selected = bestLang {
-                        options.language = selected
-                        options.detectLanguage = false
-                        resolvedLang = selected
-                    } else {
-                        options.language = nil
-                        options.detectLanguage = true
-                    }
-                }
+            if allowedBases.contains("ru") {
+                options.language = "ru"
+                options.detectLanguage = false
+                resolvedLang = "ru"
+            } else if allowedBases.count == 1, let first = allowedBases.first {
+                options.language = first
+                options.detectLanguage = false
+                resolvedLang = first
             } else {
-                if allowedBases.contains("ru") && allowedBases.contains("en") {
-                    options.language = "ru"
-                    options.detectLanguage = false
-                    resolvedLang = "ru"
-                } else if allowedBases.count == 1, let first = allowedBases.first {
-                    options.language = first
-                    options.detectLanguage = false
-                    resolvedLang = first
-                } else {
-                    options.language = nil
-                    options.detectLanguage = true
-                }
+                options.language = nil
+                options.detectLanguage = true
             }
         } else {
             options.language = nil
@@ -574,7 +532,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         }
 
         do {
-            let results = try await kit.transcribe(audioPath: conditionedURL.path, decodeOptions: options)
+            let results = try await kit.transcribe(audioPath: audioURL.path, decodeOptions: options)
             var text = results.map(\.text).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
             if text.isEmpty { return nil }
 

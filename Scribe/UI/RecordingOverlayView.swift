@@ -309,29 +309,31 @@ struct WaveformOverlay: View {
             height: cardHeight
         )
         .animation(.spring(response: 0.35, dampingFraction: 0.82), value: cardWidth)
-        .onReceive(Timer.publish(every: 0.045, on: .main, in: .common).autoconnect()) { _ in
+        .task(id: appState.isShowingPreview) {
             guard appState.isShowingPreview else { return }
-            let t = Date().timeIntervalSinceReferenceDate
-            let sentenceCycle = t.truncatingRemainder(dividingBy: 4.8)
-            let isSpeaking = sentenceCycle < 3.4
-            let syllable = sin(t * 5.2) * cos(t * 2.6)
-            let modulation = 0.5 + 0.5 * sin(t * 1.6)
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 45_000_000)
+                let t = Date().timeIntervalSinceReferenceDate
+                let sentenceCycle = t.truncatingRemainder(dividingBy: 4.8)
+                let isSpeaking = sentenceCycle < 3.4
+                let syllable = sin(t * 5.2) * cos(t * 2.6)
+                let modulation = 0.5 + 0.5 * sin(t * 1.6)
 
-            let simulated: Float
-            if isSpeaking {
-                let base = 0.18 + Float(modulation * 0.28)
-                let syllabicBurst = Float(max(0.0, syllable * 0.24))
-                simulated = min(0.78, base + syllabicBurst)
-            } else {
-                simulated = Float(max(0.02, 0.03 + 0.012 * sin(t * 2.0)))
+                let simulated: Float
+                if isSpeaking {
+                    let base = 0.18 + Float(modulation * 0.28)
+                    let syllabicBurst = Float(max(0.0, syllable * 0.24))
+                    simulated = min(0.78, base + syllabicBurst)
+                } else {
+                    simulated = Float(max(0.02, 0.03 + 0.012 * sin(t * 2.0)))
+                }
+
+                levels.removeFirst()
+                levels.append(simulated)
             }
-
-            levels.removeFirst()
-            levels.append(simulated)
         }
         .onChange(of: audioRecorder.audioLevel) { _, newLevel in
             guard !appState.isShowingPreview else { return }
-            guard newLevel > 0.025 else { return }
             let target = min(1.0, max(0.02, newLevel))
             levels.removeFirst()
             levels.append(target)
@@ -346,30 +348,44 @@ struct WaveformOverlay: View {
     // MARK: - Waveform Bars
 
     private var waveformBars: some View {
-        HStack(alignment: .center, spacing: 2.4) {
-            ForEach(0..<barCount, id: \.self) { i in
-                let level = CGFloat(levels[i])
-                let maxBarHeight: CGFloat = 44
-                let minBarHeight: CGFloat = 3.6
-                let barHeight = minBarHeight + level * (maxBarHeight - minBarHeight)
+        Canvas { context, size in
+            let barWidth: CGFloat = 3.2
+            let barSpacing: CGFloat = 2.4
+            let minBarHeight: CGFloat = 3.6
+            let maxBarHeight: CGFloat = min(44.0, size.height - 4.0)
 
-                RoundedRectangle(cornerRadius: 1.6)
-                    .fill(barGradient(for: level))
-                    .frame(width: 3.2, height: barHeight)
+            let totalBarsWidth = CGFloat(barCount) * barWidth + CGFloat(barCount - 1) * barSpacing
+            let startX = max(0, (size.width - totalBarsWidth) / 2)
+
+            let colors = theme.gradientColors
+            let baseColor1 = colors.first ?? Color.accentColor
+            let baseColor2 = colors.count > 1 ? colors[1] : baseColor1
+
+            let count = min(barCount, levels.count)
+            for i in 0..<count {
+                let level = CGFloat(levels[i])
+                let barHeight = minBarHeight + level * (maxBarHeight - minBarHeight)
+                let x = startX + CGFloat(i) * (barWidth + barSpacing)
+                let y = (size.height - barHeight) / 2
+                let barRect = CGRect(x: x, y: y, width: barWidth, height: barHeight)
+                let path = Path(roundedRect: barRect, cornerRadius: 1.6)
+
+                let opacity = Double(0.35 + level * 0.65)
+                let gradient = Gradient(colors: [
+                    baseColor1.opacity(opacity),
+                    baseColor2.opacity(opacity)
+                ])
+                context.fill(
+                    path,
+                    with: .linearGradient(
+                        gradient,
+                        startPoint: CGPoint(x: barRect.midX, y: barRect.maxY),
+                        endPoint: CGPoint(x: barRect.midX, y: barRect.minY)
+                    )
+                )
             }
         }
-        .animation(.interactiveSpring(response: 0.12, dampingFraction: 0.85), value: levels)
-        .frame(maxWidth: .infinity, alignment: .center)
-    }
-
-    private func barGradient(for level: CGFloat) -> some ShapeStyle {
-        let colors = theme.gradientColors
-        let opacity = 0.35 + level * 0.65
-        return LinearGradient(
-            colors: [colors[0].opacity(opacity), colors[1].opacity(opacity)],
-            startPoint: .bottom,
-            endPoint: .top
-        )
+        .frame(maxWidth: .infinity, maxHeight: RecordingPanel.waveformSize.height)
     }
 
     // MARK: - Status Indicator
@@ -823,7 +839,7 @@ struct SubtitleOverlayView: View {
                     .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                     .frame(maxWidth: 680)
                     .transition(.opacity.combined(with: .scale(scale: 0.96)))
-                    .animation(.spring(response: 0.32, dampingFraction: 0.82), value: appState.livePreviewText)
+                    .animation(.easeInOut(duration: 0.2), value: appState.livePreviewText.isEmpty)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
