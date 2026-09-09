@@ -583,6 +583,39 @@ final class AppState: ObservableObject {
     @AppStorage("userCityLocation") public var userCityLocation: String = ""
     @AppStorage("smartCasingEnabled") public var smartCasingEnabled: Bool = true
 
+    public static let defaultVocabularyPresets: [VocabularyPreset] = [
+        VocabularyPreset(
+            name: "IDE & Vibe Coding",
+            description: "Xcode, Cursor, VS Code, Codex, Antigravity & vibe coding terminology",
+            words: [
+                "vibe coding", "вайб-кодинг", "вайбкодинг", "Codex", "Codex CLI", "Antigravity", "Antigravity 2.0",
+                "Cursor", "Windsurf", "Trae", "Zed", "Xcode", "VS Code", "GitHub Copilot", "Claude Code",
+                "refactor", "commit", "merge", "pull request", "branch", "terminal", "Docker", "Git", "Swift",
+                "SwiftUI", "SwiftData", "TypeScript", "Python", "Rust", "Go", "Next.js", "TailwindCSS", "PostgreSQL",
+                "Supabase", "Vercel", "API", "SDK", "JSON", "regex", "struct", "class", "enum", "async", "await",
+                "function", "endpoint", "backend", "frontend", "fullstack", "MCP",
+                "коммит", "пул реквест", "ветка", "деплой", "баг", "пофиксить", "рефакторинг", "эндпоинт",
+                "сделай", "сделай что-то", "создай", "напиши", "добавь", "удали", "пофикси", "запусти", "проверь", "обнови", "настрой", "исправь", "покажи", "сгенерируй"
+            ],
+            shareCode: "scr_voc_ide_vibe_coding",
+            category: "developer_tools"
+        ),
+        VocabularyPreset(
+            name: "AI Assistants & LLMs",
+            description: "Gemini, Claude, Kimi, ChatGPT, LM Studio, Ollama & local AI models",
+            words: [
+                "Gemini", "Claude", "Kimi", "ChatGPT", "LM Studio", "LM Studio Bionic", "Ollama", "Perplexity",
+                "DeepSeek", "Poe", "Jan", "LocalAI", "Bionic GPT", "GGUF", "LoRA", "Hugging Face", "vLLM",
+                "Llama", "Mistral", "Qwen", "DeepSeek-R1", "Claude 3.5 Sonnet", "Gemini 1.5 Pro", "GPT-4o", "o1", "o3-mini",
+                "промпт", "системный промпт", "токены", "контекст", "температура", "инференс", "квантование", "эмбеддинги",
+                "веса модели", "нейросеть", "чат-бот", "рассуждения", "промптинг",
+                "system prompt", "reasoning", "chain of thought", "tokens", "inference", "context window", "temperature", "prompt engineering"
+            ],
+            shareCode: "scr_voc_ai_assistants_llms",
+            category: "developer_tools"
+        )
+    ]
+
     public static let defaultLocationPresets: [VocabularyPreset] = []
 
     public var effectiveUserLocation: String {
@@ -854,6 +887,13 @@ final class AppState: ObservableObject {
             }
         }
         
+        // Seed default vocabulary presets (IDE & Vibe Coding, AI Assistants & LLMs) if not present
+        for preset in Self.defaultVocabularyPresets {
+            if !customVocabularyPresets.contains(where: { $0.shareCode == preset.shareCode || $0.name == preset.name }) {
+                customVocabularyPresets.append(preset)
+            }
+        }
+
         // Sync local active words into community dictionary
         CommunityVocabularyService.shared.syncLocalWordsToDictionary(rawVocabulary: self.vocabulary)
         
@@ -1901,7 +1941,10 @@ final class AppState: ObservableObject {
                     if let rawSnapshot = await self.transcriptionService.transcribeSnapshot(
                         audioURL: snapshotURL,
                         modelName: model,
-                        language: lang
+                        language: lang,
+                        preferredLanguages: preferredLangs,
+                        customVocabulary: self.vocabulary,
+                        targetApp: self.targetRunningApplication
                     ), !rawSnapshot.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         await MainActor.run {
                             if self.isRecording && !rawSnapshot.isEmpty {

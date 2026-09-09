@@ -5,6 +5,21 @@ All notable changes to Scribe will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.7] - 2026-09-09
+
+## Added
+- Dedicated "IDE & Vibe Coding" vocabulary preset covering vibe coding patterns, Codex, CLI tools, and development workflows.
+- Dedicated "AI Assistants & LLMs" vocabulary preset and context domain covering Gemini, Claude, Kimi, ChatGPT, LM Studio, LM Studio Bionic, Ollama, Perplexity, and DeepSeek.
+- Domain localization and descriptions for the AI Assistants and local model ecosystems.
+
+## Changed
+- Decoupled IDE development from conversational AI assistants into separate Aether context domains (`.ideAndCoding` vs `.aiChatAndLLMs`) for focused context biasing.
+- Integrated preferred language filtering and dynamic prompt token conditioning into interim live preview transcription snapshots.
+
+## Fixed
+- Fixed live preview language slips during mixed Russian-English speech where phrases like "что такое ammonium chloride" were mistranslated into English ("what is ammonium chloride").
+- Constrained Whisper live preview decoding to maintain Cyrillic Russian phrasing alongside accurate Latin technical terms without translation.
+
 ## [2.6.6] - 2026-09-08
 
 ## Added

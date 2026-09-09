@@ -464,7 +464,10 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
     func transcribeSnapshot(
         audioURL: URL,
         modelName: String,
-        language: String?
+        language: String?,
+        preferredLanguages: [String] = [],
+        customVocabulary: String = "",
+        targetApp: NSRunningApplication? = nil
     ) async -> String? {
         guard let kit = whisperKit else { return nil }
 
@@ -487,12 +490,87 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         options.noSpeechThreshold = 0.6
         options.logProbThreshold = -1.0
         options.compressionRatioThreshold = 2.4
+
+        var resolvedLang: String? = nil
         if let lang = language, lang != "auto" {
-            options.language = baseLanguageCode(for: lang)
+            let base = baseLanguageCode(for: lang)
+            options.language = base
             options.detectLanguage = false
+            resolvedLang = base
+        } else if !preferredLanguages.isEmpty {
+            let allowedBases = preferredLanguages.map { baseLanguageCode(for: $0).lowercased() }
+            if let (_, langProbs) = try? await kit.detectLanguage(audioPath: conditionedURL.path) {
+                let ruProb = langProbs["ru"] ?? 0.0
+                let enProb = langProbs["en"] ?? 0.0
+
+                // Code-switching & Mixed Speech Heuristic:
+                // If Russian is among preferred languages and user speaks Russian with English terms
+                // (e.g. "что такое ammonium chloride", "как настроить useState"), English audio fragments
+                // can inflate 'en' probability in short snapshots. If 'en' is chosen, Whisper operates
+                // in English mode and translates Russian grammar to English ("what is").
+                // In Russian mode ('ru'), Whisper outputs Cyrillic for Russian and Latin for English terms natively.
+                if allowedBases.contains("ru") && (ruProb > 0.12 || ruProb >= enProb * 0.35) {
+                    options.language = "ru"
+                    options.detectLanguage = false
+                    resolvedLang = "ru"
+                } else {
+                    var bestLang: String? = nil
+                    var bestProb: Float = -Float.infinity
+                    for code in allowedBases {
+                        if let prob = langProbs[code], prob > bestProb {
+                            bestProb = prob
+                            bestLang = code
+                        }
+                    }
+                    if let selected = bestLang {
+                        options.language = selected
+                        options.detectLanguage = false
+                        resolvedLang = selected
+                    } else {
+                        options.language = nil
+                        options.detectLanguage = true
+                    }
+                }
+            } else {
+                if allowedBases.contains("ru") && allowedBases.contains("en") {
+                    options.language = "ru"
+                    options.detectLanguage = false
+                    resolvedLang = "ru"
+                } else if allowedBases.count == 1, let first = allowedBases.first {
+                    options.language = first
+                    options.detectLanguage = false
+                    resolvedLang = first
+                } else {
+                    options.language = nil
+                    options.detectLanguage = true
+                }
+            }
         } else {
             options.language = nil
             options.detectLanguage = true
+        }
+
+        // Contextual prompt biasing to prevent Whisper translation and anchor terminology
+        let basePrompt: String
+        if resolvedLang == "ru" {
+            basePrompt = "Русская речь с английскими терминами: что такое, как, сделай, код, API, ammonium chloride."
+        } else if resolvedLang == "en" {
+            basePrompt = "English speech transcription."
+        } else {
+            basePrompt = "Русский и английский язык: что такое, как, сделай, vibe coding, code, API."
+        }
+
+        let promptText = AetherContextEngine.shared.buildConditioningPrompt(
+            basePrompt: basePrompt,
+            customVocabulary: customVocabulary,
+            userLocation: "",
+            targetApp: targetApp,
+            language: resolvedLang
+        )
+        if !promptText.isEmpty, let tokenizer = kit.tokenizer {
+            let tokens = tokenizer.encode(text: promptText)
+            options.promptTokens = Array(tokens.prefix(min(tokens.count, 32)))
+            options.usePrefillCache = false
         }
 
         do {

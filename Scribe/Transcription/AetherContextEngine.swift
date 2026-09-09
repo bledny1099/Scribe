@@ -15,6 +15,7 @@ public final class AetherContextEngine: @unchecked Sendable {
 
     public enum AppDomain: String, CaseIterable, Identifiable, Sendable {
         case ideAndCoding = "ideAndCoding"
+        case aiChatAndLLMs = "aiChatAndLLMs"
         case messengersAndChat = "messengersAndChat"
         case notesAndWriting = "notesAndWriting"
         case browsersAndResearch = "browsersAndResearch"
@@ -30,6 +31,7 @@ public final class AetherContextEngine: @unchecked Sendable {
         public var displayName: String {
             switch self {
             case .ideAndCoding: return "IDE & Vibe Coding"
+            case .aiChatAndLLMs: return "AI Assistants & LLMs"
             case .messengersAndChat: return "Messengers & Chat"
             case .notesAndWriting: return "Notes & Writing"
             case .browsersAndResearch: return "Browser & Research"
@@ -45,7 +47,9 @@ public final class AetherContextEngine: @unchecked Sendable {
         public var description: String {
             switch self {
             case .ideAndCoding:
-                return "Optimized for coding agents, IDEs, Git, terminals & tech stacks."
+                return "Optimized for coding agents, IDEs, Codex, Git, terminals & vibe coding."
+            case .aiChatAndLLMs:
+                return "Optimized for AI chat, prompts & local models: Gemini, Claude, Kimi, ChatGPT, LM Studio, Ollama."
             case .messengersAndChat:
                 return "Optimized for quick messaging, chat slang & natural punctuation."
             case .notesAndWriting:
@@ -70,6 +74,7 @@ public final class AetherContextEngine: @unchecked Sendable {
         public var icon: String {
             switch self {
             case .ideAndCoding: return "chevron.left.forwardslash.chevron.right"
+            case .aiChatAndLLMs: return "sparkles"
             case .messengersAndChat: return "bubble.left.and.bubble.right.fill"
             case .notesAndWriting: return "note.text"
             case .browsersAndResearch: return "safari.fill"
@@ -211,7 +216,7 @@ public final class AetherContextEngine: @unchecked Sendable {
         let nameLower = name.lowercased()
         let icon: NSImage? = app?.icon ?? (app?.bundleURL != nil ? NSWorkspace.shared.icon(forFile: app!.bundleURL!.path) : nil)
 
-        // 1. IDEs, Terminals & Code Editors
+        // 1. IDEs, Terminals, Code Editors & Codex (Vibe Coding)
         if bundleId.contains("xcode") ||
            bundleId.contains("vscode") ||
            bundleId.contains("cursor") ||
@@ -220,6 +225,8 @@ public final class AetherContextEngine: @unchecked Sendable {
            bundleId.contains("trae") ||
            bundleId.contains("fleet") ||
            bundleId.contains("zed") ||
+           bundleId.contains("codex") ||
+           bundleId.contains("copilot") ||
            bundleId.contains("terminal") ||
            bundleId.contains("iterm") ||
            bundleId.contains("warp") ||
@@ -232,34 +239,49 @@ public final class AetherContextEngine: @unchecked Sendable {
            bundleId.contains("clion") ||
            bundleId.contains("sublime") ||
            bundleId.contains("android.studio") ||
-           bundleId.contains("openai") ||
-           bundleId.contains("chatgpt") ||
-           bundleId.contains("claude") ||
-           bundleId.contains("anthropic") ||
-           bundleId.contains("perplexity") ||
-           bundleId.contains("deepseek") ||
-           bundleId.contains("ollama") ||
-           bundleId.contains("lmstudio") ||
-           bundleId.contains("jan") ||
-           bundleId.contains("copilot") ||
            nameLower.contains("cursor") ||
            nameLower.contains("xcode") ||
            nameLower.contains("antigravity") ||
            nameLower.contains("windsurf") ||
            nameLower.contains("trae") ||
            nameLower.contains("zed") ||
-           nameLower.contains("terminal") ||
+           nameLower.contains("codex") ||
+           nameLower.contains("copilot") ||
+           nameLower.contains("terminal") {
+            return (name, .ideAndCoding, bundleId, icon)
+        }
+
+        // 2. AI Assistants, Chatbots & Local LLMs (Gemini, Claude, Kimi, ChatGPT, LM Studio, Ollama, etc.)
+        if bundleId.contains("chatgpt") ||
+           bundleId.contains("openai") ||
+           bundleId.contains("claude") ||
+           bundleId.contains("anthropic") ||
+           bundleId.contains("gemini") ||
+           bundleId.contains("kimi") ||
+           bundleId.contains("moonshot") ||
+           bundleId.contains("perplexity") ||
+           bundleId.contains("deepseek") ||
+           bundleId.contains("ollama") ||
+           bundleId.contains("lmstudio") ||
+           bundleId.contains("bionic") ||
+           bundleId.contains("jan") ||
+           bundleId.contains("poe") ||
            nameLower.contains("chatgpt") ||
            nameLower.contains("claude") ||
+           nameLower.contains("gemini") ||
+           nameLower.contains("kimi") ||
            nameLower.contains("perplexity") ||
            nameLower.contains("deepseek") ||
            nameLower.contains("ollama") ||
            nameLower.contains("lm studio") ||
-           nameLower.contains("copilot") {
-            return (name, .ideAndCoding, bundleId, icon)
+           nameLower.contains("lmstudio") ||
+           nameLower.contains("bionic") ||
+           nameLower.contains("poe") ||
+           nameLower.contains("jan") {
+            return (name, .aiChatAndLLMs, bundleId, icon)
         }
 
-        // 2. Messengers, Social & Team Chat
+        // 3. Messengers, Social & Team Chat
         if bundleId.contains("telegram") ||
            bundleId.contains("slack") ||
            bundleId.contains("discord") ||
@@ -276,7 +298,7 @@ public final class AetherContextEngine: @unchecked Sendable {
             return (name, .messengersAndChat, bundleId, icon)
         }
 
-        // 3. Notes, Documents & Writing
+        // 4. Notes, Documents & Writing
         if bundleId.contains("notion") ||
            bundleId.contains("obsidian") ||
            bundleId.contains("notes") ||
@@ -293,7 +315,7 @@ public final class AetherContextEngine: @unchecked Sendable {
             return (name, .notesAndWriting, bundleId, icon)
         }
 
-        // 4. Browsers & Research
+        // 5. Browsers & Research
         if bundleId.contains("safari") ||
            bundleId.contains("chrome") ||
            bundleId.contains("arc") ||
@@ -307,11 +329,15 @@ public final class AetherContextEngine: @unchecked Sendable {
            nameLower.contains("chrome") ||
            nameLower.contains("arc") {
             let winContext = inspectActiveWindowContext(targetApp: app)
-            if let wt = winContext.windowTitle?.lowercased(),
-               wt.contains("chatgpt") || wt.contains("claude") || wt.contains("perplexity") ||
-               wt.contains("deepseek") || wt.contains("v0.dev") || wt.contains("bolt.new") ||
-               wt.contains("ai studio") || wt.contains("antigravity") {
-                return (name, .ideAndCoding, bundleId, icon)
+            if let wt = winContext.windowTitle?.lowercased() {
+                if wt.contains("v0.dev") || wt.contains("bolt.new") || wt.contains("antigravity") || wt.contains("codex") || wt.contains("github") {
+                    return (name, .ideAndCoding, bundleId, icon)
+                }
+                if wt.contains("chatgpt") || wt.contains("claude") || wt.contains("gemini") ||
+                   wt.contains("kimi") || wt.contains("perplexity") || wt.contains("deepseek") ||
+                   wt.contains("ai studio") || wt.contains("ollama") || wt.contains("lm studio") || wt.contains("poe") {
+                    return (name, .aiChatAndLLMs, bundleId, icon)
+                }
             }
             return (name, .browsersAndResearch, bundleId, icon)
         }
@@ -403,14 +429,22 @@ public final class AetherContextEngine: @unchecked Sendable {
         switch domain {
         case .ideAndCoding:
             return [
-                "вайб-кодинг", "вайбкодинг", "vibe coding", "Claude Code", "Antigravity", "Antigravity 2.0", "Ollama", "PyTorch", "WhisperKit",
+                "вайб-кодинг", "вайбкодинг", "vibe coding", "Codex", "Codex CLI", "Claude Code", "Antigravity", "Antigravity 2.0",
                 "TypeScript", "SwiftUI", "SwiftData", "Rust", "Next.js", "TailwindCSS", "PostgreSQL", "GraphQL",
-                "Docker", "Kubernetes", "Supabase", "Vercel", "GitHub", "GitLab", "Xcode", "VS Code", "Terminal",
+                "Docker", "Kubernetes", "Supabase", "Vercel", "GitHub", "GitLab", "Xcode", "VS Code", "Terminal", "Copilot",
                 "API", "SDK", "JSON", "regex", "refactor", "pull request", "commit", "merge", "branch", "async",
                 "await", "struct", "class", "enum", "endpoint", "backend", "frontend", "fullstack", "MCP",
                 "коммит", "пул реквест", "ветка", "деплой", "баг", "пофиксить", "рефакторинг", "функция", "эндпоинт",
-                "сделай", "сделай что-то", "создай", "напиши", "добавь", "удали", "пофикси", "запусти", "проверь", "обнови", "настрой", "исправь", "покажи", "сгенерируй",
-                "ChatGPT", "Claude", "Perplexity", "DeepSeek"
+                "сделай", "сделай что-то", "создай", "напиши", "добавь", "удали", "пофикси", "запусти", "проверь", "обнови", "настрой", "исправь", "покажи", "сгенерируй"
+            ]
+        case .aiChatAndLLMs:
+            return [
+                "Gemini", "Claude", "Kimi", "ChatGPT", "LM Studio", "LM Studio Bionic", "Ollama", "Perplexity", "DeepSeek",
+                "Poe", "Jan", "LocalAI", "Bionic GPT", "GGUF", "LoRA", "Hugging Face", "vLLM", "Llama", "Mistral", "Qwen",
+                "DeepSeek-R1", "Claude 3.5 Sonnet", "Gemini 1.5 Pro", "GPT-4o", "o1", "o3-mini",
+                "промпт", "системный промпт", "токены", "контекст", "температура", "инференс", "квантование", "эмбеддинги",
+                "веса модели", "нейросеть", "чат-бот", "рассуждения", "промптинг",
+                "system prompt", "reasoning", "chain of thought", "tokens", "inference", "context window", "temperature", "prompt engineering"
             ]
         case .messengersAndChat:
             return [
@@ -506,7 +540,7 @@ public final class AetherContextEngine: @unchecked Sendable {
             }
             return languageHallucinations + streamSpam
 
-        case .browsersAndResearch, .designAndCreative, .cryptoAndTrading, .medicalAndHealth, .nutritionAndBiohacking, .citiesAndLocations, .general:
+        case .aiChatAndLLMs, .browsersAndResearch, .designAndCreative, .cryptoAndTrading, .medicalAndHealth, .nutritionAndBiohacking, .citiesAndLocations, .general:
             return languageHallucinations
         }
     }
@@ -571,11 +605,19 @@ public final class AetherContextEngine: @unchecked Sendable {
         switch domain {
         case .ideAndCoding:
             if isRussianOnly {
-                return "Вайб-кодинг, разработка и управление ИИ-агентами: голосовые директивы и команды в повелительном наклонении (сделай, сделай что-то, создай, добавь, напиши, удали, пофикси, запусти, проверь, обнови, настрой, открой, закрой, поменяй, переименуй, задеплой, исправь, покажи, сгенерируй, вайб-кодинг, вайбкодинг), термины разработки (Git, Swift, TypeScript, Python, Docker, API, PR, commit, merge, branch, function, async, await, deploy, bugs, MCP, Antigravity, Claude Code, ChatGPT, Claude)."
+                return "Вайб-кодинг, разработка и управление ИИ-агентами: голосовые директивы и команды в повелительном наклонении (сделай, сделай что-то, создай, добавь, напиши, удали, пофикси, запусти, проверь, обнови, настрой, открой, закрой, поменяй, переименуй, задеплой, исправь, покажи, сгенерируй, вайб-кодинг, вайбкодинг), термины разработки (Git, Swift, TypeScript, Python, Docker, API, PR, commit, merge, branch, function, async, await, deploy, bugs, MCP, Codex, Antigravity, Claude Code)."
             } else if isEnglishOnly {
-                return "Vibe coding, IDE development, and AI agent instructions: imperative commands (create, make, do, add, write, delete, fix, run, check, update, configure, open, close, change, rename, deploy, show, vibe coding), programming terms (Git, Swift, TypeScript, Python, Docker, API, PR, commit, merge, branch, function, async, await, deploy, bugs, MCP, Antigravity, Claude Code, ChatGPT, Claude)."
+                return "Vibe coding, IDE development, and AI agent instructions: imperative commands (create, make, do, add, write, delete, fix, run, check, update, configure, open, close, change, rename, deploy, show, vibe coding), programming terms (Git, Swift, TypeScript, Python, Docker, API, PR, commit, merge, branch, function, async, await, deploy, bugs, MCP, Codex, Antigravity, Claude Code)."
             } else {
-                return "Bilingual vibe coding & IDE AI commands (Russian & English): вайб-кодинг, вайбкодинг, vibe coding, сделай, сделай что-то, создай, добавь, напиши, удали, пофикси, запусти, проверь, исправь, Git, Swift, Xcode, TypeScript, Python, Docker, API, PR, commit, merge, branch, function, async, await, deploy, bugs, MCP, Antigravity, Claude Code, ChatGPT, Claude."
+                return "Bilingual vibe coding & IDE AI commands (Russian & English): вайб-кодинг, вайбкодинг, vibe coding, сделай, сделай что-то, создай, добавь, напиши, удали, пофикси, запусти, проверь, исправь, Git, Swift, Xcode, TypeScript, Python, Docker, API, PR, commit, merge, branch, function, async, await, deploy, bugs, MCP, Codex, Antigravity, Claude Code."
+            }
+        case .aiChatAndLLMs:
+            if isRussianOnly {
+                return "Промпты, диалоги с ИИ и управление моделями: Gemini, Claude, Kimi, ChatGPT, LM Studio, LM Studio Bionic, Ollama, DeepSeek, Perplexity, промпт, системный промпт, токены, контекст, температура, рассуждения, инференс, GGUF, LoRA, веса, квантование, нейросеть."
+            } else if isEnglishOnly {
+                return "AI chat, prompt engineering, and LLM reasoning: Gemini, Claude, Kimi, ChatGPT, LM Studio, LM Studio Bionic, Ollama, DeepSeek, Perplexity, system prompt, tokens, context window, temperature, inference, GGUF, LoRA, embeddings."
+            } else {
+                return "Multilingual AI chat & LLM prompts (Russian & English): Gemini, Claude, Kimi, ChatGPT, LM Studio, LM Studio Bionic, Ollama, DeepSeek, Perplexity, промпт, системный промпт, токены, контекст, температура, reasoning, tokens, inference."
             }
         case .messengersAndChat:
             if isRussianOnly {

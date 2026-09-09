@@ -318,6 +318,7 @@ enum Localization {
             "Domain Biasing Vocabulary": "Словарь авто-контекста",
             "Blocked in this Domain": "Заблокировано для этого контекста",
             "IDE & Vibe Coding": "IDE и Вайб-кодинг",
+            "AI Assistants & LLMs": "ИИ-ассистенты и LLM",
             "Messengers & Chat": "Мессенджеры и чаты",
             "Notes & Writing": "Заметки и документы",
             "Browser & Research": "Браузер и поиск",
