@@ -122,8 +122,9 @@ public final class ScribeModeProcessor: @unchecked Sendable {
             return text
 
         case .clean:
-            // Standard cleanup: remove fillers, normalize duplicate spaces, fix punctuation, format web links
-            var result = removeFillerWords(text)
+            // Standard cleanup: speech self-correction repair, remove fillers, normalize duplicate spaces, fix punctuation, format web links
+            var result = AetherLinguisticValidator.shared.repairSpeechSelfCorrections(text: text)
+            result = removeFillerWords(result)
             result = normalizePunctuation(result)
             result = AetherWebLinkNormalizer.shared.normalize(text: result)
             return result

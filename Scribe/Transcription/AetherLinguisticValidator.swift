@@ -521,12 +521,18 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
     public func validateAndCorrect(
         text: String,
         language: String? = nil,
-        customVocabulary: [String] = []
+        customVocabulary: [String] = [],
+        wordTimings: [(word: String, start: Float, end: Float)]? = nil
     ) -> String {
         guard !text.isEmpty else { return text }
 
         var result = text
-        let lowerOriginal = text.lowercased()
+
+        // 0. Speech Self-Correction & False Start Repair (e.g. "chemisty chemistry" -> "chemistry")
+        // Enforces interval <= 2.5s and checks that words are slightly modified variants (NOT identical repetitions).
+        result = repairSpeechSelfCorrections(text: result, wordTimings: wordTimings, maxIntervalSeconds: 2.5)
+
+        let lowerOriginal = result.lowercased()
 
         // 1. Direct phrase-level acoustic corrections
         for (regex, correct) in compiledAcousticCorrections {
@@ -1162,6 +1168,180 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
             }
         }
         return dist[a.count][b.count]
+    }
+
+    // MARK: - Speech Self-Correction & False Start Repair
+
+    /// Recognized filler markers that speakers use when immediately repairing a speech slip or false start.
+    private static let repairMarkerSet: Set<String> = [
+        "ой", "ай", "нет", "не", "а нет", "точнее", "вернее", "то есть",
+        "в смысле", "а именно", "пардон", "извиняюсь", "прости", "простите",
+        "sorry", "i mean", "mean", "or rather", "rather", "actually", "oops", "whoops", "wait", "no"
+    ]
+
+    /// Common short 3-4 letter word pairs that differ by 1 letter but represent distinct concepts (must not be collapsed).
+    private static let preservedShortWordPairs: Set<String> = [
+        "cat_car", "car_cat", "dog_dig", "dig_dog", "bad_bed", "bed_bad",
+        "man_men", "men_man", "boy_toy", "toy_boy", "дом_дым", "дым_дом",
+        "сон_сын", "сын_сон", "кот_кит", "кит_кот", "час_чай", "чай_час"
+    ]
+
+    /// Checks if w1 and w2 are slightly modified variants of the same spoken word (typo, slip, false start, or truncated prefix).
+    /// CRITICAL: Returns FALSE if w1 and w2 are identical (as intentional repetitions e.g. "chemistry chemistry" must be preserved).
+    public func isSlightlyModifiedVariant(_ w1: String, _ w2: String) -> Bool {
+        let s1 = w1.lowercased().trimmingCharacters(in: CharacterSet.punctuationCharacters)
+        let s2 = w2.lowercased().trimmingCharacters(in: CharacterSet.punctuationCharacters)
+
+        // Identical words are NOT considered a modification/correction — preserve verbatim
+        if s1 == s2 { return false }
+
+        let count1 = s1.count
+        let count2 = s2.count
+
+        // Skip very short tokens (< 3 chars) to avoid false positives on prepositions/pronouns
+        guard count1 >= 3 && count2 >= 3 else { return false }
+
+        // 1. Prefix false-start / truncation (e.g. "chem" -> "chemistry", "компи" -> "компилятор")
+        if s2.hasPrefix(s1) && count2 > count1 && (count2 - count1) <= 7 {
+            return true
+        }
+
+        // 2. Levenshtein edit distance check:
+        let dist = levenshtein(s1, s2)
+        let maxLen = max(count1, count2)
+
+        // For short words (3-4 letters): allow dist 1 only if difference is clear typo/false-start
+        if maxLen <= 4 {
+            let pairKey = "\(s1)_\(s2)"
+            if Self.preservedShortWordPairs.contains(pairKey) {
+                return false
+            }
+            return dist == 1
+        }
+
+        // For medium words (5-7 letters): allow dist 1
+        if maxLen <= 7 {
+            return dist == 1
+        }
+
+        // For longer words (8+ letters): allow dist <= 2 with ratio <= 0.25
+        // e.g. "chemisty" (8) vs "chemistry" (9): dist = 1, ratio = 1/9 = 0.11 -> true!
+        // "конфирурация" (12) vs "конфигурация" (12): dist = 1 -> true!
+        // "интерфес" (8) vs "интерфейс" (9): dist = 1 -> true!
+        if dist <= 2 && Double(dist) / Double(maxLen) <= 0.25 {
+            return true
+        }
+
+        return false
+    }
+
+    /// Intelligently repairs speech self-corrections / false starts where a speaker misspeaks
+    /// and immediately corrects themselves within ~2.5 seconds (e.g. "chemisty chemistry" -> "chemistry",
+    /// "chemisty, точнее chemistry" -> "chemistry", "компи... компилятор" -> "компилятор").
+    ///
+    /// Preserves intentional repetitions (e.g. "chemistry chemistry", "очень очень").
+    public func repairSpeechSelfCorrections(
+        text: String,
+        wordTimings: [(word: String, start: Float, end: Float)]? = nil,
+        maxIntervalSeconds: TimeInterval = 2.5
+    ) -> String {
+        guard !text.isEmpty else { return text }
+
+        let wordRegex = try? NSRegularExpression(pattern: #"[\p{L}\p{N}_'-]+"#)
+        guard let regex = wordRegex else { return text }
+
+        let nsText = text as NSString
+        let matches = regex.matches(in: text, options: [], range: NSRange(location: 0, length: nsText.length))
+
+        guard matches.count >= 2 else { return text }
+
+        struct WordToken {
+            let word: String
+            let range: NSRange
+        }
+
+        var tokens: [WordToken] = []
+        for m in matches {
+            let w = nsText.substring(with: m.range)
+            tokens.append(WordToken(word: w, range: m.range))
+        }
+
+        var replacements: [(range: NSRange, replacement: String)] = []
+        var skipIndices = Set<Int>()
+
+        for i in 0..<(tokens.count - 1) {
+            if skipIndices.contains(i) { continue }
+
+            let t1 = tokens[i]
+
+            // Check lookahead up to 4 words (e.g. for multi-word markers like "or rather", "то есть", "в смысле")
+            let maxLookahead = min(tokens.count - 1, i + 4)
+            for k in (i + 1)...maxLookahead {
+                let t2 = tokens[k]
+
+                // Check intervening words: must be empty or a recognized speech repair marker
+                let betweenWords = tokens[(i + 1)..<k].map { $0.word.lowercased() }.joined(separator: " ")
+                let isMarker = betweenWords.isEmpty || Self.repairMarkerSet.contains(betweenWords)
+                guard isMarker else { continue }
+
+                // Intervening separator between t1 and t2 in original text
+                let sepStart = t1.range.location + t1.range.length
+                let sepLen = t2.range.location - sepStart
+                guard sepLen >= 0 else { continue }
+
+                let separator = nsText.substring(with: NSRange(location: sepStart, length: sepLen))
+
+                // Prohibit crossing hard sentence boundaries (. ! ?) unless it's hesitation ellipsis (...)
+                let hasSentenceBreak = separator.range(of: #"(?<!\.)\.(?!\.)|[?!]"#, options: .regularExpression) != nil
+                if hasSentenceBreak {
+                    continue
+                }
+
+                // Timing check: if wordTimings provided, enforce 2.5-second max interval
+                if let timings = wordTimings, !timings.isEmpty {
+                    if i < timings.count && k < timings.count {
+                        let timing1 = timings[i]
+                        let timing2 = timings[k]
+                        let gap = timing2.start - timing1.end
+                        if gap > Float(maxIntervalSeconds) {
+                            continue
+                        }
+                    }
+                }
+
+                // Check if t1 and t2 are a slightly modified variant
+                if isSlightlyModifiedVariant(t1.word, t2.word) {
+                    // Match! Replace span from start of t1 to end of t2 with corrected t2
+                    let replaceSpan = NSRange(location: t1.range.location, length: (t2.range.location + t2.range.length) - t1.range.location)
+
+                    // Preserve initial capitalization if t1 was capitalized
+                    let isT1Capitalized = t1.word.first?.isUppercase == true
+                    let replacementWord: String
+                    if isT1Capitalized {
+                        replacementWord = t2.word.prefix(1).uppercased() + t2.word.dropFirst()
+                    } else {
+                        replacementWord = t2.word
+                    }
+
+                    replacements.append((range: replaceSpan, replacement: replacementWord))
+                    for idx in i...k {
+                        skipIndices.insert(idx)
+                    }
+                    break
+                }
+            }
+        }
+
+        if replacements.isEmpty { return text }
+
+        var result = text
+        for rep in replacements.reversed() {
+            if let strRange = Range(rep.range, in: result) {
+                result.replaceSubrange(strRange, with: rep.replacement)
+            }
+        }
+
+        return result
     }
 }
 

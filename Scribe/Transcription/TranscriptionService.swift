@@ -575,7 +575,15 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
 
         do {
             let results = try await kit.transcribe(audioPath: conditionedURL.path, decodeOptions: options)
-            let text = results.map(\.text).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+            var text = results.map(\.text).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+            if text.isEmpty { return nil }
+
+            let customVocabList = customVocabulary.components(separatedBy: CharacterSet(charactersIn: ",\n;")).map { $0.trimmingCharacters(in: .whitespaces) }
+            text = AetherLinguisticValidator.shared.validateAndCorrect(
+                text: text,
+                language: resolvedLang,
+                customVocabulary: customVocabList
+            )
             return text.isEmpty ? nil : text
         } catch {
             return nil
@@ -856,6 +864,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             logger.debug("Aether set initial prompt (\(options.promptTokens?.count ?? 0) tokens) for locked language '\(langKey)'")
         }
         
+        options.wordTimestamps = true
         logger.debug("Calling WhisperKit.transcribe(audioPath: \(path), language: \(options.language ?? "auto"))")
 
         // Execute WhisperKit neural network inference off the MainActor on background cooperative pool
@@ -899,6 +908,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             var redecodeOptions = options
             redecodeOptions.language = targetFallback
             redecodeOptions.detectLanguage = false
+            redecodeOptions.wordTimestamps = true
 
             // Update base prompt for the target fallback
             let fallbackBasePrompt = initialPrompt[targetFallback] ?? (initialPrompt["ru"] ?? initialPrompt["auto"]!)
@@ -942,12 +952,24 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         // e.g. [keyboard clicking], (music), *laughs*, [BLANK_AUDIO], rogue scripts
         var text = Self.cleanTranscription(rawText, preferredLanguages: preferredLanguages, targetLanguage: effectiveOutputLang)
 
-        // Stage C: Linguistic validation against native macOS dictionary and phonetic correction
+        // Extract word-level or segment-level timings for speech self-correction repair validation (<= 2.5s)
+        let wordTimings: [(word: String, start: Float, end: Float)] = results.flatMap { res in
+            res.segments.flatMap { seg in
+                if let words = seg.words, !words.isEmpty {
+                    return words.map { (word: $0.word, start: $0.start, end: $0.end) }
+                } else {
+                    return [(word: seg.text, start: seg.start, end: seg.end)]
+                }
+            }
+        }
+
+        // Stage C: Linguistic validation against native macOS dictionary, speech self-correction repair, and phonetic correction
         let customVocabList = customVocabulary.components(separatedBy: CharacterSet(charactersIn: ",\n;")).map { $0.trimmingCharacters(in: .whitespaces) }
         text = AetherLinguisticValidator.shared.validateAndCorrect(
             text: text,
             language: effectiveOutputLang,
-            customVocabulary: customVocabList
+            customVocabulary: customVocabList,
+            wordTimings: wordTimings
         )
 
         // Track user spoken word frequencies for dynamic Top 100 lexicon adaptation

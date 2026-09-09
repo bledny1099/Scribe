@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.6.7] - 2026-09-09
 
 ## Added
+- Intelligent speech self-correction and false start repair: automatically collapses immediate slips and mispronunciations (e.g. "chemisty chemistry" -> "chemistry", "компи... компилятор" -> "компилятор") within a 2.5-second window while strictly preserving intentional identical repetitions (e.g. "chemistry chemistry").
 - Dedicated "IDE & Vibe Coding" vocabulary preset covering vibe coding patterns, Codex, CLI tools, and development workflows.
 - Dedicated "AI Assistants & LLMs" vocabulary preset and context domain covering Gemini, Claude, Kimi, ChatGPT, LM Studio, LM Studio Bionic, Ollama, Perplexity, and DeepSeek.
 - Domain localization and descriptions for the AI Assistants and local model ecosystems.
@@ -17,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Integrated preferred language filtering and dynamic prompt token conditioning into interim live preview transcription snapshots.
 
 ## Fixed
+- Fixed speech transcription of immediate false starts and stuttered prefixes across both Russian and English, supporting verbal repair markers ("точнее", "ой", "I mean", "sorry").
 - Fixed live preview language slips during mixed Russian-English speech where phrases like "что такое ammonium chloride" were mistranslated into English ("what is ammonium chloride").
 - Constrained Whisper live preview decoding to maintain Cyrillic Russian phrasing alongside accurate Latin technical terms without translation.
 
