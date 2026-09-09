@@ -122,9 +122,10 @@ public final class ScribeModeProcessor: @unchecked Sendable {
             return text
 
         case .clean:
-            // Standard cleanup: remove fillers, normalize duplicate spaces, fix punctuation
+            // Standard cleanup: remove fillers, normalize duplicate spaces, fix punctuation, format web links
             var result = removeFillerWords(text)
             result = normalizePunctuation(result)
+            result = AetherWebLinkNormalizer.shared.normalize(text: result)
             return result
         }
     }
@@ -288,9 +289,21 @@ public final class ScribeModeProcessor: @unchecked Sendable {
             result = spaceBeforePunct.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: "$1")
         }
         // Ensure space after punctuation if followed by a word character
-        if let spaceAfterPunct = try? NSRegularExpression(pattern: "([,.:;!?])([a-zA-Zа-яА-ЯёЁ])") {
+        // For commas, semicolons, exclamation marks, question marks:
+        if let spaceAfterComma = try? NSRegularExpression(pattern: "([,;!?])([a-zA-Zа-яА-ЯёЁ])") {
             let range = NSRange(result.startIndex..<result.endIndex, in: result)
-            result = spaceAfterPunct.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: "$1 $2")
+            result = spaceAfterComma.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: "$1 $2")
+        }
+        // For colons, avoid splitting URLs (e.g. "https://") or time ("12:30"):
+        if let spaceAfterColon = try? NSRegularExpression(pattern: "(:)(?![/0-9])([a-zA-Zа-яА-ЯёЁ])") {
+            let range = NSRange(result.startIndex..<result.endIndex, in: result)
+            result = spaceAfterColon.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: "$1 $2")
+        }
+        // For periods, only insert a space if followed by an uppercase letter (sentence boundary).
+        // This avoids corrupting web domains (e.g. "cgpbooks.co.uk", "google.com") and abbreviations ("etc.", "i.e.").
+        if let spaceAfterPeriod = try? NSRegularExpression(pattern: "(\\.)([A-ZА-ЯЁ])") {
+            let range = NSRange(result.startIndex..<result.endIndex, in: result)
+            result = spaceAfterPeriod.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: "$1 $2")
         }
         return result
     }

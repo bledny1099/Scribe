@@ -737,6 +737,9 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
             }
         }
 
+        // 4. Intelligent Web Link, Domain & Email Normalization
+        result = AetherWebLinkNormalizer.shared.normalize(text: result)
+
         return result
     }
 
@@ -1161,3 +1164,284 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         return dist[a.count][b.count]
     }
 }
+
+// MARK: - AetherWebLinkNormalizer
+
+/// Intelligently recognizes, repairs, and formats spoken web URLs, domain names, paths, and emails.
+/// Handles acoustic slips (e.g. "cgpbooks. com. uk" -> "cgpbooks.co.uk"), spoken separators ("slash extras" -> "/extras"),
+/// spoken protocols ("https : //" -> "https://"), and emails ("name собака domain точка com" -> "name@domain.com").
+public final class AetherWebLinkNormalizer: @unchecked Sendable {
+    public static let shared = AetherWebLinkNormalizer()
+
+    private let commonTLDs: Set<String> = [
+        "com", "ru", "org", "net", "io", "ai", "app", "dev", "me", "info", "biz",
+        "ua", "kz", "by", "uz", "de", "fr", "eu", "it", "es", "nl", "pl", "ch",
+        "se", "no", "fi", "cz", "at", "be", "dk", "xyz", "tech", "site", "online",
+        "store", "shop", "edu", "gov", "mil", "tv", "cc", "gg", "to", "fm", "pro",
+        "su", "space", "top", "club", "vip", "live", "world", "link", "press",
+        "cloud", "design", "art", "media", "digital", "agency", "global", "center",
+        "group", "zone", "page", "in", "ca", "jp", "kr", "cn", "br", "mx", "au",
+        "nz", "za", "is", "uk", "рф", "москва", "онлайн", "сайт"
+    ]
+
+    private let commonSentenceStarters: Set<String> = [
+        "In", "To", "It", "Is", "Me", "No", "At", "Be", "So", "Do", "By", "Or",
+        "We", "He", "Us", "My", "Am", "An", "As", "If", "On"
+    ]
+
+    private let spokenTLDMap: [(pattern: String, replacement: String)] = [
+        ("(?i)\\bком\\b", "com"),
+        ("(?i)\\bру\\b", "ru"),
+        ("(?i)\\bорг\\b", "org"),
+        ("(?i)\\bнет\\b", "net"),
+        ("(?i)\\bрф\\b", "рф"),
+        ("(?i)\\bко\\b", "co"),
+        ("(?i)\\bюк\\b", "uk"),
+        ("(?i)\\b(?:айо|ио)\\b", "io"),
+        ("(?i)\\b(?:эйай|аи)\\b", "ai"),
+        ("(?i)\\b(?:апп|эпп)\\b", "app"),
+        ("(?i)\\bдев\\b", "dev"),
+        ("(?i)\\bми\\b", "me"),
+        ("(?i)\\bбай\\b", "by"),
+        ("(?i)\\bкз\\b", "kz"),
+        ("(?i)\\bюа\\b", "ua"),
+        ("(?i)\\bинфо\\b", "info"),
+        ("(?i)\\bпро\\b", "pro"),
+        ("(?i)\\bбиз\\b", "biz"),
+        ("(?i)\\bонлайн\\b", "online"),
+        ("(?i)\\bсайт\\b", "site"),
+        ("(?i)\\bстор\\b", "store"),
+        ("(?i)\\bшоп\\b", "shop"),
+        ("(?i)\\bтек\\b", "tech"),
+        ("(?i)\\bсу\\b", "su"),
+        ("(?i)\\bтв\\b", "tv")
+    ]
+
+    private let compiledSpokenTLDMap: [(regex: NSRegularExpression, replacement: String)]
+    private let compiledHttpsRegexes: [NSRegularExpression]
+    private let compiledHttpRegexes: [NSRegularExpression]
+    private let compiledWwwRegexes: [NSRegularExpression]
+    private let emailRegex: NSRegularExpression?
+    private let ukSldRegex: NSRegularExpression?
+    private let ruSldRegex: NSRegularExpression?
+    private let domainRegex: NSRegularExpression?
+    private let sepRegex: NSRegularExpression?
+    private let slashRegex: NSRegularExpression?
+
+    public init() {
+        self.compiledSpokenTLDMap = spokenTLDMap.compactMap { item in
+            guard let re = try? NSRegularExpression(pattern: item.pattern) else { return nil }
+            return (regex: re, replacement: item.replacement)
+        }
+
+        let httpsPatterns = [
+            "(?i)\\b(?:аш\\s+ти\\s+ти\\s+пи\\s+эс|эйч\\s+ти\\s+ти\\s+пи\\s+эс|хттпс|https)\\s*(?:двоеточие|colon|:)\\s*(?:два\\s+с[лс]еша|двойной\\s+с[лс]еш|с[лс]еш\\s+с[лс]еш|double\\s+slash|slash\\s+slash|\\/\\s*\\/)\\s*",
+            "(?i)\\bhttps\\s*:\\s*\\/\\s*\\/\\s*"
+        ]
+        self.compiledHttpsRegexes = httpsPatterns.compactMap { try? NSRegularExpression(pattern: $0) }
+
+        let httpPatterns = [
+            "(?i)\\b(?:аш\\s+ти\\s+ти\\s+пи|эйч\\s+ти\\s+ти\\s+пи|хттп|http)\\s*(?:двоеточие|colon|:)\\s*(?:два\\s+с[лс]еша|двойной\\s+с[лс]еш|с[лс]еш\\s+с[лс]еш|double\\s+slash|slash\\s+slash|\\/\\s*\\/)\\s*",
+            "(?i)\\bhttp\\s*:\\s*\\/\\s*\\/\\s*"
+        ]
+        self.compiledHttpRegexes = httpPatterns.compactMap { try? NSRegularExpression(pattern: $0) }
+
+        let wwwPatterns = [
+            "(?i)\\b(?:дабл\\s+ю\\s+дабл\\s+ю\\s+дабл\\s+ю|вэ\\s+вэ\\s+вэ|www)\\s*(?:\\.|\\s+точка\\s+|\\s+dot\\s+|\\s*\\.\\s*)\\s*"
+        ]
+        self.compiledWwwRegexes = wwwPatterns.compactMap { try? NSRegularExpression(pattern: $0) }
+
+        self.emailRegex = try? NSRegularExpression(pattern: "(?i)\\b([a-zA-Z0-9_.-]+)\\s*(?:@|собака|собачка|\\bat\\b)\\s*([a-zA-Z0-9_-]+)\\s*(?:\\.|\\s+точка\\s+|\\s+dot\\s+|\\s*\\.\\s*)\\s*([a-zA-Zа-яА-ЯёЁ]{2,10})\\b")
+        self.ukSldRegex = try? NSRegularExpression(pattern: "(?i)\\b([a-zA-Z0-9_-]+)\\s*(?:\\.|\\s+точка\\s+|\\s+dot\\s+|\\s*\\.\\s*)\\s*(com|co|org|ac|gov|ком|ко|орг|гов)\\s*(?:\\.|\\s+точка\\s+|\\s+dot\\s+|\\s*\\.\\s*)\\s*(uk|юк)\\b")
+        self.ruSldRegex = try? NSRegularExpression(pattern: "(?i)\\b([a-zA-Z0-9_-]+)\\s*(?:\\.|\\s+точка\\s+|\\s+dot\\s+|\\s*\\.\\s*)\\s*(com|org|net|ком|орг|нет)\\s*(?:\\.|\\s+точка\\s+|\\s+dot\\s+|\\s*\\.\\s*)\\s*(ru|ру)\\b")
+        self.domainRegex = try? NSRegularExpression(pattern: "(?i)\\b((?:[a-zA-Z0-9_-]+\\s*(?:\\.|\\s+точка\\s+|\\s+dot\\s+|\\s*\\.\\s*)\\s*)+)([a-zA-Zа-яА-ЯёЁ]{2,10})\\b")
+        self.sepRegex = try? NSRegularExpression(pattern: "\\s*(?:\\.|\\s+точка\\s+|\\s+dot\\s+|\\s*\\.\\s*)\\s*")
+        self.slashRegex = try? NSRegularExpression(pattern: "(?i)((?:https?:\\/\\/|www\\.)?[a-zA-Z0-9_.-]+\\.[a-zA-Zа-яА-ЯёЁ]{2,10}(?:\\/[a-zA-Z0-9а-яА-ЯёЁ_.~%!$&'()*+,;=:@-]*)*)(?:\\s+(?:слеш|слэш|дробь|slash)\\s+|\\s*\\/\\s*)([a-zA-Z0-9а-яА-ЯёЁ_.~%!$&'()*+,;=:@-]+)")
+    }
+
+    public func normalize(text: String) -> String {
+        guard !text.isEmpty else { return text }
+        var result = text
+
+        // 1. Spoken Protocol Normalization (e.g. "https : //", "хттпс двоеточие слеш слеш")
+        result = normalizeProtocols(result)
+
+        // 2. Spoken Emails (e.g. "user собака domain точка com")
+        result = normalizeEmails(result)
+
+        // 3. Spoken Second-Level Domains (e.g. "cgpbooks. com. uk" acoustic slip -> "cgpbooks.co.uk")
+        result = normalizeSecondLevelDomains(result)
+
+        // 4. Standard Domains and Subdomains (e.g. "google . com", "api . github . com")
+        result = normalizeDomains(result)
+
+        // 5. Spoken Paths / Slashes (e.g. "cgpbooks.co.uk slash extras" -> "cgpbooks.co.uk/extras")
+        result = normalizePaths(result)
+
+        return result
+    }
+
+    private func normalizeProtocols(_ text: String) -> String {
+        var result = text
+        for regex in compiledHttpsRegexes {
+            let range = NSRange(result.startIndex..<result.endIndex, in: result)
+            result = regex.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: "https://")
+        }
+        for regex in compiledHttpRegexes {
+            let range = NSRange(result.startIndex..<result.endIndex, in: result)
+            result = regex.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: "http://")
+        }
+        for regex in compiledWwwRegexes {
+            let range = NSRange(result.startIndex..<result.endIndex, in: result)
+            result = regex.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: "www.")
+        }
+        return result
+    }
+
+    private func normalizeEmails(_ text: String) -> String {
+        guard let regex = emailRegex else { return text }
+        var result = text
+        let matches = regex.matches(in: result, options: [], range: NSRange(location: 0, length: (result as NSString).length))
+        for match in matches.reversed() {
+            if let fullRange = Range(match.range, in: result),
+               let uRange = Range(match.range(at: 1), in: result),
+               let dRange = Range(match.range(at: 2), in: result),
+               let tRange = Range(match.range(at: 3), in: result) {
+                let user = String(result[uRange]).lowercased()
+                let domain = String(result[dRange]).lowercased()
+                var tld = String(result[tRange]).lowercased()
+                for item in compiledSpokenTLDMap {
+                    let tRangeNS = NSRange(location: 0, length: (tld as NSString).length)
+                    if item.regex.firstMatch(in: tld, options: [], range: tRangeNS) != nil {
+                        tld = item.replacement
+                        break
+                    }
+                }
+                if commonTLDs.contains(tld) {
+                    result.replaceSubrange(fullRange, with: "\(user)@\(domain).\(tld)")
+                }
+            }
+        }
+        return result
+    }
+
+    private func normalizeSecondLevelDomains(_ text: String) -> String {
+        var result = text
+        if let regex = ukSldRegex {
+            let matches = regex.matches(in: result, options: [], range: NSRange(location: 0, length: (result as NSString).length))
+            for match in matches.reversed() {
+                if let fullRange = Range(match.range, in: result),
+                   let dRange = Range(match.range(at: 1), in: result),
+                   let sRange = Range(match.range(at: 2), in: result) {
+                    let domain = String(result[dRange]).lowercased()
+                    var sld = String(result[sRange]).lowercased()
+                    if sld == "com" || sld == "co" || sld == "ком" || sld == "ко" {
+                        sld = "co"
+                    } else if sld == "org" || sld == "орг" {
+                        sld = "org"
+                    } else if sld == "gov" || sld == "гов" {
+                        sld = "gov"
+                    }
+                    result.replaceSubrange(fullRange, with: "\(domain).\(sld).uk")
+                }
+            }
+        }
+
+        if let regex = ruSldRegex {
+            let matches = regex.matches(in: result, options: [], range: NSRange(location: 0, length: (result as NSString).length))
+            for match in matches.reversed() {
+                if let fullRange = Range(match.range, in: result),
+                   let dRange = Range(match.range(at: 1), in: result),
+                   let sRange = Range(match.range(at: 2), in: result) {
+                    let domain = String(result[dRange]).lowercased()
+                    var sld = String(result[sRange]).lowercased()
+                    if sld == "ком" { sld = "com" }
+                    if sld == "орг" { sld = "org" }
+                    if sld == "нет" { sld = "net" }
+                    result.replaceSubrange(fullRange, with: "\(domain).\(sld).ru")
+                }
+            }
+        }
+
+        return result
+    }
+
+    private func normalizeDomains(_ text: String) -> String {
+        guard let regex = domainRegex else { return text }
+        var result = text
+
+        let matches = regex.matches(in: result, options: [], range: NSRange(location: 0, length: (result as NSString).length))
+        for match in matches.reversed() {
+            if let fullRange = Range(match.range, in: result),
+               let prefixRange = Range(match.range(at: 1), in: result),
+               let tldRange = Range(match.range(at: 2), in: result) {
+                let rawPrefix = String(result[prefixRange])
+                var rawTld = String(result[tldRange]).lowercased()
+
+                for item in compiledSpokenTLDMap {
+                    let tRangeNS = NSRange(location: 0, length: (rawTld as NSString).length)
+                    if item.regex.firstMatch(in: rawTld, options: [], range: tRangeNS) != nil {
+                        rawTld = item.replacement
+                        break
+                    }
+                }
+
+                guard commonTLDs.contains(rawTld) else { continue }
+
+                let originalTld = String(result[tldRange])
+                let matchedSlice = String(result[fullRange])
+                if originalTld.first?.isUppercase == true && (matchedSlice.contains(". ") || matchedSlice.contains(".\t")) {
+                    if commonSentenceStarters.contains(originalTld) {
+                        continue
+                    }
+                }
+
+                let cleanPrefix = sepRegex?.stringByReplacingMatches(
+                    in: rawPrefix,
+                    options: [],
+                    range: NSRange(location: 0, length: (rawPrefix as NSString).length),
+                    withTemplate: "."
+                ) ?? rawPrefix
+
+                var segments = cleanPrefix.components(separatedBy: ".").filter { !$0.isEmpty }
+                guard !segments.isEmpty else { continue }
+
+                if (rawTld == "uk" || rawTld == "юк") && !segments.isEmpty {
+                    let lastIdx = segments.count - 1
+                    if segments[lastIdx].lowercased() == "com" || segments[lastIdx].lowercased() == "ком" {
+                        segments[lastIdx] = "co"
+                    }
+                }
+
+                let joinedDomain = (segments + [rawTld]).joined(separator: ".")
+                result.replaceSubrange(fullRange, with: joinedDomain)
+            }
+        }
+
+        return result
+    }
+
+    private func normalizePaths(_ text: String) -> String {
+        guard let regex = slashRegex else { return text }
+        var result = text
+
+        var iterations = 0
+        while iterations < 10 {
+            let matches = regex.matches(in: result, options: [], range: NSRange(location: 0, length: (result as NSString).length))
+            if matches.isEmpty { break }
+            for match in matches.reversed() {
+                if let fullRange = Range(match.range, in: result),
+                   let baseRange = Range(match.range(at: 1), in: result),
+                   let pathRange = Range(match.range(at: 2), in: result) {
+                    let base = String(result[baseRange])
+                    let segment = String(result[pathRange])
+                    result.replaceSubrange(fullRange, with: "\(base)/\(segment)")
+                }
+            }
+            iterations += 1
+        }
+
+        return result
+    }
+}
+
