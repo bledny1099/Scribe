@@ -221,21 +221,22 @@ final class WaveformVisualizerState {
         let dt = Float(min(0.05, max(0.001, now - lastFrameTime)))
         lastFrameTime = now
 
-        if currentLevel > 0.035 {
+        // Any level above resting baseline is active vocalization
+        if currentLevel > 0.04 {
             lastSpeechTime = now
         }
 
-        // Voice hold time of 0.18s prevents wave jitter between rapid consonants,
-        // but stops immediately when the user pauses or finishes speaking.
-        let isSpeaking = (now - lastSpeechTime) < 0.18
+        // Voice hold window of 0.35s bridges natural micro-pauses between syllables and words,
+        // but halts scrolling cleanly when the user pauses or finishes speaking.
+        let isSpeaking = (now - lastSpeechTime) < 0.35
 
         if isSpeaking {
             let target = min(1.0, max(0.025, currentLevel))
-            // Fast attack (instant speech onset), smooth decay
-            let rate: Float = target > smoothedLevel ? 38.0 : 16.0
+            // Responsive attack, organic vocal decay
+            let rate: Float = target > smoothedLevel ? 34.0 : 14.0
             smoothedLevel += (target - smoothedLevel) * min(1.0, dt * rate)
 
-            // Flowing wave scroll speed when speaking: 78.4 pt/s (14 bars/sec)
+            // Flowing wave scroll speed when speaking: ~78.4 pt/s (14 bars/sec)
             let scrollSpeed: CGFloat = 78.4
             scrollOffset += CGFloat(dt) * scrollSpeed
 
@@ -243,22 +244,15 @@ final class WaveformVisualizerState {
             while scrollOffset >= barStride {
                 scrollOffset -= barStride
                 levels.removeFirst()
-                // Organic micro-variation during vocalization gives life to the waveform
-                let noise = (smoothedLevel > 0.06) ? Float.random(in: -0.02...0.02) * smoothedLevel : 0
+                // Subtle organic acoustic variation during speech
+                let noise = (smoothedLevel > 0.07) ? Float.random(in: -0.015...0.015) * smoothedLevel : 0
                 levels.append(min(1.0, max(0.025, smoothedLevel + noise)))
             }
         } else {
-            // SILENCE: User is not speaking!
-            // "шла только когда я говорю" -> wave completely halts scrolling
-            smoothedLevel += (0.025 - smoothedLevel) * min(1.0, dt * 14.0)
-
-            // Smoothly decay any lingering bars down to resting baseline
-            let decayFactor = min(1.0, dt * 8.0)
-            for i in 0..<levels.count {
-                if levels[i] > 0.025 {
-                    levels[i] += (0.025 - levels[i]) * decayFactor
-                }
-            }
+            // SILENCE / PAUSE: User is not speaking!
+            // Wave scrolling halts completely ("шла только когда я говорю")
+            smoothedLevel += (0.025 - smoothedLevel) * min(1.0, dt * 10.0)
+            // Existing bars remain visible without abruptly disappearing
         }
     }
 }
@@ -437,8 +431,8 @@ struct WaveformBarsView: View {
                 }
 
                 let gradient = Gradient(colors: [
-                    baseColor1.opacity(0.85),
-                    baseColor2.opacity(0.85)
+                    baseColor1.opacity(0.48),
+                    baseColor2.opacity(0.62)
                 ])
                 context.fill(
                     combinedPath,
