@@ -112,25 +112,51 @@ final class PasteService {
         return precedingString
     }
 
-    /// Adjusts first-letter casing to lowercase if inserting into an ongoing sentence
+    /// Adjusts first-letter casing:
+    /// - Capitalizes when the field is empty, after sentence enders (. ! ? … \n :), or when preceding context is unavailable (browser address bars / omnibox).
+    /// - Lowercases when continuing an ongoing sentence mid-phrase (e.g. typing after "Hello, ", "this is a ").
     static func adjustCasingForContext(text: String) -> String {
         guard !text.isEmpty else { return text }
-        guard let preceding = getPrecedingTextContext() else { return text }
+
+        // Preserve raw URLs and web addresses without modifying case
+        if text.hasPrefix("http://") || text.hasPrefix("https://") || text.hasPrefix("www.") {
+            return text
+        }
+
+        func capitalizeFirst(_ str: String) -> String {
+            guard let first = str.first else { return str }
+            if first.isUppercase { return str }
+            return first.uppercased() + str.dropFirst()
+        }
+
+        func lowercaseFirst(_ str: String) -> String {
+            guard let first = str.first else { return str }
+            if first.isLowercase { return str }
+            return first.lowercased() + str.dropFirst()
+        }
+
+        guard let preceding = getPrecedingTextContext() else {
+            // When preceding context cannot be determined (e.g. browser omnibox, Electron apps, or empty start):
+            // Default to sentence-start capitalization
+            return capitalizeFirst(text)
+        }
 
         let trimmedPreceding = preceding.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedPreceding.isEmpty else { return text }
+        // If field is completely empty ("когда нет ничего"): ALWAYS capitalize first letter!
+        guard !trimmedPreceding.isEmpty else {
+            return capitalizeFirst(text)
+        }
 
         if let lastChar = trimmedPreceding.last {
-            // Sentence enders require uppercase
-            let sentenceEnders: Set<Character> = [".", "!", "?", "…", "\n", "\r"]
-            if !sentenceEnders.contains(lastChar) {
+            let sentenceEnders: Set<Character> = [".", "!", "?", "…", "\n", "\r", ":"]
+            if sentenceEnders.contains(lastChar) {
+                return capitalizeFirst(text)
+            } else {
                 // Mid-sentence continuation: Lowercase first letter
-                let firstChar = text.prefix(1)
-                let remaining = text.dropFirst()
-                return firstChar.lowercased() + remaining
+                return lowercaseFirst(text)
             }
         }
-        return text
+        return capitalizeFirst(text)
     }
 
     /// Checks if Accessibility permission is currently granted.

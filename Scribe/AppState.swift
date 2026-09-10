@@ -477,26 +477,16 @@ final class AppState: ObservableObject {
     private var transcribingDotTimer: Timer?
 
     public func startTranscribingDotTimer() {
-        stopTranscribingDotTimer()
-        transcribingDotCount = 1
-        transcribingDotTimer = Timer.scheduledTimer(withTimeInterval: 0.35, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                guard let self = self else { return }
-                self.transcribingDotCount = (self.transcribingDotCount % 3) + 1
-            }
-        }
+        // Handled smoothly via GPU in TranscribingAnimationView
     }
 
     public func stopTranscribingDotTimer() {
         transcribingDotTimer?.invalidate()
         transcribingDotTimer = nil
-        transcribingDotCount = 3
     }
 
     public var transcribingStatusText: String {
-        let base = l("Transcribing")
-        let dots = String(repeating: ".", count: transcribingDotCount)
-        return "\(base)\(dots)"
+        l("Transcribing")
     }
 
     // MARK: App Storage Preferences

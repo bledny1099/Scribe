@@ -110,7 +110,7 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
         let tracker = levelTracker
         let queue = audioProcessingQueue
 
-        inputNode.installTap(onBus: 0, bufferSize: 2048, format: recordingFormat) { [weak self] buffer, _ in
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
             guard let self = self, self.isRecording else {
                 subject.send(0)
                 return

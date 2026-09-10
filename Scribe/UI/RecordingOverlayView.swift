@@ -189,50 +189,170 @@ struct ClassicOverlay: View {
 }
 
 // ============================================================================
-// MARK: - Waveform Visualizer State (Smooth 120/60 Hz spring physics)
+// MARK: - Waveform Visualizer State (Continuous 120/60 Hz Sub-Pixel Gliding)
 // ============================================================================
 
 final class WaveformVisualizerState {
     static let barCount = 52
-    var displayLevels: [Float] = Array(repeating: 0.02, count: 52)
-    var targetLevels: [Float] = Array(repeating: 0.02, count: 52)
+    static let bufferCount = 56 // Extra bars to ensure seamless sub-pixel edge coverage
+    static let barWidth: CGFloat = 3.2
+    static let barSpacing: CGFloat = 2.4
+    static var stride: CGFloat { barWidth + barSpacing } // 5.6 pt
 
+    var levels: [Float] = Array(repeating: 0.025, count: 56)
+    var scrollOffset: CGFloat = 0.0
+    private var smoothedLevel: Float = 0.025
     private var lastFrameTime: CFTimeInterval = 0
-    private var lastSampleTime: CFTimeInterval = 0
 
     func reset() {
-        displayLevels = Array(repeating: 0.02, count: Self.barCount)
-        targetLevels = Array(repeating: 0.02, count: Self.barCount)
+        levels = Array(repeating: 0.025, count: Self.bufferCount)
+        scrollOffset = 0.0
+        smoothedLevel = 0.025
         lastFrameTime = 0
-        lastSampleTime = 0
     }
 
     func tick(currentLevel: Float, now: CFTimeInterval) {
         if lastFrameTime == 0 {
             lastFrameTime = now
-            lastSampleTime = now
             return
         }
 
         let dt = Float(min(0.05, max(0.001, now - lastFrameTime)))
         lastFrameTime = now
 
-        // Sample audio at a steady ~35 Hz cadence (every 28ms) for a continuous flowing wave
-        if now - lastSampleTime >= 0.028 {
-            lastSampleTime = now
-            let target = min(1.0, max(0.02, currentLevel))
-            targetLevels.removeFirst()
-            targetLevels.append(target)
-        }
+        let target = min(1.0, max(0.025, currentLevel))
+        // Fast attack (instant responsiveness to speech onset), smooth exponential decay
+        let rate: Float = target > smoothedLevel ? 32.0 : 12.0
+        smoothedLevel += (target - smoothedLevel) * min(1.0, dt * rate)
 
-        // Native 120/60 Hz spring physics interpolation between frames
-        let springSpeed: Float = 36.0
-        let factor = min(1.0, dt * springSpeed)
-        for i in 0..<Self.barCount {
-            displayLevels[i] += (targetLevels[i] - displayLevels[i]) * factor
+        // Continuous sub-pixel scroll speed: 67.2 pt/s (12 bars/sec)
+        let scrollSpeed: CGFloat = 67.2
+        scrollOffset += CGFloat(dt) * scrollSpeed
+
+        let barStride = Self.stride
+        while scrollOffset >= barStride {
+            scrollOffset -= barStride
+            levels.removeFirst()
+            // Organic micro-variation during vocalization gives life to the waveform
+            let noise = (smoothedLevel > 0.06) ? Float.random(in: -0.025...0.025) * smoothedLevel : 0
+            levels.append(min(1.0, max(0.025, smoothedLevel + noise)))
         }
     }
 }
+
+// ============================================================================
+// MARK: - Transcribing Animation View (Neural Spinner + Shimmer + Liquid Wave Dots)
+// ============================================================================
+
+struct TranscribingAnimationView: View {
+    @ObservedObject var appState: AppState
+    let theme: AppTheme
+    var fontSize: CGFloat = 13
+
+    @State private var spinAngle: Double = 0
+    @State private var sparkScale: CGFloat = 0.85
+    @State private var pulseGlow: Bool = false
+
+    var body: some View {
+        HStack(spacing: 10) {
+            // Neural Dual-Ring Glowing Spinner
+            ZStack {
+                Circle()
+                    .fill(theme.glowColor.opacity(pulseGlow ? 0.35 : 0.12))
+                    .frame(width: 24, height: 24)
+                    .blur(radius: 5)
+
+                // Outer clockwise orbit
+                Circle()
+                    .trim(from: 0.06, to: 0.82)
+                    .stroke(
+                        theme.accentGradient,
+                        style: StrokeStyle(lineWidth: 2.2, lineCap: .round)
+                    )
+                    .frame(width: 20, height: 20)
+                    .rotationEffect(.degrees(spinAngle))
+
+                // Inner counter-clockwise orbit
+                Circle()
+                    .trim(from: 0.15, to: 0.68)
+                    .stroke(
+                        theme.gradientColors.last ?? .accentColor,
+                        style: StrokeStyle(lineWidth: 1.6, lineCap: .round)
+                    )
+                    .frame(width: 12, height: 12)
+                    .rotationEffect(.degrees(-spinAngle * 1.35))
+
+                // Central pulsating energy core
+                Circle()
+                    .fill(theme.gradientColors.first ?? .accentColor)
+                    .frame(width: 4, height: 4)
+                    .scaleEffect(sparkScale)
+            }
+            .onAppear {
+                withAnimation(.linear(duration: 1.3).repeatForever(autoreverses: false)) {
+                    spinAngle = 360
+                }
+                withAnimation(.easeInOut(duration: 0.75).repeatForever(autoreverses: true)) {
+                    sparkScale = 1.3
+                    pulseGlow = true
+                }
+            }
+            .onDisappear {
+                spinAngle = 0
+                sparkScale = 0.85
+                pulseGlow = false
+            }
+
+            // Shimmering Liquid Label + Wave Bouncing Dots
+            TimelineView(.animation) { timeline in
+                let t = timeline.date.timeIntervalSinceReferenceDate
+                let cycle = 1.8
+                let normalized = (t.truncatingRemainder(dividingBy: cycle)) / cycle
+                let shimmerPhase = CGFloat(normalized)
+
+                let titleText = (appState.recordingStatus == .loadingModel)
+                    ? appState.l("Loading model")
+                    : appState.l("Transcribing")
+
+                HStack(spacing: 5) {
+                    Text(titleText)
+                        .font(.system(size: fontSize, weight: .semibold, design: .rounded))
+                        .foregroundStyle(
+                            LinearGradient(
+                                stops: [
+                                    .init(color: .primary.opacity(0.68), location: max(0, shimmerPhase - 0.25)),
+                                    .init(color: theme.gradientColors.first ?? .white, location: shimmerPhase),
+                                    .init(color: .primary.opacity(0.68), location: min(1, shimmerPhase + 0.25))
+                                ],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .lineLimit(1)
+
+                    // 3 Liquid wave-bouncing dots
+                    HStack(spacing: 3.2) {
+                        ForEach(0..<3) { i in
+                            let phase = t * 4.8 - Double(i) * 0.7
+                            let wave = sin(phase)
+                            let yOffset = CGFloat(wave * 2.5)
+                            let alpha = 0.35 + (wave + 1.0) * 0.325
+                            let scale = 0.8 + (wave + 1.0) * 0.15
+
+                            Circle()
+                                .fill(theme.gradientColors[min(i, theme.gradientColors.count - 1)])
+                                .frame(width: 3.6, height: 3.6)
+                                .scaleEffect(scale)
+                                .offset(y: -yOffset)
+                                .opacity(alpha)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 
 // ============================================================================
 // MARK: - Waveform Overlay (Horizontal bar with audio bars)
@@ -271,16 +391,22 @@ struct WaveformOverlay: View {
 
         return VStack(spacing: 8) {
             if isStatusMessage {
-                HStack(spacing: 8) {
-                    statusIndicator
+                if appState.recordingStatus == .transcribing || appState.recordingStatus == .loadingModel {
+                    TranscribingAnimationView(appState: appState, theme: theme, fontSize: 13 * appState.overlayTextCompensation)
+                        .padding(.horizontal, 14)
+                        .frame(maxWidth: .infinity, maxHeight: cardHeight, alignment: .center)
+                } else {
+                    HStack(spacing: 8) {
+                        statusIndicator
 
-                    Text(statusLabel)
-                        .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.primary.opacity(0.85))
-                        .lineLimit(1)
+                        Text(statusLabel)
+                            .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.primary.opacity(0.85))
+                            .lineLimit(1)
+                    }
+                    .padding(.horizontal, 14)
+                    .frame(maxWidth: .infinity, maxHeight: cardHeight, alignment: .center)
                 }
-                .padding(.horizontal, 14)
-                .frame(maxWidth: .infinity, maxHeight: cardHeight, alignment: .center)
             } else {
                 HStack(alignment: .center, spacing: 6) {
                     // Left: status indicator centered in the left cap area
@@ -388,27 +514,47 @@ struct WaveformOverlay: View {
 
                 visualizer.tick(currentLevel: currentLevel, now: now)
 
-                let barWidth: CGFloat = 3.2
-                let barSpacing: CGFloat = 2.4
+                let barWidth = WaveformVisualizerState.barWidth
+                let barSpacing = WaveformVisualizerState.barSpacing
+                let stride = WaveformVisualizerState.stride
                 let minBarHeight: CGFloat = 3.6
                 let maxBarHeight: CGFloat = min(44.0, size.height - 4.0)
 
-                let totalBarsWidth = CGFloat(WaveformVisualizerState.barCount) * barWidth + CGFloat(WaveformVisualizerState.barCount - 1) * barSpacing
+                let totalBarsWidth = CGFloat(WaveformVisualizerState.barCount) * stride - barSpacing
                 let startX = max(0, (size.width - totalBarsWidth) / 2)
 
                 let colors = theme.gradientColors
                 let baseColor1 = colors.first ?? Color.accentColor
                 let baseColor2 = colors.count > 1 ? colors[1] : baseColor1
 
-                for i in 0..<WaveformVisualizerState.barCount {
-                    let level = CGFloat(visualizer.displayLevels[i])
+                // Clip drawing to avoid visual spill outside waveform bounds
+                let clipRect = CGRect(x: startX, y: 0, width: totalBarsWidth, height: size.height)
+                context.clip(to: Path(clipRect))
+
+                let fadeDist: CGFloat = 16.0
+
+                for i in 0..<visualizer.levels.count {
+                    let x = startX + CGFloat(i) * stride - visualizer.scrollOffset
+                    if x + barWidth < startX || x > startX + totalBarsWidth { continue }
+
+                    let level = CGFloat(visualizer.levels[i])
                     let barHeight = minBarHeight + level * (maxBarHeight - minBarHeight)
-                    let x = startX + CGFloat(i) * (barWidth + barSpacing)
                     let y = (size.height - barHeight) / 2
                     let barRect = CGRect(x: x, y: y, width: barWidth, height: barHeight)
                     let path = Path(roundedRect: barRect, cornerRadius: 1.6)
 
-                    let opacity = Double(0.35 + level * 0.65)
+                    // Edge alpha fade for seamless entrance on right and exit on left
+                    var edgeFade: CGFloat = 1.0
+                    let distFromLeft = x - startX
+                    let distFromRight = (startX + totalBarsWidth) - (x + barWidth)
+                    if distFromLeft < fadeDist {
+                        edgeFade = min(edgeFade, max(0.0, distFromLeft / fadeDist))
+                    }
+                    if distFromRight < fadeDist {
+                        edgeFade = min(edgeFade, max(0.0, distFromRight / fadeDist))
+                    }
+
+                    let opacity = Double((0.35 + level * 0.65) * edgeFade)
                     let gradient = Gradient(colors: [
                         baseColor1.opacity(opacity),
                         baseColor2.opacity(opacity)
@@ -499,27 +645,31 @@ struct MinimalOverlay: View {
 
         return VStack(spacing: 4) {
             HStack(spacing: 8) {
-                Circle()
-                    .fill(theme.glowColor)
-                    .frame(width: 10, height: 10)
-                    .scaleEffect((appState.recordingStatus == .recording || appState.isShowingPreview) ? (1 + CGFloat(audioRecorder.audioLevel) * 0.4) : 1.0)
-                    .opacity((appState.recordingStatus == .recording || appState.isShowingPreview) ? (0.6 + Double(audioRecorder.audioLevel) * 0.4) : 0.3)
-                    .animation(.linear(duration: 0.04), value: audioRecorder.audioLevel)
-                    
-                if appState.recordingStatus == .recording || appState.isShowingPreview {
-                    if appState.durationVisible {
-                        Text(appState.isShowingPreview ? "0:05" : appState.formattedDuration)
-                            .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .monospaced).monospacedDigit())
-                            .foregroundStyle(.primary.opacity(0.85))
+                if appState.recordingStatus == .transcribing || appState.recordingStatus == .loadingModel {
+                    TranscribingAnimationView(appState: appState, theme: theme, fontSize: 11 * appState.overlayTextCompensation)
+                } else {
+                    Circle()
+                        .fill(theme.glowColor)
+                        .frame(width: 10, height: 10)
+                        .scaleEffect((appState.recordingStatus == .recording || appState.isShowingPreview) ? (1 + CGFloat(audioRecorder.audioLevel) * 0.4) : 1.0)
+                        .opacity((appState.recordingStatus == .recording || appState.isShowingPreview) ? (0.6 + Double(audioRecorder.audioLevel) * 0.4) : 0.3)
+                        .animation(.linear(duration: 0.04), value: audioRecorder.audioLevel)
+                        
+                    if appState.recordingStatus == .recording || appState.isShowingPreview {
+                        if appState.durationVisible {
+                            Text(appState.isShowingPreview ? "0:05" : appState.formattedDuration)
+                                .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .monospaced).monospacedDigit())
+                                .foregroundStyle(.primary.opacity(0.85))
+                        } else {
+                            Text(appState.isShowingPreview ? appState.l("Recording…") : statusLabel)
+                                .font(.system(size: 11 * appState.overlayTextCompensation, weight: .medium, design: .rounded))
+                                .foregroundStyle(.primary.opacity(0.7))
+                        }
                     } else {
-                        Text(appState.isShowingPreview ? appState.l("Recording…") : statusLabel)
+                        Text(statusLabel)
                             .font(.system(size: 11 * appState.overlayTextCompensation, weight: .medium, design: .rounded))
                             .foregroundStyle(.primary.opacity(0.7))
                     }
-                } else {
-                    Text(statusLabel)
-                        .font(.system(size: 11 * appState.overlayTextCompensation, weight: .medium, design: .rounded))
-                        .foregroundStyle(.primary.opacity(0.7))
                 }
                 
                 if appState.recordingStatus == .recording || appState.isShowingPreview {
@@ -569,16 +719,22 @@ struct ECGOverlay: View {
 
         return VStack(spacing: 8) {
             if isStatusMessage {
-                HStack(spacing: 8) {
-                    statusIndicator
+                if appState.recordingStatus == .transcribing || appState.recordingStatus == .loadingModel {
+                    TranscribingAnimationView(appState: appState, theme: theme, fontSize: 13 * appState.overlayTextCompensation)
+                        .padding(.horizontal, 14)
+                        .frame(maxWidth: .infinity, maxHeight: cardHeight, alignment: .center)
+                } else {
+                    HStack(spacing: 8) {
+                        statusIndicator
 
-                    Text(statusLabel)
-                        .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.primary.opacity(0.85))
-                        .lineLimit(1)
+                        Text(statusLabel)
+                            .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.primary.opacity(0.85))
+                            .lineLimit(1)
+                    }
+                    .padding(.horizontal, 14)
+                    .frame(maxWidth: .infinity, maxHeight: cardHeight, alignment: .center)
                 }
-                .padding(.horizontal, 14)
-                .frame(maxWidth: .infinity, maxHeight: cardHeight, alignment: .center)
             } else {
                 HStack(spacing: 12) {
                     Image(systemName: "waveform.path.ecg")
@@ -704,16 +860,22 @@ struct OrbOverlay: View {
 
         return VStack(spacing: 0) {
             if isStatusMessage {
-                HStack(spacing: 8) {
-                    statusIndicator
+                if appState.recordingStatus == .transcribing || appState.recordingStatus == .loadingModel {
+                    TranscribingAnimationView(appState: appState, theme: theme, fontSize: 13 * appState.overlayTextCompensation)
+                        .padding(.horizontal, 14)
+                        .frame(maxWidth: .infinity, maxHeight: cardHeight, alignment: .center)
+                } else {
+                    HStack(spacing: 8) {
+                        statusIndicator
 
-                    Text(statusLabel)
-                        .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.primary.opacity(0.85))
-                        .lineLimit(1)
+                        Text(statusLabel)
+                            .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.primary.opacity(0.85))
+                            .lineLimit(1)
+                    }
+                    .padding(.horizontal, 14)
+                    .frame(maxWidth: .infinity, maxHeight: cardHeight, alignment: .center)
                 }
-                .padding(.horizontal, 14)
-                .frame(maxWidth: .infinity, maxHeight: cardHeight, alignment: .center)
             } else {
                 Spacer()
 

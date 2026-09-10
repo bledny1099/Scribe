@@ -122,10 +122,11 @@ public final class ScribeModeProcessor: @unchecked Sendable {
             return text
 
         case .clean:
-            // Standard cleanup: speech self-correction repair, remove fillers, normalize duplicate spaces, fix punctuation, format web links
+            // Standard cleanup: speech self-correction repair, remove fillers, normalize duplicate spaces, fix punctuation, capitalize sentences, format web links
             var result = AetherLinguisticValidator.shared.repairSpeechSelfCorrections(text: text)
             result = removeFillerWords(result)
             result = normalizePunctuation(result)
+            result = capitalizeSentences(result)
             result = AetherWebLinkNormalizer.shared.normalize(text: result)
             return result
         }
@@ -307,5 +308,47 @@ public final class ScribeModeProcessor: @unchecked Sendable {
             result = spaceAfterPeriod.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: "$1 $2")
         }
         return result
+    }
+
+    /// Capitalizes the first letter of text and each sentence following sentence terminators (. ! ? … \n)
+    private func capitalizeSentences(_ text: String) -> String {
+        guard !text.isEmpty else { return text }
+
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://") || trimmed.hasPrefix("www.") {
+            return text
+        }
+
+        var chars = Array(text)
+        var capitalizeNext = true
+
+        for i in 0..<chars.count {
+            let ch = chars[i]
+            if capitalizeNext {
+                if ch.isLetter {
+                    let upper = String(ch).uppercased()
+                    if let firstUpper = upper.first {
+                        chars[i] = firstUpper
+                    }
+                    capitalizeNext = false
+                } else if ch.isWhitespace {
+                    continue
+                } else {
+                    continue
+                }
+            } else {
+                if ch == "." || ch == "!" || ch == "?" || ch == "…" || ch == "\n" {
+                    if ch == "." {
+                        // Avoid treating domains (google.com) or decimals (3.14) as sentence boundaries
+                        if i + 1 < chars.count && (chars[i + 1].isLetter || chars[i + 1].isNumber) {
+                            continue
+                        }
+                    }
+                    capitalizeNext = true
+                }
+            }
+        }
+
+        return String(chars)
     }
 }
