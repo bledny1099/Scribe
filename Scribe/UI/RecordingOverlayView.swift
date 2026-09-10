@@ -423,6 +423,8 @@ struct WaveformBarsView: View {
                 let clipRect = CGRect(x: startX, y: 0, width: totalBarsWidth, height: size.height)
                 context.clip(to: Path(clipRect))
 
+                var combinedPath = Path()
+
                 for i in 0..<visualizer.levels.count {
                     let x = startX + CGFloat(i) * stride - visualizer.scrollOffset
                     if x + barWidth < startX || x > startX + totalBarsWidth { continue }
@@ -431,22 +433,21 @@ struct WaveformBarsView: View {
                     let barHeight = minBarHeight + level * (maxBarHeight - minBarHeight)
                     let y = (size.height - barHeight) / 2
                     let barRect = CGRect(x: x, y: y, width: barWidth, height: barHeight)
-                    let path = Path(roundedRect: barRect, cornerRadius: 1.6)
-
-                    let opacity = Double(0.40 + level * 0.60)
-                    let gradient = Gradient(colors: [
-                        baseColor1.opacity(opacity),
-                        baseColor2.opacity(opacity)
-                    ])
-                    context.fill(
-                        path,
-                        with: .linearGradient(
-                            gradient,
-                            startPoint: CGPoint(x: barRect.midX, y: barRect.maxY),
-                            endPoint: CGPoint(x: barRect.midX, y: barRect.minY)
-                        )
-                    )
+                    combinedPath.addRoundedRect(in: barRect, cornerSize: CGSize(width: 1.6, height: 1.6))
                 }
+
+                let gradient = Gradient(colors: [
+                    baseColor1.opacity(0.85),
+                    baseColor2.opacity(0.85)
+                ])
+                context.fill(
+                    combinedPath,
+                    with: .linearGradient(
+                        gradient,
+                        startPoint: CGPoint(x: 0, y: size.height),
+                        endPoint: CGPoint(x: 0, y: 0)
+                    )
+                )
             }
         }
         .frame(maxWidth: .infinity, maxHeight: RecordingPanel.waveformSize.height)

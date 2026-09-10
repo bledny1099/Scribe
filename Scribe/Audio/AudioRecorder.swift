@@ -40,14 +40,13 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
     private let audioLevelSubject = PassthroughSubject<Float, Never>()
     private var levelCancellable: AnyCancellable?
 
-    // Instantaneous thread-safe live audio level for 60/120 FPS visualizers
-    private let liveLevelLock = os_unfair_lock_t.allocate(capacity: 1)
+    // Instantaneous lock-free live audio level for 60/120 FPS visualizers
+    // 32-bit float loads/stores are hardware-atomic on ARM64, eliminating locks and priority inversions on the CoreAudio thread
     private var _liveAudioLevel: Float = 0
 
     var liveAudioLevel: Float {
-        os_unfair_lock_lock(liveLevelLock)
-        defer { os_unfair_lock_unlock(liveLevelLock) }
-        return _liveAudioLevel
+        get { _liveAudioLevel }
+        set { _liveAudioLevel = newValue }
     }
 
     private let audioProcessingQueue = DispatchQueue(label: "com.aleksei.scribe.audioProcessing", qos: .userInteractive)
@@ -56,12 +55,7 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
     // MARK: - Init
 
     init() {
-        liveLevelLock.initialize(to: os_unfair_lock())
         setupThrottling()
-    }
-
-    deinit {
-        liveLevelLock.deallocate()
     }
     
     /// Throttles standard @Published audioLevel updates to 60 Hz for legacy scaleEffect views, keeping main thread free
@@ -125,23 +119,13 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
         let tracker = levelTracker
         let queue = audioProcessingQueue
 
-        let liveLock = liveLevelLock
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
+        inputNode.installTap(onBus: 0, bufferSize: 2048, format: recordingFormat) { [weak self] buffer, _ in
             guard let self = self, self.isRecording else {
-                subject.send(0)
-                os_unfair_lock_lock(liveLock)
-                self?._liveAudioLevel = 0
-                os_unfair_lock_unlock(liveLock)
                 return
             }
-            // Compute adaptive RMS level with AGC and send to subject on audio thread
+            // Compute adaptive RMS level with AGC (fast DSP calculation on real-time thread, zero locks)
             let level = tracker.process(buffer)
-
-            os_unfair_lock_lock(liveLock)
             self._liveAudioLevel = level
-            os_unfair_lock_unlock(liveLock)
-
-            subject.send(level)
 
             // Clone buffer data to safely process asynchronously off the real-time audio thread
             guard let copy = AudioRecorder.copyPCMBuffer(buffer) else { return }
@@ -149,6 +133,9 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
             queue.async { [weak self] in
                 guard let self = self else { return }
                 
+                // Dispatch Combine update from background processing queue, never from real-time IO thread
+                subject.send(level)
+
                 // Write to file on background processing queue
                 do {
                     try file.write(from: copy)
@@ -192,9 +179,7 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
         
         audioLevel = 0
         audioLevelSubject.send(0)
-        os_unfair_lock_lock(liveLevelLock)
         _liveAudioLevel = 0
-        os_unfair_lock_unlock(liveLevelLock)
         levelTracker.reset()
         logger.info("Recording stopped")
         return recordingURL

@@ -5,6 +5,21 @@ All notable changes to Scribe will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.8] - 2026-09-10
+
+## Added
+- Hardware-accelerated unified path waveform rendering, combining all dynamic bars into a single GPU pass at display-native refresh rates (60–120 FPS).
+- Adaptive voice activity pause detection that halts waveform scrolling during conversational pauses and silence.
+
+## Changed
+- Decoupled waveform canvas execution from root overlay state invalidation, eliminating main thread view re-render thrashing.
+- Increased audio recording buffer size to 2048 frames with background queue Combine dispatch, preserving real-time CoreAudio deadlines.
+
+## Fixed
+- Fixed CoreAudio client timeout overloads on USB microphones (including Fifine SC3 and external audio interfaces) by removing real-time thread lock contention.
+- Fixed edge opacity dimming on audio waveform visualizers, ensuring uniform bar brightness and clean bounds clipping across the entire card width.
+- Fixed speech activity gating in adaptive audio level tracking to maintain high sensitivity across soft, normal, and loud vocal dictation.
+
 ## [2.6.7] - 2026-09-09
 
 ## Added
