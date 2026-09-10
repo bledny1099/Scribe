@@ -1,6 +1,6 @@
 cask "scribe" do
   version "2.6.8"
-  sha256 "67b53c64d47e6188165528621fdf80bf85ee176d419c5b329d6c7f54e7394858"
+  sha256 "93aabc1c6f29ecaec6fe38d1bfa148498dc78d1993b1ccd9c13d51a4fb9e496b"
 
   url "https://github.com/bledny1099/Scribe/releases/download/v#{version}/Scribe.dmg"
   name "Scribe"

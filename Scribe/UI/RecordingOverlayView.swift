@@ -222,13 +222,13 @@ final class WaveformVisualizerState {
         lastFrameTime = now
 
         // Any level above resting baseline is active vocalization
-        if currentLevel > 0.04 {
+        if currentLevel > 0.02 {
             lastSpeechTime = now
         }
 
-        // Voice hold window of 0.35s bridges natural micro-pauses between syllables and words,
+        // Voice hold window of 0.40s bridges natural micro-pauses between syllables and words,
         // but halts scrolling cleanly when the user pauses or finishes speaking.
-        let isSpeaking = (now - lastSpeechTime) < 0.35
+        let isSpeaking = (now - lastSpeechTime) < 0.40
 
         if isSpeaking {
             let target = min(1.0, max(0.025, currentLevel))
@@ -430,9 +430,13 @@ struct WaveformBarsView: View {
                     combinedPath.addRoundedRect(in: barRect, cornerSize: CGSize(width: 1.6, height: 1.6))
                 }
 
+                // Tone down brightness for whiteGlow (Lumina) to prevent blinding white, and soften other themes
+                let c1 = (theme == .whiteGlow) ? Color(white: 0.58) : baseColor1
+                let c2 = (theme == .whiteGlow) ? Color(white: 0.42) : baseColor2
+
                 let gradient = Gradient(colors: [
-                    baseColor1.opacity(0.48),
-                    baseColor2.opacity(0.62)
+                    c1.opacity(0.42),
+                    c2.opacity(0.56)
                 ])
                 context.fill(
                     combinedPath,
@@ -553,9 +557,32 @@ struct WaveformOverlay: View {
                                 .frame(minWidth: 42, alignment: .center)
                         }
 
-                        if appState.recordingStatus == .recording || appState.isShowingPreview {
+                        if appState.recordingStatus == .recording {
+                            // Cancel button (X)
                             Button(action: { appState.cancelRecording() }) {
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundStyle(.primary.opacity(0.55))
+                                    .frame(width: 24, height: 24)
+                                    .background(Circle().fill(Color.primary.opacity(0.10)))
+                            }
+                            .buttonStyle(.plain)
+                            .help("Cancel recording (Esc)")
+
+                            // Stop & Transcribe button (Square stop)
+                            Button(action: { appState.toggleRecording() }) {
                                 Image(systemName: "stop.fill")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundStyle(.primary.opacity(0.90))
+                                    .frame(width: 28, height: 28)
+                                    .background(Circle().fill(Color.primary.opacity(0.16)))
+                            }
+                            .buttonStyle(.plain)
+                            .help("Stop & Transcribe")
+                            .transition(.scale.combined(with: .opacity))
+                        } else if appState.isShowingPreview {
+                            Button(action: { appState.hideSettingsPreviewPanel() }) {
+                                Image(systemName: "xmark")
                                     .font(.system(size: 11, weight: .bold))
                                     .foregroundStyle(.primary.opacity(0.65))
                                     .frame(width: 28, height: 28)

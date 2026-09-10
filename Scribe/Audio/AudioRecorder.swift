@@ -263,13 +263,13 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
         }
 
         // Convert to dBFS with broad dynamic sensitivity
-        // Ambient room noise is below -52 dBFS, conversational speech is -38 to -14 dBFS
+        // Ambient room noise is below -54 dBFS, conversational speech is -40 to -14 dBFS
         let db = 20 * log10(max(maxRMS, 1e-5))
-        let minDb: Float = -50.0
+        let minDb: Float = -54.0
         let maxDb: Float = -6.0
         let normalized = max(0, min(1, (db - minDb) / (maxDb - minDb)))
 
         // Gentle power curve gives responsive visual animation without clipping
-        return pow(normalized, 0.65)
+        return pow(normalized, 0.60)
     }
 }
