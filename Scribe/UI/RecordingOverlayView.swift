@@ -189,6 +189,52 @@ struct ClassicOverlay: View {
 }
 
 // ============================================================================
+// MARK: - Waveform Visualizer State (Smooth 120/60 Hz spring physics)
+// ============================================================================
+
+final class WaveformVisualizerState {
+    static let barCount = 52
+    var displayLevels: [Float] = Array(repeating: 0.02, count: 52)
+    var targetLevels: [Float] = Array(repeating: 0.02, count: 52)
+
+    private var lastFrameTime: CFTimeInterval = 0
+    private var lastSampleTime: CFTimeInterval = 0
+
+    func reset() {
+        displayLevels = Array(repeating: 0.02, count: Self.barCount)
+        targetLevels = Array(repeating: 0.02, count: Self.barCount)
+        lastFrameTime = 0
+        lastSampleTime = 0
+    }
+
+    func tick(currentLevel: Float, now: CFTimeInterval) {
+        if lastFrameTime == 0 {
+            lastFrameTime = now
+            lastSampleTime = now
+            return
+        }
+
+        let dt = Float(min(0.05, max(0.001, now - lastFrameTime)))
+        lastFrameTime = now
+
+        // Sample audio at a steady ~35 Hz cadence (every 28ms) for a continuous flowing wave
+        if now - lastSampleTime >= 0.028 {
+            lastSampleTime = now
+            let target = min(1.0, max(0.02, currentLevel))
+            targetLevels.removeFirst()
+            targetLevels.append(target)
+        }
+
+        // Native 120/60 Hz spring physics interpolation between frames
+        let springSpeed: Float = 36.0
+        let factor = min(1.0, dt * springSpeed)
+        for i in 0..<Self.barCount {
+            displayLevels[i] += (targetLevels[i] - displayLevels[i]) * factor
+        }
+    }
+}
+
+// ============================================================================
 // MARK: - Waveform Overlay (Horizontal bar with audio bars)
 // ============================================================================
 
@@ -197,9 +243,7 @@ struct WaveformOverlay: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var audioRecorder: AudioRecorder
 
-    private let barCount = 52
-    @State private var levels: [Float] = Array(repeating: 0.02, count: 52)
-    @State private var smoothedLevel: Float = 0.02
+    @State private var visualizer = WaveformVisualizerState()
     @State private var spinAngle: Double = 0
 
     private var theme: AppTheme { appState.selectedTheme }
@@ -309,38 +353,9 @@ struct WaveformOverlay: View {
             height: cardHeight
         )
         .animation(.spring(response: 0.35, dampingFraction: 0.82), value: cardWidth)
-        .task(id: appState.isShowingPreview) {
-            guard appState.isShowingPreview else { return }
-            while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 45_000_000)
-                let t = Date().timeIntervalSinceReferenceDate
-                let sentenceCycle = t.truncatingRemainder(dividingBy: 4.8)
-                let isSpeaking = sentenceCycle < 3.4
-                let syllable = sin(t * 5.2) * cos(t * 2.6)
-                let modulation = 0.5 + 0.5 * sin(t * 1.6)
-
-                let simulated: Float
-                if isSpeaking {
-                    let base = 0.18 + Float(modulation * 0.28)
-                    let syllabicBurst = Float(max(0.0, syllable * 0.24))
-                    simulated = min(0.78, base + syllabicBurst)
-                } else {
-                    simulated = Float(max(0.02, 0.03 + 0.012 * sin(t * 2.0)))
-                }
-
-                levels.removeFirst()
-                levels.append(simulated)
-            }
-        }
-        .onChange(of: audioRecorder.audioLevel) { _, newLevel in
-            guard !appState.isShowingPreview else { return }
-            let target = min(1.0, max(0.02, newLevel))
-            levels.removeFirst()
-            levels.append(target)
-        }
         .onChange(of: appState.recordingStatus) { _, status in
             if status != .recording {
-                levels = Array(repeating: 0.02, count: barCount)
+                visualizer.reset()
             }
         }
     }
@@ -348,41 +363,65 @@ struct WaveformOverlay: View {
     // MARK: - Waveform Bars
 
     private var waveformBars: some View {
-        Canvas { context, size in
-            let barWidth: CGFloat = 3.2
-            let barSpacing: CGFloat = 2.4
-            let minBarHeight: CGFloat = 3.6
-            let maxBarHeight: CGFloat = min(44.0, size.height - 4.0)
+        let isRunning = appState.recordingStatus == .recording || appState.isShowingPreview
+        return TimelineView(.animation(paused: !isRunning)) { _ in
+            Canvas { context, size in
+                let now = CACurrentMediaTime()
+                let currentLevel: Float
+                if appState.isShowingPreview {
+                    let t = Date().timeIntervalSinceReferenceDate
+                    let sentenceCycle = t.truncatingRemainder(dividingBy: 4.8)
+                    let isSpeaking = sentenceCycle < 3.4
+                    let syllable = sin(t * 5.2) * cos(t * 2.6)
+                    let modulation = 0.5 + 0.5 * sin(t * 1.6)
 
-            let totalBarsWidth = CGFloat(barCount) * barWidth + CGFloat(barCount - 1) * barSpacing
-            let startX = max(0, (size.width - totalBarsWidth) / 2)
+                    if isSpeaking {
+                        let base = 0.18 + Float(modulation * 0.28)
+                        let syllabicBurst = Float(max(0.0, syllable * 0.24))
+                        currentLevel = min(0.78, base + syllabicBurst)
+                    } else {
+                        currentLevel = Float(max(0.02, 0.03 + 0.012 * sin(t * 2.0)))
+                    }
+                } else {
+                    currentLevel = audioRecorder.audioLevel
+                }
 
-            let colors = theme.gradientColors
-            let baseColor1 = colors.first ?? Color.accentColor
-            let baseColor2 = colors.count > 1 ? colors[1] : baseColor1
+                visualizer.tick(currentLevel: currentLevel, now: now)
 
-            let count = min(barCount, levels.count)
-            for i in 0..<count {
-                let level = CGFloat(levels[i])
-                let barHeight = minBarHeight + level * (maxBarHeight - minBarHeight)
-                let x = startX + CGFloat(i) * (barWidth + barSpacing)
-                let y = (size.height - barHeight) / 2
-                let barRect = CGRect(x: x, y: y, width: barWidth, height: barHeight)
-                let path = Path(roundedRect: barRect, cornerRadius: 1.6)
+                let barWidth: CGFloat = 3.2
+                let barSpacing: CGFloat = 2.4
+                let minBarHeight: CGFloat = 3.6
+                let maxBarHeight: CGFloat = min(44.0, size.height - 4.0)
 
-                let opacity = Double(0.35 + level * 0.65)
-                let gradient = Gradient(colors: [
-                    baseColor1.opacity(opacity),
-                    baseColor2.opacity(opacity)
-                ])
-                context.fill(
-                    path,
-                    with: .linearGradient(
-                        gradient,
-                        startPoint: CGPoint(x: barRect.midX, y: barRect.maxY),
-                        endPoint: CGPoint(x: barRect.midX, y: barRect.minY)
+                let totalBarsWidth = CGFloat(WaveformVisualizerState.barCount) * barWidth + CGFloat(WaveformVisualizerState.barCount - 1) * barSpacing
+                let startX = max(0, (size.width - totalBarsWidth) / 2)
+
+                let colors = theme.gradientColors
+                let baseColor1 = colors.first ?? Color.accentColor
+                let baseColor2 = colors.count > 1 ? colors[1] : baseColor1
+
+                for i in 0..<WaveformVisualizerState.barCount {
+                    let level = CGFloat(visualizer.displayLevels[i])
+                    let barHeight = minBarHeight + level * (maxBarHeight - minBarHeight)
+                    let x = startX + CGFloat(i) * (barWidth + barSpacing)
+                    let y = (size.height - barHeight) / 2
+                    let barRect = CGRect(x: x, y: y, width: barWidth, height: barHeight)
+                    let path = Path(roundedRect: barRect, cornerRadius: 1.6)
+
+                    let opacity = Double(0.35 + level * 0.65)
+                    let gradient = Gradient(colors: [
+                        baseColor1.opacity(opacity),
+                        baseColor2.opacity(opacity)
+                    ])
+                    context.fill(
+                        path,
+                        with: .linearGradient(
+                            gradient,
+                            startPoint: CGPoint(x: barRect.midX, y: barRect.maxY),
+                            endPoint: CGPoint(x: barRect.midX, y: barRect.minY)
+                        )
                     )
-                )
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: RecordingPanel.waveformSize.height)

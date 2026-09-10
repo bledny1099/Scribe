@@ -508,18 +508,9 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             options.detectLanguage = true
         }
 
-        // Contextual prompt biasing to prevent Whisper translation and anchor terminology
-        let basePrompt: String
-        if resolvedLang == "ru" {
-            basePrompt = "Русская речь с английскими терминами: что такое, как, сделай, код, API, ammonium chloride."
-        } else if resolvedLang == "en" {
-            basePrompt = "English speech transcription."
-        } else {
-            basePrompt = "Русский и английский язык: что такое, как, сделай, vibe coding, code, API."
-        }
-
+        // Contextual prompt biasing for snapshots: only inject active vocabulary without hallucination-prone filler text
         let promptText = AetherContextEngine.shared.buildConditioningPrompt(
-            basePrompt: basePrompt,
+            basePrompt: "",
             customVocabulary: customVocabulary,
             userLocation: "",
             targetApp: targetApp,
@@ -527,7 +518,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         )
         if !promptText.isEmpty, let tokenizer = kit.tokenizer {
             let tokens = tokenizer.encode(text: promptText)
-            options.promptTokens = Array(tokens.prefix(min(tokens.count, 32)))
+            options.promptTokens = Array(tokens.prefix(min(tokens.count, 24)))
             options.usePrefillCache = false
         }
 

@@ -49,9 +49,9 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
         setupThrottling()
     }
     
-    /// Sets up the throttling to a smooth 30 FPS with negligible CPU impact
+    /// Sets up the throttling to a smooth 60 FPS with negligible CPU impact
     func setupThrottling() {
-        let interval = 1.0 / 30.0
+        let interval = 1.0 / 60.0
         
         levelCancellable = audioLevelSubject
             .throttle(for: .seconds(interval), scheduler: DispatchQueue.main, latest: true)
