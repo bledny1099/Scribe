@@ -271,13 +271,11 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
 /// prevents close/loud speech from clipping, and drops to pure calm in silence.
 final class AdaptiveAudioLevelTracker: @unchecked Sendable {
     // Current ambient noise floor estimate (in dBFS)
-    private var noiseFloorDb: Float = -56.0
+    private var noiseFloorDb: Float = -58.0
     // Current speech peak estimate (in dBFS)
     private var speechPeakDb: Float = -24.0
     // Smoothed output envelope level (0...1)
     private var smoothedLevel: Float = 0.0
-    // Schmitt-trigger gate state for accurate voice activity detection
-    private var isGateOpen: Bool = false
     private let lock = os_unfair_lock_t.allocate(capacity: 1)
 
     init() {
@@ -290,10 +288,9 @@ final class AdaptiveAudioLevelTracker: @unchecked Sendable {
 
     func reset() {
         os_unfair_lock_lock(lock)
-        noiseFloorDb = -56.0
+        noiseFloorDb = -58.0
         speechPeakDb = -24.0
         smoothedLevel = 0.0
-        isGateOpen = false
         os_unfair_lock_unlock(lock)
     }
 
@@ -311,55 +308,43 @@ final class AdaptiveAudioLevelTracker: @unchecked Sendable {
         // 1. Dynamic Noise Floor Tracking
         // Fast down-tracking for quiet rooms, very slow upward drift so voice doesn't pull floor up
         if db < noiseFloorDb {
-            noiseFloorDb = noiseFloorDb * 0.85 + db * 0.15
+            noiseFloorDb = noiseFloorDb * 0.88 + db * 0.12
         } else {
-            noiseFloorDb = min(-42.0, noiseFloorDb * 0.997 + db * 0.003)
+            noiseFloorDb = min(-42.0, noiseFloorDb * 0.998 + db * 0.002)
         }
-        noiseFloorDb = max(-72.0, min(-42.0, noiseFloorDb))
+        noiseFloorDb = max(-72.0, min(-40.0, noiseFloorDb))
 
-        // 2. Speech Gate with Hysteresis (Schmitt Trigger)
-        // Opening gate requires sound to exceed noise floor by 7.5 dB AND be louder than -52 dBFS.
-        // Closing gate requires sound to fall below noise floor + 3.5 dB or -58 dBFS.
-        let openThreshold = max(-52.0, noiseFloorDb + 7.5)
-        let closeThreshold = max(-58.0, noiseFloorDb + 3.5)
-
-        if !isGateOpen {
-            if db >= openThreshold {
-                isGateOpen = true
-            }
+        // 2. Dynamic Speech Peak Tracking (Adaptive Gain Control)
+        // If distant or soft, peak decays down so distant voice gets amplified.
+        // If loud or close, peak jumps up to avoid clipping.
+        if db > speechPeakDb {
+            speechPeakDb = speechPeakDb * 0.60 + db * 0.40
         } else {
-            if db < closeThreshold {
-                isGateOpen = false
-            }
+            speechPeakDb = max(noiseFloorDb + 10.0, speechPeakDb * 0.994 + (noiseFloorDb + 14.0) * 0.006)
         }
+        speechPeakDb = max(-48.0, min(-10.0, speechPeakDb))
 
-        // 3. Dynamic Speech Peak Tracking (Adaptive Gain Control)
-        if isGateOpen {
-            if db > speechPeakDb {
-                speechPeakDb = speechPeakDb * 0.60 + db * 0.40
-            } else {
-                speechPeakDb = max(noiseFloorDb + 14.0, speechPeakDb * 0.995 + (noiseFloorDb + 16.0) * 0.005)
-            }
-            speechPeakDb = max(-42.0, min(-10.0, speechPeakDb))
-        }
+        // 3. Dynamic Speech Gate & Dynamic Range
+        let effectiveGate = max(-64.0, noiseFloorDb + 2.5)
+        let dynamicRange = max(10.0, speechPeakDb - effectiveGate)
 
-        // 4. Normalized Speech Level Calculation
         let targetLevel: Float
-        if !isGateOpen {
+        if db <= effectiveGate {
             targetLevel = 0.0
-            smoothedLevel = 0.0
-            return 0.0
         } else {
-            let dynamicRange = max(10.0, speechPeakDb - closeThreshold)
-            let normalized = min(1.0, max(0.0, (db - closeThreshold) / dynamicRange))
+            let normalized = min(1.0, max(0.0, (db - effectiveGate) / dynamicRange))
             targetLevel = pow(normalized, 0.70)
         }
 
-        // 5. Envelope follower (snappy attack, smooth vocal decay)
-        let coeff: Float = targetLevel > smoothedLevel ? 0.75 : 0.35
-        smoothedLevel += (targetLevel - smoothedLevel) * coeff
+        // 4. Envelope follower (snappy attack, instantaneous silence release)
+        let attack: Float = 0.75
+        // When speech drops to gate/silence, release immediately (0.90). While vocalizing, use smooth release (0.40).
+        let release: Float = (targetLevel == 0.0) ? 0.90 : 0.40
+        let coeff = targetLevel > smoothedLevel ? attack : release
+        smoothedLevel = smoothedLevel + (targetLevel - smoothedLevel) * coeff
 
-        if smoothedLevel < 0.02 {
+        // If level drops into silence or below threshold, snap immediately to zero
+        if smoothedLevel < 0.02 || (targetLevel == 0.0 && smoothedLevel < 0.06) {
             smoothedLevel = 0.0
         }
 

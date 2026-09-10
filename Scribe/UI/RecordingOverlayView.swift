@@ -221,7 +221,7 @@ final class WaveformVisualizerState {
         let dt = Float(min(0.05, max(0.001, now - lastFrameTime)))
         lastFrameTime = now
 
-        if currentLevel > 0.05 {
+        if currentLevel > 0.035 {
             lastSpeechTime = now
         }
 
@@ -423,8 +423,6 @@ struct WaveformBarsView: View {
                 let clipRect = CGRect(x: startX, y: 0, width: totalBarsWidth, height: size.height)
                 context.clip(to: Path(clipRect))
 
-                let fadeDist: CGFloat = 16.0
-
                 for i in 0..<visualizer.levels.count {
                     let x = startX + CGFloat(i) * stride - visualizer.scrollOffset
                     if x + barWidth < startX || x > startX + totalBarsWidth { continue }
@@ -435,18 +433,7 @@ struct WaveformBarsView: View {
                     let barRect = CGRect(x: x, y: y, width: barWidth, height: barHeight)
                     let path = Path(roundedRect: barRect, cornerRadius: 1.6)
 
-                    // Edge alpha fade for seamless entrance on right and exit on left
-                    var edgeFade: CGFloat = 1.0
-                    let distFromLeft = x - startX
-                    let distFromRight = (startX + totalBarsWidth) - (x + barWidth)
-                    if distFromLeft < fadeDist {
-                        edgeFade = min(edgeFade, max(0.0, distFromLeft / fadeDist))
-                    }
-                    if distFromRight < fadeDist {
-                        edgeFade = min(edgeFade, max(0.0, distFromRight / fadeDist))
-                    }
-
-                    let opacity = Double((0.35 + level * 0.65) * edgeFade)
+                    let opacity = Double(0.40 + level * 0.60)
                     let gradient = Gradient(colors: [
                         baseColor1.opacity(opacity),
                         baseColor2.opacity(opacity)
