@@ -4,21 +4,20 @@ import SwiftUI
 struct RecordingOverlayView: View {
 
     @EnvironmentObject var appState: AppState
-    @EnvironmentObject var audioRecorder: AudioRecorder
 
     var body: some View {
         Group {
             switch appState.selectedOverlayStyle {
             case .classic:
-                ClassicOverlay().environmentObject(appState).environmentObject(audioRecorder)
+                ClassicOverlay()
             case .waveform:
-                WaveformOverlay().environmentObject(appState).environmentObject(audioRecorder)
+                WaveformOverlay()
             case .minimal:
-                MinimalOverlay().environmentObject(appState).environmentObject(audioRecorder)
+                MinimalOverlay()
             case .ecg:
-                ECGOverlay().environmentObject(appState).environmentObject(audioRecorder)
+                ECGOverlay()
             case .orb:
-                OrbOverlay().environmentObject(appState).environmentObject(audioRecorder)
+                OrbOverlay()
             }
         }
     }
@@ -203,12 +202,14 @@ final class WaveformVisualizerState {
     var scrollOffset: CGFloat = 0.0
     private var smoothedLevel: Float = 0.025
     private var lastFrameTime: CFTimeInterval = 0
+    private var lastSpeechTime: CFTimeInterval = 0
 
     func reset() {
         levels = Array(repeating: 0.025, count: Self.bufferCount)
         scrollOffset = 0.0
         smoothedLevel = 0.025
         lastFrameTime = 0
+        lastSpeechTime = 0
     }
 
     func tick(currentLevel: Float, now: CFTimeInterval) {
@@ -220,22 +221,44 @@ final class WaveformVisualizerState {
         let dt = Float(min(0.05, max(0.001, now - lastFrameTime)))
         lastFrameTime = now
 
-        let target = min(1.0, max(0.025, currentLevel))
-        // Fast attack (instant responsiveness to speech onset), smooth exponential decay
-        let rate: Float = target > smoothedLevel ? 32.0 : 12.0
-        smoothedLevel += (target - smoothedLevel) * min(1.0, dt * rate)
+        if currentLevel > 0.05 {
+            lastSpeechTime = now
+        }
 
-        // Continuous sub-pixel scroll speed: 67.2 pt/s (12 bars/sec)
-        let scrollSpeed: CGFloat = 67.2
-        scrollOffset += CGFloat(dt) * scrollSpeed
+        // Voice hold time of 0.18s prevents wave jitter between rapid consonants,
+        // but stops immediately when the user pauses or finishes speaking.
+        let isSpeaking = (now - lastSpeechTime) < 0.18
 
-        let barStride = Self.stride
-        while scrollOffset >= barStride {
-            scrollOffset -= barStride
-            levels.removeFirst()
-            // Organic micro-variation during vocalization gives life to the waveform
-            let noise = (smoothedLevel > 0.06) ? Float.random(in: -0.025...0.025) * smoothedLevel : 0
-            levels.append(min(1.0, max(0.025, smoothedLevel + noise)))
+        if isSpeaking {
+            let target = min(1.0, max(0.025, currentLevel))
+            // Fast attack (instant speech onset), smooth decay
+            let rate: Float = target > smoothedLevel ? 38.0 : 16.0
+            smoothedLevel += (target - smoothedLevel) * min(1.0, dt * rate)
+
+            // Flowing wave scroll speed when speaking: 78.4 pt/s (14 bars/sec)
+            let scrollSpeed: CGFloat = 78.4
+            scrollOffset += CGFloat(dt) * scrollSpeed
+
+            let barStride = Self.stride
+            while scrollOffset >= barStride {
+                scrollOffset -= barStride
+                levels.removeFirst()
+                // Organic micro-variation during vocalization gives life to the waveform
+                let noise = (smoothedLevel > 0.06) ? Float.random(in: -0.02...0.02) * smoothedLevel : 0
+                levels.append(min(1.0, max(0.025, smoothedLevel + noise)))
+            }
+        } else {
+            // SILENCE: User is not speaking!
+            // "шла только когда я говорю" -> wave completely halts scrolling
+            smoothedLevel += (0.025 - smoothedLevel) * min(1.0, dt * 14.0)
+
+            // Smoothly decay any lingering bars down to resting baseline
+            let decayFactor = min(1.0, dt * 8.0)
+            for i in 0..<levels.count {
+                if levels[i] > 0.025 {
+                    levels[i] += (0.025 - levels[i]) * decayFactor
+                }
+            }
         }
     }
 }
@@ -355,161 +378,30 @@ struct TranscribingAnimationView: View {
 
 
 // ============================================================================
-// MARK: - Waveform Overlay (Horizontal bar with audio bars)
+// MARK: - Waveform Bars View (Isolated 120/60 Hz High-Performance Canvas)
 // ============================================================================
 
-struct WaveformOverlay: View {
-
-    @EnvironmentObject var appState: AppState
-    @EnvironmentObject var audioRecorder: AudioRecorder
+struct WaveformBarsView: View {
+    let audioRecorder: AudioRecorder
+    let theme: AppTheme
+    let isRunning: Bool
+    let isPreview: Bool
 
     @State private var visualizer = WaveformVisualizerState()
-    @State private var spinAngle: Double = 0
-
-    private var theme: AppTheme { appState.selectedTheme }
 
     var body: some View {
-        let isEmbeddedActive = false
-        let isAIModeActive = appState.enableCloudAI && appState.selectedAIRefinementMode != .raw && (appState.recordingStatus == .recording || appState.recordingStatus == .transcribing)
-        let isStatusMessage = appState.recordingStatus != .recording && !appState.isShowingPreview && !statusLabel.isEmpty
-        let effectiveAppName = appState.showTargetAppInOverlay ? ((appState.recordingStatus == .recording || appState.recordingStatus == .transcribing) ? appState.targetAppName : (appState.isShowingPreview ? "Scribe" : "")) : ""
-        let isTimerVisible = appState.durationVisible && (appState.recordingStatus == .recording || appState.isShowingPreview)
-
-        let dynamicSize = RecordingPanel.size(
-            for: .waveform,
-            overlaySize: appState.selectedOverlaySize,
-            isEmbeddedPreviewActive: isEmbeddedActive,
-            previewTextLength: appState.livePreviewText.count,
-            targetAppName: effectiveAppName,
-            isTimerVisible: isTimerVisible,
-            hasAIMode: isAIModeActive,
-            isStatusMessage: isStatusMessage,
-            statusTextLength: statusLabel.count
-        )
-        let cardWidth = dynamicSize.width / appState.selectedOverlaySize.scale
-        let cardHeight = dynamicSize.height / appState.selectedOverlaySize.scale
-
-        return VStack(spacing: 8) {
-            if isStatusMessage {
-                if appState.recordingStatus == .transcribing || appState.recordingStatus == .loadingModel {
-                    TranscribingAnimationView(appState: appState, theme: theme, fontSize: 13 * appState.overlayTextCompensation)
-                        .padding(.horizontal, 14)
-                        .frame(maxWidth: .infinity, maxHeight: cardHeight, alignment: .center)
-                } else {
-                    HStack(spacing: 8) {
-                        statusIndicator
-
-                        Text(statusLabel)
-                            .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.primary.opacity(0.85))
-                            .lineLimit(1)
-                    }
-                    .padding(.horizontal, 14)
-                    .frame(maxWidth: .infinity, maxHeight: cardHeight, alignment: .center)
-                }
-            } else {
-                HStack(alignment: .center, spacing: 6) {
-                    // Left: status indicator centered in the left cap area
-                    ZStack(alignment: .center) {
-                        statusIndicator
-                    }
-                    .frame(width: 36, height: RecordingPanel.waveformSize.height)
-                    .padding(.leading, 12)
-
-                    // Center: dynamically expanding waveform bars
-                    waveformBars
-                        .frame(maxWidth: .infinity, maxHeight: RecordingPanel.waveformSize.height)
-
-                    // Right: status label + target app badge + timer + stop button
-                    HStack(spacing: 10) {
-                        if isAIModeActive {
-                            HStack(spacing: 4) {
-                                Image(systemName: appState.selectedAIRefinementMode.icon)
-                                    .font(.system(size: 10, weight: .bold))
-                                Text(appState.selectedAIRefinementMode.displayName)
-                                    .font(.system(size: 10, weight: .bold, design: .rounded))
-                            }
-                            .foregroundStyle(appState.selectedTheme.gradientColors.first!)
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 3)
-                            .background(appState.selectedTheme.gradientColors.first!.opacity(0.12))
-                            .cornerRadius(6)
-                        }
-
-                        if !effectiveAppName.isEmpty {
-                            TargetAppBadgeView(
-                                name: effectiveAppName,
-                                icon: (appState.recordingStatus == .recording || appState.recordingStatus == .transcribing) ? appState.targetAppIcon : NSApp.applicationIconImage
-                            )
-                            .padding(.leading, 6)
-                            .padding(.trailing, isTimerVisible ? 2 : 4)
-                        }
-
-                        if isTimerVisible {
-                            Text(appState.isShowingPreview ? "0:05" : appState.formattedDuration)
-                                .font(.system(size: 14, weight: .semibold, design: .rounded).monospacedDigit())
-                                .foregroundStyle(.primary.opacity(0.85))
-                                .frame(minWidth: 42, alignment: .center)
-                        }
-
-                        if appState.recordingStatus == .recording || appState.isShowingPreview {
-                            Button(action: { appState.cancelRecording() }) {
-                                Image(systemName: "stop.fill")
-                                    .font(.system(size: 11, weight: .bold))
-                                    .foregroundStyle(.primary.opacity(0.65))
-                                    .frame(width: 28, height: 28)
-                                    .background(Circle().fill(Color.primary.opacity(0.12)))
-                            }
-                            .buttonStyle(.plain)
-                            .transition(.scale.combined(with: .opacity))
-                        }
-                    }
-                    .fixedSize(horizontal: true, vertical: false)
-                    .frame(height: RecordingPanel.waveformSize.height)
-                    .padding(.trailing, 20)
-                    .animation(.easeInOut(duration: 0.2), value: appState.recordingStatus == .recording)
-                }
-                .frame(height: RecordingPanel.waveformSize.height)
-            }
-        }
-        .padding(.leading, 6)
-        .padding(.trailing, 10)
-        .frame(
-            width: cardWidth,
-            height: cardHeight
-        )
-        .animation(.spring(response: 0.35, dampingFraction: 0.82), value: cardWidth)
-        .onChange(of: appState.recordingStatus) { _, status in
-            if status != .recording {
-                visualizer.reset()
-            }
-        }
-    }
-
-    // MARK: - Waveform Bars
-
-    private var waveformBars: some View {
-        let isRunning = appState.recordingStatus == .recording || appState.isShowingPreview
-        return TimelineView(.animation(paused: !isRunning)) { _ in
+        TimelineView(.animation(paused: !isRunning)) { _ in
             Canvas { context, size in
                 let now = CACurrentMediaTime()
                 let currentLevel: Float
-                if appState.isShowingPreview {
-                    let t = Date().timeIntervalSinceReferenceDate
-                    let sentenceCycle = t.truncatingRemainder(dividingBy: 4.8)
+                if isPreview {
+                    let sentenceCycle = now.truncatingRemainder(dividingBy: 4.8)
                     let isSpeaking = sentenceCycle < 3.4
-                    let syllable = sin(t * 5.2) * cos(t * 2.6)
-                    let modulation = 0.5 + 0.5 * sin(t * 1.6)
-
-                    if isSpeaking {
-                        let base = 0.18 + Float(modulation * 0.28)
-                        let syllabicBurst = Float(max(0.0, syllable * 0.24))
-                        currentLevel = min(0.78, base + syllabicBurst)
-                    } else {
-                        currentLevel = Float(max(0.02, 0.03 + 0.012 * sin(t * 2.0)))
-                    }
+                    let syllable = sin(now * 5.2) * cos(now * 2.6)
+                    let modulation = 0.5 + 0.5 * sin(now * 1.6)
+                    currentLevel = isSpeaking ? min(0.78, Float(0.18 + modulation * 0.28 + max(0.0, syllable * 0.24))) : 0.0
                 } else {
-                    currentLevel = audioRecorder.audioLevel
+                    currentLevel = audioRecorder.liveAudioLevel
                 }
 
                 visualizer.tick(currentLevel: currentLevel, now: now)
@@ -571,6 +463,141 @@ struct WaveformOverlay: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: RecordingPanel.waveformSize.height)
+        .onChange(of: isRunning) { _, running in
+            if !running {
+                visualizer.reset()
+            }
+        }
+    }
+}
+
+// ============================================================================
+// MARK: - Waveform Overlay (Horizontal bar with audio bars)
+// ============================================================================
+
+struct WaveformOverlay: View {
+
+    @EnvironmentObject var appState: AppState
+
+    @State private var spinAngle: Double = 0
+
+    private var theme: AppTheme { appState.selectedTheme }
+
+    var body: some View {
+        let isEmbeddedActive = false
+        let isAIModeActive = appState.enableCloudAI && appState.selectedAIRefinementMode != .raw && (appState.recordingStatus == .recording || appState.recordingStatus == .transcribing)
+        let isStatusMessage = appState.recordingStatus != .recording && !appState.isShowingPreview && !statusLabel.isEmpty
+        let effectiveAppName = appState.showTargetAppInOverlay ? ((appState.recordingStatus == .recording || appState.recordingStatus == .transcribing) ? appState.targetAppName : (appState.isShowingPreview ? "Scribe" : "")) : ""
+        let isTimerVisible = appState.durationVisible && (appState.recordingStatus == .recording || appState.isShowingPreview)
+
+        let dynamicSize = RecordingPanel.size(
+            for: .waveform,
+            overlaySize: appState.selectedOverlaySize,
+            isEmbeddedPreviewActive: isEmbeddedActive,
+            previewTextLength: appState.livePreviewText.count,
+            targetAppName: effectiveAppName,
+            isTimerVisible: isTimerVisible,
+            hasAIMode: isAIModeActive,
+            isStatusMessage: isStatusMessage,
+            statusTextLength: statusLabel.count
+        )
+        let cardWidth = dynamicSize.width / appState.selectedOverlaySize.scale
+        let cardHeight = dynamicSize.height / appState.selectedOverlaySize.scale
+
+        return VStack(spacing: 8) {
+            if isStatusMessage {
+                if appState.recordingStatus == .transcribing || appState.recordingStatus == .loadingModel {
+                    TranscribingAnimationView(appState: appState, theme: theme, fontSize: 13 * appState.overlayTextCompensation)
+                        .padding(.horizontal, 14)
+                        .frame(maxWidth: .infinity, maxHeight: cardHeight, alignment: .center)
+                } else {
+                    HStack(spacing: 8) {
+                        statusIndicator
+
+                        Text(statusLabel)
+                            .font(.system(size: 13 * appState.overlayTextCompensation, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.primary.opacity(0.85))
+                            .lineLimit(1)
+                    }
+                    .padding(.horizontal, 14)
+                    .frame(maxWidth: .infinity, maxHeight: cardHeight, alignment: .center)
+                }
+            } else {
+                HStack(alignment: .center, spacing: 6) {
+                    // Left: status indicator centered in the left cap area
+                    ZStack(alignment: .center) {
+                        statusIndicator
+                    }
+                    .frame(width: 36, height: RecordingPanel.waveformSize.height)
+                    .padding(.leading, 12)
+
+                    // Center: dynamically expanding waveform bars (runs at unconstrained 60/120 FPS)
+                    WaveformBarsView(
+                        audioRecorder: appState.audioRecorder,
+                        theme: theme,
+                        isRunning: appState.recordingStatus == .recording || appState.isShowingPreview,
+                        isPreview: appState.isShowingPreview
+                    )
+
+                    // Right: status label + target app badge + timer + stop button
+                    HStack(spacing: 10) {
+                        if isAIModeActive {
+                            HStack(spacing: 4) {
+                                Image(systemName: appState.selectedAIRefinementMode.icon)
+                                    .font(.system(size: 10, weight: .bold))
+                                Text(appState.selectedAIRefinementMode.displayName)
+                                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                            }
+                            .foregroundStyle(appState.selectedTheme.gradientColors.first!)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 3)
+                            .background(appState.selectedTheme.gradientColors.first!.opacity(0.12))
+                            .cornerRadius(6)
+                        }
+
+                        if !effectiveAppName.isEmpty {
+                            TargetAppBadgeView(
+                                name: effectiveAppName,
+                                icon: (appState.recordingStatus == .recording || appState.recordingStatus == .transcribing) ? appState.targetAppIcon : NSApp.applicationIconImage
+                            )
+                            .padding(.leading, 6)
+                            .padding(.trailing, isTimerVisible ? 2 : 4)
+                        }
+
+                        if isTimerVisible {
+                            Text(appState.isShowingPreview ? "0:05" : appState.formattedDuration)
+                                .font(.system(size: 14, weight: .semibold, design: .rounded).monospacedDigit())
+                                .foregroundStyle(.primary.opacity(0.85))
+                                .frame(minWidth: 42, alignment: .center)
+                        }
+
+                        if appState.recordingStatus == .recording || appState.isShowingPreview {
+                            Button(action: { appState.cancelRecording() }) {
+                                Image(systemName: "stop.fill")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundStyle(.primary.opacity(0.65))
+                                    .frame(width: 28, height: 28)
+                                    .background(Circle().fill(Color.primary.opacity(0.12)))
+                            }
+                            .buttonStyle(.plain)
+                            .transition(.scale.combined(with: .opacity))
+                        }
+                    }
+                    .fixedSize(horizontal: true, vertical: false)
+                    .frame(height: RecordingPanel.waveformSize.height)
+                    .padding(.trailing, 20)
+                    .animation(.easeInOut(duration: 0.2), value: appState.recordingStatus == .recording)
+                }
+                .frame(height: RecordingPanel.waveformSize.height)
+            }
+        }
+        .padding(.leading, 6)
+        .padding(.trailing, 10)
+        .frame(
+            width: cardWidth,
+            height: cardHeight
+        )
+        .animation(.spring(response: 0.35, dampingFraction: 0.82), value: cardWidth)
     }
 
     // MARK: - Status Indicator

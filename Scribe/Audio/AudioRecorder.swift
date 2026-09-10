@@ -40,16 +40,31 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
     private let audioLevelSubject = PassthroughSubject<Float, Never>()
     private var levelCancellable: AnyCancellable?
 
+    // Instantaneous thread-safe live audio level for 60/120 FPS visualizers
+    private let liveLevelLock = os_unfair_lock_t.allocate(capacity: 1)
+    private var _liveAudioLevel: Float = 0
+
+    var liveAudioLevel: Float {
+        os_unfair_lock_lock(liveLevelLock)
+        defer { os_unfair_lock_unlock(liveLevelLock) }
+        return _liveAudioLevel
+    }
+
     private let audioProcessingQueue = DispatchQueue(label: "com.aleksei.scribe.audioProcessing", qos: .userInteractive)
     private let levelTracker = AdaptiveAudioLevelTracker()
 
     // MARK: - Init
 
     init() {
+        liveLevelLock.initialize(to: os_unfair_lock())
         setupThrottling()
     }
+
+    deinit {
+        liveLevelLock.deallocate()
+    }
     
-    /// Sets up the throttling to a smooth 60 FPS with negligible CPU impact
+    /// Throttles standard @Published audioLevel updates to 60 Hz for legacy scaleEffect views, keeping main thread free
     func setupThrottling() {
         let interval = 1.0 / 60.0
         
@@ -110,13 +125,22 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
         let tracker = levelTracker
         let queue = audioProcessingQueue
 
+        let liveLock = liveLevelLock
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
             guard let self = self, self.isRecording else {
                 subject.send(0)
+                os_unfair_lock_lock(liveLock)
+                self?._liveAudioLevel = 0
+                os_unfair_lock_unlock(liveLock)
                 return
             }
             // Compute adaptive RMS level with AGC and send to subject on audio thread
             let level = tracker.process(buffer)
+
+            os_unfair_lock_lock(liveLock)
+            self._liveAudioLevel = level
+            os_unfair_lock_unlock(liveLock)
+
             subject.send(level)
 
             // Clone buffer data to safely process asynchronously off the real-time audio thread
@@ -168,6 +192,9 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
         
         audioLevel = 0
         audioLevelSubject.send(0)
+        os_unfair_lock_lock(liveLevelLock)
+        _liveAudioLevel = 0
+        os_unfair_lock_unlock(liveLevelLock)
         levelTracker.reset()
         logger.info("Recording stopped")
         return recordingURL
@@ -244,11 +271,13 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
 /// prevents close/loud speech from clipping, and drops to pure calm in silence.
 final class AdaptiveAudioLevelTracker: @unchecked Sendable {
     // Current ambient noise floor estimate (in dBFS)
-    private var noiseFloorDb: Float = -58.0
+    private var noiseFloorDb: Float = -56.0
     // Current speech peak estimate (in dBFS)
     private var speechPeakDb: Float = -24.0
     // Smoothed output envelope level (0...1)
     private var smoothedLevel: Float = 0.0
+    // Schmitt-trigger gate state for accurate voice activity detection
+    private var isGateOpen: Bool = false
     private let lock = os_unfair_lock_t.allocate(capacity: 1)
 
     init() {
@@ -261,9 +290,10 @@ final class AdaptiveAudioLevelTracker: @unchecked Sendable {
 
     func reset() {
         os_unfair_lock_lock(lock)
-        noiseFloorDb = -58.0
+        noiseFloorDb = -56.0
         speechPeakDb = -24.0
         smoothedLevel = 0.0
+        isGateOpen = false
         os_unfair_lock_unlock(lock)
     }
 
@@ -281,43 +311,55 @@ final class AdaptiveAudioLevelTracker: @unchecked Sendable {
         // 1. Dynamic Noise Floor Tracking
         // Fast down-tracking for quiet rooms, very slow upward drift so voice doesn't pull floor up
         if db < noiseFloorDb {
-            noiseFloorDb = noiseFloorDb * 0.88 + db * 0.12
+            noiseFloorDb = noiseFloorDb * 0.85 + db * 0.15
         } else {
-            noiseFloorDb = min(-42.0, noiseFloorDb * 0.998 + db * 0.002)
+            noiseFloorDb = min(-42.0, noiseFloorDb * 0.997 + db * 0.003)
         }
-        noiseFloorDb = max(-72.0, min(-40.0, noiseFloorDb))
+        noiseFloorDb = max(-72.0, min(-42.0, noiseFloorDb))
 
-        // 2. Dynamic Speech Peak Tracking (Adaptive Gain Control)
-        // If distant or soft, peak decays down so distant voice gets amplified.
-        // If loud or close, peak jumps up to avoid clipping.
-        if db > speechPeakDb {
-            speechPeakDb = speechPeakDb * 0.60 + db * 0.40
+        // 2. Speech Gate with Hysteresis (Schmitt Trigger)
+        // Opening gate requires sound to exceed noise floor by 7.5 dB AND be louder than -52 dBFS.
+        // Closing gate requires sound to fall below noise floor + 3.5 dB or -58 dBFS.
+        let openThreshold = max(-52.0, noiseFloorDb + 7.5)
+        let closeThreshold = max(-58.0, noiseFloorDb + 3.5)
+
+        if !isGateOpen {
+            if db >= openThreshold {
+                isGateOpen = true
+            }
         } else {
-            speechPeakDb = max(noiseFloorDb + 10.0, speechPeakDb * 0.994 + (noiseFloorDb + 14.0) * 0.006)
+            if db < closeThreshold {
+                isGateOpen = false
+            }
         }
-        speechPeakDb = max(-48.0, min(-10.0, speechPeakDb))
 
-        // 3. Dynamic Speech Gate & Dynamic Range
-        let effectiveGate = max(-64.0, noiseFloorDb + 3.5)
-        let dynamicRange = max(10.0, speechPeakDb - effectiveGate)
+        // 3. Dynamic Speech Peak Tracking (Adaptive Gain Control)
+        if isGateOpen {
+            if db > speechPeakDb {
+                speechPeakDb = speechPeakDb * 0.60 + db * 0.40
+            } else {
+                speechPeakDb = max(noiseFloorDb + 14.0, speechPeakDb * 0.995 + (noiseFloorDb + 16.0) * 0.005)
+            }
+            speechPeakDb = max(-42.0, min(-10.0, speechPeakDb))
+        }
 
+        // 4. Normalized Speech Level Calculation
         let targetLevel: Float
-        if db <= effectiveGate {
+        if !isGateOpen {
             targetLevel = 0.0
+            smoothedLevel = 0.0
+            return 0.0
         } else {
-            let normalized = min(1.0, max(0.0, (db - effectiveGate) / dynamicRange))
+            let dynamicRange = max(10.0, speechPeakDb - closeThreshold)
+            let normalized = min(1.0, max(0.0, (db - closeThreshold) / dynamicRange))
             targetLevel = pow(normalized, 0.70)
         }
 
-        // 4. Envelope follower (snappy attack, instantaneous silence release)
-        let attack: Float = 0.75
-        // When speech drops to gate/silence, release immediately (0.90). While vocalizing, use smooth release (0.40).
-        let release: Float = (targetLevel == 0.0) ? 0.90 : 0.40
-        let coeff = targetLevel > smoothedLevel ? attack : release
-        smoothedLevel = smoothedLevel + (targetLevel - smoothedLevel) * coeff
+        // 5. Envelope follower (snappy attack, smooth vocal decay)
+        let coeff: Float = targetLevel > smoothedLevel ? 0.75 : 0.35
+        smoothedLevel += (targetLevel - smoothedLevel) * coeff
 
-        // If level drops into silence or below threshold, snap immediately to zero
-        if smoothedLevel < 0.02 || (targetLevel == 0.0 && smoothedLevel < 0.06) {
+        if smoothedLevel < 0.02 {
             smoothedLevel = 0.0
         }
 
