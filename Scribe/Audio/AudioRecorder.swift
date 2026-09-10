@@ -153,11 +153,11 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
             }
         }
 
+        isRecording = true
         audioEngine.prepare()
         try audioEngine.start()
 
         recordingURL = url
-        isRecording = true
         logger.info("Recording started to \(url.lastPathComponent)")
         return url
     }

@@ -320,52 +320,14 @@ struct TranscribingAnimationView: View {
                 pulseGlow = false
             }
 
-            // Shimmering Liquid Label + Wave Bouncing Dots
-            TimelineView(.animation) { timeline in
-                let t = timeline.date.timeIntervalSinceReferenceDate
-                let cycle = 1.8
-                let normalized = (t.truncatingRemainder(dividingBy: cycle)) / cycle
-                let shimmerPhase = CGFloat(normalized)
+            let titleText = (appState.recordingStatus == .loadingModel)
+                ? appState.l("Loading model")
+                : appState.l("Transcribing")
 
-                let titleText = (appState.recordingStatus == .loadingModel)
-                    ? appState.l("Loading model")
-                    : appState.l("Transcribing")
-
-                HStack(spacing: 5) {
-                    Text(titleText)
-                        .font(.system(size: fontSize, weight: .semibold, design: .rounded))
-                        .foregroundStyle(
-                            LinearGradient(
-                                stops: [
-                                    .init(color: .primary.opacity(0.68), location: max(0, shimmerPhase - 0.25)),
-                                    .init(color: theme.gradientColors.first ?? .white, location: shimmerPhase),
-                                    .init(color: .primary.opacity(0.68), location: min(1, shimmerPhase + 0.25))
-                                ],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .lineLimit(1)
-
-                    // 3 Liquid wave-bouncing dots
-                    HStack(spacing: 3.2) {
-                        ForEach(0..<3) { i in
-                            let phase = t * 4.8 - Double(i) * 0.7
-                            let wave = sin(phase)
-                            let yOffset = CGFloat(wave * 2.5)
-                            let alpha = 0.35 + (wave + 1.0) * 0.325
-                            let scale = 0.8 + (wave + 1.0) * 0.15
-
-                            Circle()
-                                .fill(theme.gradientColors[min(i, theme.gradientColors.count - 1)])
-                                .frame(width: 3.6, height: 3.6)
-                                .scaleEffect(scale)
-                                .offset(y: -yOffset)
-                                .opacity(alpha)
-                        }
-                    }
-                }
-            }
+            Text(titleText)
+                .font(.system(size: fontSize, weight: .semibold, design: .rounded))
+                .foregroundStyle(.primary.opacity(0.85))
+                .lineLimit(1)
         }
     }
 }
@@ -406,22 +368,24 @@ struct WaveformBarsView: View {
                 let minBarHeight: CGFloat = 3.6
                 let maxBarHeight: CGFloat = min(44.0, size.height - 4.0)
 
-                let totalBarsWidth = CGFloat(WaveformVisualizerState.barCount) * stride - barSpacing
+                // Dynamically fit only full bars within available canvas width so no bar overflows or gets sliced
+                let availableWidth = max(size.width, 100)
+                let maxPossibleBars = Int(floor((availableWidth + barSpacing) / stride))
+                let barCount = min(WaveformVisualizerState.barCount, max(12, maxPossibleBars))
+                let totalBarsWidth = CGFloat(barCount) * stride - barSpacing
                 let startX = max(0, (size.width - totalBarsWidth) / 2)
+                let endX = startX + totalBarsWidth
 
                 let colors = theme.gradientColors
                 let baseColor1 = colors.first ?? Color.accentColor
                 let baseColor2 = colors.count > 1 ? colors[1] : baseColor1
 
-                // Clip drawing to avoid visual spill outside waveform bounds
-                let clipRect = CGRect(x: startX, y: 0, width: totalBarsWidth, height: size.height)
-                context.clip(to: Path(clipRect))
-
                 var combinedPath = Path()
 
                 for i in 0..<visualizer.levels.count {
                     let x = startX + CGFloat(i) * stride - visualizer.scrollOffset
-                    if x + barWidth < startX || x > startX + totalBarsWidth { continue }
+                    // Strictly require whole bars within the bounds: prevents any sliced / cut-off fragment on the right or left edge
+                    if x < startX - 0.05 || (x + barWidth) > endX + 0.05 { continue }
 
                     let level = CGFloat(visualizer.levels[i])
                     let barHeight = minBarHeight + level * (maxBarHeight - minBarHeight)
@@ -430,20 +394,20 @@ struct WaveformBarsView: View {
                     combinedPath.addRoundedRect(in: barRect, cornerSize: CGSize(width: 1.6, height: 1.6))
                 }
 
-                // Tone down brightness for whiteGlow (Lumina) to prevent blinding white, and soften other themes
-                let c1 = (theme == .whiteGlow) ? Color(white: 0.58) : baseColor1
-                let c2 = (theme == .whiteGlow) ? Color(white: 0.42) : baseColor2
+                // Crisp, visible colors for Lumina (whiteGlow) and all theme palettes
+                let c1 = (theme == .whiteGlow) ? Color(white: 0.90) : baseColor1
+                let c2 = (theme == .whiteGlow) ? Color(white: 0.78) : baseColor2
 
                 let gradient = Gradient(colors: [
-                    c1.opacity(0.42),
-                    c2.opacity(0.56)
+                    c1.opacity(0.72),
+                    c2.opacity(0.82)
                 ])
                 context.fill(
                     combinedPath,
                     with: .linearGradient(
                         gradient,
-                        startPoint: CGPoint(x: 0, y: size.height),
-                        endPoint: CGPoint(x: 0, y: 0)
+                        startPoint: CGPoint(x: 0, y: (size.height + maxBarHeight) / 2),
+                        endPoint: CGPoint(x: 0, y: (size.height - maxBarHeight) / 2)
                     )
                 )
             }
@@ -558,17 +522,6 @@ struct WaveformOverlay: View {
                         }
 
                         if appState.recordingStatus == .recording {
-                            // Cancel button (X)
-                            Button(action: { appState.cancelRecording() }) {
-                                Image(systemName: "xmark")
-                                    .font(.system(size: 10, weight: .bold))
-                                    .foregroundStyle(.primary.opacity(0.55))
-                                    .frame(width: 24, height: 24)
-                                    .background(Circle().fill(Color.primary.opacity(0.10)))
-                            }
-                            .buttonStyle(.plain)
-                            .help("Cancel recording (Esc)")
-
                             // Stop & Transcribe button (Square stop)
                             Button(action: { appState.toggleRecording() }) {
                                 Image(systemName: "stop.fill")
