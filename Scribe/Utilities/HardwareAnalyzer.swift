@@ -194,3 +194,55 @@ public final class HardwareAnalyzer: @unchecked Sendable {
         )
     }
 }
+
+// MARK: - Device Manager
+
+import IOKit
+
+/// Manages unique hardware device identification and naming for cross-device cloud sync.
+public final class DeviceManager: Sendable {
+    public static let shared = DeviceManager()
+
+    private let persistentUUIDKey = "scribe_persistent_device_hardware_uuid"
+
+    private init() {}
+
+    /// Unique and permanent hardware UUID for this Mac.
+    public var deviceUUID: String {
+        let matchingDict = IOServiceMatching("IOPlatformExpertDevice")
+        let platformExpert = IOServiceGetMatchingService(kIOMainPortDefault, matchingDict)
+        defer {
+            if platformExpert != 0 {
+                IOObjectRelease(platformExpert)
+            }
+        }
+
+        if platformExpert != 0 {
+            if let uuidAsCFString = IORegistryEntryCreateCFProperty(
+                platformExpert,
+                kIOPlatformUUIDKey as CFString,
+                kCFAllocatorDefault,
+                0
+            )?.takeRetainedValue() as? String, !uuidAsCFString.isEmpty {
+                return uuidAsCFString
+            }
+        }
+
+        // Fallback: persistent UUID stored in UserDefaults
+        if let saved = UserDefaults.standard.string(forKey: persistentUUIDKey), !saved.isEmpty {
+            return saved
+        }
+        let generated = UUID().uuidString
+        UserDefaults.standard.set(generated, forKey: persistentUUIDKey)
+        return generated
+    }
+
+    /// User-friendly Mac name, e.g. "MacBook Pro" or "Aleksei's MacBook Air"
+    public var deviceName: String {
+        if let hostName = Host.current().localizedName, !hostName.isEmpty {
+            return hostName
+        }
+        return "Mac"
+    }
+}
+

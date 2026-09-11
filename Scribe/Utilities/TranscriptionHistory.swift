@@ -59,13 +59,39 @@ final class TranscriptionHistory: ObservableObject {
     @Published var records: [TranscriptionRecord] = []
     
     // MARK: - Precomputed Cached Stats
-    @Published private(set) var totalWords: Int = 0
-    @Published private(set) var totalDuration: TimeInterval = 0
+    @Published public private(set) var localTotalWords: Int = 0
+    @Published public private(set) var localTotalDuration: TimeInterval = 0
+    @Published public var cloudAggregatedWords: Int? = nil
+    @Published public var cloudAggregatedDuration: TimeInterval? = nil
+    @Published public var syncedDevicesCount: Int = 1
     @Published private(set) var dayStreak: Int = 0
     @Published private(set) var cachedTodayStats = StatsSummary(wordCount: 0, charCount: 0, duration: 0, sessionCount: 0)
     @Published private(set) var cachedWeekStats = StatsSummary(wordCount: 0, charCount: 0, duration: 0, sessionCount: 0)
     @Published private(set) var cachedAllTimeStats = StatsSummary(wordCount: 0, charCount: 0, duration: 0, sessionCount: 0)
     @Published private(set) var topSpokenWords: [(word: String, count: Int)] = []
+
+    /// Effective total words across all verified devices on the account (or local if offline/higher)
+    public var totalWords: Int {
+        if let cloud = cloudAggregatedWords, cloud > localTotalWords {
+            return cloud
+        }
+        return localTotalWords
+    }
+
+    /// Effective total duration across all verified devices on the account (or local if offline/higher)
+    public var totalDuration: TimeInterval {
+        if let cloud = cloudAggregatedDuration, cloud > localTotalDuration {
+            return cloud
+        }
+        return localTotalDuration
+    }
+
+    public func updateCloudAggregatedStats(words: Int, duration: TimeInterval, deviceCount: Int) {
+        self.cloudAggregatedWords = words
+        self.cloudAggregatedDuration = duration
+        self.syncedDevicesCount = max(1, deviceCount)
+        objectWillChange.send()
+    }
 
     /// Estimated time saved in seconds assuming 40 words per minute typing speed
     var timeSaved: TimeInterval {
@@ -96,8 +122,8 @@ final class TranscriptionHistory: ObservableObject {
             totalW += wordsCount
             totalD += rec.duration
         }
-        self.totalWords = totalW
-        self.totalDuration = totalD
+        self.localTotalWords = totalW
+        self.localTotalDuration = totalD
 
         // 2. Day Streak
         if records.isEmpty {

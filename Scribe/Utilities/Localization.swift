@@ -769,9 +769,18 @@ enum Localization {
             "Thanks!": "Спасибо!",
             "Thanks for contributing to this project": "Спасибо за поддержку проекта",
             "Your contribution helps Scribe remain fast, private, and 100% offline.": "Ваш вклад помогает Scribe оставаться быстрым, приватным и полностью локальным.",
+            "You now have a badge in Statistics!": "У вас теперь есть значок в статистике!",
+            "View in Statistics →": "Посмотреть в статистике →",
             "Press anywhere or Esc to continue": "Нажмите в любом месте или Esc для продолжения",
             "Replay Celebration": "Посмотреть анимацию",
-            "Preview Animation": "Анимация благодарности"
+            "Preview Animation": "Анимация благодарности",
+            "Linked Devices": "Привязанные устройства",
+            "Device limit reached (max 3)": "Лимит устройств исчерпан (максимум 3)",
+            "To link more than 3 devices, please contact support for verification.": "К вашему аккаунту привязано 3 устройства. Если вы хотите привязать больше, обратитесь в поддержку для подтверждения.",
+            "Contact Support": "Написать в поддержку",
+            "Macs": "Mac",
+            "Statistics aggregated across your synced Macs": "Статистика суммируется со всех ваших синхронизированных Mac",
+            "Statistics are automatically summed and synchronized across up to 3 verified Macs under your account.": "Статистика автоматически суммируется и синхронизируется между (до 3) подтвержденными Mac вашего аккаунта."
         ],
         "es": [
             "Start Dictation": "Iniciar dictado",

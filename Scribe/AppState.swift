@@ -911,6 +911,7 @@ final class AppState: ObservableObject {
                 if AuthService.shared.currentUser != nil {
                     AuthService.shared.syncRecords(TranscriptionHistory.shared.records)
                     AuthService.shared.syncSupporterStatusFromCloud()
+                    AuthService.shared.syncDeviceStatsFromCloud()
                 }
             }
         }
@@ -924,6 +925,7 @@ final class AppState: ObservableObject {
                     if AuthService.shared.currentUser != nil {
                         AuthService.shared.syncRecords(TranscriptionHistory.shared.records)
                         AuthService.shared.syncSupporterStatusFromCloud()
+                        AuthService.shared.syncDeviceStatsFromCloud()
                     }
                 }
             }

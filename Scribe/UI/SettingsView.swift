@@ -334,10 +334,15 @@ struct SettingsSidebarView: View {
 struct SettingsContentView: View {
     let selectedTab: SettingsTab
     @EnvironmentObject var appState: AppState
+    @ObservedObject private var authService = AuthService.shared
 
     var body: some View {
         ScrollView(.vertical, showsIndicators: true) {
             VStack(spacing: 20) {
+                if authService.isDeviceLimitReached {
+                    DeviceLimitWarningBanner()
+                }
+
                 switch selectedTab {
                 case .general:
                     GeneralSettingsView()
@@ -378,6 +383,77 @@ struct SettingsContentView: View {
             .frame(height: 48)
             .allowsHitTesting(false)
         }
+    }
+}
+
+@MainActor
+private func openDeviceLimitSupport(appState: AppState) {
+    let osVersion = ProcessInfo.processInfo.operatingSystemVersionString
+    let chip = HardwareAnalyzer.shared.profile.chipName
+    let encOS = osVersion.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "macOS"
+    let encChip = chip.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "AppleSilicon"
+    let appVer = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "2.6.8"
+    let deviceName = DeviceManager.shared.deviceName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+    let urlStr = "https://bledny1099.github.io/Scribe/report.html?type=support&os=\(encOS)&arch=\(encChip)&version=v\(appVer)&device=\(deviceName)"
+    if let url = URL(string: urlStr) {
+        NSWorkspace.shared.open(url)
+    }
+}
+
+// MARK: - Device Limit Warning Banner Component
+struct DeviceLimitWarningBanner: View {
+    @EnvironmentObject var appState: AppState
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(Color.orange.opacity(0.18))
+                    .frame(width: 34, height: 34)
+                Image(systemName: "laptopcomputer.trianglebadge.exclamationmark")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(.orange)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(appState.l("Device limit reached (max 3)"))
+                    .font(.system(size: 12.5, weight: .bold, design: .rounded))
+                    .foregroundStyle(.primary)
+
+                Text(appState.l("To link more than 3 devices, please contact support for verification."))
+                    .font(.system(size: 11, weight: .regular))
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 8)
+
+            Button(action: {
+                openDeviceLimitSupport(appState: appState)
+            }) {
+                HStack(spacing: 4) {
+                    Text(appState.l("Contact Support"))
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 9, weight: .bold))
+                }
+                .foregroundStyle(.orange)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(Color.orange.opacity(0.12))
+                .cornerRadius(8)
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.orange.opacity(0.3), lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.orange.opacity(0.06))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Color.orange.opacity(0.28), lineWidth: 1)
+        )
     }
 }
 
@@ -1059,6 +1135,23 @@ struct GoldCertificateCardView: View {
                 Spacer(minLength: 8)
 
                 HStack(spacing: 8) {
+                    if history.syncedDevicesCount > 1 {
+                        HStack(spacing: 3.5) {
+                            Image(systemName: "macbook.and.iphone")
+                                .font(.system(size: 8, weight: .bold))
+                            Text("\(history.syncedDevicesCount) \(appState.l("Macs"))")
+                                .font(.system(size: 8, weight: .bold, design: .rounded))
+                                .tracking(0.3)
+                        }
+                        .foregroundStyle(themeColor)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2.5)
+                        .background(themeColor.opacity(0.12))
+                        .cornerRadius(5)
+                        .overlay(RoundedRectangle(cornerRadius: 5).stroke(themeColor.opacity(0.3), lineWidth: 0.8))
+                        .help(appState.l("Statistics aggregated across your synced Macs"))
+                    }
+
                     if isScribeSupporter {
                         Button {
                             appState.triggerSupporterCelebration(
@@ -6713,6 +6806,70 @@ struct AccountSettingsModalView: View {
                             .multilineTextAlignment(.center)
                     }
 
+                    // Linked Devices Section
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Label(appState.l("Linked Devices"), systemImage: "laptopcomputer.and.iphone")
+                                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Text("\(authService.linkedDevicesCount) / \(authService.maxAllowedDevices) \(appState.l("Macs"))")
+                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                .foregroundStyle(authService.isDeviceLimitReached ? .orange : .secondary)
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 2.5)
+                                .background((authService.isDeviceLimitReached ? Color.orange : Color.primary).opacity(0.08))
+                                .cornerRadius(6)
+                        }
+
+                        Text(appState.l("Statistics are automatically summed and synchronized across up to 3 verified Macs under your account."))
+                            .font(.system(size: 11, weight: .regular))
+                            .foregroundStyle(.secondary)
+
+                        if authService.isDeviceLimitReached {
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundStyle(.orange)
+                                    Text(appState.l("Device limit reached (max 3)"))
+                                        .font(.system(size: 11.5, weight: .bold, design: .rounded))
+                                        .foregroundStyle(.orange)
+                                }
+
+                                Text(appState.l("To link more than 3 devices, please contact support for verification."))
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.secondary)
+
+                                Button {
+                                    openDeviceLimitSupport(appState: appState)
+                                } label: {
+                                    HStack(spacing: 4) {
+                                        Text(appState.l("Contact Support"))
+                                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                        Image(systemName: "arrow.up.right")
+                                            .font(.system(size: 9, weight: .bold))
+                                    }
+                                    .foregroundStyle(.orange)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 5)
+                                    .background(Color.orange.opacity(0.12))
+                                    .cornerRadius(6)
+                                }
+                                .buttonStyle(.plain)
+                                .padding(.top, 2)
+                            }
+                            .padding(10)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.orange.opacity(0.07))
+                            .cornerRadius(10)
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.orange.opacity(0.25), lineWidth: 1))
+                        }
+                    }
+                    .padding(12)
+                    .background(Color.primary.opacity(0.03))
+                    .cornerRadius(12)
+
                     Divider()
                         .padding(.vertical, 4)
 
@@ -8021,8 +8178,10 @@ struct SupporterCelebrationOverlayView: View {
     @EnvironmentObject var appState: AppState
 
     @State private var appeared = false
+    @State private var badgeNoticeAppeared = false
     @State private var progress: CGFloat = 0.0
     @State private var autoDismissTask: Task<Void, Never>? = nil
+    @State private var isBadgeHovered = false
 
     private var tierColors: [Color] {
         data.tier.gradientColors.isEmpty ? [Color(red: 1.0, green: 0.84, blue: 0.0), Color(red: 1.0, green: 0.55, blue: 0.0)] : data.tier.gradientColors
@@ -8053,7 +8212,7 @@ struct SupporterCelebrationOverlayView: View {
             .blur(radius: 30)
 
             // Layer 2: Clean Central Content
-            VStack(spacing: 18) {
+            VStack(spacing: 16) {
                 Spacer()
 
                 // Minimalist Emblem Disc
@@ -8150,6 +8309,78 @@ struct SupporterCelebrationOverlayView: View {
                 .scaleEffect(appeared ? 1.0 : 0.95)
                 .opacity(appeared ? 1.0 : 0.0)
 
+                // Statistics Supporter Badge Unlock Notice
+                Button(action: {
+                    dismissWithAnimation()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                        SettingsWindowManager.shared.showSettings(appState: appState, tab: .statistics)
+                    }
+                }) {
+                    HStack(spacing: 10) {
+                        ZStack {
+                            Circle()
+                                .fill(primaryColor.opacity(0.20))
+                                .frame(width: 28, height: 28)
+
+                            Image(systemName: "chart.bar.fill")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(primaryColor)
+                        }
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(appState.l("You now have a badge in Statistics!"))
+                                .font(.system(size: 12.5, weight: .bold, design: .rounded))
+                                .foregroundStyle(Color.white.opacity(0.95))
+
+                            Text(appState.l("View in Statistics →"))
+                                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                .foregroundStyle(primaryColor)
+                        }
+
+                        Spacer(minLength: 8)
+
+                        Image(systemName: "arrow.right.circle.fill")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(primaryColor)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 9)
+                    .frame(maxWidth: 340)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(.ultraThinMaterial)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(primaryColor.opacity(0.09))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .strokeBorder(
+                                LinearGradient(
+                                    colors: [
+                                        primaryColor.opacity(0.55),
+                                        primaryColor.opacity(0.20)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1
+                            )
+                    )
+                    .shadow(color: primaryColor.opacity(isBadgeHovered ? 0.35 : 0.20), radius: isBadgeHovered ? 14 : 9, x: 0, y: 3)
+                    .scaleEffect(isBadgeHovered ? 1.02 : 1.0)
+                }
+                .buttonStyle(.plain)
+                .onHover { hovering in
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        isBadgeHovered = hovering
+                    }
+                }
+                .scaleEffect(badgeNoticeAppeared ? 1.0 : 0.88)
+                .offset(y: badgeNoticeAppeared ? 0 : 10)
+                .opacity(badgeNoticeAppeared ? 1.0 : 0.0)
+
                 // Appreciation Subtitle
                 Text(appState.l("Your contribution helps Scribe remain fast, private, and 100% offline."))
                     .font(.system(size: 12, weight: .regular, design: .rounded))
@@ -8162,7 +8393,7 @@ struct SupporterCelebrationOverlayView: View {
 
                 // Bottom Hairline Countdown & Dismiss Hint
                 VStack(spacing: 8) {
-                    // Countdown progress bar (3.5 seconds)
+                    // Countdown progress bar (5.0 seconds)
                     GeometryReader { barGeo in
                         ZStack(alignment: .leading) {
                             Capsule()
@@ -8218,14 +8449,18 @@ struct SupporterCelebrationOverlayView: View {
             appeared = true
         }
 
-        // Animate countdown progress bar over 3.5 seconds
-        withAnimation(.linear(duration: 3.5)) {
+        withAnimation(.spring(response: 0.55, dampingFraction: 0.78).delay(0.22)) {
+            badgeNoticeAppeared = true
+        }
+
+        // Animate countdown progress bar over 5.0 seconds
+        withAnimation(.linear(duration: 5.0)) {
             progress = 1.0
         }
 
-        // Auto dismiss after 3.5s
+        // Auto dismiss after 5.0s
         autoDismissTask = Task {
-            try? await Task.sleep(nanoseconds: 3_500_000_000)
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
             if !Task.isCancelled {
                 await MainActor.run {
                     dismissWithAnimation()
