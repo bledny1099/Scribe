@@ -999,12 +999,8 @@ final class AppState: ObservableObject {
             recordingDuration = 0
             livePreviewText = ""
             startDurationTimer()
-            if livePreviewEnabled {
-                if isInstantEngine {
-                    startLiveStreaming()
-                } else {
-                    startInterimWhisperGeneration()
-                }
+            if livePreviewEnabled && isInstantEngine {
+                startLiveStreaming()
             }
             showPanel()
             if soundFeedbackEnabled { SoundFeedback.play(.recordingStarted) }

@@ -31,21 +31,21 @@ public final class AppUpdateService: ObservableObject {
     private var feedbackResetTask: Task<Void, Never>? = nil
 
     private var timer: Timer?
-    private let checkInterval: TimeInterval = 30.0
+    private let checkInterval: TimeInterval = 3600.0 // Check once per hour in background
 
     private init() {
         self.currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.5.2"
         startPeriodicChecks()
     }
 
-    /// Starts periodic 30-second check for new GitHub releases.
+    /// Starts periodic hourly check for new GitHub releases.
     public func startPeriodicChecks() {
         timer?.invalidate()
         // Check immediately on startup
         Task {
             await checkForUpdates(silent: true)
         }
-        // Then poll every 30 seconds
+        // Then poll every hour
         timer = Timer.scheduledTimer(withTimeInterval: checkInterval, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 await self?.checkForUpdates(silent: true)

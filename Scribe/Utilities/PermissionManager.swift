@@ -17,10 +17,11 @@ final class PermissionManager: ObservableObject {
 
     private var timer: Timer?
     private var activeObserver: NSObjectProtocol?
+    private var pollCount = 0
 
     init() {
         checkPermissions()
-        if !isMicrophoneGranted || !isAccessibilityGranted || !isSpeechRecognitionGranted {
+        if !isMicrophoneGranted || !isAccessibilityGranted {
             startPolling()
         }
         activeObserver = NotificationCenter.default.addObserver(
@@ -46,24 +47,31 @@ final class PermissionManager: ObservableObject {
             isAccessibilityGranted = ax
         }
 
-        // Speech Recognition status
+        // Speech Recognition status (passive check, does not keep background polling alive)
         let speechStatus = SFSpeechRecognizer.authorizationStatus()
         let speech = (speechStatus == .authorized)
         if isSpeechRecognitionGranted != speech {
             isSpeechRecognitionGranted = speech
         }
 
-        // When all permissions are granted, stop background polling to save CPU
-        if isMicrophoneGranted && isAccessibilityGranted && isSpeechRecognitionGranted {
+        // When core permissions are granted, stop background polling immediately to save CPU
+        if isMicrophoneGranted && isAccessibilityGranted {
             stopPolling()
         }
     }
 
     func startPolling() {
         timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
+        pollCount = 0
+        timer = Timer.scheduledTimer(withTimeInterval: 2.5, repeats: true) { [weak self] _ in
             Task { @MainActor in
-                self?.checkPermissions()
+                guard let self = self else { return }
+                self.pollCount += 1
+                self.checkPermissions()
+                // Stop polling after 60s to prevent infinite background polling
+                if self.pollCount > 24 {
+                    self.stopPolling()
+                }
             }
         }
     }
@@ -71,9 +79,11 @@ final class PermissionManager: ObservableObject {
     func stopPolling() {
         timer?.invalidate()
         timer = nil
+        pollCount = 0
     }
 
     func requestMicrophone() {
+        startPolling()
         let status = AVCaptureDevice.authorizationStatus(for: .audio)
         if status == .denied || status == .restricted {
             if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone") {
@@ -90,11 +100,13 @@ final class PermissionManager: ObservableObject {
     }
 
     func requestAccessibility() {
+        startPolling()
         PasteService.requestAccessibilityPermission()
         checkPermissions()
     }
 
     func requestSpeechRecognition() {
+        startPolling()
         SFSpeechRecognizer.requestAuthorization { @Sendable status in
             Task { @MainActor in
                 PermissionManager.shared.isSpeechRecognitionGranted = (status == .authorized)

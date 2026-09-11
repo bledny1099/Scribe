@@ -365,18 +365,19 @@ struct SettingsContentView: View {
             .padding(.top, 88)
             .padding(.bottom, 24)
         }
-        .mask(
+        .overlay(alignment: .top) {
             LinearGradient(
                 stops: [
-                    .init(color: .clear, location: 0.0),
-                    .init(color: .clear, location: 0.04),
-                    .init(color: .black, location: 0.12),
-                    .init(color: .black, location: 1.0)
+                    .init(color: (appState.selectedPanelAppearance == .light ? Color.white : Color(red: 0.05, green: 0.05, blue: 0.07)).opacity(0.92), location: 0.0),
+                    .init(color: (appState.selectedPanelAppearance == .light ? Color.white : Color(red: 0.05, green: 0.05, blue: 0.07)).opacity(0.40), location: 0.5),
+                    .init(color: .clear, location: 1.0)
                 ],
                 startPoint: .top,
                 endPoint: .bottom
             )
-        )
+            .frame(height: 48)
+            .allowsHitTesting(false)
+        }
     }
 }
 
@@ -6299,6 +6300,7 @@ struct RecognitionSettingsView: View {
 struct SystemSettingsView: View {
     @EnvironmentObject var appState: AppState
     @ObservedObject private var authService = AuthService.shared
+    @State private var isLaunchAtLoginEnabled: Bool = false
 
     var body: some View {
         VStack(spacing: 16) {
@@ -6333,8 +6335,13 @@ struct SystemSettingsView: View {
                             .foregroundStyle(.primary)
                         Spacer()
                         Toggle("", isOn: Binding(
-                            get: { LaunchAtLoginHelper.isEnabled },
-                            set: { LaunchAtLoginHelper.setEnabled($0) }
+                            get: { isLaunchAtLoginEnabled },
+                            set: { newValue in
+                                isLaunchAtLoginEnabled = newValue
+                                Task.detached(priority: .userInitiated) {
+                                    LaunchAtLoginHelper.setEnabled(newValue)
+                                }
+                            }
                         ))
                         .toggleStyle(.switch)
                         .labelsHidden()
@@ -6350,6 +6357,9 @@ struct SystemSettingsView: View {
                     BugReportView()
                 }
             }
+        }
+        .onAppear {
+            isLaunchAtLoginEnabled = LaunchAtLoginHelper.isEnabled
         }
     }
 }

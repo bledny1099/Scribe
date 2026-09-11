@@ -1,5 +1,26 @@
 import SwiftUI
 
+// MARK: - Relative Date Formatter Cache
+
+@MainActor
+private enum RelativeDateFormatterCache {
+    private static var formatters: [String: RelativeDateTimeFormatter] = [:]
+
+    static func format(date: Date, langCode: String) -> String {
+        let formatter: RelativeDateTimeFormatter
+        if let existing = formatters[langCode] {
+            formatter = existing
+        } else {
+            let f = RelativeDateTimeFormatter()
+            f.locale = Locale(identifier: langCode)
+            f.unitsStyle = .abbreviated
+            formatters[langCode] = f
+            formatter = f
+        }
+        return formatter.localizedString(for: date, relativeTo: Date())
+    }
+}
+
 /// History view showing all past transcriptions in liquid glass style.
 struct HistoryView: View {
     @EnvironmentObject var appState: AppState
@@ -20,39 +41,39 @@ struct HistoryView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Spacer(minLength: 24)
-
-            // Header
             if !inSettings {
-            HStack {
-                Text(appState.l("History"))
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
-                    .foregroundStyle(.primary)
+                Spacer(minLength: 24)
 
-                Spacer()
+                // Standalone window header
+                HStack {
+                    Text(appState.l("History"))
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .foregroundStyle(.primary)
 
-                if !history.records.isEmpty {
-                    Button(action: { history.clearAll() }) {
-                        Text("Clear All")
-                            .font(.system(size: 12, weight: .medium, design: .rounded))
-                            .foregroundStyle(.red.opacity(0.8))
+                    Spacer()
+
+                    if !history.records.isEmpty {
+                        Button(action: { history.clearAll() }) {
+                            Text(appState.l("Clear All"))
+                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                                .foregroundStyle(.red.opacity(0.8))
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    Button(action: { HistoryWindowManager.shared.closeWindow() }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 20))
+                            .foregroundStyle(.tertiary)
                     }
                     .buttonStyle(.plain)
                 }
-
-                Button(action: { HistoryWindowManager.shared.closeWindow() }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 20))
-                        .foregroundStyle(.tertiary)
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.horizontal, 24)
-            .padding(.top, 24)
-            .padding(.bottom, 12)
+                .padding(.horizontal, 24)
+                .padding(.top, 24)
+                .padding(.bottom, 12)
             }
 
-            // Search bar
+            // Search bar & actions row
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 13, weight: .medium))
@@ -70,6 +91,19 @@ struct HistoryView: View {
                     }
                     .buttonStyle(.plain)
                 }
+
+                if inSettings && !history.records.isEmpty {
+                    Button(action: { history.clearAll() }) {
+                        Text(appState.l("Clear All"))
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.red.opacity(0.85))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.red.opacity(0.08))
+                            .cornerRadius(6)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
@@ -81,12 +115,11 @@ struct HistoryView: View {
                 RoundedRectangle(cornerRadius: 10)
                     .strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5)
             )
-            .padding(.horizontal, 24)
+            .padding(.horizontal, inSettings ? 0 : 24)
             .padding(.bottom, 12)
 
             // Content
             if filteredRecords.isEmpty {
-                Spacer()
                 VStack(spacing: 12) {
                     Image(systemName: searchText.isEmpty ? "doc.text" : "magnifyingglass")
                         .font(.system(size: 36, weight: .light))
@@ -102,27 +135,38 @@ struct HistoryView: View {
                             .foregroundStyle(.tertiary)
                     }
                 }
-                Spacer()
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, inSettings ? 40 : 80)
             } else {
-                ScrollView(.vertical, showsIndicators: false) {
-                    LazyVStack(spacing: 8) {
-                        ForEach(filteredRecords) { record in
-                            HistoryRecordRow(
-                                record: record,
-                                isCopied: copiedId == record.id,
-                                onCopy: { copyRecord(record) },
-                                onDelete: { history.delete(id: record.id) }
-                            )
-                        }
+                if inSettings {
+                    // In Settings: no inner ScrollView! Flows smoothly with the outer settings scrollview
+                    recordsList
+                } else {
+                    // Standalone window: self-contained ScrollView
+                    ScrollView(.vertical, showsIndicators: false) {
+                        recordsList
+                            .padding(.horizontal, 24)
+                            .padding(.bottom, 24)
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 24)
                 }
             }
         }
         .ignoresSafeArea(.container, edges: .top)
-        .frame(maxWidth: inSettings ? .infinity : 440, maxHeight: inSettings ? .infinity : 560)
-        .shadow(color: .black.opacity(0.3), radius: inSettings ? 0 : 20, x: 0, y: inSettings ? 0 : 10)
+        .frame(maxWidth: inSettings ? .infinity : 440, maxHeight: inSettings ? nil : 560)
+        .shadow(color: .black.opacity(inSettings ? 0 : 0.3), radius: inSettings ? 0 : 20, x: 0, y: inSettings ? 0 : 10)
+    }
+
+    private var recordsList: some View {
+        LazyVStack(spacing: 8) {
+            ForEach(filteredRecords) { record in
+                HistoryRecordRow(
+                    record: record,
+                    isCopied: copiedId == record.id,
+                    onCopy: { copyRecord(record) },
+                    onDelete: { history.delete(id: record.id) }
+                )
+            }
+        }
     }
 
     private func copyRecord(_ record: TranscriptionRecord) {
@@ -153,10 +197,7 @@ struct HistoryRecordRow: View {
     private var formattedRelativeDate: String {
         let lang = appState.selectedUILanguage
         let code = (lang == "auto") ? (Locale.preferredLanguages.first?.lowercased().hasPrefix("ru") == true ? "ru" : "en") : lang
-        let formatter = RelativeDateTimeFormatter()
-        formatter.locale = Locale(identifier: code)
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: record.date, relativeTo: Date())
+        return RelativeDateFormatterCache.format(date: record.date, langCode: code)
     }
 
     var body: some View {
@@ -197,7 +238,7 @@ struct HistoryRecordRow: View {
                             HStack(spacing: 4) {
                                 Image(systemName: isCopied ? "checkmark" : "doc.on.doc")
                                     .font(.system(size: 11, weight: .medium))
-                                Text(isCopied ? "Copied" : "Copy")
+                                Text(appState.l(isCopied ? "Copied" : "Copy"))
                                     .font(.system(size: 11, weight: .medium, design: .rounded))
                             }
                             .foregroundStyle(isCopied ? .green : .secondary)
@@ -225,9 +266,7 @@ struct HistoryRecordRow: View {
                 .strokeBorder(Color.primary.opacity(0.1), lineWidth: 0.5)
         )
         .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.15)) {
-                isHovered = hovering
-            }
+            isHovered = hovering
         }
     }
 }
