@@ -972,7 +972,6 @@ final class AppState: ObservableObject {
             hideSettingsPreviewPanel()
             return
         }
-        guard isRecording else { return }
         stopDurationTimer()
         stopInterimWhisperGeneration()
         if livePreviewEnabled { stopLiveStreaming() }
@@ -980,6 +979,7 @@ final class AppState: ObservableObject {
         liveStreamLastInsertedText = ""
         let audioURL = audioRecorder.stopRecording()
         isRecording = false
+        isTranscribing = false
         recordingStatus = .idle
         hidePanel()
         logger.info("Recording cancelled by user")
@@ -1001,8 +1001,12 @@ final class AppState: ObservableObject {
             recordingDuration = 0
             livePreviewText = ""
             startDurationTimer()
-            if livePreviewEnabled && isInstantEngine {
-                startLiveStreaming()
+            if livePreviewEnabled {
+                if isInstantEngine {
+                    startLiveStreaming()
+                } else {
+                    startInterimWhisperGeneration()
+                }
             }
             showPanel()
             if soundFeedbackEnabled { SoundFeedback.play(.recordingStarted) }
