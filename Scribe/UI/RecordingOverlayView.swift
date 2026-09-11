@@ -222,7 +222,7 @@ final class WaveformVisualizerState {
         lastFrameTime = now
 
         // Any level above resting baseline is active vocalization
-        if currentLevel > 0.015 {
+        if currentLevel > 0.02 {
             lastSpeechTime = now
         }
 
@@ -522,8 +522,8 @@ struct WaveformOverlay: View {
                         }
 
                         if appState.recordingStatus == .recording {
-                            // Stop & Transcribe button (Square stop)
-                            Button(action: { appState.toggleRecording() }) {
+                            // Cancel recording button (Square stop)
+                            Button(action: { appState.cancelRecording() }) {
                                 Image(systemName: "stop.fill")
                                     .font(.system(size: 11, weight: .bold))
                                     .foregroundStyle(.primary.opacity(0.90))
@@ -531,7 +531,7 @@ struct WaveformOverlay: View {
                                     .background(Circle().fill(Color.primary.opacity(0.16)))
                             }
                             .buttonStyle(.plain)
-                            .help("Stop & Transcribe")
+                            .help("Cancel recording (Esc)")
                             .transition(.scale.combined(with: .opacity))
                         } else if appState.isShowingPreview {
                             Button(action: { appState.hideSettingsPreviewPanel() }) {
