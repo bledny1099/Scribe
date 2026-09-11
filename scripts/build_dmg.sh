@@ -84,3 +84,13 @@ fi
 
 echo "✅ Successfully built: $DIST_DIR/$DMG_NAME"
 ls -lh "$DIST_DIR/$DMG_NAME"
+
+echo "🚀 Updating /Applications/$APP_NAME.app and relaunching..."
+if pgrep -x "$APP_NAME" >/dev/null 2>&1; then
+    pkill -x "$APP_NAME" || true
+    sleep 1
+fi
+rm -rf "/Applications/$APP_NAME.app"
+cp -R "$APP_PATH" "/Applications/$APP_NAME.app"
+open "/Applications/$APP_NAME.app"
+echo "✨ Scribe successfully updated and running."
