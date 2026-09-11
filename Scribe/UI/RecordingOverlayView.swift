@@ -222,7 +222,7 @@ final class WaveformVisualizerState {
         lastFrameTime = now
 
         // Any level above resting baseline is active vocalization
-        if currentLevel > 0.02 {
+        if currentLevel > 0.015 {
             lastSpeechTime = now
         }
 

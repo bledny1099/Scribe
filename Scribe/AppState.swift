@@ -1001,7 +1001,7 @@ final class AppState: ObservableObject {
             recordingDuration = 0
             livePreviewText = ""
             startDurationTimer()
-            if livePreviewEnabled && isInstantEngine {
+            if livePreviewEnabled {
                 startLiveStreaming()
             }
             showPanel()
@@ -1819,12 +1819,6 @@ final class AppState: ObservableObject {
     // MARK: - Live Preview (Floating Card Overlay)
 
     private func startLiveStreaming() {
-        // When using Aether Neural, Live Preview is powered directly by Whisper snapshots
-        guard isInstantEngine else {
-            logger.info("Aether Neural active: Live preview powered natively by Whisper on Apple Neural Engine")
-            return
-        }
-
         let streamingLangs: [String]
         if isInstantEngine {
             streamingLangs = ["en"]
