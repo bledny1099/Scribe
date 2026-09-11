@@ -372,19 +372,18 @@ struct SettingsContentView: View {
             .padding(.top, 88)
             .padding(.bottom, 24)
         }
-        .overlay(alignment: .top) {
+        .mask(
             LinearGradient(
                 stops: [
-                    .init(color: (appState.selectedPanelAppearance == .light ? Color.white : Color(red: 0.05, green: 0.05, blue: 0.07)).opacity(0.92), location: 0.0),
-                    .init(color: (appState.selectedPanelAppearance == .light ? Color.white : Color(red: 0.05, green: 0.05, blue: 0.07)).opacity(0.40), location: 0.5),
-                    .init(color: .clear, location: 1.0)
+                    .init(color: .clear, location: 0.0),
+                    .init(color: .clear, location: 0.04),
+                    .init(color: .black, location: 0.12),
+                    .init(color: .black, location: 1.0)
                 ],
                 startPoint: .top,
                 endPoint: .bottom
             )
-            .frame(height: 48)
-            .allowsHitTesting(false)
-        }
+        )
     }
 }
 
@@ -394,7 +393,7 @@ private func openDeviceLimitSupport(appState: AppState) {
     let chip = HardwareAnalyzer.shared.profile.chipName
     let encOS = osVersion.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "macOS"
     let encChip = chip.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "AppleSilicon"
-    let appVer = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "2.6.8"
+    let appVer = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "2.6.9"
     let deviceName = DeviceManager.shared.deviceName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
     let urlStr = "https://bledny1099.github.io/Scribe/report.html?type=support&os=\(encOS)&arch=\(encChip)&version=v\(appVer)&device=\(deviceName)"
     if let url = URL(string: urlStr) {
@@ -8115,8 +8114,8 @@ public final class BugReportService: ObservableObject, @unchecked Sendable {
             self.errorMessage = nil
         }
 
-        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.6.8"
-        let buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "2.6.8"
+        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.6.9"
+        let buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "2.6.9"
         let osVersion = ProcessInfo.processInfo.operatingSystemVersionString
         let macModel = getMacHardwareModel()
         let author = userNickname.isEmpty ? "Anonymous User" : userNickname
@@ -8307,6 +8306,8 @@ struct SupporterCelebrationOverlayView: View {
     let data: SupporterCelebrationData
     var onDismiss: () -> Void
     @EnvironmentObject var appState: AppState
+    @AppStorage("hasSeenStatisticsBadgeUnlockNotice") private var hasSeenBadgeNotice: Bool = false
+    @State private var shouldShowBadgeNotice: Bool = !UserDefaults.standard.bool(forKey: "hasSeenStatisticsBadgeUnlockNotice")
 
     @State private var appeared = false
     @State private var badgeNoticeAppeared = false
@@ -8440,77 +8441,79 @@ struct SupporterCelebrationOverlayView: View {
                 .scaleEffect(appeared ? 1.0 : 0.95)
                 .opacity(appeared ? 1.0 : 0.0)
 
-                // Statistics Supporter Badge Unlock Notice
-                Button(action: {
-                    dismissWithAnimation()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
-                        SettingsWindowManager.shared.showSettings(appState: appState, tab: .statistics)
-                    }
-                }) {
-                    HStack(spacing: 10) {
-                        ZStack {
-                            Circle()
-                                .fill(primaryColor.opacity(0.20))
-                                .frame(width: 28, height: 28)
+                // Statistics Supporter Badge Unlock Notice (First time celebration only)
+                if shouldShowBadgeNotice {
+                    Button(action: {
+                        dismissWithAnimation()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                            SettingsWindowManager.shared.showSettings(appState: appState, tab: .statistics)
+                        }
+                    }) {
+                        HStack(spacing: 10) {
+                            ZStack {
+                                Circle()
+                                    .fill(primaryColor.opacity(0.20))
+                                    .frame(width: 28, height: 28)
 
-                            Image(systemName: "chart.bar.fill")
-                                .font(.system(size: 12, weight: .bold))
+                                Image(systemName: "chart.bar.fill")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundStyle(primaryColor)
+                            }
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(appState.l("You now have a badge in Statistics!"))
+                                    .font(.system(size: 12.5, weight: .bold, design: .rounded))
+                                    .foregroundStyle(Color.white.opacity(0.95))
+
+                                Text(appState.l("View in Statistics →"))
+                                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(primaryColor)
+                            }
+
+                            Spacer(minLength: 8)
+
+                            Image(systemName: "arrow.right.circle.fill")
+                                .font(.system(size: 14, weight: .semibold))
                                 .foregroundStyle(primaryColor)
                         }
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(appState.l("You now have a badge in Statistics!"))
-                                .font(.system(size: 12.5, weight: .bold, design: .rounded))
-                                .foregroundStyle(Color.white.opacity(0.95))
-
-                            Text(appState.l("View in Statistics →"))
-                                .font(.system(size: 11, weight: .semibold, design: .rounded))
-                                .foregroundStyle(primaryColor)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 9)
+                        .frame(maxWidth: 340)
+                        .background(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .fill(.ultraThinMaterial)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .fill(primaryColor.opacity(0.09))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .strokeBorder(
+                                    LinearGradient(
+                                        colors: [
+                                            primaryColor.opacity(0.55),
+                                            primaryColor.opacity(0.20)
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 1
+                                )
+                        )
+                        .shadow(color: primaryColor.opacity(isBadgeHovered ? 0.35 : 0.20), radius: isBadgeHovered ? 14 : 9, x: 0, y: 3)
+                        .scaleEffect(isBadgeHovered ? 1.02 : 1.0)
+                    }
+                    .buttonStyle(.plain)
+                    .onHover { hovering in
+                        withAnimation(.easeInOut(duration: 0.18)) {
+                            isBadgeHovered = hovering
                         }
-
-                        Spacer(minLength: 8)
-
-                        Image(systemName: "arrow.right.circle.fill")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(primaryColor)
                     }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 9)
-                    .frame(maxWidth: 340)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(.ultraThinMaterial)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(primaryColor.opacity(0.09))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .strokeBorder(
-                                LinearGradient(
-                                    colors: [
-                                        primaryColor.opacity(0.55),
-                                        primaryColor.opacity(0.20)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 1
-                            )
-                    )
-                    .shadow(color: primaryColor.opacity(isBadgeHovered ? 0.35 : 0.20), radius: isBadgeHovered ? 14 : 9, x: 0, y: 3)
-                    .scaleEffect(isBadgeHovered ? 1.02 : 1.0)
+                    .scaleEffect(badgeNoticeAppeared ? 1.0 : 0.88)
+                    .offset(y: badgeNoticeAppeared ? 0 : 10)
+                    .opacity(badgeNoticeAppeared ? 1.0 : 0.0)
                 }
-                .buttonStyle(.plain)
-                .onHover { hovering in
-                    withAnimation(.easeInOut(duration: 0.18)) {
-                        isBadgeHovered = hovering
-                    }
-                }
-                .scaleEffect(badgeNoticeAppeared ? 1.0 : 0.88)
-                .offset(y: badgeNoticeAppeared ? 0 : 10)
-                .opacity(badgeNoticeAppeared ? 1.0 : 0.0)
 
                 // Appreciation Subtitle
                 Text(appState.l("Your contribution helps Scribe remain fast, private, and 100% offline."))
@@ -8569,6 +8572,9 @@ struct SupporterCelebrationOverlayView: View {
             startAnimations()
         }
         .onDisappear {
+            if !hasSeenBadgeNotice {
+                hasSeenBadgeNotice = true
+            }
             autoDismissTask?.cancel()
         }
     }
@@ -8580,8 +8586,10 @@ struct SupporterCelebrationOverlayView: View {
             appeared = true
         }
 
-        withAnimation(.spring(response: 0.55, dampingFraction: 0.78).delay(0.22)) {
-            badgeNoticeAppeared = true
+        if shouldShowBadgeNotice {
+            withAnimation(.spring(response: 0.55, dampingFraction: 0.78).delay(0.22)) {
+                badgeNoticeAppeared = true
+            }
         }
 
         // Animate countdown progress bar over 5.0 seconds
@@ -8601,6 +8609,9 @@ struct SupporterCelebrationOverlayView: View {
     }
 
     private func dismissWithAnimation() {
+        if !hasSeenBadgeNotice {
+            hasSeenBadgeNotice = true
+        }
         autoDismissTask?.cancel()
         withAnimation(.easeInOut(duration: 0.25)) {
             onDismiss()

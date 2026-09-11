@@ -5,6 +5,25 @@ All notable changes to Scribe will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.9] - 2026-09-11
+
+## Added
+- Cross-device statistics aggregation across all signed-in devices linked to your account.
+- Three-device account limit management and warning banner with direct support contact link.
+- One-time supporter badge unlock notification in the celebration overlay guiding to Statistics.
+- Automatic installation to `/Applications` and seamless app relaunch during release builds.
+
+## Changed
+- Re-enabled live interim speech preview during recording across all speech recognition engines.
+- Refined recording overlay controls to distinguish between canceling without transcription and stopping to transcribe.
+- Optimized waveform sensitivity and audio metering with lock-free vDSP processing.
+
+## Fixed
+- Fixed black gradient overlay across the settings window header, restoring native translucent frosted blur.
+- Fixed background inference loop during recording to minimize CPU overhead.
+- Fixed Apple Account identity matching for cross-device synchronization and security.
+- Fixed history timeline view and launch-at-login background performance contention.
+
 ## [2.6.8] - 2026-09-10
 
 ## Added
