@@ -198,6 +198,7 @@ public final class HardwareAnalyzer: @unchecked Sendable {
 // MARK: - Device Manager
 
 import IOKit
+import OpenDirectory
 
 /// Manages unique hardware device identification and naming for cross-device cloud sync.
 public final class DeviceManager: Sendable {
@@ -206,6 +207,43 @@ public final class DeviceManager: Sendable {
     private let persistentUUIDKey = "scribe_persistent_device_hardware_uuid"
 
     private init() {}
+
+    /// Unique Apple Account identifier (Apple IDMS identifier, e.g. "com.apple.idms.appleid.prd...")
+    /// extracted from macOS Directory Services. Identical on all Macs logged into the same Apple ID.
+    public var appleAccountId: String? {
+        do {
+            let session = ODSession.default()
+            let node = try ODNode(session: session, type: ODNodeType(kODNodeTypeLocalNodes))
+            let userName = NSUserName()
+            let record = try node.record(
+                withRecordType: kODRecordTypeUsers,
+                name: userName,
+                attributes: [kODAttributeTypeAltSecurityIdentities, kODAttributeTypeRecordName]
+            )
+            if let altIdentities = try? record.values(forAttribute: kODAttributeTypeAltSecurityIdentities) as? [String] {
+                for identity in altIdentities {
+                    if let range = identity.range(of: "com.apple.idms.appleid.prd.[A-Za-z0-9-]+", options: .regularExpression) {
+                        return String(identity[range])
+                    }
+                }
+            }
+            if let recNames = try? record.values(forAttribute: kODAttributeTypeRecordName) as? [String] {
+                for name in recNames {
+                    if name.hasPrefix("com.apple.idms.appleid.prd.") {
+                        return name
+                    }
+                }
+            }
+        } catch {
+            print("[DeviceManager] OpenDirectory Apple ID query error: \(error)")
+        }
+        return nil
+    }
+
+    /// Whether this Mac is currently bound to an Apple Account / iCloud.
+    public var isAppleAccountBound: Bool {
+        appleAccountId != nil
+    }
 
     /// Unique and permanent hardware UUID for this Mac.
     public var deviceUUID: String {

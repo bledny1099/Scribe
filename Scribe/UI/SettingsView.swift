@@ -339,7 +339,9 @@ struct SettingsContentView: View {
     var body: some View {
         ScrollView(.vertical, showsIndicators: true) {
             VStack(spacing: 20) {
-                if authService.isDeviceLimitReached {
+                if authService.isAppleAccountMismatch {
+                    AppleAccountMismatchWarningBanner()
+                } else if authService.isDeviceLimitReached {
                     DeviceLimitWarningBanner()
                 }
 
@@ -397,6 +399,68 @@ private func openDeviceLimitSupport(appState: AppState) {
     let urlStr = "https://bledny1099.github.io/Scribe/report.html?type=support&os=\(encOS)&arch=\(encChip)&version=v\(appVer)&device=\(deviceName)"
     if let url = URL(string: urlStr) {
         NSWorkspace.shared.open(url)
+    }
+}
+
+// MARK: - Apple Account Mismatch Warning Banner Component
+struct AppleAccountMismatchWarningBanner: View {
+    @EnvironmentObject var appState: AppState
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(Color.red.opacity(0.15))
+                    .frame(width: 34, height: 34)
+                Image(systemName: "apple.logo")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(.red)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 5) {
+                    Text(appState.l("Apple Account mismatch"))
+                        .font(.system(size: 12.5, weight: .bold, design: .rounded))
+                        .foregroundStyle(.red)
+                    Image(systemName: "lock.shield.fill")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.red)
+                }
+
+                Text(appState.l("This Mac is signed into a different Apple Account. For security, all devices linked to your Scribe account must use the same Apple ID."))
+                    .font(.system(size: 11, weight: .regular))
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 8)
+
+            Button(action: {
+                openDeviceLimitSupport(appState: appState)
+            }) {
+                HStack(spacing: 4) {
+                    Text(appState.l("Contact Support"))
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 9, weight: .bold))
+                }
+                .foregroundStyle(.red)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(Color.red.opacity(0.12))
+                .cornerRadius(8)
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.red.opacity(0.3), lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.red.opacity(0.06))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Color.red.opacity(0.28), lineWidth: 1)
+        )
     }
 }
 
@@ -6822,11 +6886,78 @@ struct AccountSettingsModalView: View {
                                 .cornerRadius(6)
                         }
 
+                        // Apple Account Protection Status
+                        HStack(spacing: 6) {
+                            Image(systemName: "apple.logo")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(authService.isAppleAccountMismatch ? .red : .primary)
+                            Text(appState.l("Apple Account Protection"))
+                                .font(.system(size: 11, weight: .medium, design: .rounded))
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            if authService.isAppleAccountMismatch {
+                                Text(appState.l("Mismatch"))
+                                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                                    .foregroundStyle(.red)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color.red.opacity(0.12))
+                                    .cornerRadius(5)
+                            } else {
+                                Text(appState.l("Active"))
+                                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                                    .foregroundStyle(.green)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color.green.opacity(0.12))
+                                    .cornerRadius(5)
+                            }
+                        }
+                        .padding(.vertical, 2)
+
                         Text(appState.l("Statistics are automatically summed and synchronized across up to 3 verified Macs under your account."))
                             .font(.system(size: 11, weight: .regular))
                             .foregroundStyle(.secondary)
 
-                        if authService.isDeviceLimitReached {
+                        if authService.isAppleAccountMismatch {
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundStyle(.red)
+                                    Text(appState.l("Apple Account mismatch"))
+                                        .font(.system(size: 11.5, weight: .bold, design: .rounded))
+                                        .foregroundStyle(.red)
+                                }
+
+                                Text(appState.l("This Mac is not signed into the registered Apple ID for this Scribe profile."))
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.secondary)
+
+                                Button {
+                                    openDeviceLimitSupport(appState: appState)
+                                } label: {
+                                    HStack(spacing: 4) {
+                                        Text(appState.l("Contact Support"))
+                                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                        Image(systemName: "arrow.up.right")
+                                            .font(.system(size: 9, weight: .bold))
+                                    }
+                                    .foregroundStyle(.red)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 5)
+                                    .background(Color.red.opacity(0.12))
+                                    .cornerRadius(6)
+                                }
+                                .buttonStyle(.plain)
+                                .padding(.top, 2)
+                            }
+                            .padding(10)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.red.opacity(0.07))
+                            .cornerRadius(10)
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.red.opacity(0.25), lineWidth: 1))
+                        } else if authService.isDeviceLimitReached {
                             VStack(alignment: .leading, spacing: 6) {
                                 HStack(spacing: 6) {
                                     Image(systemName: "exclamationmark.triangle.fill")

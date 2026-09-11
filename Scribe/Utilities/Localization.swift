@@ -780,7 +780,13 @@ enum Localization {
             "Contact Support": "Написать в поддержку",
             "Macs": "Mac",
             "Statistics aggregated across your synced Macs": "Статистика суммируется со всех ваших синхронизированных Mac",
-            "Statistics are automatically summed and synchronized across up to 3 verified Macs under your account.": "Статистика автоматически суммируется и синхронизируется между (до 3) подтвержденными Mac вашего аккаунта."
+            "Statistics are automatically summed and synchronized across up to 3 verified Macs under your account.": "Статистика автоматически суммируется и синхронизируется между (до 3) подтвержденными Mac вашего аккаунта.",
+            "Apple Account mismatch": "Несовпадение аккаунта Apple",
+            "This Mac is signed into a different Apple Account. For security, all devices linked to your Scribe account must use the same Apple ID.": "На этом Mac выполнен вход под другим аккаунтом Apple. Для безопасности все устройства, привязанные к аккаунту Scribe, должны использовать один и тот же Apple ID.",
+            "Apple Account Protection": "Защита аккаунтом Apple",
+            "Active": "Активна",
+            "Mismatch": "Несовпадение",
+            "This Mac is not signed into the registered Apple ID for this Scribe profile.": "На этом Mac выполнен вход не под тем Apple ID, который зарегистрирован для этого профиля Scribe."
         ],
         "es": [
             "Start Dictation": "Iniciar dictado",

@@ -33,6 +33,8 @@ public final class AuthService: NSObject, ObservableObject {
     }
     @Published public var isSigningIn: Bool = false
     @Published public var isDeviceLimitReached: Bool = false
+    @Published public var isAppleAccountMismatch: Bool = false
+    @Published public var registeredAppleAccountBound: Bool = false
     @Published public var linkedDevicesCount: Int = 1
     @Published public var maxAllowedDevices: Int = 3
     @Published public var accountTotalWords: Int = 0
@@ -606,6 +608,9 @@ final class SafeVoidContinuation: @unchecked Sendable {
         }
         Task { @MainActor in
             self.currentUser = nil
+            self.isDeviceLimitReached = false
+            self.isAppleAccountMismatch = false
+            self.registeredAppleAccountBound = false
         }
     }
     
@@ -664,20 +669,84 @@ final class SafeVoidContinuation: @unchecked Sendable {
 
         let deviceId = DeviceManager.shared.deviceUUID
         let deviceName = DeviceManager.shared.deviceName
+        let appleId = DeviceManager.shared.appleAccountId
         let devicesRef = db.collection("users").document(userId).collection("devices")
         let userRef = db.collection("users").document(userId)
 
-        devicesRef.getDocuments { [weak self] snapshot, error in
+        userRef.getDocument { [weak self] userSnap, _ in
             guard let self = self else { return }
-            let existingDocs = snapshot?.documents ?? []
-            let isExistingDevice = existingDocs.contains { $0.documentID == deviceId }
-            let verifiedDocs = existingDocs.filter { ($0.data()["isVerified"] as? Bool) ?? true }
+            let userData = userSnap?.data() ?? [:]
+            let registeredAppleId = userData["appleAccountId"] as? String
 
-            // Device limit enforcement: max 3 devices per account
-            if !isExistingDevice && verifiedDocs.count >= self.maxAllowedDevices {
+            // Apple Account enforcement:
+            // 1. If an Apple Account ID is already bound to this Scribe account:
+            if let regId = registeredAppleId, !regId.isEmpty {
                 Task { @MainActor in
-                    self.isDeviceLimitReached = true
+                    self.registeredAppleAccountBound = true
                 }
+                if appleId != regId {
+                    // Mismatch! Block linking and statistics contribution
+                    Task { @MainActor in
+                        self.isAppleAccountMismatch = true
+                    }
+                    devicesRef.document(deviceId).setData([
+                        "deviceId": deviceId,
+                        "deviceName": deviceName,
+                        "totalWords": words,
+                        "totalDuration": duration,
+                        "recordCount": records.count,
+                        "lastActive": FieldValue.serverTimestamp(),
+                        "isVerified": false,
+                        "appleAccountMismatch": true,
+                        "appleAccountId": appleId ?? "unlinked"
+                    ], merge: true)
+                    return
+                }
+            } else if let appleId = appleId, !appleId.isEmpty {
+                // First device binding: record this Apple Account ID for the Scribe user
+                userRef.setData([
+                    "appleAccountId": appleId
+                ], merge: true)
+                Task { @MainActor in
+                    self.registeredAppleAccountBound = true
+                }
+            }
+
+            Task { @MainActor in
+                self.isAppleAccountMismatch = false
+            }
+
+            devicesRef.getDocuments { [weak self] snapshot, error in
+                guard let self = self else { return }
+                let existingDocs = snapshot?.documents ?? []
+                let isExistingDevice = existingDocs.contains { $0.documentID == deviceId }
+                let verifiedDocs = existingDocs.filter { ($0.data()["isVerified"] as? Bool) ?? true }
+
+                // Device limit enforcement: max 3 devices per account
+                if !isExistingDevice && verifiedDocs.count >= self.maxAllowedDevices {
+                    Task { @MainActor in
+                        self.isDeviceLimitReached = true
+                    }
+                    devicesRef.document(deviceId).setData([
+                        "deviceId": deviceId,
+                        "deviceName": deviceName,
+                        "totalWords": words,
+                        "totalDuration": duration,
+                        "recordCount": records.count,
+                        "lastActive": FieldValue.serverTimestamp(),
+                        "isVerified": false,
+                        "limitExceeded": true,
+                        "appleAccountId": appleId ?? ""
+                    ], merge: true)
+                    return
+                }
+
+                Task { @MainActor in
+                    self.isDeviceLimitReached = false
+                }
+
+                // Anti-concurrent speech check: check if any other device was active in the exact same second
+                let now = Date().timeIntervalSince1970
                 devicesRef.document(deviceId).setData([
                     "deviceId": deviceId,
                     "deviceName": deviceName,
@@ -685,61 +754,44 @@ final class SafeVoidContinuation: @unchecked Sendable {
                     "totalDuration": duration,
                     "recordCount": records.count,
                     "lastActive": FieldValue.serverTimestamp(),
-                    "isVerified": false,
-                    "limitExceeded": true
-                ], merge: true)
-                return
-            }
+                    "lastActiveEpoch": now,
+                    "isVerified": true,
+                    "appleAccountId": appleId ?? ""
+                ], merge: true) { err in
+                    guard err == nil else { return }
 
-            Task { @MainActor in
-                self.isDeviceLimitReached = false
-            }
+                    devicesRef.getDocuments { snap, _ in
+                        guard let allDocs = snap?.documents else { return }
+                        var sumWords = 0
+                        var sumDuration: TimeInterval = 0
+                        var verifiedCount = 0
 
-            // Anti-concurrent speech check: check if any other device was active in the exact same second
-            let now = Date().timeIntervalSince1970
-            devicesRef.document(deviceId).setData([
-                "deviceId": deviceId,
-                "deviceName": deviceName,
-                "totalWords": words,
-                "totalDuration": duration,
-                "recordCount": records.count,
-                "lastActive": FieldValue.serverTimestamp(),
-                "lastActiveEpoch": now,
-                "isVerified": true
-            ], merge: true) { err in
-                guard err == nil else { return }
-
-                devicesRef.getDocuments { snap, _ in
-                    guard let allDocs = snap?.documents else { return }
-                    var sumWords = 0
-                    var sumDuration: TimeInterval = 0
-                    var verifiedCount = 0
-
-                    for doc in allDocs {
-                        let data = doc.data()
-                        let isVer = (data["isVerified"] as? Bool) ?? true
-                        if isVer {
-                            sumWords += (data["totalWords"] as? Int) ?? 0
-                            sumDuration += (data["totalDuration"] as? Double) ?? 0
-                            verifiedCount += 1
+                        for doc in allDocs {
+                            let data = doc.data()
+                            let isVer = (data["isVerified"] as? Bool) ?? true
+                            if isVer {
+                                sumWords += (data["totalWords"] as? Int) ?? 0
+                                sumDuration += (data["totalDuration"] as? Double) ?? 0
+                                verifiedCount += 1
+                            }
                         }
-                    }
 
-                    userRef.setData([
-                        "totalWords": sumWords,
-                        "totalDuration": sumDuration,
-                        "deviceCount": verifiedCount,
-                        "lastSynced": FieldValue.serverTimestamp()
-                    ], merge: true)
+                        userRef.setData([
+                            "totalWords": sumWords,
+                            "totalDuration": sumDuration,
+                            "deviceCount": verifiedCount,
+                            "lastSynced": FieldValue.serverTimestamp()
+                        ], merge: true)
 
-                    Task { @MainActor in
-                        self.linkedDevicesCount = max(1, verifiedCount)
-                        self.accountTotalWords = sumWords
-                        TranscriptionHistory.shared.updateCloudAggregatedStats(
-                            words: sumWords,
-                            duration: sumDuration,
-                            deviceCount: verifiedCount
-                        )
+                        Task { @MainActor in
+                            self.linkedDevicesCount = max(1, verifiedCount)
+                            self.accountTotalWords = sumWords
+                            TranscriptionHistory.shared.updateCloudAggregatedStats(
+                                words: sumWords,
+                                duration: sumDuration,
+                                deviceCount: verifiedCount
+                            )
+                        }
                     }
                 }
             }
@@ -749,40 +801,64 @@ final class SafeVoidContinuation: @unchecked Sendable {
     public func syncDeviceStatsFromCloud() {
         guard let userId = Auth.auth().currentUser?.uid, let db = self.db else { return }
 
-        let devicesRef = db.collection("users").document(userId).collection("devices")
+        let userRef = db.collection("users").document(userId)
+        let devicesRef = userRef.collection("devices")
         let currentDeviceId = DeviceManager.shared.deviceUUID
+        let currentAppleId = DeviceManager.shared.appleAccountId
 
-        devicesRef.getDocuments { [weak self] snapshot, error in
-            guard let self = self, let docs = snapshot?.documents, error == nil else { return }
+        userRef.getDocument { [weak self] userSnap, _ in
+            guard let self = self else { return }
+            let userData = userSnap?.data() ?? [:]
+            let registeredAppleId = userData["appleAccountId"] as? String
 
-            var sumWords = 0
-            var sumDuration: TimeInterval = 0
-            var verifiedCount = 0
-            let isCurrentPresent = docs.contains { $0.documentID == currentDeviceId }
-
-            for doc in docs {
-                let data = doc.data()
-                let isVer = (data["isVerified"] as? Bool) ?? true
-                if isVer {
-                    sumWords += (data["totalWords"] as? Int) ?? 0
-                    sumDuration += (data["totalDuration"] as? Double) ?? 0
-                    verifiedCount += 1
+            if let regId = registeredAppleId, !regId.isEmpty {
+                let mismatch = (currentAppleId != regId)
+                Task { @MainActor in
+                    self.registeredAppleAccountBound = true
+                    self.isAppleAccountMismatch = mismatch
+                }
+                if mismatch {
+                    return
+                }
+            } else {
+                Task { @MainActor in
+                    self.registeredAppleAccountBound = false
+                    self.isAppleAccountMismatch = false
                 }
             }
 
-            Task { @MainActor in
-                if !isCurrentPresent && verifiedCount >= self.maxAllowedDevices {
-                    self.isDeviceLimitReached = true
-                } else {
-                    self.isDeviceLimitReached = false
+            devicesRef.getDocuments { [weak self] snapshot, error in
+                guard let self = self, let docs = snapshot?.documents, error == nil else { return }
+
+                var sumWords = 0
+                var sumDuration: TimeInterval = 0
+                var verifiedCount = 0
+                let isCurrentPresent = docs.contains { $0.documentID == currentDeviceId }
+
+                for doc in docs {
+                    let data = doc.data()
+                    let isVer = (data["isVerified"] as? Bool) ?? true
+                    if isVer {
+                        sumWords += (data["totalWords"] as? Int) ?? 0
+                        sumDuration += (data["totalDuration"] as? Double) ?? 0
+                        verifiedCount += 1
+                    }
                 }
-                self.linkedDevicesCount = max(1, verifiedCount)
-                self.accountTotalWords = sumWords
-                TranscriptionHistory.shared.updateCloudAggregatedStats(
-                    words: sumWords,
-                    duration: sumDuration,
-                    deviceCount: verifiedCount
-                )
+
+                Task { @MainActor in
+                    if !isCurrentPresent && verifiedCount >= self.maxAllowedDevices {
+                        self.isDeviceLimitReached = true
+                    } else {
+                        self.isDeviceLimitReached = false
+                    }
+                    self.linkedDevicesCount = max(1, verifiedCount)
+                    self.accountTotalWords = sumWords
+                    TranscriptionHistory.shared.updateCloudAggregatedStats(
+                        words: sumWords,
+                        duration: sumDuration,
+                        deviceCount: verifiedCount
+                    )
+                }
             }
         }
     }
