@@ -32,6 +32,7 @@
 		A0010013 /* ParakeetEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010013 /* ParakeetEngine.swift */; };
 		A0010007 /* AetherLinguisticValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010007 /* AetherLinguisticValidator.swift */; };
 		8580267BDF5EBAA8994647DD /* LaunchAtLoginHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = A33DFF31D403EFBFA043388C /* LaunchAtLoginHelper.swift */; };
+		F0010016 /* AudioFileImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010017 /* AudioFileImporter.swift */; };
 		94E79D85DBC1F87C1915FE93 /* NoteExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 21275C02C08F216BDCACFB8D /* NoteExporter.swift */; };
 		964CE5E111F740301E77DAB5 /* AppIcon.icns in Resources */ = {isa = PBXBuildFile; fileRef = 42BA0A3DE7484100CC7A997F /* AppIcon.icns */; };
 		A1D740A1FA748F2727660A1A /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = AAB19E91900D4083BC190BB7 /* FirebaseAuth */; };
@@ -78,6 +79,7 @@
 		12FECAADAC70A1B20BDAB73F /* PermissionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionManager.swift; sourceTree = "<group>"; };
 		15E2FB5F2EDF5D0662F04228 /* PermissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionView.swift; sourceTree = "<group>"; };
 		16634D397D859653CF42C43B /* HistoryWindowManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryWindowManager.swift; sourceTree = "<group>"; };
+		F0010017 /* AudioFileImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioFileImporter.swift; sourceTree = "<group>"; };
 		21275C02C08F216BDCACFB8D /* NoteExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteExporter.swift; sourceTree = "<group>"; };
 		296BEB4DD4C8D78B9941E8AE /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		379EC03AAF3EE4D9943BADF6 /* Shortcuts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shortcuts.swift; sourceTree = "<group>"; };
@@ -163,6 +165,7 @@
 				F0010003 /* AetherFuzzyMatcher.swift */,
 				8292B0055A0E08315F0E6894 /* FirebaseSyncService.swift */,
 				57EAB6F0DCC91FC7E7CD8CC2 /* Localization.swift */,
+				F0010017 /* AudioFileImporter.swift */,
 				21275C02C08F216BDCACFB8D /* NoteExporter.swift */,
 				83B4865575EEDC52C327959E /* PasteService.swift */,
 				12FECAADAC70A1B20BDAB73F /* PermissionManager.swift */,
@@ -311,6 +314,7 @@
 				57DD6CADB825E8F4A0C233E4 /* HistoryWindowManager.swift in Sources */,
 				8580267BDF5EBAA8994647DD /* LaunchAtLoginHelper.swift in Sources */,
 				0DF6FA39C13FAA664C2B1BCF /* Localization.swift in Sources */,
+				F0010016 /* AudioFileImporter.swift in Sources */,
 				94E79D85DBC1F87C1915FE93 /* NoteExporter.swift in Sources */,
 				74F7E12716D64CCFA449EDF8 /* NotePickerView.swift in Sources */,
 				16496219C494A82E4F8E12A0 /* PasteService.swift in Sources */,

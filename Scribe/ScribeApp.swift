@@ -1,5 +1,6 @@
 import SwiftUI
 import KeyboardShortcuts
+import UniformTypeIdentifiers
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -23,7 +24,19 @@ struct ScribeApp: App {
             LiquidGlassMenuBarView(appState: appState)
                 .environmentObject(appState)
         } label: {
-            Label("Scribe", systemImage: appState.isRecording ? "waveform" : "mic")
+            if appState.isLectureRecording {
+                HStack(spacing: 4) {
+                    Image(systemName: "record.circle.fill")
+                    Text(appState.formattedDuration.isEmpty ? "00:00" : appState.formattedDuration)
+                }
+            } else if appState.isImportTranscribing {
+                HStack(spacing: 4) {
+                    Image(systemName: "waveform.badge.magnifyingglass")
+                    Text("Обработка…")
+                }
+            } else {
+                Label("Scribe", systemImage: appState.isRecording ? "waveform" : "mic")
+            }
         }
         .menuBarExtraStyle(.window)
 
@@ -37,6 +50,7 @@ struct LiquidGlassMenuBarView: View {
     @ObservedObject var history = TranscriptionHistory.shared
     @ObservedObject var authService = AuthService.shared
     @ObservedObject var updateService = AppUpdateService.shared
+    @State private var isTargetedForDrop: Bool = false
     
     private var theme: AppTheme { appState.selectedTheme }
     private var displayName: String {
@@ -107,48 +121,167 @@ struct LiquidGlassMenuBarView: View {
                     .stroke(Color.primary.opacity(0.08), lineWidth: 1)
             )
 
-            // Start / Stop Dictation Button
-            Button {
-                appState.toggleRecording()
-            } label: {
-                HStack(spacing: 10) {
-                    ZStack {
+            // MARK: - Active Lecture Recording Card
+            if appState.isLectureRecording {
+                VStack(spacing: 8) {
+                    HStack(spacing: 8) {
                         Circle()
-                            .fill(appState.isRecording ? Color.red.opacity(0.18) : Color.primary.opacity(0.08))
-                            .frame(width: 36, height: 36)
-
-                        Image(systemName: appState.isRecording ? "stop.fill" : "mic.fill")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundStyle(appState.isRecording ? Color.red : Color.primary)
+                            .fill(Color.red)
+                            .frame(width: 8, height: 8)
+                        Text(appState.l("Запись лекции (без оверлея)"))
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Text(appState.formattedDuration.isEmpty ? "00:00" : appState.formattedDuration)
+                            .font(.system(size: 13, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.red)
                     }
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(appState.isRecording ? appState.l("Stop Dictation") : appState.l("Start Dictation"))
-                            .font(.system(size: 14, weight: .bold, design: .rounded))
-                            .foregroundStyle(appState.isRecording ? Color.red : Color.primary)
+                    HStack(spacing: 8) {
+                        Button {
+                            appState.stopLectureRecording()
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "stop.fill")
+                                    .font(.system(size: 11))
+                                Text(appState.l("Остановить и в Заметки"))
+                                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(Color.red.opacity(0.15))
+                            .foregroundStyle(Color.red)
+                            .cornerRadius(8)
+                        }
+                        .buttonStyle(.plain)
 
-                        Text(appState.isRecording ? (appState.formattedDuration.isEmpty ? "Recording…" : appState.formattedDuration) : appState.l("Hotkey: ⌥S"))
-                            .font(.system(size: 11, weight: .medium, design: .monospaced))
-                            .foregroundStyle(appState.isRecording ? Color.red.opacity(0.85) : Color.secondary)
+                        Button {
+                            appState.cancelRecording()
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 11, weight: .bold))
+                                .padding(8)
+                                .background(Color.primary.opacity(0.06))
+                                .foregroundStyle(.secondary)
+                                .cornerRadius(8)
+                        }
+                        .buttonStyle(.plain)
+                        .help(appState.l("Отменить запись"))
                     }
-
-                    Spacer()
-
-                    Image(systemName: appState.isRecording ? "waveform" : "chevron.right")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(appState.isRecording ? Color.red : Color.secondary)
                 }
                 .padding(10)
-                .background(
-                    RoundedRectangle(cornerRadius: 14)
-                        .fill(appState.isRecording ? Color.red.opacity(0.10) : Color.primary.opacity(0.04))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .stroke(appState.isRecording ? Color.red.opacity(0.30) : Color.primary.opacity(0.08), lineWidth: 1)
-                )
+                .background(RoundedRectangle(cornerRadius: 12).fill(Color.red.opacity(0.06)))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.red.opacity(0.25), lineWidth: 1))
+            } else if appState.isImportTranscribing {
+                // MARK: - File Import Progress Card
+                HStack(spacing: 10) {
+                    ProgressView()
+                        .controlSize(.small)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(appState.l("Транскрибация файла"))
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.primary)
+                        Text(appState.importProgressMessage)
+                            .font(.system(size: 10))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    Spacer()
+                }
+                .padding(10)
+                .background(RoundedRectangle(cornerRadius: 12).fill(Color.blue.opacity(0.06)))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.blue.opacity(0.20), lineWidth: 1))
+            } else {
+                // MARK: - Start / Stop Dictation Button
+                Button {
+                    appState.toggleRecording()
+                } label: {
+                    HStack(spacing: 10) {
+                        ZStack {
+                            Circle()
+                                .fill(appState.isRecording ? Color.red.opacity(0.18) : Color.primary.opacity(0.08))
+                                .frame(width: 36, height: 36)
+
+                            Image(systemName: appState.isRecording ? "stop.fill" : "mic.fill")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundStyle(appState.isRecording ? Color.red : Color.primary)
+                        }
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(appState.isRecording ? appState.l("Stop Dictation") : appState.l("Start Dictation"))
+                                .font(.system(size: 14, weight: .bold, design: .rounded))
+                                .foregroundStyle(appState.isRecording ? Color.red : Color.primary)
+
+                            Text(appState.isRecording ? (appState.formattedDuration.isEmpty ? "Recording…" : appState.formattedDuration) : appState.l("Hotkey: ⌥S"))
+                                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                                .foregroundStyle(appState.isRecording ? Color.red.opacity(0.85) : Color.secondary)
+                        }
+
+                        Spacer()
+
+                        Image(systemName: appState.isRecording ? "waveform" : "chevron.right")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(appState.isRecording ? Color.red : Color.secondary)
+                    }
+                    .padding(10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14)
+                            .fill(appState.isRecording ? Color.red.opacity(0.10) : Color.primary.opacity(0.04))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .stroke(appState.isRecording ? Color.red.opacity(0.30) : Color.primary.opacity(0.08), lineWidth: 1)
+                    )
+                }
+                .buttonStyle(.plain)
+
+                // MARK: - Lecture & Import Actions Row (Configurable)
+                if appState.showLectureControls {
+                    HStack(spacing: 8) {
+                        Button {
+                            appState.startLectureRecording()
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "mic.badge.plus")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(Color.indigo)
+                                Text(appState.l("Запись лекции"))
+                                    .font(.system(size: 11.5, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.primary)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 7)
+                            .background(Color.primary.opacity(0.04))
+                            .cornerRadius(8)
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.06), lineWidth: 1))
+                        }
+                        .buttonStyle(.plain)
+                        .help(appState.l("Запись длинной лекции без оверлея на экране с автосохранением в Заметки"))
+
+                        Button {
+                            if let url = AudioFileImporter.pickFile() {
+                                appState.importAndTranscribeLecture(url: url)
+                            }
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "square.and.arrow.down")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(Color.blue)
+                                Text(appState.l("Импорт файла…"))
+                                    .font(.system(size: 11.5, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.primary)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 7)
+                            .background(Color.primary.opacity(0.04))
+                            .cornerRadius(8)
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.06), lineWidth: 1))
+                        }
+                        .buttonStyle(.plain)
+                        .help(appState.l("Транскрибировать аудио/видеофайл (.mp3, .m4a, .wav, .mp4) в Заметки"))
+                    }
+                }
             }
-            .buttonStyle(.plain)
             // Footer
             HStack(spacing: 8) {
                 Button {
@@ -209,6 +342,23 @@ struct LiquidGlassMenuBarView: View {
         }
         .padding(12)
         .frame(width: 290)
-        .background(.ultraThinMaterial)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(isTargetedForDrop ? Color.blue : Color.clear, lineWidth: 2)
+                )
+        )
+        .onDrop(of: [.fileURL], isTargeted: $isTargetedForDrop) { providers in
+            guard let provider = providers.first else { return false }
+            _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                guard let fileURL = url, AudioFileImporter.isSupportedFile(url: fileURL) else { return }
+                DispatchQueue.main.async {
+                    appState.importAndTranscribeLecture(url: fileURL)
+                }
+            }
+            return true
+        }
     }
 }

@@ -64,6 +64,12 @@ enum Localization {
             "Мы автоматически уже отправили информацию о том, что вы скачали приложение.": "We have automatically sent information that you downloaded the app.",
             "Start Dictation": "Start Dictation",
             "Stop Dictation": "Stop Dictation",
+            "Lecture & File Import Controls": "Lecture & File Import Controls",
+            "Show buttons for background lecture recording and audio import in menu": "Show buttons for background lecture recording and audio import in menu",
+            "Запись лекции": "Lecture Recording",
+            "Импорт файла…": "Import File…",
+            "Запись лекции (без оверлея)": "Lecture Recording (No Overlay)",
+            "Остановить и в Заметки": "Stop & Save to Notes",
             "Transcribing…": "Transcribing…",
             "Transcribing": "Transcribing",
             "Hotkey: ⌥S": "Hotkey: ⌥S",
@@ -235,6 +241,8 @@ enum Localization {
             "Chill. Lightweight model, your Mac will handle it easily.": "Chill. Lightweight model, your Mac will handle it easily."
         ],
         "ru": [
+            "Lecture & File Import Controls": "Кнопки режима лекций и импорта",
+            "Show buttons for background lecture recording and audio import in menu": "Отображать кнопки записи лекций и импорта файлов в менюбаре",
             "Chill. Your Mac is fully supported.": "Chill. Твой Mac легко потянет.",
             "Chill. Your Mac is powerful enough for this model, it will handle it easily.": "Chill. Твой Mac мощный для этой модели, он её запросто потянет.",
             "Your Mac might struggle with this model (needs ~2.5–3 GB RAM).": "Твой Mac может не потянуть эту модель (нужно ~2.5–3 ГБ RAM).",

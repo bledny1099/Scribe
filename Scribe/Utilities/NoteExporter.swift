@@ -62,6 +62,103 @@ class NoteExporter {
         }
     }
     
+    // MARK: - Lecture Note Export (Direct New Note with Header & Meta)
+    
+    @MainActor
+    static func exportLectureNote(
+        title: String? = nil,
+        duration: TimeInterval? = nil,
+        transcript: String,
+        sourceFilename: String? = nil,
+        state: AppState
+    ) {
+        guard !transcript.isEmpty else { return }
+        
+        let dateString = DateFormatter.localizedString(from: Date(), dateStyle: .long, timeStyle: .short)
+        let durationString: String
+        if let d = duration, d > 0 {
+            let mins = Int(d) / 60
+            let secs = Int(d) % 60
+            if mins > 0 {
+                durationString = "\(mins) мин \(secs) сек"
+            } else {
+                durationString = "\(secs) сек"
+            }
+        } else {
+            durationString = ""
+        }
+        
+        let noteTitle: String
+        if let t = title, !t.isEmpty {
+            noteTitle = t
+        } else if let fn = sourceFilename, !fn.isEmpty {
+            noteTitle = fn
+        } else {
+            noteTitle = "Лекция — \(dateString)"
+        }
+        
+        // 1. Export to Apple Notes
+        exportLectureToAppleNotes(title: noteTitle, dateString: dateString, durationString: durationString, transcript: transcript, state: state)
+        
+        // 2. Export to Obsidian if enabled
+        if state.enableObsidian {
+            let obsText = "# \(noteTitle)\n*\(dateString)\(durationString.isEmpty ? "" : " • " + durationString)*\n\n\(transcript)"
+            exportToObsidian(text: obsText, mode: .newNote, vaultURLString: state.obsidianVaultURL, targetNote: noteTitle, state: state)
+        }
+        
+        // 3. Export to Notion if enabled
+        if state.enableNotion {
+            let token = KeychainHelper.shared.getNotionToken()
+            exportToNotion(text: "### \(noteTitle)\n\(transcript)", mode: .newNote, integrationToken: token, pageId: state.notionPageId, state: state)
+        }
+    }
+    
+    @MainActor
+    private static func exportLectureToAppleNotes(
+        title: String,
+        dateString: String,
+        durationString: String,
+        transcript: String,
+        state: AppState
+    ) {
+        let sanitizedTitle = title
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+            
+        let sanitizedBody = transcript
+            .replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+            .replacingOccurrences(of: "\n", with: "<br>")
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+            
+        let metaLine = durationString.isEmpty ? dateString : "\(dateString) • Длительность: \(durationString)"
+        let tagsText = state.defaultNoteTags.isEmpty ? "" : "<br><br>\(state.defaultNoteTags.replacingOccurrences(of: "\"", with: "\\\""))"
+        
+        let htmlContent = "<h1>\(sanitizedTitle)</h1><p><i>\(metaLine)</i></p><br><p>\(sanitizedBody)\(tagsText)</p>"
+        
+        let scriptSource = """
+        tell application "Notes"
+            make new note with properties {name:"\(sanitizedTitle)", body:"\(htmlContent)"}
+        end tell
+        """
+        
+        DispatchQueue.global(qos: .userInitiated).async {
+            var error: NSDictionary?
+            if let scriptObject = NSAppleScript(source: scriptSource) {
+                scriptObject.executeAndReturnError(&error)
+                if let error = error {
+                    logger.error("Apple Notes Lecture Export Error: \(error)")
+                } else {
+                    logger.info("Successfully created lecture note in Apple Notes: \(sanitizedTitle)")
+                }
+            }
+        }
+    }
+    
     // MARK: - Apple Notes (Hardened AppleScript)
     
     @MainActor

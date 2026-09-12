@@ -5,6 +5,20 @@ All notable changes to Scribe will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.0] - 2026-09-12
+
+## Added
+- Background lecture recording mode without on-screen overlay and with live status bar timer.
+- Audio and video file import (.mp3, .m4a, .wav, .aac, .flac, .mp4, .mov) with drag-and-drop support.
+- Direct export of lecture transcriptions to structured new notes in Apple Notes with title, date, and duration.
+- Configurable setting in General options to show or hide lecture and file import controls in the menu bar popover.
+
+## Changed
+- Optimized audio preprocessing memory footprint to stream large audio files exceeding 3 minutes without huge RAM allocations.
+
+## Fixed
+- Prevented simulated key typing into focused windows after long lecture transcription sessions.
+
 ## [2.6.10] - 2026-09-12
 
 ## Added

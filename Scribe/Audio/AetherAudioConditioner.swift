@@ -23,6 +23,13 @@ public final class AetherAudioConditioner: @unchecked Sendable {
 
             guard frameCount > 0 else { return nil }
 
+            // If audio is longer than 3 minutes (e.g. lecture or long meeting), pass directly to WhisperKit
+            // which streams and chunks 30-second windows without memory exhaustion.
+            if frameCount > AVAudioFrameCount(format.sampleRate * 180) {
+                logger.info("AetherAudioConditioner: Long audio file (\(Int(Double(frameCount) / format.sampleRate))s). Passing directly to WhisperKit.")
+                return audioURL
+            }
+
             guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount) else {
                 return audioURL
             }

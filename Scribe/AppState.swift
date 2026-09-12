@@ -2,6 +2,7 @@ import Combine
 import KeyboardShortcuts
 import SwiftUI
 import OSLog
+import UserNotifications
 
 extension Array: @retroactive RawRepresentable where Element: Codable {
     public init?(rawValue: String) {
@@ -414,6 +415,13 @@ final class AppState: ObservableObject {
             }
         }
     }
+    
+    // MARK: - Lecture Recording & File Import State
+    @Published public var isLectureRecording: Bool = false
+    @Published public var isImportTranscribing: Bool = false
+    @Published public var importProgressMessage: String = ""
+    @AppStorage("showLectureControls") public var showLectureControls: Bool = true
+
     @AppStorage("cleanFillerWords") var cleanFillerWords: Bool = true
     @Published var targetAppName: String = ""
     @Published var targetAppIcon: NSImage? = nil
@@ -966,8 +974,22 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// Starts a long lecture recording session: no intrusive on-screen overlay, toolbar indication, auto-exports to new note.
+    public func startLectureRecording() {
+        guard !isRecording, !isTranscribing else { return }
+        isLectureRecording = true
+        startRecording()
+    }
+
+    /// Stops lecture recording session.
+    public func stopLectureRecording() {
+        guard isRecording else { return }
+        stopRecording()
+    }
+
     /// Cancel the current recording without transcribing — just stop and close.
     func cancelRecording() {
+        isLectureRecording = false
         if isShowingPreview {
             hideSettingsPreviewPanel()
             return
@@ -1001,14 +1023,16 @@ final class AppState: ObservableObject {
             recordingDuration = 0
             livePreviewText = ""
             startDurationTimer()
-            if livePreviewEnabled {
-                if isInstantEngine {
-                    startLiveStreaming()
-                } else {
-                    startInterimWhisperGeneration()
+            if !isLectureRecording {
+                if livePreviewEnabled {
+                    if isInstantEngine {
+                        startLiveStreaming()
+                    } else {
+                        startInterimWhisperGeneration()
+                    }
                 }
+                showPanel()
             }
-            showPanel()
             if soundFeedbackEnabled { SoundFeedback.play(.recordingStarted) }
             
             // Pre-warm Whisper neural engine and CoreML compute graph during recording (neural engine only)
@@ -1209,45 +1233,71 @@ final class AppState: ObservableObject {
                     )
                     TranscriptionHistory.shared.add(record)
 
-                    // Export to notes (Apple Notes, Obsidian, Notion)
-                    NoteExporter.export(text: text, state: self)
+                    if self.isLectureRecording {
+                        let duration = self.recordingDuration
+                        self.isLectureRecording = false
+                        logger.info("Lecture recording completed. Exporting directly to new note…")
 
-                    let isNotesOnly = self.isDirectNoteRecording
+                        // Export to notes as a fresh lecture note
+                        NoteExporter.exportLectureNote(
+                            duration: duration,
+                            transcript: text,
+                            state: self
+                        )
 
-                    recordingStatus = .done
-                    if self.soundFeedbackEnabled { SoundFeedback.play(.transcriptionDone) }
+                        // Copy to clipboard silently
+                        PasteService.copyToClipboard(text, transient: false)
 
-                    if isNotesOnly {
-                        logger.info("Integrations-only mode active: Skipping active window paste.")
-                    } else if self.selectedPasteMode == .directType {
-                        logger.info("Direct typing mode: Typing text directly without touching clipboard…")
-                        try? await Task.sleep(for: .milliseconds(350))
-                        PasteService.typeText(text)
+                        recordingStatus = .done
+                        if self.soundFeedbackEnabled { SoundFeedback.play(.transcriptionDone) }
+                        self.sendLectureNotification(
+                            title: "Scribe • Запись лекции завершена",
+                            body: "Транскрибация успешно сохранена в новую заметку."
+                        )
+                        try? await Task.sleep(for: .seconds(0.6))
+                        recordingStatus = .idle
                     } else {
-                        // Populate clipboard
-                        switch self.selectedPasteMode {
-                        case .paste:  PasteService.copyToClipboard(text, transient: self.preserveClipboard)
-                        case .append: PasteService.appendToClipboard(text)
-                        case .directType, .integrationsOnly: break
+                        // Export to notes (Apple Notes, Obsidian, Notion)
+                        NoteExporter.export(text: text, state: self)
+
+                        let isNotesOnly = self.isDirectNoteRecording
+
+                        recordingStatus = .done
+                        if self.soundFeedbackEnabled { SoundFeedback.play(.transcriptionDone) }
+
+                        if isNotesOnly {
+                            logger.info("Integrations-only mode active: Skipping active window paste.")
+                        } else if self.selectedPasteMode == .directType {
+                            logger.info("Direct typing mode: Typing text directly without touching clipboard…")
+                            try? await Task.sleep(for: .milliseconds(350))
+                            PasteService.typeText(text)
+                        } else {
+                            // Populate clipboard
+                            switch self.selectedPasteMode {
+                            case .paste:  PasteService.copyToClipboard(text, transient: self.preserveClipboard)
+                            case .append: PasteService.appendToClipboard(text)
+                            case .directType, .integrationsOnly: break
+                            }
+
+                            logger.info("Text copied to clipboard, simulating paste…")
+                            // Brief delay so the user sees the checkmark, then paste
+                            try? await Task.sleep(for: .milliseconds(400))
+                            PasteService.simulatePaste()
+
+                            // If preserving clipboard, restore original user content after target app consumes paste
+                            if let snapshot = previousClipboard {
+                                try? await Task.sleep(for: .milliseconds(250))
+                                snapshot.restore()
+                                logger.info("Previous clipboard contents restored")
+                            }
                         }
 
-                        logger.info("Text copied to clipboard, simulating paste…")
-                        // Brief delay so the user sees the checkmark, then paste
-                        try? await Task.sleep(for: .milliseconds(400))
-                        PasteService.simulatePaste()
-
-                        // If preserving clipboard, restore original user content after target app consumes paste
-                        if let snapshot = previousClipboard {
-                            try? await Task.sleep(for: .milliseconds(250))
-                            snapshot.restore()
-                            logger.info("Previous clipboard contents restored")
-                        }
+                        try? await Task.sleep(for: .seconds(0.8))
+                        hidePanel()
                     }
-
-                    try? await Task.sleep(for: .seconds(0.8))
-                    hidePanel()
                 }
             } catch {
+                self.isLectureRecording = false
                 recordingStatus = .error("Error")
                 if self.soundFeedbackEnabled { SoundFeedback.play(.error) }
                 logger.error("Transcription failed: \(error.localizedDescription)")
@@ -1260,6 +1310,138 @@ final class AppState: ObservableObject {
             // Securely wipe audio RAM buffers and clean up temp file
             self.audioRecorder.purgeMemory()
             try? FileManager.default.removeItem(at: audioURL)
+        }
+    }
+
+    // MARK: - Lecture Notifications & File Import
+
+    public func sendLectureNotification(title: String, body: String) {
+        let center = UNUserNotificationCenter.current()
+        center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
+            guard granted else { return }
+            let content = UNMutableNotificationContent()
+            content.title = title
+            content.body = body
+            content.sound = .default
+            let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+            center.add(request)
+        }
+    }
+
+    /// Imports an audio/video file, transcribes it in the background, and exports directly to a new note in Apple Notes.
+    public func importAndTranscribeLecture(url: URL) {
+        guard !isImportTranscribing else { return }
+        isImportTranscribing = true
+        importProgressMessage = "Подготовка файла…"
+
+        Task {
+            do {
+                let preparedURL = try await AudioFileImporter.prepareAudio(from: url)
+                defer {
+                    if preparedURL != url {
+                        try? FileManager.default.removeItem(at: preparedURL)
+                    }
+                }
+
+                await MainActor.run {
+                    self.importProgressMessage = "Транскрибация лекции через Whisper…"
+                }
+
+                let isSingle = self.recognitionMode == "singleLanguage"
+                let langParam: String? = isSingle ? (self.singleDictationLanguage == "auto" ? nil : self.singleDictationLanguage) : nil
+                let preferredLangs: [String] = isSingle ?
+                    (self.singleDictationLanguage == "auto" ? (self.multilingualLanguages.isEmpty ? ["ru", "en"] : self.multilingualLanguages) : [self.singleDictationLanguage]) :
+                    (self.multilingualLanguages.isEmpty ? ["ru", "en"] : self.multilingualLanguages)
+
+                var text = try await self.transcriptionService.transcribe(
+                    audioURL: preparedURL,
+                    modelName: self.effectiveModel,
+                    language: langParam,
+                    preferredLanguages: preferredLangs,
+                    autoTranslate: self.autoTranslate,
+                    customVocabulary: self.vocabulary,
+                    userLocation: self.effectiveUserLocation,
+                    targetApp: nil,
+                    recognitionEngine: self.recognitionEngine
+                )
+
+                text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !text.isEmpty else {
+                    await MainActor.run {
+                        self.importProgressMessage = "Речь не обнаружена в файле"
+                    }
+                    try? await Task.sleep(for: .seconds(2))
+                    await MainActor.run {
+                        self.isImportTranscribing = false
+                        self.importProgressMessage = ""
+                    }
+                    return
+                }
+
+                // 1. Scribe Mode formatting
+                text = ScribeModeProcessor.shared.process(text: text, mode: self.transcriptionMode)
+
+                // 2. Replacements and vocabulary
+                let effectiveVocab = AetherContextEngine.shared.activeEffectiveVocabulary(
+                    targetApp: nil,
+                    userVocabulary: self.vocabulary,
+                    userLocation: self.effectiveUserLocation
+                )
+                text = TextReplacer.apply(
+                    replacements: self.textReplacements,
+                    vocabulary: effectiveVocab,
+                    blockedWords: self.blockedWords,
+                    blockedAction: self.blockedWordsActionRaw,
+                    to: text
+                )
+
+                // 3. Save to History
+                let filename = url.deletingPathExtension().lastPathComponent
+                let record = TranscriptionRecord(
+                    text: text,
+                    duration: 0,
+                    language: self.selectedLanguage,
+                    model: self.effectiveModel
+                )
+                TranscriptionHistory.shared.add(record)
+
+                // 4. Export to Apple Notes
+                NoteExporter.exportLectureNote(
+                    title: filename,
+                    duration: nil,
+                    transcript: text,
+                    sourceFilename: filename,
+                    state: self
+                )
+
+                // 5. Copy to clipboard
+                PasteService.copyToClipboard(text, transient: false)
+
+                if self.soundFeedbackEnabled { SoundFeedback.play(.transcriptionDone) }
+
+                await MainActor.run {
+                    self.importProgressMessage = "Готово! Сохранено в Заметки"
+                    self.sendLectureNotification(
+                        title: "Scribe • Файл расшифрован",
+                        body: "«\(filename)» успешно сохранена в Заметки."
+                    )
+                }
+                try? await Task.sleep(for: .seconds(2.5))
+                await MainActor.run {
+                    self.isImportTranscribing = false
+                    self.importProgressMessage = ""
+                }
+            } catch {
+                logger.error("Lecture import error: \(error.localizedDescription)")
+                await MainActor.run {
+                    self.importProgressMessage = "Ошибка: \(error.localizedDescription)"
+                }
+                try? await Task.sleep(for: .seconds(3))
+                await MainActor.run {
+                    self.isImportTranscribing = false
+                    self.importProgressMessage = ""
+                }
+            }
         }
     }
 

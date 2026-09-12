@@ -6046,6 +6046,22 @@ struct GeneralSettingsView: View {
                         .padding(.top, 4)
                         .transition(.opacity.combined(with: .move(edge: .top)))
                     }
+
+                    // Lecture & File Import Controls
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(appState.l("Lecture & File Import Controls"))
+                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                .foregroundStyle(.primary)
+                            Text(appState.l("Show buttons for background lecture recording and audio import in menu"))
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Toggle("", isOn: $appState.showLectureControls)
+                            .toggleStyle(.switch)
+                            .labelsHidden()
+                    }
                 }
             }
         }
