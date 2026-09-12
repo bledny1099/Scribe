@@ -90,8 +90,8 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
     /// Initial prompt that conditions Whisper to produce punctuation and recognise common brand names.
     /// Whisper uses this as "previous context" so it learns the expected output style.
     private let initialPrompt: [String: String] = [
-        "en": "Use proper punctuation, capitalization, commas, and natural sentence structures. Terms: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
-        "ru": "Распознавай русскую речь связно и грамотно, сохраняя правильные падежи, окончания слов, предлоги и пунктуацию (запятые, точки, тире). Смешанная русско-английская речь разработчиков и пользователей: коммит, пулл реквест, PR, мердж, пуш, деплой, бэкенд, фронтенд, багфикс, релиз, прод, стейджинг, API, токен, промпт, контекст, репозиторий. Bybit, Binance, Telegram, ChatGPT, Gemini, Claude, OpenAI, Swift, SwiftUI, Xcode, Docker, Kubernetes, Next.js, Rust, WhisperKit, PostgreSQL, TypeScript, Python, LLM, Google, Antigravity, IDE, Scribe, транскрибатор, Хабр.",
+        "en": "Use proper punctuation, capitalization, commas, and natural sentence structures. English pronoun I: I like, I think, I know, I want, I have, I am. Terms: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
+        "ru": "Распознавай русскую речь связно и грамотно, сохраняя правильные падежи, окончания слов, предлоги и пунктуацию (запятые, точки, тире). Чётко различай английское местоимение «I» ([aɪ] — I like, I think, I know, I want, I have) и русскую букву «я» ([ja]). В английских фразах используй «I». Смешанная русско-английская речь: коммит, пулл реквест, PR, мердж, пуш, деплой, бэкенд, фронтенд, багфикс, релиз, прод, стейджинг, API, токен, промпт, контекст, репозиторий. Bybit, Binance, Telegram, ChatGPT, Gemini, Claude, OpenAI, Swift, SwiftUI, Xcode, Docker, Kubernetes, Next.js, Rust, WhisperKit, PostgreSQL, TypeScript, Python, LLM, Google, Antigravity, IDE, Scribe, транскрибатор, Хабр.",
         "es": "Términos: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
         "de": "Begriffe: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
         "fr": "Termes: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
@@ -101,7 +101,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         "pt": "Termos: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
         "tr": "Terimler: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
         "uk": "Терміни: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
-        "auto": "Fluent Russian and English speech transcription. Punctuation, capitalization, code-switching. Terms: Bybit, Binance, Telegram, ChatGPT, Gemini, Claude, OpenAI, Swift, SwiftUI, Xcode, Docker, Kubernetes, Next.js, Rust, WhisperKit, PostgreSQL, TypeScript, Python, LLM, commit, pull request, merge, push, deploy, bugfix, backend, frontend, Google, Antigravity, Scribe."
+        "auto": "Fluent Russian and English speech transcription. Punctuation, capitalization, code-switching. Distinctly differentiate the English pronoun 'I' (I like, I think, I know, I have) from the Russian pronoun 'я'. Terms: Bybit, Binance, Telegram, ChatGPT, Gemini, Claude, OpenAI, Swift, SwiftUI, Xcode, Docker, Kubernetes, Next.js, Rust, WhisperKit, PostgreSQL, TypeScript, Python, LLM, commit, pull request, merge, push, deploy, bugfix, backend, frontend, Google, Antigravity, Scribe."
     ]
 
     /// Resolves on-disk path for pre-downloaded WhisperKit CoreML model folders
@@ -515,7 +515,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
                     let nonRussian = effectiveAllowed.filter { $0 != "ru" }
                     if let bestOther = nonRussian.max(by: { (probs[$0] ?? 0) < (probs[$1] ?? 0) }) {
                         let otherScore = probs[bestOther] ?? 0
-                        if otherScore > 0.65 && otherScore > (ruEffectiveScore + 0.25) {
+                        if otherScore > 0.35 && otherScore > ruEffectiveScore && (otherScore - ruEffectiveScore) > 0.10 {
                             options.language = bestOther
                             options.detectLanguage = false
                             resolvedLang = bestOther
@@ -552,6 +552,24 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             let results = try await kit.transcribe(audioPath: audioURL.path, decodeOptions: options)
             var text = results.map(\.text).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
             if text.isEmpty { return nil }
+
+            // Automatic script alignment for snapshot:
+            if resolvedLang == "ru" && effectiveAllowed.contains("en") {
+                let latCount = text.unicodeScalars.filter { ($0.value >= 0x0041 && $0.value <= 0x005A) || ($0.value >= 0x0061 && $0.value <= 0x007A) }.count
+                let cyrCount = text.unicodeScalars.filter { ($0.value >= 0x0400 && $0.value <= 0x04FF) || ($0.value >= 0x0500 && $0.value <= 0x052F) }.count
+                if latCount >= 10 && latCount >= (cyrCount * 2) {
+                    var retryOpts = options
+                    retryOpts.language = "en"
+                    retryOpts.detectLanguage = false
+                    if let retryResults = try? await kit.transcribe(audioPath: audioURL.path, decodeOptions: retryOpts) {
+                        let retryText = retryResults.map(\.text).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !retryText.isEmpty {
+                            text = retryText
+                            resolvedLang = "en"
+                        }
+                    }
+                }
+            }
 
             // Strict script and boundary hallucination filter for snapshot live preview
             text = Self.cleanTranscription(text, preferredLanguages: effectiveAllowed, targetLanguage: resolvedLang)
@@ -775,7 +793,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
                         let nonRussian = allowedBases.filter { $0 != "ru" }
                         if let bestOther = nonRussian.max(by: { (langProbs[$0] ?? 0) < (langProbs[$1] ?? 0) }) {
                             let otherScore = langProbs[bestOther] ?? 0
-                            if otherScore > 0.65 && otherScore > (ruEffectiveScore + 0.25) {
+                            if otherScore > 0.35 && otherScore > ruEffectiveScore && (otherScore - ruEffectiveScore) > 0.10 {
                                 resolvedLang = bestOther
                                 options.language = bestOther
                                 options.detectLanguage = false
@@ -926,6 +944,53 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
                 results = retryResults
                 resolvedLang = targetFallback
                 logger.info("Successfully re-decoded audio in locked target language '\(targetFallback)'")
+            }
+        }
+
+        // Automatic Script Mismatch Correction:
+        // If decoded in Russian mode, but output is overwhelmingly English Latin (> 10 Latin, >= 2x Cyrillic),
+        // or decoded in English mode, but output is overwhelmingly Russian Cyrillic (> 10 Cyrillic, >= 2x Latin),
+        // re-decode once in the true spoken language!
+        let postLatinCount = preliminaryText.unicodeScalars.filter { ($0.value >= 0x0041 && $0.value <= 0x005A) || ($0.value >= 0x0061 && $0.value <= 0x007A) }.count
+        let postCyrillicCount = preliminaryText.unicodeScalars.filter { ($0.value >= 0x0400 && $0.value <= 0x04FF) || ($0.value >= 0x0500 && $0.value <= 0x052F) }.count
+
+        if resolvedLang == "ru" && allowedLanguages.contains("en") && postLatinCount >= 10 && postLatinCount >= (postCyrillicCount * 2) {
+            logger.warning("Decoded text is overwhelmingly Latin (\(postLatinCount) Latin vs \(postCyrillicCount) Cyrillic) despite 'ru' mode. Re-decoding in 'en' mode…")
+            var scriptRedecodeOpts = options
+            scriptRedecodeOpts.language = "en"
+            scriptRedecodeOpts.detectLanguage = false
+            scriptRedecodeOpts.wordTimestamps = true
+            scriptRedecodeOpts.usePrefillPrompt = true
+            scriptRedecodeOpts.usePrefillCache = true
+            scriptRedecodeOpts.promptTokens = nil
+
+            if let retryResults = try? await kit.transcribe(audioPath: path, decodeOptions: scriptRedecodeOpts), !retryResults.isEmpty {
+                let retryText = retryResults.map(\.text).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+                if !retryText.isEmpty {
+                    results = retryResults
+                    preliminaryText = retryText
+                    resolvedLang = "en"
+                    logger.info("Successfully re-decoded audio in 'en' mode: '\(retryText.prefix(50))'")
+                }
+            }
+        } else if resolvedLang == "en" && allowedLanguages.contains("ru") && postCyrillicCount >= 10 && postCyrillicCount >= (postLatinCount * 2) {
+            logger.warning("Decoded text is overwhelmingly Cyrillic (\(postCyrillicCount) Cyrillic vs \(postLatinCount) Latin) despite 'en' mode. Re-decoding in 'ru' mode…")
+            var scriptRedecodeOpts = options
+            scriptRedecodeOpts.language = "ru"
+            scriptRedecodeOpts.detectLanguage = false
+            scriptRedecodeOpts.wordTimestamps = true
+            scriptRedecodeOpts.usePrefillPrompt = true
+            scriptRedecodeOpts.usePrefillCache = true
+            scriptRedecodeOpts.promptTokens = nil
+
+            if let retryResults = try? await kit.transcribe(audioPath: path, decodeOptions: scriptRedecodeOpts), !retryResults.isEmpty {
+                let retryText = retryResults.map(\.text).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+                if !retryText.isEmpty {
+                    results = retryResults
+                    preliminaryText = retryText
+                    resolvedLang = "ru"
+                    logger.info("Successfully re-decoded audio in 'ru' mode: '\(retryText.prefix(50))'")
+                }
             }
         }
 

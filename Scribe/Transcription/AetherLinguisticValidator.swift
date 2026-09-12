@@ -415,6 +415,12 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
     private let feminineSubjectVerbRegex: NSRegularExpression?
     private let wordExtractorRegex: NSRegularExpression?
 
+    // English pronoun "I" vs Russian pronoun "я" disambiguation
+    private let compiledEnglishPronounRules: [(regex: NSRegularExpression, replacement: String)]
+    private let pronounVerbRegex: NSRegularExpression?
+    private let sentenceStartPronounRegex: NSRegularExpression?
+    private let okEnglishStartRegex: NSRegularExpression?
+
     private init() {
         var verbMap: [String: VerbGenderForms] = [:]
         for entry in Self.russianVerbFormsList {
@@ -515,6 +521,46 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         )
 
         self.wordExtractorRegex = try? NSRegularExpression(pattern: "\\b([\\p{L}\\p{M}'-]+)\\b")
+
+        // Precompile English pronoun "I" vs Russian "я" rules
+        let englishLikePatterns: [(String, String)] = [
+            ("(?i)\\bя\\s+лайк\\s+(?=[a-zA-Z]{2,})", "I like "),
+            ("(?i)\\bЯ\\s+лайк\\s+(?=[a-zA-Z]{2,})", "I like "),
+            ("(?i)\\bлайк\\s+(?=(?:the|this|that|these|those|it|a|an|all|every|your|my|our)\\b)", "like "),
+            ("(?i)\\bя\\s+like\\b", "I like"),
+            ("(?i)\\bЯ\\s+like\\b", "I like")
+        ]
+        var pronounCompiled: [(regex: NSRegularExpression, replacement: String)] = []
+        for rule in englishLikePatterns {
+            if let reg = try? NSRegularExpression(pattern: rule.0) {
+                pronounCompiled.append((regex: reg, replacement: rule.1))
+            }
+        }
+        self.compiledEnglishPronounRules = pronounCompiled
+
+        let englishVerbs = [
+            "like", "liked", "dislike", "love", "loved", "hate", "hated",
+            "think", "thought", "know", "knew", "known", "want", "wanted",
+            "have", "had", "has", "see", "saw", "seen", "feel", "felt",
+            "need", "needed", "mean", "meant", "prefer", "preferred",
+            "hope", "hoped", "wish", "wished", "agree", "agreed",
+            "believe", "believed", "understand", "understood", "remember", "remembered",
+            "guess", "guessed", "suppose", "supposed", "wonder", "wondered",
+            "can", "cant", "can't", "cannot", "could", "couldnt", "couldn't",
+            "will", "wont", "won't", "would", "wouldnt", "wouldn't",
+            "should", "shouldnt", "shouldn't", "must",
+            "am", "was", "were", "do", "dont", "don't", "did", "didnt", "didn't",
+            "get", "got", "gotten", "say", "said", "tell", "told",
+            "go", "went", "gone", "make", "made", "take", "took", "taken",
+            "come", "came", "find", "found", "give", "gave", "given",
+            "look", "looked", "use", "used", "try", "tried",
+            "ask", "asked", "work", "worked", "call", "called",
+            "just", "already", "really", "actually", "personally", "definitely",
+            "absolutely", "probably", "totally", "always", "never", "also", "still"
+        ].joined(separator: "|")
+        self.pronounVerbRegex = try? NSRegularExpression(pattern: "(?i)\\b[яЯ]\\s+((?:\(englishVerbs)))\\b")
+        self.sentenceStartPronounRegex = try? NSRegularExpression(pattern: "(^|(?<=[.!?,\n—–:]\\s))[яЯ]\\s+([a-zA-Z]{2,})\\b")
+        self.okEnglishStartRegex = try? NSRegularExpression(pattern: "(^|(?<=[.!?\n—–:]\\s))Ок([,\\s]+)(?=[a-zA-Z]{2,})")
     }
 
     /// Validates and corrects words in the transcription text.
@@ -531,6 +577,9 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         // 0. Speech Self-Correction & False Start Repair (e.g. "chemisty chemistry" -> "chemistry")
         // Enforces interval <= 2.5s and checks that words are slightly modified variants (NOT identical repetitions).
         result = repairSpeechSelfCorrections(text: result, wordTimings: wordTimings, maxIntervalSeconds: 2.5)
+
+        // 0b. Disambiguate English pronoun "I" vs Russian pronoun "я"
+        result = applyEnglishPronounDisambiguation(result)
 
         let lowerOriginal = result.lowercased()
 
@@ -745,6 +794,38 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
 
         // 4. Intelligent Web Link, Domain & Email Normalization
         result = AetherWebLinkNormalizer.shared.normalize(text: result)
+
+        return result
+    }
+
+    /// Disambiguates phonetic/translation confusion between English pronoun "I" ([aɪ]) and Russian pronoun "я" ([ja]).
+    /// Specifically corrects Whisper slips like "я like" -> "I like", "я think" -> "I think", "я лайк the..." -> "I like the...".
+    private func applyEnglishPronounDisambiguation(_ text: String) -> String {
+        var result = text
+
+        // 1. Direct "я лайк" / "я like" repair when followed by English context
+        for (regex, rep) in compiledEnglishPronounRules {
+            let range = NSRange(result.startIndex..<result.endIndex, in: result)
+            result = regex.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: rep)
+        }
+
+        // 2. Standalone Russian "я" / "Я" immediately preceding common English verbs/auxiliaries
+        if let regex = pronounVerbRegex {
+            let range = NSRange(result.startIndex..<result.endIndex, in: result)
+            result = regex.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: "I $1")
+        }
+
+        // 3. Standalone "я" / "Я" at start of sentence or after punctuation followed by English words
+        if let regex = sentenceStartPronounRegex {
+            let range = NSRange(result.startIndex..<result.endIndex, in: result)
+            result = regex.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: "$1I $2")
+        }
+
+        // 4. "Ок" / "ок" followed by English text -> "OK"
+        if let regex = okEnglishStartRegex {
+            let range = NSRange(result.startIndex..<result.endIndex, in: result)
+            result = regex.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: "$1OK$2")
+        }
 
         return result
     }
