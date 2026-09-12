@@ -5,7 +5,7 @@ All notable changes to Scribe will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.7.0] - 2026-09-12
+## [2.6.10] - 2026-09-12
 
 ## Added
 - Adaptive real-time speech level tracking and automatic gain control for quiet vocal signals.

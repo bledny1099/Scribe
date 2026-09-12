@@ -393,7 +393,7 @@ private func openDeviceLimitSupport(appState: AppState) {
     let chip = HardwareAnalyzer.shared.profile.chipName
     let encOS = osVersion.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "macOS"
     let encChip = chip.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "AppleSilicon"
-    let appVer = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "2.7.0"
+    let appVer = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "2.6.10"
     let deviceName = DeviceManager.shared.deviceName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
     let urlStr = "https://bledny1099.github.io/Scribe/report.html?type=support&os=\(encOS)&arch=\(encChip)&version=v\(appVer)&device=\(deviceName)"
     if let url = URL(string: urlStr) {
@@ -8114,8 +8114,8 @@ public final class BugReportService: ObservableObject, @unchecked Sendable {
             self.errorMessage = nil
         }
 
-        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.7.0"
-        let buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "2.7.0"
+        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.6.10"
+        let buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "2.6.10"
         let osVersion = ProcessInfo.processInfo.operatingSystemVersionString
         let macModel = getMacHardwareModel()
         let author = userNickname.isEmpty ? "Anonymous User" : userNickname
