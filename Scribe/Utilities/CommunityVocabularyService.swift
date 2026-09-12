@@ -224,6 +224,49 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
 
     // MARK: - Loading & Syncing
 
+    private func mergeCategories(cached: [CommunityCategory], embedded: [CommunityCategory]) -> [CommunityCategory] {
+        var result: [CommunityCategory] = []
+        var cachedById: [String: CommunityCategory] = [:]
+        for cat in cached {
+            cachedById[cat.id] = cat
+        }
+
+        for embCat in embedded {
+            if let cachedCat = cachedById.removeValue(forKey: embCat.id) {
+                var seen = Set<String>()
+                var mergedTerms: [String] = []
+                for t in embCat.terms {
+                    let lower = t.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                    if !lower.isEmpty && !seen.contains(lower) {
+                        seen.insert(lower)
+                        mergedTerms.append(t)
+                    }
+                }
+                for t in cachedCat.terms {
+                    let lower = t.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                    if !lower.isEmpty && !seen.contains(lower) {
+                        seen.insert(lower)
+                        mergedTerms.append(t)
+                    }
+                }
+                result.append(CommunityCategory(
+                    id: embCat.id,
+                    name: embCat.name,
+                    languages: embCat.languages ?? cachedCat.languages,
+                    terms: mergedTerms
+                ))
+            } else {
+                result.append(embCat)
+            }
+        }
+
+        for (_, remainingCat) in cachedById {
+            result.append(remainingCat)
+        }
+
+        return result
+    }
+
     public func loadCachedOrBundled() {
         var phoneticMap: [String: String] = EmbeddedVocabularyData.defaultPhoneticMap
 
@@ -237,22 +280,38 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
             }
         }
 
+        let embeddedVersion = EmbeddedVocabularyData.version
+        let embeddedCategories = EmbeddedVocabularyData.defaultCategories
+
         // Try Cache File first for clean terms dictionary
         if let cacheURL = cacheFileURL,
            let data = try? Data(contentsOf: cacheURL),
            let payload = try? JSONDecoder().decode(CommunityDictionaryPayload.self, from: data) {
-            applyPayload(payload, basePhoneticMap: phoneticMap)
+            let merged = mergeCategories(cached: payload.categories, embedded: embeddedCategories)
+            let finalPayload = CommunityDictionaryPayload(
+                version: max(payload.version, embeddedVersion),
+                lastUpdated: payload.version < embeddedVersion ? "2026-09-12" : payload.lastUpdated,
+                description: payload.description,
+                repository: payload.repository,
+                contributing: payload.contributing,
+                categories: merged
+            )
+            applyPayload(finalPayload, basePhoneticMap: phoneticMap)
+
+            if payload.version < embeddedVersion, let updatedData = try? JSONEncoder().encode(finalPayload) {
+                try? updatedData.write(to: cacheURL, options: .atomic)
+            }
             return
         }
 
         // Fallback directly to embedded compiled vocabulary data
         let embeddedPayload = CommunityDictionaryPayload(
-            version: 4,
-            lastUpdated: "2026-08-28",
+            version: embeddedVersion,
+            lastUpdated: "2026-09-12",
             description: "Compiled internal vocabulary.",
             repository: nil,
             contributing: nil,
-            categories: EmbeddedVocabularyData.defaultCategories
+            categories: embeddedCategories
         )
         applyPayload(embeddedPayload, basePhoneticMap: phoneticMap)
     }
@@ -282,11 +341,20 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
                let jsonStr = data["payload"] as? String,
                let jsonData = jsonStr.data(using: .utf8),
                let payload = try? JSONDecoder().decode(CommunityDictionaryPayload.self, from: jsonData) {
-                applyPayload(payload, basePhoneticMap: EmbeddedVocabularyData.defaultPhoneticMap)
+                let merged = mergeCategories(cached: payload.categories, embedded: EmbeddedVocabularyData.defaultCategories)
+                let finalPayload = CommunityDictionaryPayload(
+                    version: max(payload.version, EmbeddedVocabularyData.version),
+                    lastUpdated: payload.lastUpdated,
+                    description: payload.description,
+                    repository: payload.repository,
+                    contributing: payload.contributing,
+                    categories: merged
+                )
+                applyPayload(finalPayload, basePhoneticMap: EmbeddedVocabularyData.defaultPhoneticMap)
 
                 // Cache locally
-                if let cacheURL = cacheFileURL {
-                    try? jsonData.write(to: cacheURL, options: .atomic)
+                if let cacheURL = cacheFileURL, let updatedData = try? JSONEncoder().encode(finalPayload) {
+                    try? updatedData.write(to: cacheURL, options: .atomic)
                 }
             }
 

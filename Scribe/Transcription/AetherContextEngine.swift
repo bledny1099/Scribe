@@ -435,22 +435,25 @@ public final class AetherContextEngine: @unchecked Sendable {
                 "API", "SDK", "JSON", "regex", "refactor", "pull request", "commit", "merge", "branch", "async",
                 "await", "struct", "class", "enum", "endpoint", "backend", "frontend", "fullstack", "MCP",
                 "коммит", "пул реквест", "ветка", "деплой", "баг", "пофиксить", "рефакторинг", "функция", "эндпоинт",
-                "сделай", "сделай что-то", "создай", "напиши", "добавь", "удали", "пофикси", "запусти", "проверь", "обнови", "настрой", "исправь", "покажи", "сгенерируй"
+                "сделай", "сделай что-то", "создай", "напиши", "добавь", "удали", "пофикси", "запусти", "проверь", "обнови", "настрой", "исправь", "покажи", "сгенерируй",
+                "микросервисы", "Serverless", "ClickHouse", "Redis", "Kafka", "RabbitMQ", "gRPC", "Protobuf", "WebSockets", "FastAPI", "NestJS", "Prisma", "Drizzle ORM", "Shadcn UI", "Radix UI"
             ]
         case .aiChatAndLLMs:
             return [
                 "Gemini", "Claude", "Kimi", "ChatGPT", "LM Studio", "LM Studio Bionic", "Ollama", "Perplexity", "DeepSeek",
-                "Poe", "Jan", "LocalAI", "Bionic GPT", "GGUF", "LoRA", "Hugging Face", "vLLM", "Llama", "Mistral", "Qwen",
+                "Poe", "Jan", "LocalAI", "Bionic GPT", "GGUF", "LoRA", "QLoRA", "Hugging Face", "vLLM", "Llama", "Mistral", "Qwen",
                 "DeepSeek-R1", "Claude 3.5 Sonnet", "Gemini 1.5 Pro", "GPT-4o", "o1", "o3-mini",
                 "промпт", "системный промпт", "токены", "контекст", "температура", "инференс", "квантование", "эмбеддинги",
                 "веса модели", "нейросеть", "чат-бот", "рассуждения", "промптинг",
-                "system prompt", "reasoning", "chain of thought", "tokens", "inference", "context window", "temperature", "prompt engineering"
+                "system prompt", "reasoning", "chain of thought", "tokens", "inference", "context window", "temperature", "prompt engineering",
+                "RAG", "Fine-tuning", "FlashAttention", "KV-cache", "Function Calling", "AI Agents", "LangGraph", "LlamaIndex"
             ]
         case .messengersAndChat:
             return [
                 "топчик", "swag", "анскилл", "вайб", "кринж", "хайп", "краш", "чилл", "флекс", "рофл", "пруф",
                 "найс", "скилл", "созвон", "митинг", "апдейт", "чекни", "сейчас", "встретимся", "ок", "норм",
-                "Telegram", "Discord", "Slack", "WhatsApp", "Messages", "Signal"
+                "Telegram", "Discord", "Slack", "WhatsApp", "Messages", "Signal",
+                "масс-маркет", "люкс", "оверсайз", "дроп", "коллаб", "худи", "свитшот", "лоферы", "аутфит", "просекко", "апероль"
             ]
         case .notesAndWriting:
             return [
@@ -501,7 +504,16 @@ public final class AetherContextEngine: @unchecked Sendable {
                 "Бали", "Bali", "Чангу", "Canggu", "Семиньяк", "Seminyak", "Убуд", "Ubud", "Сингапур", "Singapore", "Сентоза", "Sentosa Island"
             ]
         case .general:
-            return []
+            return [
+                "Dom Pérignon", "Moët & Chandon", "Veuve Clicquot", "Cristal", "Prosecco", "Chianti", "Bordeaux",
+                "Cabernet Sauvignon", "Sauvignon Blanc", "Hennessy", "The Macallan", "Jameson", "Jack Daniel's",
+                "Aperol Spritz", "Jägermeister", "Guinness", "Rolex", "Patek Philippe", "Audemars Piguet",
+                "Vacheron Constantin", "Richard Mille", "Cartier", "Omega", "Breitling", "IWC", "Hublot",
+                "TAG Heuer", "Tissot", "Casio", "G-Shock", "Louis Vuitton", "Hermès", "Chanel", "Dior",
+                "Gucci", "Prada", "Saint Laurent", "Balenciaga", "Bottega Veneta", "Loro Piana", "Brunello Cucinelli",
+                "Stone Island", "Supreme", "Stüssy", "Massimo Dutti", "Zara", "H&M", "Uniqlo", "Nike", "Adidas",
+                "New Balance", "масс-маркет", "люкс", "оверсайз", "тихая роскошь", "худи", "свитшот", "лоферы"
+            ]
         }
     }
 
