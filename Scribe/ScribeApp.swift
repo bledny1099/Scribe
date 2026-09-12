@@ -235,51 +235,31 @@ struct LiquidGlassMenuBarView: View {
                 }
                 .buttonStyle(.plain)
 
-                // MARK: - Lecture & Import Actions Row (Configurable)
-                if appState.showLectureControls {
-                    HStack(spacing: 8) {
-                        Button {
-                            appState.startLectureRecording()
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: "mic.badge.plus")
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .foregroundStyle(Color.indigo)
-                                Text(appState.l("Запись лекции"))
-                                    .font(.system(size: 11.5, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.primary)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 7)
-                            .background(Color.primary.opacity(0.04))
-                            .cornerRadius(8)
-                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.06), lineWidth: 1))
+                // MARK: - Lecture Recording Action (Toolbar: Start/Stop only)
+                if appState.showLectureControls && !appState.isLectureRecording {
+                    Button {
+                        appState.startLectureRecording()
+                    } label: {
+                        HStack(spacing: 7) {
+                            Image(systemName: "mic.badge.plus")
+                                .font(.system(size: 11.5, weight: .semibold))
+                                .foregroundStyle(Color.indigo)
+                            Text(appState.l("Start Lecture Recording"))
+                                .font(.system(size: 12, weight: .medium, design: .rounded))
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            Image(systemName: "circle.fill")
+                                .font(.system(size: 6))
+                                .foregroundStyle(Color.indigo.opacity(0.6))
                         }
-                        .buttonStyle(.plain)
-                        .help(appState.l("Запись длинной лекции без оверлея на экране с автосохранением в Заметки"))
-
-                        Button {
-                            if let url = AudioFileImporter.pickFile() {
-                                appState.importAndTranscribeLecture(url: url)
-                            }
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: "square.and.arrow.down")
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .foregroundStyle(Color.blue)
-                                Text(appState.l("Импорт файла…"))
-                                    .font(.system(size: 11.5, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.primary)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 7)
-                            .background(Color.primary.opacity(0.04))
-                            .cornerRadius(8)
-                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.06), lineWidth: 1))
-                        }
-                        .buttonStyle(.plain)
-                        .help(appState.l("Транскрибировать аудио/видеофайл (.mp3, .m4a, .wav, .mp4) в Заметки"))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .background(Color.primary.opacity(0.04))
+                        .cornerRadius(10)
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.primary.opacity(0.06), lineWidth: 1))
                     }
+                    .buttonStyle(.plain)
+                    .help(appState.l("Record lecture in background without on-screen overlay and save to Notes"))
                 }
             }
             // Footer

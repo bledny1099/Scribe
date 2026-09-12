@@ -1,9 +1,11 @@
 import SwiftUI
 import KeyboardShortcuts
 import FirebaseAuth
+import UniformTypeIdentifiers
 
 enum SettingsTab: String, CaseIterable {
     case general = "General"
+    case lectures = "Lectures"
     case appearance = "Appearance"
     case recognition = "Recognition"
     case vocabulary = "Vocabulary"
@@ -16,6 +18,7 @@ enum SettingsTab: String, CaseIterable {
     var icon: String {
         switch self {
         case .general:      return "slider.horizontal.3"
+        case .lectures:     return "graduationcap.fill"
         case .appearance:   return "paintbrush.fill"
         case .recognition:  return "waveform.and.mic"
         case .vocabulary:   return "book.fill"
@@ -209,6 +212,7 @@ struct SettingsSidebarView: View {
 
     private let mainTabs: [SettingsTab] = [
         .general,
+        .lectures,
         .appearance,
         .recognition,
         .integrations,
@@ -348,6 +352,8 @@ struct SettingsContentView: View {
                 switch selectedTab {
                 case .general:
                     GeneralSettingsView()
+                case .lectures:
+                    LecturesSettingsView()
                 case .appearance:
                     AppearanceSettingsView()
                 case .recognition:
@@ -6046,14 +6052,354 @@ struct GeneralSettingsView: View {
                         .padding(.top, 4)
                         .transition(.opacity.combined(with: .move(edge: .top)))
                     }
+                }
+            }
+        }
+        .sheet(isPresented: $showingAppleNotesModal) {
+            AppleNotesPermissionModalView()
+        }
+    }
+}
 
-                    // Lecture & File Import Controls
+// MARK: - Lectures Settings View
+struct LecturesSettingsView: View {
+    @EnvironmentObject var appState: AppState
+    @State private var isTargetDropHovered: Bool = false
+
+    var body: some View {
+        VStack(spacing: 18) {
+            // 1. Interactive Recording Card
+            GlassSection(title: appState.l("Lecture Recording"), icon: "graduationcap.fill") {
+                VStack(spacing: 14) {
+                    if appState.isLectureRecording {
+                        // ACTIVE RECORDING STATE
+                        VStack(spacing: 12) {
+                            HStack(spacing: 12) {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.red.opacity(0.18))
+                                        .frame(width: 38, height: 38)
+                                    Circle()
+                                        .fill(Color.red)
+                                        .frame(width: 12, height: 12)
+                                }
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(appState.l("Recording Lecture in Background..."))
+                                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                                        .foregroundStyle(.primary)
+                                    Text(appState.l("Audio is streaming locally to Apple Silicon Neural Engine"))
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                // Live timer display
+                                Text(formattedDuration(appState.recordingDuration))
+                                    .font(.system(size: 18, weight: .bold, design: .monospaced))
+                                    .foregroundStyle(.red)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 4)
+                                    .background(Color.red.opacity(0.10))
+                                    .cornerRadius(8)
+                            }
+                            
+                            // Audio Level Bar
+                            GeometryReader { geo in
+                                ZStack(alignment: .leading) {
+                                    Capsule()
+                                        .fill(Color.primary.opacity(0.06))
+                                        .frame(height: 6)
+                                    Capsule()
+                                        .fill(LinearGradient(colors: [.indigo, .red], startPoint: .leading, endPoint: .trailing))
+                                        .frame(width: max(8, geo.size.width * CGFloat(min(1.0, max(0.05, appState.audioLevel * 3.5)))), height: 6)
+                                        .animation(.easeOut(duration: 0.08), value: appState.audioLevel)
+                                }
+                            }
+                            .frame(height: 6)
+
+                            // Action buttons
+                            HStack(spacing: 10) {
+                                Button {
+                                    appState.stopLectureRecording()
+                                } label: {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "stop.fill")
+                                            .font(.system(size: 12, weight: .bold))
+                                        Text(appState.l("Stop & Save to Notes"))
+                                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 9)
+                                    .background(Color.red.opacity(0.18))
+                                    .foregroundStyle(.red)
+                                    .cornerRadius(10)
+                                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.red.opacity(0.35), lineWidth: 1))
+                                }
+                                .buttonStyle(.plain)
+
+                                Button {
+                                    appState.cancelRecording()
+                                } label: {
+                                    Text(appState.l("Cancel Recording"))
+                                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                                        .foregroundStyle(.secondary)
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 9)
+                                        .background(Color.primary.opacity(0.05))
+                                        .cornerRadius(10)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(14)
+                        .background(RoundedRectangle(cornerRadius: 14).fill(Color.red.opacity(0.05)))
+                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.red.opacity(0.20), lineWidth: 1))
+                    } else {
+                        // IDLE STATE - START BUTTON
+                        HStack(spacing: 14) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(appState.l("Start Lecture Recording"))
+                                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                Text(appState.l("Records silently in the background without covering your screen or interfering with slides and notes."))
+                                    .font(.system(size: 11.5))
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            Spacer()
+                            Button {
+                                appState.startLectureRecording()
+                            } label: {
+                                HStack(spacing: 7) {
+                                    Image(systemName: "mic.fill")
+                                        .font(.system(size: 12, weight: .bold))
+                                    Text(appState.l("Start Recording"))
+                                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 9)
+                                .background(Color.indigo)
+                                .foregroundStyle(.white)
+                                .cornerRadius(10)
+                                .shadow(color: Color.indigo.opacity(0.3), radius: 4, x: 0, y: 2)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+
+            // 2. Audio & Video File Import Card
+            GlassSection(title: appState.l("Import Audio or Video File"), icon: "arrow.down.doc.fill") {
+                VStack(spacing: 12) {
+                    if appState.isImportTranscribing {
+                        // Transcribing progress
+                        VStack(spacing: 10) {
+                            HStack(spacing: 10) {
+                                ProgressView()
+                                    .controlSize(.regular)
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(appState.l("Transcribing File..."))
+                                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                                        .foregroundStyle(.primary)
+                                    Text(appState.importProgressMessage)
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                            }
+                            .padding(14)
+                            .background(RoundedRectangle(cornerRadius: 12).fill(Color.blue.opacity(0.06)))
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.blue.opacity(0.20), lineWidth: 1))
+                        }
+                    } else {
+                        // Drag & Drop / Pick File Zone
+                        VStack(spacing: 10) {
+                            Image(systemName: isTargetDropHovered ? "arrow.down.circle.fill" : "square.and.arrow.down.fill")
+                                .font(.system(size: 26, weight: .semibold))
+                                .foregroundStyle(isTargetDropHovered ? Color.blue : Color.indigo.opacity(0.85))
+                                .scaleEffect(isTargetDropHovered ? 1.15 : 1.0)
+                                .animation(.spring(response: 0.3), value: isTargetDropHovered)
+
+                            VStack(spacing: 3) {
+                                Text(appState.l("Drag and drop audio or video file here"))
+                                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                Text(appState.l("Supports MP3, M4A, WAV, AAC, FLAC, MP4, MOV"))
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Button {
+                                if let url = AudioFileImporter.pickFile() {
+                                    appState.importAndTranscribeLecture(url: url)
+                                }
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "folder.fill")
+                                        .font(.system(size: 11))
+                                    Text(appState.l("Choose File…"))
+                                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                }
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 6)
+                                .background(Color.primary.opacity(0.06))
+                                .cornerRadius(8)
+                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.10), lineWidth: 1))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 20)
+                        .padding(.horizontal, 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 14)
+                                .fill(isTargetDropHovered ? Color.blue.opacity(0.08) : Color.primary.opacity(0.02))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .stroke(isTargetDropHovered ? Color.blue.opacity(0.4) : Color.primary.opacity(0.08), style: StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
+                        )
+                        .onDrop(of: [.fileURL], isTargeted: $isTargetDropHovered) { providers in
+                            guard let provider = providers.first else { return false }
+                            _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                                guard let url = url else { return }
+                                DispatchQueue.main.async {
+                                    appState.importAndTranscribeLecture(url: url)
+                                }
+                            }
+                            return true
+                        }
+                    }
+
+                    if !appState.lastImportedNoteTitle.isEmpty {
+                        HStack(spacing: 8) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.green)
+                            Text(String(format: appState.l("Last note exported: %@"), appState.lastImportedNoteTitle))
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                            Spacer()
+                        }
+                        .padding(.horizontal, 4)
+                    }
+                }
+            }
+
+            // 3. How it Works Informational Section
+            GlassSection(title: appState.l("How Lecture Mode Works"), icon: "info.circle.fill") {
+                VStack(spacing: 12) {
+                    HowItWorksRow(
+                        icon: "eye.slash.fill",
+                        color: .purple,
+                        title: appState.l("Background Mode"),
+                        description: appState.l("Records silently without covering your screen or interfering with slides, code, and notes.")
+                    )
+                    HowItWorksRow(
+                        icon: "cpu.fill",
+                        color: .blue,
+                        title: appState.l("Apple Silicon Intelligence"),
+                        description: appState.l("Transcribes long audio locally on Neural Engine with zero memory bloat and 100% offline privacy.")
+                    )
+                    HowItWorksRow(
+                        icon: "note.text",
+                        color: .orange,
+                        title: appState.l("Direct Notes Export"),
+                        description: appState.l("Automatically formats the transcript with date, title, and duration and exports directly to Apple Notes.")
+                    )
+                    HowItWorksRow(
+                        icon: "menubar.rectangle",
+                        color: .green,
+                        title: appState.l("Status Bar Timer"),
+                        description: appState.l("Live recording duration is visible in your Mac menu bar so you can monitor progress at a glance.")
+                    )
+                }
+            }
+
+            // 4. Lecture Preferences Section
+            GlassSection(title: appState.l("Lecture Preferences"), icon: "slider.horizontal.3") {
+                VStack(spacing: 16) {
+                    // Note Title Prefix
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(appState.l("Lecture & File Import Controls"))
+                            Text(appState.l("Note Title Prefix"))
                                 .font(.system(size: 14, weight: .medium, design: .rounded))
                                 .foregroundStyle(.primary)
-                            Text(appState.l("Show buttons for background lecture recording and audio import in menu"))
+                            Text(appState.l("Prefix used when creating new lecture notes (e.g. Lecture — Date)"))
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        TextField("Lecture", text: $appState.lectureTitlePrefix)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 180)
+                    }
+
+                    // Auto-Open Notes
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(appState.l("Auto-Open Notes"))
+                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                .foregroundStyle(.primary)
+                            Text(appState.l("Bring Apple Notes to front when transcription finishes"))
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Toggle("", isOn: $appState.autoOpenNotesAfterLecture)
+                            .toggleStyle(.switch)
+                            .labelsHidden()
+                    }
+
+                    // Target Apps
+                    VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(appState.l("Destination Notes Apps"))
+                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                .foregroundStyle(.primary)
+                            Text(appState.l("Choose which apps receive exported lecture notes"))
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+
+                        HStack(spacing: 10) {
+                            LectureAppTargetButton(
+                                title: "Apple Notes",
+                                icon: "apple.logo",
+                                isSelected: appState.lectureTargetAppleNotes,
+                                color: .orange
+                            ) {
+                                appState.lectureTargetAppleNotes.toggle()
+                            }
+
+                            LectureAppTargetButton(
+                                title: "Obsidian",
+                                icon: "diamond.fill",
+                                isSelected: appState.lectureTargetObsidian,
+                                color: .purple
+                            ) {
+                                appState.lectureTargetObsidian.toggle()
+                            }
+
+                            LectureAppTargetButton(
+                                title: "Notion",
+                                icon: "doc.text.fill",
+                                isSelected: appState.lectureTargetNotion,
+                                color: .blue
+                            ) {
+                                appState.lectureTargetNotion.toggle()
+                            }
+                        }
+                    }
+
+                    // Show in Menu Bar
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(appState.l("Show in Menu Bar"))
+                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                .foregroundStyle(.primary)
+                            Text(appState.l("Display quick start button in the menu bar popover"))
                                 .font(.system(size: 11))
                                 .foregroundStyle(.secondary)
                         }
@@ -6065,9 +6411,74 @@ struct GeneralSettingsView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingAppleNotesModal) {
-            AppleNotesPermissionModalView()
+    }
+
+    private func formattedDuration(_ seconds: TimeInterval) -> String {
+        let hrs = Int(seconds) / 3600
+        let mins = (Int(seconds) % 3600) / 60
+        let secs = Int(seconds) % 60
+        if hrs > 0 {
+            return String(format: "%02d:%02d:%02d", hrs, mins, secs)
+        } else {
+            return String(format: "%02d:%02d", mins, secs)
         }
+    }
+}
+
+// MARK: - Helper Views for Lectures
+struct HowItWorksRow: View {
+    let icon: String
+    let color: Color
+    let title: String
+    let description: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(color.opacity(0.12))
+                    .frame(width: 28, height: 28)
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(color)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 12.5, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.primary)
+                Text(description)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer()
+        }
+    }
+}
+
+struct LectureAppTargetButton: View {
+    let title: String
+    let icon: String
+    let isSelected: Bool
+    let color: Color
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(isSelected ? color : .secondary)
+                Text(title)
+                    .font(.system(size: 11.5, weight: .medium, design: .rounded))
+                    .foregroundStyle(.primary)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(RoundedRectangle(cornerRadius: 8).fill(isSelected ? color.opacity(0.12) : Color.primary.opacity(0.04)))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(isSelected ? color.opacity(0.35) : Color.primary.opacity(0.08), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 }
 

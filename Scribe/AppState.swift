@@ -420,7 +420,13 @@ final class AppState: ObservableObject {
     @Published public var isLectureRecording: Bool = false
     @Published public var isImportTranscribing: Bool = false
     @Published public var importProgressMessage: String = ""
+    @Published public var lastImportedNoteTitle: String = ""
     @AppStorage("showLectureControls") public var showLectureControls: Bool = true
+    @AppStorage("autoOpenNotesAfterLecture") public var autoOpenNotesAfterLecture: Bool = true
+    @AppStorage("lectureTitlePrefix") public var lectureTitlePrefix: String = "Lecture"
+    @AppStorage("lectureTargetAppleNotes") public var lectureTargetAppleNotes: Bool = true
+    @AppStorage("lectureTargetObsidian") public var lectureTargetObsidian: Bool = false
+    @AppStorage("lectureTargetNotion") public var lectureTargetNotion: Bool = false
 
     @AppStorage("cleanFillerWords") var cleanFillerWords: Bool = true
     @Published var targetAppName: String = ""
@@ -457,7 +463,7 @@ final class AppState: ObservableObject {
         }
     }
 
-    @Published var recordingDuration: TimeInterval = 0
+    @Published public var recordingDuration: TimeInterval = 0
     @Published var livePreviewText: String = ""
     @Published var latestWhisperTranscription: String = ""
     private var liveStreamLastInsertedText: String = ""

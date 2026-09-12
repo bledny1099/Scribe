@@ -238,9 +238,81 @@ enum Localization {
             "Your Mac might struggle with this model (needs ~2.5–3 GB RAM).": "Your Mac might struggle with this model (needs ~2.5–3 GB RAM).",
             "Needs ~2.5–3 GB RAM. Works best with 16 GB+.": "Needs ~2.5–3 GB RAM. Works best with 16 GB+.",
             "Uses ~950 MB RAM. Monitor memory if multitasking.": "Uses ~950 MB RAM. Monitor memory if multitasking.",
-            "Chill. Lightweight model, your Mac will handle it easily.": "Chill. Lightweight model, your Mac will handle it easily."
+            "Chill. Lightweight model, your Mac will handle it easily.": "Chill. Lightweight model, your Mac will handle it easily.",
+            "Lectures": "Lectures",
+            "Lecture": "Lecture",
+            "Lecture Recording": "Lecture Recording",
+            "Start Lecture Recording": "Start Lecture Recording",
+            "Start Recording": "Start Recording",
+            "Stop & Save to Notes": "Stop & Save to Notes",
+            "Cancel Recording": "Cancel Recording",
+            "Recording Lecture in Background...": "Recording Lecture in Background...",
+            "Audio is streaming locally to Apple Silicon Neural Engine": "Audio is streaming locally to Apple Silicon Neural Engine",
+            "Records silently in the background without covering your screen or interfering with slides and notes.": "Records silently in the background without covering your screen or interfering with slides and notes.",
+            "Record lecture in background without on-screen overlay and save to Notes": "Record lecture in background without on-screen overlay and save to Notes",
+            "Import Audio or Video File": "Import Audio or Video File",
+            "Transcribing File...": "Transcribing File...",
+            "Drag and drop audio or video file here": "Drag and drop audio or video file here",
+            "Supports MP3, M4A, WAV, AAC, FLAC, MP4, MOV": "Supports MP3, M4A, WAV, AAC, FLAC, MP4, MOV",
+            "Choose File…": "Choose File…",
+            "Last note exported: %@": "Last note exported: %@",
+            "How Lecture Mode Works": "How Lecture Mode Works",
+            "Background Mode": "Background Mode",
+            "Records silently without covering your screen or interfering with slides, code, and notes.": "Records silently without covering your screen or interfering with slides, code, and notes.",
+            "Apple Silicon Intelligence": "Apple Silicon Intelligence",
+            "Transcribes long audio locally on Neural Engine with zero memory bloat and 100% offline privacy.": "Transcribes long audio locally on Neural Engine with zero memory bloat and 100% offline privacy.",
+            "Direct Notes Export": "Direct Notes Export",
+            "Automatically formats the transcript with date, title, and duration and exports directly to Apple Notes.": "Automatically formats the transcript with date, title, and duration and exports directly to Apple Notes.",
+            "Status Bar Timer": "Status Bar Timer",
+            "Live recording duration is visible in your Mac menu bar so you can monitor progress at a glance.": "Live recording duration is visible in your Mac menu bar so you can monitor progress at a glance.",
+            "Lecture Preferences": "Lecture Preferences",
+            "Note Title Prefix": "Note Title Prefix",
+            "Prefix used when creating new lecture notes (e.g. Lecture — Date)": "Prefix used when creating new lecture notes (e.g. Lecture — Date)",
+            "Auto-Open Notes": "Auto-Open Notes",
+            "Bring Apple Notes to front when transcription finishes": "Bring Apple Notes to front when transcription finishes",
+            "Destination Notes Apps": "Destination Notes Apps",
+            "Choose which apps receive exported lecture notes": "Choose which apps receive exported lecture notes",
+            "Show in Menu Bar": "Show in Menu Bar",
+            "Display quick start button in the menu bar popover": "Display quick start button in the menu bar popover",
+            "Duration": "Duration"
         ],
         "ru": [
+            "Lectures": "Лекции",
+            "Lecture": "Лекция",
+            "Lecture Recording": "Запись лекции",
+            "Start Lecture Recording": "Начать запись лекции",
+            "Start Recording": "Начать запись",
+            "Stop & Save to Notes": "Остановить и в Заметки",
+            "Cancel Recording": "Отменить запись",
+            "Recording Lecture in Background...": "Фоновая запись лекции...",
+            "Audio is streaming locally to Apple Silicon Neural Engine": "Звук передается напрямую в Apple Silicon Neural Engine",
+            "Records silently in the background without covering your screen or interfering with slides and notes.": "Записывает в фоне без плавающих окон, не мешая просмотру слайдов и конспектов.",
+            "Record lecture in background without on-screen overlay and save to Notes": "Запись лекции в фоне без оверлея на экране с сохранением в Заметки",
+            "Import Audio or Video File": "Импорт аудио- и видеофайлов",
+            "Transcribing File...": "Транскрибация файла...",
+            "Drag and drop audio or video file here": "Перетащите аудио- или видеофайл сюда",
+            "Supports MP3, M4A, WAV, AAC, FLAC, MP4, MOV": "Поддерживаются MP3, M4A, WAV, AAC, FLAC, MP4, MOV",
+            "Choose File…": "Выбрать файл…",
+            "Last note exported: %@": "Последняя заметка: %@",
+            "How Lecture Mode Works": "Как работает режим лекций",
+            "Background Mode": "Фоновый режим",
+            "Records silently without covering your screen or interfering with slides, code, and notes.": "Запись идет в фоне без окон и оверлеев, можно спокойно смотреть презентации, код и страницы.",
+            "Apple Silicon Intelligence": "Локальный ИИ на Apple Silicon",
+            "Transcribes long audio locally on Neural Engine with zero memory bloat and 100% offline privacy.": "Транскрибирует длинные лекции на Neural Engine без утечек памяти и с полной приватностью офлайн.",
+            "Direct Notes Export": "Прямой экспорт в Заметки",
+            "Automatically formats the transcript with date, title, and duration and exports directly to Apple Notes.": "Форматирует текст с датой, заголовком и временем записи и сразу сохраняет в Apple Notes.",
+            "Status Bar Timer": "Таймер в строке меню",
+            "Live recording duration is visible in your Mac menu bar so you can monitor progress at a glance.": "Время записи отображается прямо в строке меню macOS для удобного контроля.",
+            "Lecture Preferences": "Параметры лекций",
+            "Note Title Prefix": "Префикс заголовка заметок",
+            "Prefix used when creating new lecture notes (e.g. Lecture — Date)": "Используется для названия новой заметки (например, Лекция — Дата)",
+            "Auto-Open Notes": "Открывать Заметки автоматически",
+            "Bring Apple Notes to front when transcription finishes": "Выводить приложение Заметки на передний план после завершения",
+            "Destination Notes Apps": "Приложения для сохранения",
+            "Choose which apps receive exported lecture notes": "Выберите приложения, куда будут экспортироваться заметки лекций",
+            "Show in Menu Bar": "Кнопка в строке меню",
+            "Display quick start button in the menu bar popover": "Показывать кнопку быстрого запуска в менюбаре",
+            "Duration": "Длительность",
             "Lecture & File Import Controls": "Кнопки режима лекций и импорта",
             "Show buttons for background lecture recording and audio import in menu": "Отображать кнопки записи лекций и импорта файлов в менюбаре",
             "Chill. Your Mac is fully supported.": "Chill. Твой Mac легко потянет.",
@@ -797,6 +869,8 @@ enum Localization {
             "This Mac is not signed into the registered Apple ID for this Scribe profile.": "На этом Mac выполнен вход не под тем Apple ID, который зарегистрирован для этого профиля Scribe."
         ],
         "es": [
+            "Lectures": "Clases",
+            "Lecture": "Clase",
             "Start Dictation": "Iniciar dictado",
             "Stop Dictation": "Detener dictado",
             "Transcribing…": "Transcribiendo…",
@@ -878,6 +952,8 @@ enum Localization {
             "or Crypto": "o Cripto"
         ],
         "de": [
+            "Lectures": "Vorlesungen",
+            "Lecture": "Vorlesung",
             "Start Dictation": "Diktat starten",
             "Stop Dictation": "Diktat beenden",
             "Transcribing…": "Transkribieren…",
@@ -959,6 +1035,8 @@ enum Localization {
             "or Crypto": "oder Krypto"
         ],
         "fr": [
+            "Lectures": "Conférences",
+            "Lecture": "Conférence",
             "Start Dictation": "Démarrer la dictée",
             "Stop Dictation": "Arrêter la dictée",
             "Transcribing…": "Transcription…",
@@ -1040,6 +1118,8 @@ enum Localization {
             "or Crypto": "ou Crypto"
         ],
         "it": [
+            "Lectures": "Lezioni",
+            "Lecture": "Lezione",
             "Start Dictation": "Avvia dettatura",
             "Stop Dictation": "Interrompi dettatura",
             "Transcribing…": "Trascrizione…",
@@ -1121,6 +1201,8 @@ enum Localization {
             "or Crypto": "o Cripto"
         ],
         "zh": [
+            "Lectures": "讲座与课程",
+            "Lecture": "讲座",
             "Start Dictation": "开始听写",
             "Stop Dictation": "停止听写",
             "Transcribing…": "正在转录…",
@@ -1202,6 +1284,8 @@ enum Localization {
             "or Crypto": "或使用加密货币"
         ],
         "ja": [
+            "Lectures": "講義",
+            "Lecture": "講義",
             "Start Dictation": "音声入力を開始",
             "Stop Dictation": "音声入力を停止",
             "Transcribing…": "文字起こし中…",
@@ -1283,6 +1367,8 @@ enum Localization {
             "or Crypto": "または暗号資産"
         ],
         "pt": [
+            "Lectures": "Aulas",
+            "Lecture": "Aula",
             "Start Dictation": "Iniciar ditado",
             "Stop Dictation": "Parar ditado",
             "Transcribing…": "Transcrevendo…",
@@ -1364,6 +1450,8 @@ enum Localization {
             "or Crypto": "ou Cripto"
         ],
         "tr": [
+            "Lectures": "Dersler",
+            "Lecture": "Ders",
             "Start Dictation": "Dikteyi Başlat",
             "Stop Dictation": "Dikteyi Durdur",
             "Transcribing…": "Dönüştürülüyor…",
@@ -1445,6 +1533,8 @@ enum Localization {
             "or Crypto": "veya Kripto"
         ],
         "uk": [
+            "Lectures": "Лекції",
+            "Lecture": "Лекція",
             "Start Dictation": "Почати диктування",
             "Stop Dictation": "Зупинити диктування",
             "Transcribing…": "Транскрибація…",
@@ -1532,6 +1622,8 @@ enum Localization {
             "Scribe is an independent project supported entirely by user donations. If you find it useful, consider supporting its development. Donations are completely optional. Thank you!": "Scribe — це незалежний проєкт, який повністю підтримується за рахунок пожертв користувачів. Якщо ви вважаєте його корисним, ви можете підтримати його розробку. Пожертви абсолютно добровільні. Дякуємо!"
         ],
         "pl": [
+            "Lectures": "Wykłady",
+            "Lecture": "Wykład",
             "Start Dictation": "Rozpocznij dyktowanie",
             "Stop Dictation": "Zatrzymaj dyktowanie",
             "Transcribing…": "Transkrypcja…",
@@ -1573,6 +1665,8 @@ enum Localization {
             "Base (Fastest)": "Base (Najszybszy)"
         ],
         "nl": [
+            "Lectures": "Colleges",
+            "Lecture": "College",
             "Start Dictation": "Start dicteren",
             "Stop Dictation": "Stop dicteren",
             "Transcribing…": "Transcriberen…",
@@ -1614,6 +1708,8 @@ enum Localization {
             "Base (Fastest)": "Base (Snelste)"
         ],
         "ko": [
+            "Lectures": "강의",
+            "Lecture": "강의",
             "Start Dictation": "받아쓰기 시작",
             "Stop Dictation": "받아쓰기 중지",
             "Transcribing…": "텍스트 변환 중…",
@@ -1655,6 +1751,8 @@ enum Localization {
             "Base (Fastest)": "Base (가장 빠름)"
         ],
         "sv": [
+            "Lectures": "Föreläsningar",
+            "Lecture": "Föreläsning",
             "Start Dictation": "Starta diktering",
             "Stop Dictation": "Stoppa diktering",
             "Transcribing…": "Transkriberar…",
@@ -1696,6 +1794,8 @@ enum Localization {
             "Base (Fastest)": "Base (Snabbast)"
         ],
         "kk": [
+            "Lectures": "Дәрістер",
+            "Lecture": "Дәріс",
             "Start Dictation": "Диктантты бастау",
             "Stop Dictation": "Диктантты тоқтату",
             "Transcribing…": "Транскрипциялау…",

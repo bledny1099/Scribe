@@ -94,20 +94,26 @@ class NoteExporter {
         } else if let fn = sourceFilename, !fn.isEmpty {
             noteTitle = fn
         } else {
-            noteTitle = "Лекция — \(dateString)"
+            let prefix = state.lectureTitlePrefix.trimmingCharacters(in: .whitespacesAndNewlines)
+            let effectivePrefix = prefix.isEmpty ? state.l("Lecture") : prefix
+            noteTitle = "\(effectivePrefix) — \(dateString)"
         }
         
-        // 1. Export to Apple Notes
-        exportLectureToAppleNotes(title: noteTitle, dateString: dateString, durationString: durationString, transcript: transcript, state: state)
+        state.lastImportedNoteTitle = noteTitle
+        
+        // 1. Export to Apple Notes if enabled
+        if state.lectureTargetAppleNotes {
+            exportLectureToAppleNotes(title: noteTitle, dateString: dateString, durationString: durationString, transcript: transcript, state: state)
+        }
         
         // 2. Export to Obsidian if enabled
-        if state.enableObsidian {
+        if state.lectureTargetObsidian || state.enableObsidian {
             let obsText = "# \(noteTitle)\n*\(dateString)\(durationString.isEmpty ? "" : " • " + durationString)*\n\n\(transcript)"
             exportToObsidian(text: obsText, mode: .newNote, vaultURLString: state.obsidianVaultURL, targetNote: noteTitle, state: state)
         }
         
         // 3. Export to Notion if enabled
-        if state.enableNotion {
+        if state.lectureTargetNotion || state.enableNotion {
             let token = KeychainHelper.shared.getNotionToken()
             exportToNotion(text: "### \(noteTitle)\n\(transcript)", mode: .newNote, integrationToken: token, pageId: state.notionPageId, state: state)
         }
@@ -135,16 +141,22 @@ class NoteExporter {
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "\"", with: "\\\"")
             
-        let metaLine = durationString.isEmpty ? dateString : "\(dateString) • Длительность: \(durationString)"
+        let metaLine = durationString.isEmpty ? dateString : "\(dateString) • \(state.l("Duration")): \(durationString)"
         let tagsText = state.defaultNoteTags.isEmpty ? "" : "<br><br>\(state.defaultNoteTags.replacingOccurrences(of: "\"", with: "\\\""))"
         
         let htmlContent = "<h1>\(sanitizedTitle)</h1><p><i>\(metaLine)</i></p><br><p>\(sanitizedBody)\(tagsText)</p>"
         
-        let scriptSource = """
+        var scriptSource = """
         tell application "Notes"
             make new note with properties {name:"\(sanitizedTitle)", body:"\(htmlContent)"}
-        end tell
         """
+        if state.autoOpenNotesAfterLecture {
+            scriptSource += """
+            
+            activate
+            """
+        }
+        scriptSource += "\nend tell"
         
         DispatchQueue.global(qos: .userInitiated).async {
             var error: NSDictionary?
