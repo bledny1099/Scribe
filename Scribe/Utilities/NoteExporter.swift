@@ -148,7 +148,7 @@ class NoteExporter {
         
         var scriptSource = """
         tell application "Notes"
-            make new note with properties {name:"\(sanitizedTitle)", body:"\(htmlContent)"}
+            make new note with properties {body:"\(htmlContent)"}
         """
         if state.autoOpenNotesAfterLecture {
             scriptSource += """

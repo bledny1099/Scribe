@@ -43,6 +43,78 @@ public enum AudioFileImporter {
         return nil
     }
 
+    /// Directory URL for macOS Voice Memos (Диктофон) recordings
+    public static var voiceMemosDirectoryURL: URL? {
+        let path = ("~/Library/Group Containers/group.com.apple.VoiceMemos.shared/Recordings" as NSString).expandingTildeInPath
+        if FileManager.default.fileExists(atPath: path) {
+            return URL(fileURLWithPath: path)
+        }
+        return nil
+    }
+
+    /// Prompts the user to pick a recording directly from Voice Memos.
+    @MainActor
+    public static func pickVoiceMemoFile() -> URL? {
+        let openPanel = NSOpenPanel()
+        openPanel.title = "Выберите запись из Диктофона"
+        openPanel.prompt = "Импортировать"
+        openPanel.allowsMultipleSelection = false
+        openPanel.canChooseDirectories = false
+        openPanel.canCreateDirectories = false
+        openPanel.canChooseFiles = true
+        if let dir = voiceMemosDirectoryURL {
+            openPanel.directoryURL = dir
+        }
+
+        let audioTypes: [UTType] = [
+            UTType(filenameExtension: "m4a") ?? .audio,
+            .audio,
+            .mp3,
+            .wav
+        ]
+        openPanel.allowedContentTypes = audioTypes
+
+        if openPanel.runModal() == .OK {
+            return openPanel.url
+        }
+        return nil
+    }
+
+    /// Robust helper to extract a file URL from an NSItemProvider dropped from Finder or Voice Memos app
+    public static func extractDroppedFileURL(from provider: NSItemProvider) async -> URL? {
+        // 1. Try URL representation
+        if provider.canLoadObject(ofClass: URL.self) {
+            let url: URL? = await withCheckedContinuation { continuation in
+                _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                    continuation.resume(returning: url)
+                }
+            }
+            if let url = url, isSupportedFile(url: url) {
+                return url
+            }
+        }
+        // 2. Try file-url type identifier
+        if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+            let url: URL? = await withCheckedContinuation { continuation in
+                provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
+                    if let url = item as? URL {
+                        continuation.resume(returning: url)
+                    } else if let data = item as? Data, let url = URL(dataRepresentation: data, relativeTo: nil) {
+                        continuation.resume(returning: url)
+                    } else if let str = item as? String, let url = URL(string: str) {
+                        continuation.resume(returning: url)
+                    } else {
+                        continuation.resume(returning: nil)
+                    }
+                }
+            }
+            if let url = url, isSupportedFile(url: url) {
+                return url
+            }
+        }
+        return nil
+    }
+
     /// Checks if a file URL is a supported audio or video file.
     public static func isSupportedFile(url: URL) -> Bool {
         let ext = url.pathExtension.lowercased()

@@ -687,8 +687,12 @@ final class AppState: ObservableObject {
     @AppStorage("enableCloudAI") public var enableCloudAI: Bool = false
     @AppStorage("cloudAIProvider") public var cloudAIProviderRaw: String = CloudAIProvider.groq.rawValue
     @AppStorage("groqAPIKey") public var groqAPIKey: String = ""
+    @AppStorage("anthropicAPIKey") public var anthropicAPIKey: String = ""
     @AppStorage("openAIAPIKey") public var openAIAPIKey: String = ""
-    @AppStorage("selectedAIRefinementMode") public var selectedAIRefinementModeRaw: String = AIRefinementMode.raw.rawValue
+    @AppStorage("ollamaEndpoint") public var ollamaEndpoint: String = "http://localhost:11434"
+    @AppStorage("ollamaModel") public var ollamaModel: String = "qwen2.5:7b"
+    @AppStorage("selectedAIRefinementMode") public var selectedAIRefinementModeRaw: String = AIRefinementMode.polish.rawValue
+    @AppStorage("useCloudSpeechTranscription") public var useCloudSpeechTranscription: Bool = false
 
     public var transcriptionMode: ScribeMode {
         get { ScribeMode(rawValue: transcriptionModeRaw) ?? .clean }
@@ -701,14 +705,16 @@ final class AppState: ObservableObject {
     }
 
     public var selectedAIRefinementMode: AIRefinementMode {
-        get { AIRefinementMode(rawValue: selectedAIRefinementModeRaw) ?? .raw }
+        get { AIRefinementMode(rawValue: selectedAIRefinementModeRaw) ?? .polish }
         set { selectedAIRefinementModeRaw = newValue.rawValue }
     }
 
     public var activeCloudAPIKey: String {
         switch cloudAIProvider {
         case .groq:                 return groqAPIKey
+        case .anthropic:            return anthropicAPIKey
         case .openAI, .scribeCloud: return openAIAPIKey
+        case .ollama:               return "local"
         }
     }
 
@@ -962,6 +968,12 @@ final class AppState: ObservableObject {
                 PermissionWindowManager.shared.showWindow(appState: self)
             }
         }
+        
+        // Pre-request Apple Notes automation permission so macOS asks up-front rather than during a lecture export
+        if (lectureTargetAppleNotes || enableAppleNotes) && !UserDefaults.standard.bool(forKey: "hasPromptedAppleNotesPermission") {
+            UserDefaults.standard.set(true, forKey: "hasPromptedAppleNotesPermission")
+            PermissionManager.shared.requestAppleNotes()
+        }
     }
 
     // MARK: - Public API
@@ -983,6 +995,9 @@ final class AppState: ObservableObject {
     /// Starts a long lecture recording session: no intrusive on-screen overlay, toolbar indication, auto-exports to new note.
     public func startLectureRecording() {
         guard !isRecording, !isTranscribing else { return }
+        if lectureTargetAppleNotes && !PermissionManager.shared.isAppleNotesGranted {
+            PermissionManager.shared.requestAppleNotes()
+        }
         isLectureRecording = true
         startRecording()
     }
@@ -1070,6 +1085,9 @@ final class AppState: ObservableObject {
         let localMode = self.selectedAIRefinementMode
         let localAPIKey = self.activeCloudAPIKey
         let localEnableCloud = self.enableCloudAI
+        let localOllamaEndpoint = self.ollamaEndpoint
+        let localOllamaModel = self.ollamaModel
+        let localUseCloudSpeech = self.useCloudSpeechTranscription
         let soundFeedback = self.soundFeedbackEnabled
         let livePreview = self.livePreviewEnabled
 
@@ -1111,7 +1129,7 @@ final class AppState: ObservableObject {
                 logger.info("Starting transcription with model=\(self.effectiveModel), mode=\(self.recognitionMode), lang=\(langParam ?? "auto"), preferred=\(preferredLangs)…")
                 var text = ""
 
-                if localEnableCloud && !localAPIKey.isEmpty {
+                if localUseCloudSpeech && localEnableCloud && !localAPIKey.isEmpty {
                     logger.info("Using Cloud AI transcription via \(localProvider.displayName)…")
                     do {
                         if let conditionedURL = AetherAudioConditioner.shared.condition(audioURL: audioURL) {
@@ -1198,15 +1216,26 @@ final class AppState: ObservableObject {
                     to: text
                 )
 
-                // LLM Refinement if Cloud AI is active and an AI mode is selected
-                if localEnableCloud && !localAPIKey.isEmpty && localMode != .raw {
-                    logger.info("Refining text with LLM (\(localMode.displayName))…")
-                    text = try await CloudAIService.shared.refineText(
-                        text: text,
-                        mode: localMode,
-                        provider: localProvider,
-                        apiKey: localAPIKey
-                    )
+                // LLM Refinement if Cloud AI post-processing is active
+                let effectiveAIMode = (localMode == .raw) ? .polish : localMode
+                let canRunLLM = localEnableCloud && (!localAPIKey.isEmpty || localProvider == .ollama)
+                if canRunLLM && localMode != .raw {
+                    logger.info("Refining text with LLM (\(effectiveAIMode.displayName) via \(localProvider.displayName))…")
+                    do {
+                        let refined = try await CloudAIService.shared.refineText(
+                            text: text,
+                            mode: effectiveAIMode,
+                            provider: localProvider,
+                            apiKey: localAPIKey,
+                            ollamaEndpoint: localOllamaEndpoint,
+                            ollamaModel: localOllamaModel
+                        )
+                        if !refined.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            text = refined
+                        }
+                    } catch {
+                        logger.warning("LLM text refinement failed (\(error.localizedDescription)), keeping original transcribed text.")
+                    }
                 }
 
                 // Smart Casing: Lowercase first letter if continuing an active sentence
@@ -1337,6 +1366,9 @@ final class AppState: ObservableObject {
     /// Imports an audio/video file, transcribes it in the background, and exports directly to a new note in Apple Notes.
     public func importAndTranscribeLecture(url: URL) {
         guard !isImportTranscribing else { return }
+        if lectureTargetAppleNotes && !PermissionManager.shared.isAppleNotesGranted {
+            PermissionManager.shared.requestAppleNotes()
+        }
         isImportTranscribing = true
         importProgressMessage = "Подготовка файла…"
 

@@ -261,7 +261,61 @@ struct LiquidGlassMenuBarView: View {
                     .buttonStyle(.plain)
                     .help(appState.l("Record lecture in background without on-screen overlay and save to Notes"))
                 }
+
+                // MARK: - Quick AI Post-Processing Toggle Card
+                Button {
+                    withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                        appState.enableCloudAI.toggle()
+                    }
+                } label: {
+                    HStack(spacing: 8) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 7)
+                                .fill(appState.enableCloudAI ? Color.purple.opacity(0.20) : Color.primary.opacity(0.06))
+                                .frame(width: 24, height: 24)
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(appState.enableCloudAI ? Color.purple : Color.secondary)
+                        }
+
+                        VStack(alignment: .leading, spacing: 1) {
+                            HStack(spacing: 4) {
+                                Text(appState.l("AI-обработка (Claude)"))
+                                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                if appState.enableCloudAI {
+                                    Text("ON")
+                                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                        .foregroundStyle(Color.purple)
+                                }
+                            }
+                            Text(appState.enableCloudAI ? appState.l("Активно: пунктуация, грамматика, чистка пауз") : appState.l("Выключено: чистый Whisper"))
+                                .font(.system(size: 10))
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Spacer()
+
+                        Toggle("", isOn: $appState.enableCloudAI)
+                            .toggleStyle(.switch)
+                            .controlSize(.mini)
+                            .labelsHidden()
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 7)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(appState.enableCloudAI ? Color.purple.opacity(0.06) : Color.primary.opacity(0.03))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(appState.enableCloudAI ? Color.purple.opacity(0.25) : Color.primary.opacity(0.06), lineWidth: 1)
+                    )
+                }
+                .buttonStyle(.plain)
+                .help(appState.l("Быстрое переключение AI-обработки текста"))
             }
+
             // Footer
             HStack(spacing: 8) {
                 Button {

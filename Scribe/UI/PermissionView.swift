@@ -287,6 +287,17 @@ struct PermissionWelcomeView: View {
                                 isGranted: permissionManager.isSpeechRecognitionGranted,
                                 action: { permissionManager.requestSpeechRecognition() }
                             )
+
+                            Divider()
+                                .padding(.horizontal, 16)
+
+                            PermissionRow(
+                                title: "Apple Notes (Optional)",
+                                description: "Enables saving lecture recordings and transcripts directly to Notes.",
+                                icon: "apple.logo",
+                                isGranted: permissionManager.isAppleNotesGranted,
+                                action: { permissionManager.requestAppleNotes() }
+                            )
                         }
                         .background(
                             RoundedRectangle(cornerRadius: 12)

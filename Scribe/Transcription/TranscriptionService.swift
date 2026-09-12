@@ -1888,54 +1888,61 @@ final class TextReplacer {
 
 public enum CloudAIProvider: String, CaseIterable, Identifiable, Sendable {
     case groq = "groq"
+    case anthropic = "anthropic"
     case openAI = "openai"
+    case ollama = "ollama"
     case scribeCloud = "scribe_cloud"
 
     public var id: String { rawValue }
 
     public var displayName: String {
         switch self {
-        case .groq:        return "Groq AI (Ultra Fast)"
-        case .openAI:      return "OpenAI (Whisper & GPT-4o)"
+        case .groq:        return "Groq (Ultra-Fast)"
+        case .anthropic:   return "Anthropic Claude"
+        case .openAI:      return "OpenAI"
+        case .ollama:      return "Ollama (Local)"
         case .scribeCloud: return "Scribe Pro Cloud"
         }
     }
 }
 
 public enum AIRefinementMode: String, CaseIterable, Identifiable, Sendable {
-    case raw = "raw"
+    case polish = "polish"
     case summary = "summary"
     case executive = "executive"
     case actionItems = "action_items"
     case translation = "translation"
+    case raw = "raw"
 
     public var id: String { rawValue }
 
     public var displayName: String {
         switch self {
-        case .raw:         return "Raw Text"
+        case .polish:      return "Smart Polish (Claude)"
         case .summary:     return "Key Summary"
         case .executive:   return "Executive Tone"
         case .actionItems: return "Action Items"
         case .translation: return "English Translation"
+        case .raw:         return "Raw Text"
         }
     }
 
     public var icon: String {
         switch self {
-        case .raw:         return "text.quote"
+        case .polish:      return "wand.and.stars"
         case .summary:     return "sparkles"
         case .executive:   return "briefcase.fill"
         case .actionItems: return "checkmark.square.fill"
         case .translation: return "globe"
+        case .raw:         return "text.quote"
         }
     }
 
     public var promptInstruction: String? {
         let strictRule = " CRITICAL REQUIREMENT: Output ONLY the final result text directly. Never include preambles, intros (e.g. 'Here is...'), conversational filler, explanations, greetings, or multiple options. Output exactly ONE single final refined text."
         switch self {
-        case .raw:
-            return nil
+        case .polish:
+            return "You are an expert speech-to-text refinement assistant (like in Claude voice mode). Clean up the transcribed speech into natural, perfectly punctuated, grammatically flawless text. Fix misheard words, speech hesitations, false starts, and grammatical agreements, while preserving the exact language (Russian, English, etc.), tone, style, and complete meaning. Do not summarize, do not shorten, and do not translate. Output ONLY the final polished text directly without any preambles, explanations, or quotes." + strictRule
         case .summary:
             return "Summarize the following speech into a clean, well-formatted bullet list of key takeaways. Retain important names, facts, and numbers." + strictRule
         case .executive:
@@ -1944,6 +1951,8 @@ public enum AIRefinementMode: String, CaseIterable, Identifiable, Sendable {
             return "Extract clear, actionable tasks and TODOs from the following speech into a structured list of action items with checkboxes." + strictRule
         case .translation:
             return "Translate the following speech into fluent, accurate English while maintaining its original meaning and context." + strictRule
+        case .raw:
+            return nil
         }
     }
 }
@@ -1968,7 +1977,7 @@ public final class CloudAIService: @unchecked Sendable {
         switch provider {
         case .groq:
             endpoint = URL(string: "https://api.groq.com/openai/v1/audio/transcriptions")!
-        case .openAI, .scribeCloud:
+        case .openAI, .scribeCloud, .anthropic, .ollama:
             endpoint = URL(string: "https://api.openai.com/v1/audio/transcriptions")!
         }
 
@@ -2017,59 +2026,151 @@ public final class CloudAIService: @unchecked Sendable {
         throw NSError(domain: "CloudAIService", code: 500, userInfo: [NSLocalizedDescriptionKey: "Failed to parse response"])
     }
 
-    /// Performs LLM Voice Refinement (Auto-Summary, Executive Tone, Action Items)
+    /// Performs LLM Voice Refinement (Auto-Summary, Executive Tone, Action Items, Claude Polish)
     public func refineText(
         text: String,
         mode: AIRefinementMode,
         provider: CloudAIProvider,
-        apiKey: String
+        apiKey: String,
+        ollamaEndpoint: String = "http://localhost:11434",
+        ollamaModel: String = "qwen2.5:7b"
     ) async throws -> String {
         guard let instruction = mode.promptInstruction else { return text }
         let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedKey.isEmpty else { return text }
-
-        let endpoint: URL
-        let modelName: String
+        if provider != .ollama && trimmedKey.isEmpty { return text }
 
         switch provider {
         case .groq:
-            endpoint = URL(string: "https://api.groq.com/openai/v1/chat/completions")!
-            modelName = "llama-3.3-70b-versatile"
+            let endpoint = URL(string: "https://api.groq.com/openai/v1/chat/completions")!
+            var request = URLRequest(url: endpoint)
+            request.httpMethod = "POST"
+            request.setValue("Bearer \(trimmedKey)", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.timeoutInterval = 8.0
+
+            let body: [String: Any] = [
+                "model": "qwen/qwen3.8-27b",
+                "messages": [
+                    ["role": "system", "content": instruction],
+                    ["role": "user", "content": text]
+                ],
+                "temperature": 0.2,
+                "max_tokens": 1024
+            ]
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let (responseData, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+                let errText = String(data: responseData, encoding: .utf8) ?? "Groq Error"
+                print("Groq refinement error: \(errText)")
+                return text
+            }
+            if let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
+               let choices = json["choices"] as? [[String: Any]],
+               let firstChoice = choices.first,
+               let message = firstChoice["message"] as? [String: Any],
+               let content = message["content"] as? String {
+                let cleaned = content.trimmingCharacters(in: .whitespacesAndNewlines)
+                return cleaned.isEmpty ? text : cleaned
+            }
+            return text
+
+        case .anthropic:
+            let endpoint = URL(string: "https://api.anthropic.com/v1/messages")!
+            var request = URLRequest(url: endpoint)
+            request.httpMethod = "POST"
+            request.setValue(trimmedKey, forHTTPHeaderField: "x-api-key")
+            request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.timeoutInterval = 10.0
+
+            let body: [String: Any] = [
+                "model": "claude-3-5-haiku-latest",
+                "max_tokens": 1024,
+                "system": instruction,
+                "messages": [
+                    ["role": "user", "content": text]
+                ],
+                "temperature": 0.2
+            ]
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let (responseData, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+                let errText = String(data: responseData, encoding: .utf8) ?? "Anthropic Error"
+                print("Anthropic refinement error: \(errText)")
+                return text
+            }
+            if let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
+               let content = json["content"] as? [[String: Any]],
+               let firstBlock = content.first,
+               let textBlock = firstBlock["text"] as? String {
+                let cleaned = textBlock.trimmingCharacters(in: .whitespacesAndNewlines)
+                return cleaned.isEmpty ? text : cleaned
+            }
+            return text
+
         case .openAI, .scribeCloud:
-            endpoint = URL(string: "https://api.openai.com/v1/chat/completions")!
-            modelName = "gpt-4o-mini"
-        }
+            let endpoint = URL(string: "https://api.openai.com/v1/chat/completions")!
+            var request = URLRequest(url: endpoint)
+            request.httpMethod = "POST"
+            request.setValue("Bearer \(trimmedKey)", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.timeoutInterval = 8.0
 
-        var request = URLRequest(url: endpoint)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(trimmedKey)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            let body: [String: Any] = [
+                "model": "gpt-4o-mini",
+                "messages": [
+                    ["role": "system", "content": instruction],
+                    ["role": "user", "content": text]
+                ],
+                "temperature": 0.2,
+                "max_tokens": 1024
+            ]
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let (responseData, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+                return text
+            }
+            if let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
+               let choices = json["choices"] as? [[String: Any]],
+               let firstChoice = choices.first,
+               let message = firstChoice["message"] as? [String: Any],
+               let content = message["content"] as? String {
+                let cleaned = content.trimmingCharacters(in: .whitespacesAndNewlines)
+                return cleaned.isEmpty ? text : cleaned
+            }
+            return text
 
-        let body: [String: Any] = [
-            "model": modelName,
-            "messages": [
-                ["role": "system", "content": instruction],
-                ["role": "user", "content": text]
-            ],
-            "temperature": 0.3
-        ]
+        case .ollama:
+            let cleanBase = ollamaEndpoint.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            guard let endpoint = URL(string: "\(cleanBase)/v1/chat/completions") else { return text }
+            var request = URLRequest(url: endpoint)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.timeoutInterval = 12.0
 
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        let (responseData, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-            _ = String(data: responseData, encoding: .utf8) ?? "LLM Error"
+            let body: [String: Any] = [
+                "model": ollamaModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "qwen2.5:7b" : ollamaModel,
+                "messages": [
+                    ["role": "system", "content": instruction],
+                    ["role": "user", "content": text]
+                ],
+                "temperature": 0.2
+            ]
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let (responseData, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+                return text
+            }
+            if let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
+               let choices = json["choices"] as? [[String: Any]],
+               let firstChoice = choices.first,
+               let message = firstChoice["message"] as? [String: Any],
+               let content = message["content"] as? String {
+                let cleaned = content.trimmingCharacters(in: .whitespacesAndNewlines)
+                return cleaned.isEmpty ? text : cleaned
+            }
             return text
         }
-
-        if let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
-           let choices = json["choices"] as? [[String: Any]],
-           let firstChoice = choices.first,
-           let message = firstChoice["message"] as? [String: Any],
-           let content = message["content"] as? String {
-            return content.trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-        return text
     }
 }
 

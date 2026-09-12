@@ -14,6 +14,7 @@ final class PermissionManager: ObservableObject {
     @Published var isMicrophoneGranted: Bool = false
     @Published var isAccessibilityGranted: Bool = false
     @Published var isSpeechRecognitionGranted: Bool = false
+    @Published var isAppleNotesGranted: Bool = false
 
     private var timer: Timer?
     private var activeObserver: NSObjectProtocol?
@@ -21,6 +22,7 @@ final class PermissionManager: ObservableObject {
 
     init() {
         checkPermissions()
+        checkAppleNotesPermission()
         if !isMicrophoneGranted || !isAccessibilityGranted {
             startPolling()
         }
@@ -111,6 +113,33 @@ final class PermissionManager: ObservableObject {
             Task { @MainActor in
                 PermissionManager.shared.isSpeechRecognitionGranted = (status == .authorized)
                 PermissionManager.shared.checkPermissions()
+            }
+        }
+    }
+
+    func checkAppleNotesPermission() {
+        DispatchQueue.global(qos: .utility).async {
+            let script = NSAppleScript(source: "tell application \"Notes\" to get name")
+            var error: NSDictionary?
+            let result = script?.executeAndReturnError(&error)
+            let granted = (result != nil && error == nil)
+            Task { @MainActor in
+                if self.isAppleNotesGranted != granted {
+                    self.isAppleNotesGranted = granted
+                }
+            }
+        }
+    }
+
+    func requestAppleNotes(completion: (@Sendable @MainActor (Bool) -> Void)? = nil) {
+        Task.detached(priority: .userInitiated) {
+            let script = NSAppleScript(source: "tell application \"Notes\" to get name")
+            var error: NSDictionary?
+            let result = script?.executeAndReturnError(&error)
+            let granted = (result != nil && error == nil)
+            await MainActor.run {
+                self.isAppleNotesGranted = granted
+                completion?(granted)
             }
         }
     }

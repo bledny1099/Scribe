@@ -5,26 +5,26 @@ import UniformTypeIdentifiers
 
 enum SettingsTab: String, CaseIterable {
     case general = "General"
-    case lectures = "Lectures"
     case appearance = "Appearance"
     case recognition = "Recognition"
     case vocabulary = "Vocabulary"
-    case history = "History"
-    case replacements = "Replacements"
+    case lectures = "Lectures"
     case integrations = "Integrations"
+    case replacements = "Replacements"
+    case history = "History"
     case system = "System"
     case statistics = "Statistics"
 
     var icon: String {
         switch self {
         case .general:      return "slider.horizontal.3"
-        case .lectures:     return "graduationcap.fill"
         case .appearance:   return "paintbrush.fill"
         case .recognition:  return "waveform.and.mic"
         case .vocabulary:   return "book.fill"
-        case .history:      return "clock.arrow.circlepath"
-        case .replacements: return "text.badge.plus"
+        case .lectures:     return "graduationcap.fill"
         case .integrations: return "puzzlepiece.fill"
+        case .replacements: return "text.badge.plus"
+        case .history:      return "clock.arrow.circlepath"
         case .system:       return "gearshape.fill"
         case .statistics:   return "chart.bar.fill"
         }
@@ -212,11 +212,11 @@ struct SettingsSidebarView: View {
 
     private let mainTabs: [SettingsTab] = [
         .general,
-        .lectures,
         .appearance,
         .recognition,
-        .integrations,
         .vocabulary,
+        .lectures,
+        .integrations,
         .replacements,
         .history,
         .system
@@ -352,26 +352,26 @@ struct SettingsContentView: View {
                 switch selectedTab {
                 case .general:
                     GeneralSettingsView()
-                case .lectures:
-                    LecturesSettingsView()
                 case .appearance:
                     AppearanceSettingsView()
                 case .recognition:
                     RecognitionSettingsView()
-                case .statistics:
-                    StatisticsSectionView()
-                case .replacements:
-                    ReplacementsSettingsView()
-                case .integrations:
-                    IntegrationsSettingsView()
                 case .vocabulary:
                     VocabularySettingsView()
+                case .lectures:
+                    LecturesSettingsView()
+                case .integrations:
+                    IntegrationsSettingsView()
+                case .replacements:
+                    ReplacementsSettingsView()
                 case .history:
                     GlassSection(title: appState.l("History"), icon: "clock.arrow.circlepath") {
                         HistoryView(inSettings: true)
                     }
                 case .system:
                     SystemSettingsView()
+                case .statistics:
+                    StatisticsSectionView()
                 }
             }
             .padding(.horizontal, 24)
@@ -3114,6 +3114,9 @@ struct IntegrationsSettingsView: View {
     
     var body: some View {
         VStack(spacing: 16) {
+            // Cloud AI Post-Processing & Smart Polish
+            CloudAISettingsView()
+
             // General Output Mode Card
             GlassSection(title: appState.l("Output Options"), icon: "slider.horizontal.3") {
                 VStack(alignment: .leading, spacing: 14) {
@@ -6952,98 +6955,189 @@ struct CloudAISettingsView: View {
     @EnvironmentObject var appState: AppState
     @State private var testingConnection = false
     @State private var testStatusMessage: String? = nil
+    @State private var testIsSuccess: Bool = false
 
     var body: some View {
-        VStack(spacing: 20) {
-            GlassSection(title: appState.l("Scribe App Edition"), icon: "sparkles.tv.fill") {
-                VStack(alignment: .leading, spacing: 16) {
-                    // Edition Selector Header
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 6) {
-                                Text(appState.enableCloudAI ? "Scribe Pro + Cloud AI" : "Scribe Base")
-                                    .font(.system(size: 15, weight: .bold, design: .rounded))
-                                    .foregroundStyle(.primary)
-
-                                Text(appState.enableCloudAI ? "PRO EDITION" : "BASE EDITION")
-                                    .font(.system(size: 9, weight: .bold))
+        GlassSection(title: appState.l("AI Post-Processing & Smart Polish"), icon: "sparkles") {
+            VStack(alignment: .leading, spacing: 16) {
+                // Header toggle
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        HStack(spacing: 6) {
+                            Text(appState.l("AI-обработка текста (LLM)"))
+                                .font(.system(size: 14, weight: .bold, design: .rounded))
+                                .foregroundStyle(.primary)
+                            if appState.enableCloudAI {
+                                Text("ACTIVE")
+                                    .font(.system(size: 9, weight: .bold, design: .monospaced))
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 2)
-                                    .background(appState.enableCloudAI ? Color.purple.opacity(0.2) : Color.blue.opacity(0.2))
-                                    .foregroundStyle(appState.enableCloudAI ? Color.purple : Color.blue)
+                                    .background(Color.purple.opacity(0.18))
+                                    .foregroundStyle(Color.purple)
                                     .cornerRadius(4)
                             }
-                            Text(appState.enableCloudAI ? 
-                                 appState.l("Pro Edition: Enables ultra-fast Cloud AI, LLM text refinement (summaries, executive tone, action items) & Cloud Sync.") :
-                                 appState.l("Base Edition: Free offline dictation, local Whisper models, text replacements, and notes integrations."))
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
                         }
-                        Spacer()
-                        Toggle("", isOn: $appState.enableCloudAI)
-                            .toggleStyle(.switch)
-                            .labelsHidden()
+                        Text(appState.l("Исправляет грамматику, ложные старты, оговорки и пунктуацию с сохранением смысла и языка оригинала."))
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer()
+                    Toggle("", isOn: $appState.enableCloudAI)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                }
+
+                if appState.enableCloudAI {
+                    Divider().opacity(0.3)
+
+                    // Refinement Mode Selector
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(appState.l("Режим обработки"))
+                            .font(.system(size: 12.5, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.primary)
+
+                        LiquidGlassSegmentedPicker(
+                            items: AIRefinementMode.allCases,
+                            selection: $appState.selectedAIRefinementMode,
+                            label: { ($0.displayName, $0.icon) }
+                        )
                     }
 
-                    if appState.enableCloudAI {
-                        Divider().opacity(0.3)
+                    Divider().opacity(0.3)
 
-                        // Scribe Pro License Token Input
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(appState.l("Scribe Pro License Key / Token"))
-                                .font(.system(size: 13, weight: .medium, design: .rounded))
-                                .foregroundStyle(.primary)
+                    // Provider Selector
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(appState.l("AI-провайдер"))
+                            .font(.system(size: 12.5, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.primary)
 
-                            HStack {
-                                SecureField(appState.l("Enter your Scribe Pro key (scribe_pro_...)"), text: $appState.groqAPIKey)
-                                .textFieldStyle(.plain)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 7)
-                                .background(Color.primary.opacity(0.04))
-                                .cornerRadius(8)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .strokeBorder(Color.primary.opacity(0.1), lineWidth: 1)
-                                )
+                        LiquidGlassSegmentedPicker(
+                            items: [CloudAIProvider.groq, CloudAIProvider.anthropic, CloudAIProvider.openAI, CloudAIProvider.ollama],
+                            selection: $appState.cloudAIProvider,
+                            label: { ($0.displayName, providerIcon(for: $0)) }
+                        )
+                    }
 
-                                Button(action: testConnection) {
-                                    if testingConnection {
-                                        ProgressView().scaleEffect(0.7)
-                                    } else {
-                                        Text(appState.l("Activate"))
-                                            .font(.system(size: 12, weight: .semibold))
+                    // Provider configuration
+                    VStack(alignment: .leading, spacing: 8) {
+                        switch appState.cloudAIProvider {
+                        case .groq:
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(appState.l("Groq API Key (qwen/qwen3.8-27b • ~200ms)"))
+                                    .font(.system(size: 11.5, weight: .medium))
+                                    .foregroundStyle(.secondary)
+                                HStack {
+                                    SecureField("gsk_...", text: $appState.groqAPIKey)
+                                        .textFieldStyle(.roundedBorder)
+                                    Button(action: testConnection) {
+                                        if testingConnection {
+                                            ProgressView().controlSize(.small)
+                                        } else {
+                                            Text(appState.l("Проверить"))
+                                                .font(.system(size: 12, weight: .semibold))
+                                        }
                                     }
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 5)
+                                    .background(Color.primary.opacity(0.08))
+                                    .cornerRadius(6)
+                                    .buttonStyle(.plain)
                                 }
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 7)
-                                .background(Color.blue.opacity(0.12))
-                                .cornerRadius(8)
-                                .buttonStyle(.plain)
                             }
 
-                            if let msg = testStatusMessage {
-                                Text(msg)
-                                    .font(.system(size: 11, weight: .medium))
-                                    .foregroundStyle(msg.contains("Active") || msg.contains("Success") ? .green : .red)
+                        case .anthropic:
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(appState.l("Anthropic Claude API Key (claude-3-5-haiku-latest)"))
+                                    .font(.system(size: 11.5, weight: .medium))
+                                    .foregroundStyle(.secondary)
+                                HStack {
+                                    SecureField("sk-ant-...", text: $appState.anthropicAPIKey)
+                                        .textFieldStyle(.roundedBorder)
+                                    Button(action: testConnection) {
+                                        if testingConnection {
+                                            ProgressView().controlSize(.small)
+                                        } else {
+                                            Text(appState.l("Проверить"))
+                                                .font(.system(size: 12, weight: .semibold))
+                                        }
+                                    }
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 5)
+                                    .background(Color.primary.opacity(0.08))
+                                    .cornerRadius(6)
+                                    .buttonStyle(.plain)
+                                }
+                            }
+
+                        case .openAI, .scribeCloud:
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(appState.l("OpenAI API Key (gpt-4o-mini)"))
+                                    .font(.system(size: 11.5, weight: .medium))
+                                    .foregroundStyle(.secondary)
+                                HStack {
+                                    SecureField("sk-...", text: $appState.openAIAPIKey)
+                                        .textFieldStyle(.roundedBorder)
+                                    Button(action: testConnection) {
+                                        if testingConnection {
+                                            ProgressView().controlSize(.small)
+                                        } else {
+                                            Text(appState.l("Проверить"))
+                                                .font(.system(size: 12, weight: .semibold))
+                                        }
+                                    }
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 5)
+                                    .background(Color.primary.opacity(0.08))
+                                    .cornerRadius(6)
+                                    .buttonStyle(.plain)
+                                }
+                            }
+
+                        case .ollama:
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack(spacing: 12) {
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text(appState.l("Ollama Endpoint"))
+                                            .font(.system(size: 11, weight: .medium))
+                                            .foregroundStyle(.secondary)
+                                        TextField("http://localhost:11434", text: $appState.ollamaEndpoint)
+                                            .textFieldStyle(.roundedBorder)
+                                    }
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text(appState.l("Model Name"))
+                                            .font(.system(size: 11, weight: .medium))
+                                            .foregroundStyle(.secondary)
+                                        TextField("qwen2.5:7b", text: $appState.ollamaModel)
+                                            .textFieldStyle(.roundedBorder)
+                                    }
+                                    Button(action: testConnection) {
+                                        if testingConnection {
+                                            ProgressView().controlSize(.small)
+                                        } else {
+                                            Text(appState.l("Проверить"))
+                                                .font(.system(size: 12, weight: .semibold))
+                                        }
+                                    }
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 5)
+                                    .background(Color.primary.opacity(0.08))
+                                    .cornerRadius(6)
+                                    .buttonStyle(.plain)
+                                }
                             }
                         }
 
-                        Divider().opacity(0.3)
-
-                        // AI Refinement Mode Selector
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(appState.l("Smart LLM Voice Refinement"))
-                                .font(.system(size: 13, weight: .medium, design: .rounded))
-                                .foregroundStyle(.primary)
-                            Text(appState.l("Automatically transforms your dictation after speech recognition completes"))
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-
-                            LiquidGlassSegmentedPicker(
-                                items: AIRefinementMode.allCases,
-                                selection: $appState.selectedAIRefinementMode,
-                                label: { ($0.displayName, $0.icon) }
-                            )
+                        if let msg = testStatusMessage {
+                            HStack(spacing: 6) {
+                                Image(systemName: testIsSuccess ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(testIsSuccess ? Color.green : Color.red)
+                                Text(msg)
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundStyle(testIsSuccess ? Color.green : Color.red)
+                            }
+                            .padding(.top, 2)
                         }
                     }
                 }
@@ -7051,10 +7145,20 @@ struct CloudAISettingsView: View {
         }
     }
 
+    private func providerIcon(for provider: CloudAIProvider) -> String {
+        switch provider {
+        case .groq: return "bolt.fill"
+        case .anthropic: return "sparkles"
+        case .openAI, .scribeCloud: return "brain"
+        case .ollama: return "desktopcomputer"
+        }
+    }
+
     private func testConnection() {
-        let key = appState.groqAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !key.isEmpty else {
-            testStatusMessage = "Please enter a valid Scribe Pro license key"
+        let key = appState.activeCloudAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        if appState.cloudAIProvider != .ollama && key.isEmpty {
+            testIsSuccess = false
+            testStatusMessage = "Введите API-ключ для проверки"
             return
         }
         testingConnection = true
@@ -7062,20 +7166,24 @@ struct CloudAISettingsView: View {
 
         Task {
             do {
-                _ = try await CloudAIService.shared.refineText(
-                    text: "Test connection",
-                    mode: .summary,
-                    provider: .groq,
-                    apiKey: key
+                let res = try await CloudAIService.shared.refineText(
+                    text: "Привет, это тестовая проверка связи с AI.",
+                    mode: .polish,
+                    provider: appState.cloudAIProvider,
+                    apiKey: key,
+                    ollamaEndpoint: appState.ollamaEndpoint,
+                    ollamaModel: appState.ollamaModel
                 )
                 await MainActor.run {
                     testingConnection = false
-                    testStatusMessage = "Scribe Pro License Active! Cloud features enabled."
+                    testIsSuccess = true
+                    testStatusMessage = "Успешно! Ответ: \"\(res.prefix(40))…\""
                 }
             } catch {
                 await MainActor.run {
                     testingConnection = false
-                    testStatusMessage = "License verification failed: \(error.localizedDescription)"
+                    testIsSuccess = false
+                    testStatusMessage = "Ошибка: \(error.localizedDescription)"
                 }
             }
         }
