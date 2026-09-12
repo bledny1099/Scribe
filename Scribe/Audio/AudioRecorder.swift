@@ -49,6 +49,7 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
         set { _liveAudioLevel = newValue }
     }
 
+    private let levelTracker = AdaptiveAudioLevelTracker()
     private let audioProcessingQueue = DispatchQueue(label: "com.aleksei.scribe.audioProcessing", qos: .userInteractive)
  
     // MARK: - Init
@@ -80,6 +81,8 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("scribe_\(UUID().uuidString).wav")
  
+        levelTracker.reset()
+
         let inputNode = audioEngine.inputNode
         
         // Route audio input to user-selected hardware microphone
@@ -111,17 +114,19 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
         let file = try AVAudioFile(forWriting: url, settings: recordingFormat.settings)
         audioFile = file
  
-        // Capture subject locally to avoid accessing self from audio thread
+        // Capture subject and adaptive tracker locally to avoid accessing self from audio thread
         let subject = audioLevelSubject
+        let tracker = levelTracker
         let queue = audioProcessingQueue
  
         inputNode.installTap(onBus: 0, bufferSize: 2048, format: recordingFormat) { [weak self] buffer, _ in
             guard let self = self, self.isRecording else {
                 return
             }
-            // Fast vDSP level calculation on real-time thread (lock-free, zero heap allocations)
-            let level = AudioRecorder.computeLevel(buffer)
+            // Compute adaptive RMS level with AGC and send to subject on audio thread
+            let level = tracker.process(buffer)
             self._liveAudioLevel = level
+            subject.send(level)
  
             // Clone buffer data to safely process asynchronously off the real-time audio thread
             guard let copy = AudioRecorder.copyPCMBuffer(buffer) else { return }
@@ -129,9 +134,6 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
             queue.async { [weak self] in
                 guard let self = self else { return }
                 
-                // Dispatch Combine update from background processing queue, never from real-time IO thread
-                subject.send(level)
- 
                 // Write to file on background processing queue
                 do {
                     try file.write(from: copy)
@@ -175,6 +177,7 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
         
         audioLevel = 0
         audioLevelSubject.send(0)
+        levelTracker.reset()
         _liveAudioLevel = 0
         logger.info("Recording stopped")
         return recordingURL
@@ -243,7 +246,7 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
         }
     }
 
-    // MARK: - RMS Metering (vDSP)
+    // MARK: - RMS Metering (vDSP) with Adaptive Speech Normalization
 
     /// Computes instantaneous audio level (0...1) from PCM buffer using Accelerate vDSP.
     /// Pure function: lock-free, zero-allocation, safe to run directly on real-time CoreAudio threads.
@@ -262,14 +265,104 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
             if rms > maxRMS { maxRMS = rms }
         }
 
-        // Convert to dBFS with broad dynamic sensitivity
-        // Ambient room noise is below -54 dBFS, conversational speech is -40 to -14 dBFS
         let db = 20 * log10(max(maxRMS, 1e-5))
         let minDb: Float = -54.0
         let maxDb: Float = -6.0
         let normalized = max(0, min(1, (db - minDb) / (maxDb - minDb)))
 
-        // Gentle power curve gives responsive visual animation without clipping
         return pow(normalized, 0.60)
+    }
+}
+
+/// Real-time adaptive speech gain control (AGC) and ambient noise tracking.
+/// Automatically expands quiet or distant vocal signals to the visualizer's full dynamic range,
+/// prevents close/loud speech from clipping, and drops to pure calm in silence.
+final class AdaptiveAudioLevelTracker: @unchecked Sendable {
+    // Current ambient noise floor estimate (in dBFS)
+    private var noiseFloorDb: Float = -58.0
+    // Current speech peak estimate (in dBFS)
+    private var speechPeakDb: Float = -24.0
+    // Smoothed output envelope level (0...1)
+    private var smoothedLevel: Float = 0.0
+    private let lock = os_unfair_lock_t.allocate(capacity: 1)
+
+    init() {
+        lock.initialize(to: os_unfair_lock())
+    }
+
+    deinit {
+        lock.deallocate()
+    }
+
+    func reset() {
+        os_unfair_lock_lock(lock)
+        noiseFloorDb = -58.0
+        speechPeakDb = -24.0
+        smoothedLevel = 0.0
+        os_unfair_lock_unlock(lock)
+    }
+
+    func process(_ buffer: AVAudioPCMBuffer) -> Float {
+        guard let channelData = buffer.floatChannelData, buffer.frameLength > 0 else { return 0 }
+
+        let frameCount = vDSP_Length(buffer.frameLength)
+        var maxRMS: Float = 0
+        let channelCount = Int(buffer.format.channelCount)
+
+        for ch in 0..<min(channelCount, 2) {
+            var rms: Float = 0
+            vDSP_rmsqv(channelData[ch], 1, &rms, frameCount)
+            if rms > maxRMS { maxRMS = rms }
+        }
+
+        let db = 20 * log10(max(maxRMS, 1e-5))
+
+        os_unfair_lock_lock(lock)
+        defer { os_unfair_lock_unlock(lock) }
+
+        // 1. Dynamic Noise Floor Tracking
+        // Fast down-tracking for quiet rooms, very slow upward drift so voice doesn't pull floor up
+        if db < noiseFloorDb {
+            noiseFloorDb = noiseFloorDb * 0.88 + db * 0.12
+        } else {
+            noiseFloorDb = min(-42.0, noiseFloorDb * 0.998 + db * 0.002)
+        }
+        noiseFloorDb = max(-72.0, min(-40.0, noiseFloorDb))
+
+        // 2. Dynamic Speech Peak Tracking (Adaptive Gain Control)
+        // If distant or soft, peak decays down so distant voice gets amplified.
+        // If loud or close, peak jumps up to avoid clipping.
+        if db > speechPeakDb {
+            speechPeakDb = speechPeakDb * 0.60 + db * 0.40
+        } else {
+            speechPeakDb = max(noiseFloorDb + 10.0, speechPeakDb * 0.994 + (noiseFloorDb + 14.0) * 0.006)
+        }
+        speechPeakDb = max(-48.0, min(-10.0, speechPeakDb))
+
+        // 3. Dynamic Speech Gate & Dynamic Range
+        let effectiveGate = max(-64.0, noiseFloorDb + 3.5)
+        let dynamicRange = max(10.0, speechPeakDb - effectiveGate)
+
+        let targetLevel: Float
+        if db <= effectiveGate {
+            targetLevel = 0.0
+        } else {
+            let normalized = min(1.0, max(0.0, (db - effectiveGate) / dynamicRange))
+            targetLevel = pow(normalized, 0.70)
+        }
+
+        // 4. Envelope follower (snappy attack, instantaneous silence release)
+        let attack: Float = 0.75
+        // When speech drops to gate/silence, release immediately (0.90). While vocalizing, use smooth release (0.40).
+        let release: Float = (targetLevel == 0.0) ? 0.90 : 0.40
+        let coeff = targetLevel > smoothedLevel ? attack : release
+        smoothedLevel = smoothedLevel + (targetLevel - smoothedLevel) * coeff
+
+        // If level drops into silence or below threshold, snap immediately to zero
+        if smoothedLevel < 0.02 || (targetLevel == 0.0 && smoothedLevel < 0.06) {
+            smoothedLevel = 0.0
+        }
+
+        return min(1.0, max(0.0, smoothedLevel))
     }
 }

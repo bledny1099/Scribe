@@ -48,13 +48,13 @@ public final class AetherAudioConditioner: @unchecked Sendable {
                 count: samplesPerChannel,
                 sampleRate: sampleRate
             ) else {
-                logger.info("AetherAudioConditioner: No speech detected in audio file. Returning nil to skip transcription.")
-                return nil
+                logger.info("AetherAudioConditioner: Soft or ambient speech boundaries not definitive. Passing unconditioned audio directly to Whisper.")
+                return audioURL
             }
 
             let trimmedLength = max(1, endFrame - startFrame)
             guard let trimmedBuffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(trimmedLength)) else {
-                return nil
+                return audioURL
             }
             trimmedBuffer.frameLength = AVAudioFrameCount(trimmedLength)
             for ch in 0..<channelCount {
@@ -71,8 +71,8 @@ public final class AetherAudioConditioner: @unchecked Sendable {
             logger.debug("Aether conditioned audio: trimmed \(samplesPerChannel) -> \(trimmedLength) frames (1.0x natural tempo)")
             return outputURL
         } catch {
-            logger.warning("Aether audio conditioning failed: \(error.localizedDescription)")
-            return nil
+            logger.warning("Aether audio conditioning failed: \(error.localizedDescription). Falling back to original audio.")
+            return audioURL
         }
     }
 
@@ -160,9 +160,9 @@ public final class AetherAudioConditioner: @unchecked Sendable {
             return nil
         }
 
-        // Add 300ms lead and 450ms tail padding
-        let leadPadding = Int(sampleRate * 0.30)
-        let tailPadding = Int(sampleRate * 0.45)
+        // Add 400ms lead and 800ms tail padding to ensure trailing consonants, word endings, and soft speech tails are never cut off
+        let leadPadding = Int(sampleRate * 0.40)
+        let tailPadding = Int(sampleRate * 0.80)
         let start = max(0, first - leadPadding)
         let end = min(count, last + tailPadding)
 

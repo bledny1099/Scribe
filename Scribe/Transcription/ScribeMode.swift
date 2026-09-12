@@ -301,9 +301,14 @@ public final class ScribeModeProcessor: @unchecked Sendable {
             let range = NSRange(result.startIndex..<result.endIndex, in: result)
             result = spaceAfterColon.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: "$1 $2")
         }
-        // For periods, only insert a space if followed by an uppercase letter (sentence boundary).
+        // For periods, insert a space before Cyrillic letters unconditionally (Cyrillic words never form web domains)
+        if let spaceAfterCyrillicPeriod = try? NSRegularExpression(pattern: "(\\.)([а-яёА-ЯЁ])") {
+            let range = NSRange(result.startIndex..<result.endIndex, in: result)
+            result = spaceAfterCyrillicPeriod.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: "$1 $2")
+        }
+        // For Latin periods, only insert a space if followed by an uppercase letter (sentence boundary).
         // This avoids corrupting web domains (e.g. "cgpbooks.co.uk", "google.com") and abbreviations ("etc.", "i.e.").
-        if let spaceAfterPeriod = try? NSRegularExpression(pattern: "(\\.)([A-ZА-ЯЁ])") {
+        if let spaceAfterPeriod = try? NSRegularExpression(pattern: "(\\.)([A-Z])") {
             let range = NSRange(result.startIndex..<result.endIndex, in: result)
             result = spaceAfterPeriod.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: "$1 $2")
         }
@@ -331,17 +336,28 @@ public final class ScribeModeProcessor: @unchecked Sendable {
                         chars[i] = firstUpper
                     }
                     capitalizeNext = false
-                } else if ch.isWhitespace {
+                } else if ch.isWhitespace || ch == "-" || ch == "—" || ch == "–" || ch == "\"" || ch == "«" || ch == "“" || ch == "'" || ch == "(" || ch == "[" {
+                    // Skip leading whitespace, dialogue dashes, quotes, brackets before sentence-starting letter
                     continue
                 } else {
                     continue
                 }
             } else {
-                if ch == "." || ch == "!" || ch == "?" || ch == "…" || ch == "\n" {
+                if ch == "." || ch == "!" || ch == "?" || ch == "…" || ch == "\n" || ch == "\r" {
                     if ch == "." {
-                        // Avoid treating domains (google.com) or decimals (3.14) as sentence boundaries
-                        if i + 1 < chars.count && (chars[i + 1].isLetter || chars[i + 1].isNumber) {
+                        // Avoid treating decimals (3.14) or web domains (google.com) as sentence boundaries:
+                        let prevIsDigit = i > 0 && chars[i - 1].isNumber
+                        let nextIsDigit = i + 1 < chars.count && chars[i + 1].isNumber
+                        if prevIsDigit && nextIsDigit {
                             continue
+                        }
+                        // If next is ASCII Latin letter without space, check if it looks like a domain
+                        if i + 1 < chars.count && chars[i + 1].isLetter {
+                            let nextChar = chars[i + 1]
+                            let isNextCyrillic = ("\u{0400}"..."\u{04FF}").contains(nextChar) || ("\u{0500}"..."\u{052F}").contains(nextChar)
+                            if !isNextCyrillic {
+                                continue
+                            }
                         }
                     }
                     capitalizeNext = true

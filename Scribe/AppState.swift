@@ -1878,7 +1878,9 @@ final class AppState: ObservableObject {
                     to: formatted
                 )
                 
-                self.livePreviewText = formatted
+                if AppState.isTextAllowedForLivePreview(text: formatted, allowedLanguages: preferredLangs) {
+                    self.livePreviewText = formatted
+                }
             }
             audioRecorder.onBufferTap = { [weak self] buffer in
                 self?.transcriptionService.append(buffer)
@@ -1953,14 +1955,72 @@ final class AppState: ObservableObject {
                                     blockedAction: self.blockedWordsActionRaw,
                                     to: formatted
                                 )
-                                self.latestWhisperTranscription = formatted
-                                self.livePreviewText = formatted
+                                if AppState.isTextAllowedForLivePreview(text: formatted, allowedLanguages: preferredLangs) {
+                                    self.latestWhisperTranscription = formatted
+                                    self.livePreviewText = formatted
+                                }
                             }
                         }
                     }
                 }
             }
         }
+    }
+
+    /// Strict language and script filter for live preview updates.
+    /// Prevents Chinese, Spanish, or other unselected languages from appearing during recording.
+    static func isTextAllowedForLivePreview(text: String, allowedLanguages: [String]) -> Bool {
+        guard !text.isEmpty else { return false }
+
+        let allowedBases = Set(allowedLanguages.map { baseLanguageCode(for: $0).lowercased() })
+        let allowsChinese = allowedBases.contains("zh")
+        let allowsJapanese = allowedBases.contains("ja")
+        let allowsKorean = allowedBases.contains("ko")
+        let allowsArabic = allowedBases.contains("ar") || allowedBases.contains("fa")
+        let allowsHebrew = allowedBases.contains("he")
+        let allowsSpanish = allowedBases.contains("es")
+
+        // 1. Block foreign script glyphs
+        for scalar in text.unicodeScalars {
+            let v = scalar.value
+            // CJK Han ideographs (Chinese)
+            if !allowsChinese && ((v >= 0x4E00 && v <= 0x9FFF) || (v >= 0x3400 && v <= 0x4DBF)) {
+                return false
+            }
+            // Japanese Kana
+            if !allowsJapanese && ((v >= 0x3040 && v <= 0x309F) || (v >= 0x30A0 && v <= 0x30FF)) {
+                return false
+            }
+            // Korean Hangul
+            if !allowsKorean && ((v >= 0xAC00 && v <= 0xD7AF) || (v >= 0x1100 && v <= 0x11FF)) {
+                return false
+            }
+            // Arabic
+            if !allowsArabic && ((v >= 0x0600 && v <= 0x06FF) || (v >= 0x0750 && v <= 0x077F)) {
+                return false
+            }
+            // Hebrew
+            if !allowsHebrew && (v >= 0x0590 && v <= 0x05FF) {
+                return false
+            }
+        }
+
+        // 2. Block Spanish hallucinations if Spanish is not an allowed language
+        if !allowsSpanish {
+            let lower = text.lowercased()
+            let spanishMarkers = [
+                "gracias", "subtítulos", "subtitulos", "amara.org", "hola a todos",
+                "por favor", "suscríbete", "suscribete", "hasta luego", "hasta la próxima",
+                "de nuevo", "muchas gracias", "buenos días", "buenas noches"
+            ]
+            for marker in spanishMarkers {
+                if lower.contains(marker) {
+                    return false
+                }
+            }
+        }
+
+        return true
     }
 
     private func stopInterimWhisperGeneration() {

@@ -101,7 +101,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         "pt": "Termos: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
         "tr": "Terimler: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
         "uk": "Терміни: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
-        "auto": "Естественная русская и английская речь с правильными падежами, окончаниями, предлогами и пунктуацией. Fluent Russian and English code-switching. Terms: Bybit, Telegram, ChatGPT, Gemini, Claude, OpenAI, Swift, SwiftUI, Xcode, Docker, Kubernetes, TypeScript, Python, LLM, commit, pull request, merge, push, deploy, bugfix, backend, frontend, Google, Antigravity, Scribe."
+        "auto": "Fluent Russian and English speech transcription. Punctuation, capitalization, code-switching. Terms: Bybit, Binance, Telegram, ChatGPT, Gemini, Claude, OpenAI, Swift, SwiftUI, Xcode, Docker, Kubernetes, Next.js, Rust, WhisperKit, PostgreSQL, TypeScript, Python, LLM, commit, pull request, merge, push, deploy, bugfix, backend, frontend, Google, Antigravity, Scribe."
     ]
 
     /// Resolves on-disk path for pre-downloaded WhisperKit CoreML model folders
@@ -478,53 +478,55 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         options.temperatureFallbackCount = 0
         options.withoutTimestamps = false
         options.skipSpecialTokens = true
-        options.sampleLength = 96
+        options.sampleLength = 224
         options.noSpeechThreshold = 0.6
         options.logProbThreshold = -1.0
         options.compressionRatioThreshold = 2.4
 
         var resolvedLang: String? = nil
+        let allowedBases = (!preferredLanguages.isEmpty ? preferredLanguages : (language.map { [$0] } ?? ["ru", "en"]))
+            .map { baseLanguageCode(for: $0).lowercased() }
+            .filter { !$0.isEmpty && $0 != "auto" }
+
+        let effectiveAllowed = allowedBases.isEmpty ? ["ru", "en"] : allowedBases
+
         if let lang = language, lang != "auto" {
-            let base = baseLanguageCode(for: lang)
+            let base = baseLanguageCode(for: lang).lowercased()
             options.language = base
             options.detectLanguage = false
             resolvedLang = base
-        } else if !preferredLanguages.isEmpty {
-            let allowedBases = preferredLanguages.map { baseLanguageCode(for: $0).lowercased() }
-            if allowedBases.contains("ru") {
-                options.language = "ru"
-                options.detectLanguage = false
-                resolvedLang = "ru"
-            } else if allowedBases.count == 1, let first = allowedBases.first {
-                options.language = first
-                options.detectLanguage = false
-                resolvedLang = first
-            } else {
-                options.language = nil
-                options.detectLanguage = true
-            }
+        } else if effectiveAllowed.count == 1, let first = effectiveAllowed.first {
+            options.language = first
+            options.detectLanguage = false
+            resolvedLang = first
         } else {
-            options.language = nil
-            options.detectLanguage = true
+            // Strict language block for Live Preview:
+            // Query quick language pre-detection but strictly constrain selection to user-permitted languages
+            if let (_, probs) = try? await kit.detectLanguage(audioPath: audioURL.path) {
+                let best = effectiveAllowed.max(by: { (probs[$0] ?? 0) < (probs[$1] ?? 0) }) ?? (effectiveAllowed.contains("ru") ? "ru" : effectiveAllowed[0])
+                options.language = best
+                options.detectLanguage = false
+                resolvedLang = best
+            } else {
+                let fallback = effectiveAllowed.contains("ru") ? "ru" : effectiveAllowed[0]
+                options.language = fallback
+                options.detectLanguage = false
+                resolvedLang = fallback
+            }
         }
 
-        // Contextual prompt biasing for snapshots: only inject active vocabulary without hallucination-prone filler text
-        let promptText = AetherContextEngine.shared.buildConditioningPrompt(
-            basePrompt: "",
-            customVocabulary: customVocabulary,
-            userLocation: "",
-            targetApp: targetApp,
-            language: resolvedLang
-        )
-        if !promptText.isEmpty, let tokenizer = kit.tokenizer {
-            let tokens = tokenizer.encode(text: promptText)
-            options.promptTokens = Array(tokens.prefix(min(tokens.count, 24)))
-            options.usePrefillCache = false
-        }
+        // Clean decoding for snapshots using WhisperKit prefilled KV cache
+        options.usePrefillPrompt = true
+        options.usePrefillCache = true
+        options.promptTokens = nil
 
         do {
             let results = try await kit.transcribe(audioPath: audioURL.path, decodeOptions: options)
             var text = results.map(\.text).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+            if text.isEmpty { return nil }
+
+            // Strict script and boundary hallucination filter for snapshot live preview
+            text = Self.cleanTranscription(text, preferredLanguages: effectiveAllowed, targetLanguage: resolvedLang)
             if text.isEmpty { return nil }
 
             let customVocabList = customVocabulary.components(separatedBy: CharacterSet(charactersIn: ",\n;")).map { $0.trimmingCharacters(in: .whitespaces) }
@@ -620,11 +622,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         await MainActor.run { state = .transcribing }
 
         // 1. Stage B: Audio Conditioning (VAD, high-pass filter, loudness normalization)
-        guard let conditionedURL = AetherAudioConditioner.shared.condition(audioURL: audioURL) else {
-            logger.info("Audio contains no audible speech, skipping decoding to prevent hallucinations")
-            await MainActor.run { state = .done("") }
-            return ""
-        }
+        let conditionedURL = AetherAudioConditioner.shared.condition(audioURL: audioURL) ?? audioURL
         defer {
             if conditionedURL != audioURL {
                 try? FileManager.default.removeItem(at: conditionedURL)
@@ -714,9 +712,12 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         options.withoutTimestamps = false
         options.skipSpecialTokens = true
         options.sampleLength = 224
-        options.noSpeechThreshold = 0.6
+        options.noSpeechThreshold = 0.85
         options.logProbThreshold = -1.0
         options.compressionRatioThreshold = 2.4
+        options.usePrefillPrompt = true
+        options.usePrefillCache = true
+        options.promptTokens = nil
 
         var resolvedLang = baseLang
         if baseLang != "auto" {
@@ -725,58 +726,69 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             options.detectLanguage = false
             logger.info("Single language mode: Locked to '\(baseLang)'")
         } else if !preferredLanguages.isEmpty {
-            // Multilingual mode with user preferred languages:
-            // Fast language pre-detection constrained to allowed languages (e.g. Russian vs English)
+            // Multilingual mode with user preferred languages (e.g. Russian and English)
             let allowedBases = preferredLanguages.map { baseLanguageCode(for: $0).lowercased() }
-            if let kit = whisperKit {
+            if allowedBases.count == 1, let single = allowedBases.first {
+                resolvedLang = single
+                options.language = single
+                options.detectLanguage = false
+                logger.info("Single preferred language mode: locked to '\(single)'")
+            } else if let kit = whisperKit {
                 do {
                     let detectStart = Date()
                     let (_, langProbs) = try await kit.detectLanguage(audioPath: path)
 
-                    var bestLang: String? = nil
-                    var bestProb: Float = -Float.infinity
-                    for code in allowedBases {
-                        if let prob = langProbs[code], prob > bestProb {
-                            bestProb = prob
-                            bestLang = code
-                        }
-                    }
+                    let enScore = langProbs["en"] ?? -Float.infinity
+                    var ruScore = langProbs["ru"] ?? -Float.infinity
 
-                    // Slavic variants heuristic: Ukrainian, Belarusian, Bulgarian detection strongly indicates Russian speech
+                    // If Russian is allowed, Slavic variants (uk, be, bg, sr) can reinforce Russian acoustic probability
                     if allowedBases.contains("ru") {
                         let slavicCodes = ["uk", "be", "bg", "mk", "sr"]
                         for code in slavicCodes {
-                            if let prob = langProbs[code], prob > bestProb {
-                                bestProb = prob
-                                bestLang = "ru"
+                            if let prob = langProbs[code], prob > ruScore {
+                                ruScore = prob
                             }
                         }
                     }
 
-                    if let selected = bestLang {
-                        resolvedLang = selected
-                        options.language = selected
+                    // Strict, fair language decision:
+                    // When the user speaks English, enScore will be prominent. Never let Russian override English speech!
+                    if allowedBases.contains("en") && enScore > ruScore {
+                        resolvedLang = "en"
+                        options.language = "en"
                         options.detectLanguage = false
-                        logger.info("Aether fast language detection: locked to '\(selected)' from allowed \(allowedBases) (confidence: \(bestProb), duration: \(String(format: "%.3f", Date().timeIntervalSince(detectStart)))s)")
+                        logger.info("Aether language detection: locked to 'en' (enScore: \(enScore) vs ruScore: \(ruScore), duration: \(String(format: "%.3f", Date().timeIntervalSince(detectStart)))s)")
+                    } else if allowedBases.contains("ru") && ruScore > (enScore + 0.10) {
+                        resolvedLang = "ru"
+                        options.language = "ru"
+                        options.detectLanguage = false
+                        logger.info("Aether language detection: locked to 'ru' (ruScore: \(ruScore) vs enScore: \(enScore), duration: \(String(format: "%.3f", Date().timeIntervalSince(detectStart)))s)")
                     } else {
-                        options.language = nil
-                        options.detectLanguage = true
+                        // Close margin or noise: strictly constrain to best scoring language from allowedBases
+                        let best = allowedBases.max(by: { (langProbs[$0] ?? 0) < (langProbs[$1] ?? 0) }) ?? (allowedBases.contains("ru") ? "ru" : allowedBases[0])
+                        resolvedLang = best
+                        options.language = best
+                        options.detectLanguage = false
+                        logger.info("Aether language detection: locked to '\(best)' from allowed \(allowedBases)")
                     }
                 } catch {
-                    logger.warning("WhisperKit.detectLanguage failed: \(error.localizedDescription); falling back to dynamic detection")
-                    options.language = nil
-                    options.detectLanguage = true
+                    logger.warning("WhisperKit.detectLanguage failed: \(error.localizedDescription); locking to fallback from allowed \(allowedBases)")
+                    let fallback = allowedBases.contains("ru") ? "ru" : allowedBases[0]
+                    options.language = fallback
+                    options.detectLanguage = false
+                    resolvedLang = fallback
                 }
             } else {
-                options.language = nil
-                options.detectLanguage = true
+                let fallback = allowedBases.contains("ru") ? "ru" : allowedBases[0]
+                options.language = fallback
+                options.detectLanguage = false
+                resolvedLang = fallback
             }
         } else {
-            // Multilingual / Dynamic auto mode:
-            // Do NOT lock Whisper to one language; allow seamless switching between Russian, English, and other languages.
-            options.language = nil
-            options.detectLanguage = true
-            logger.info("Multilingual dynamic mode: Real-time language detection active across preferred: \(preferredLanguages)")
+            let fallback = (!preferredLanguages.isEmpty ? preferredLanguages.map { baseLanguageCode(for: $0).lowercased() } : ["ru"]).first ?? "ru"
+            options.language = fallback
+            options.detectLanguage = false
+            resolvedLang = fallback
         }
 
         // 3. Stage A: Context Biasing & Dynamic Vocabulary Injection
@@ -805,15 +817,10 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             language: resolvedLang != "auto" ? resolvedLang : language
         )
 
-        if resolvedLang != "auto", let tokenizer = kit.tokenizer {
-            let tokens = tokenizer.encode(text: promptText)
-            // WhisperKit prompt tokens: take foundational prefix (up to 32 tokens) for fast, responsive decoding
-            options.promptTokens = Array(tokens.prefix(min(tokens.count, 32)))
-            options.usePrefillCache = false
-            logger.debug("Aether set initial prompt (\(options.promptTokens?.count ?? 0) tokens) for locked language '\(langKey)'")
-        }
-        
         options.wordTimestamps = true
+        options.usePrefillPrompt = true
+        options.usePrefillCache = true
+        options.promptTokens = nil
         logger.debug("Calling WhisperKit.transcribe(audioPath: \(path), language: \(options.language ?? "auto"))")
 
         // Execute WhisperKit neural network inference off the MainActor on background cooperative pool
@@ -826,7 +833,31 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         // Use base language codes (e.g. en-US -> en) so dialect identifiers match WhisperKit 2-letter codes.
         let allowedLanguages = preferredLanguages.map { baseLanguageCode(for: $0).lowercased() }
         let detectedBase = detectedLang != nil ? baseLanguageCode(for: detectedLang!).lowercased() : nil
-        let preliminaryText = results.map(\.text).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+        var preliminaryText = results.map(\.text).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // If the first pass produced empty text (e.g. user spoke very softly or whisper was too conservative),
+        // execute an automatic fallback pass constrained strictly to allowed languages!
+        if preliminaryText.isEmpty {
+            logger.info("Primary decoding produced empty text. Attempting fallback decoding with lenient thresholds…")
+            var fallbackOptions = options
+            let fallbackLang = allowedLanguages.contains("ru") ? "ru" : (allowedLanguages.first ?? "en")
+            fallbackOptions.language = fallbackLang
+            fallbackOptions.detectLanguage = false
+            fallbackOptions.noSpeechThreshold = 0.95
+            fallbackOptions.logProbThreshold = -1.5
+            fallbackOptions.usePrefillPrompt = true
+            fallbackOptions.usePrefillCache = true
+            fallbackOptions.promptTokens = nil
+            if let fallbackResults = try? await kit.transcribe(audioPath: path, decodeOptions: fallbackOptions) {
+                let fallbackText = fallbackResults.map(\.text).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+                if !fallbackText.isEmpty {
+                    results = fallbackResults
+                    preliminaryText = fallbackText
+                    logger.info("Fallback decoding successfully transcribed (\(fallbackText.count) chars): '\(fallbackText.prefix(50))'")
+                }
+            }
+        }
+
         let wordCount = preliminaryText.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.count
 
         // Do not trigger costly second-pass on minor dialect variants (e.g. uk/be when ru is allowed)
@@ -841,16 +872,16 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             let targetFallback: String
             if allowedLanguages.contains("ru") && slavicUnselected.contains(detected) {
                 targetFallback = "ru"
-            } else if allowedLanguages.contains("ru") && cyrillicCount >= latinCount {
-                targetFallback = "ru"
             } else if allowedLanguages.contains("en") && latinCount > cyrillicCount {
                 targetFallback = "en"
-            } else if allowedLanguages.contains("ru") {
+            } else if allowedLanguages.contains("ru") && cyrillicCount >= latinCount {
                 targetFallback = "ru"
             } else if allowedLanguages.contains("en") {
                 targetFallback = "en"
+            } else if allowedLanguages.contains("ru") {
+                targetFallback = "ru"
             } else {
-                targetFallback = allowedLanguages.first ?? "ru"
+                targetFallback = allowedLanguages.first ?? "en"
             }
 
             logger.warning("Whisper detected unselected language '\(detected)'. User enabled only: \(preferredLanguages). Re-decoding locked to '\(targetFallback)'…")
@@ -859,20 +890,9 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             redecodeOptions.detectLanguage = false
             redecodeOptions.wordTimestamps = true
 
-            // Update base prompt for the target fallback
-            let fallbackBasePrompt = initialPrompt[targetFallback] ?? (initialPrompt["ru"] ?? initialPrompt["auto"]!)
-            let fallbackPromptText = AetherContextEngine.shared.buildConditioningPrompt(
-                basePrompt: fallbackBasePrompt,
-                customVocabulary: customVocabulary,
-                userLocation: userLocation,
-                targetApp: targetApp,
-                language: targetFallback
-            )
-            if let tokenizer = kit.tokenizer {
-                let tokens = tokenizer.encode(text: fallbackPromptText)
-                redecodeOptions.promptTokens = Array(tokens.prefix(min(tokens.count, 32)))
-                redecodeOptions.usePrefillCache = false
-            }
+            redecodeOptions.usePrefillPrompt = true
+            redecodeOptions.usePrefillCache = true
+            redecodeOptions.promptTokens = nil
 
             if let retryResults = try? await kit.transcribe(audioPath: path, decodeOptions: redecodeOptions), !retryResults.isEmpty {
                 results = retryResults
@@ -993,7 +1013,42 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         "لا تنسوا الاشتراك",
         "لا تنسى الاشتراك",
         "تفعيل الجرس",
-        "مشاهدة ممتعة"
+        "مشاهدة ممتعة",
+        // Spanish boundary hallucination phrases common in Whisper
+        "subtítulos por",
+        "subtítulos realizados por",
+        "subtitulos por",
+        "subtitulos realizados por",
+        "gracias por ver",
+        "muchas gracias por ver",
+        "gracias por su atención",
+        "gracias por su atencion",
+        "suscríbete a mi canal",
+        "suscribete a mi canal",
+        "suscríbete al canal",
+        "suscribete al canal",
+        "no olvides suscribirte",
+        "dale like y suscríbete",
+        "hasta el próximo video",
+        "hasta el proximo video",
+        "hasta la próxima",
+        "hasta la proxima",
+        "gracias por escuchar",
+        "gracias por ver el video",
+        // Chinese boundary hallucination phrases common in Whisper
+        "谢谢观看",
+        "感謝觀看",
+        "感谢观看",
+        "请订阅",
+        "歡迎訂閱",
+        "欢迎订阅",
+        "字幕由",
+        "请大家多多支持",
+        "別忘了按讚",
+        "别忘了点赞",
+        "点赞和订阅",
+        "下次再见",
+        "下期见"
     ]
 
     /// Identifies Arabic, Persian, Urdu, and related Semitic/Thaana/NKo script unicode scalars.
@@ -1110,7 +1165,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         let allowsHebrew = allowedScriptLangs.contains("he")
         let allowsDevanagari = allowedScriptLangs.contains("hi")
         let allowsGreek = allowedScriptLangs.contains("el")
-        let allowsCyrillic = allowedScriptLangs.contains("ru") || allowedScriptLangs.contains("uk") || allowedScriptLangs.contains("be") || allowedScriptLangs.contains("bg") || allowedScriptLangs.contains("sr") || allowedScriptLangs.contains("mk") || allowedScriptLangs.contains("kk") || allowedScriptLangs.isEmpty
+        let allowsCyrillic = true // Cyrillic (Russian) is a core supported language in Scribe and is never treated as a foreign hallucination
 
         // Universal Disallowed Script Hallucination Killer:
         // If text contains foreign script glyphs (Hebrew, Arabic, CJK, etc.) not selected in user preferences:

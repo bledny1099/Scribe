@@ -113,8 +113,9 @@ final class PasteService {
     }
 
     /// Adjusts first-letter casing:
-    /// - Capitalizes when the field is empty, after sentence enders (. ! ? … \n :), or when preceding context is unavailable (browser address bars / omnibox).
-    /// - Lowercases when continuing an ongoing sentence mid-phrase (e.g. typing after "Hello, ", "this is a ").
+    /// - Automatically capitalizes sentences when starting on empty fields, new lines, after sentence enders (. ! ? … : ; —),
+    ///   list/bullet items (- * • > 1.), dialogue dashes, or whenever dictated text is a multi-word sentence.
+    /// - Only lowercases when continuing mid-phrase with a single trailing word (e.g. typing after "Hello, ", "this is a ").
     static func adjustCasingForContext(text: String) -> String {
         guard !text.isEmpty else { return text }
 
@@ -135,9 +136,23 @@ final class PasteService {
             return first.lowercased() + str.dropFirst()
         }
 
+        let words = text.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
+        // If the dictated text is a multi-word sentence (2+ words) or ends with sentence punctuation,
+        // it is a full sentence and must ALWAYS start with an uppercase letter!
+        let hasSentenceEnder = text.last.map { Set([".", "!", "?", "…"]).contains($0) } ?? false
+        if words.count >= 2 || hasSentenceEnder {
+            return capitalizeFirst(text)
+        }
+
         guard let preceding = getPrecedingTextContext() else {
             // When preceding context cannot be determined (e.g. browser omnibox, Electron apps, or empty start):
             // Default to sentence-start capitalization
+            return capitalizeFirst(text)
+        }
+
+        // 1. If preceding context ends with a newline, the cursor is at the beginning of a new line/paragraph!
+        // Always capitalize on a new line.
+        if preceding.hasSuffix("\n") || preceding.hasSuffix("\r") {
             return capitalizeFirst(text)
         }
 
@@ -147,16 +162,38 @@ final class PasteService {
             return capitalizeFirst(text)
         }
 
-        if let lastChar = trimmedPreceding.last {
-            let sentenceEnders: Set<Character> = [".", "!", "?", "…", "\n", "\r", ":"]
-            if sentenceEnders.contains(lastChar) {
+        // Check if the current line (after the last newline) is empty or only whitespace
+        if let lastNewlineIndex = preceding.lastIndex(where: { $0 == "\n" || $0 == "\r" }) {
+            let lineAfter = preceding[preceding.index(after: lastNewlineIndex)...]
+            if lineAfter.trimmingCharacters(in: .whitespaces).isEmpty {
                 return capitalizeFirst(text)
-            } else {
-                // Mid-sentence continuation: Lowercase first letter
-                return lowercaseFirst(text)
             }
         }
-        return capitalizeFirst(text)
+
+        // 2. Sentence enders and list/dialogue boundaries:
+        // (. ! ? … : ; — – - * • > 1. 1) [ ] ) quotes and brackets
+        let sentenceEnders: Set<Character> = [
+            ".", "!", "?", "…", ":", ";",
+            "—", "–", "-", "*", "•", ">",
+            ")", "]", "}", "\"", "'", "»", "”", "’"
+        ]
+
+        if let lastChar = trimmedPreceding.last {
+            if sentenceEnders.contains(lastChar) {
+                return capitalizeFirst(text)
+            }
+        }
+
+        // 3. Check for list item / prompt prefixes: e.g. "- ", "* ", "> ", "1. ", "1) ", "[ ] "
+        let lastLine = preceding.components(separatedBy: .newlines).last ?? ""
+        let trimmedLastLine = lastLine.trimmingCharacters(in: .whitespaces)
+        if trimmedLastLine.hasPrefix("-") || trimmedLastLine.hasPrefix("*") || trimmedLastLine.hasPrefix("•") ||
+           trimmedLastLine.hasPrefix(">") || trimmedLastLine.range(of: #"^\d+[\.\)]\s*"#, options: .regularExpression) != nil {
+            return capitalizeFirst(text)
+        }
+
+        // 4. If we are strictly mid-sentence typing after a single word continuation without punctuation:
+        return lowercaseFirst(text)
     }
 
     /// Checks if Accessibility permission is currently granted.

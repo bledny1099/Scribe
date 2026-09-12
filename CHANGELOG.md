@@ -5,7 +5,7 @@ All notable changes to Scribe will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.6.9] - 2026-09-11
+## [2.6.9] - 2026-09-12
 
 ## Added
 - Cross-device statistics aggregation across all signed-in devices linked to your account.
@@ -15,11 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Changed
 - Re-enabled live interim speech preview during recording across all speech recognition engines.
-- Refined recording overlay controls to distinguish between canceling without transcription and stopping to transcribe.
+- Refined recording overlay to retain exclusively the single dismiss cross button for recording cancellation.
 - Optimized waveform sensitivity and audio metering with lock-free vDSP processing.
 
 ## Fixed
-- Fixed black gradient overlay across the settings window header, restoring native translucent frosted blur.
+- Fixed sentence boundary capitalization to ensure new sentences, multi-word utterances, newlines, and list items consistently start capitalized.
+- Fixed live preview and interim snapshot decoding to strictly enforce user-selected languages and block foreign hallucinations (such as Chinese or Spanish).
+- Fixed WhisperKit decoding failure caused by prompt token conflicts with prefilled KV cache.
+- Fixed black gradient overlay across settings window header, restoring native translucent frosted blur.
 - Fixed background inference loop during recording to minimize CPU overhead.
 - Fixed Apple Account identity matching for cross-device synchronization and security.
 - Fixed history timeline view and launch-at-login background performance contention.
