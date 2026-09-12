@@ -501,12 +501,40 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             resolvedLang = first
         } else {
             // Strict language block for Live Preview:
-            // Query quick language pre-detection but strictly constrain selection to user-permitted languages
+            // Query quick language pre-detection with Slavic acoustic reinforcement.
+            // When Russian is enabled, decode in 'ru' mode unless speech is unambiguously pure English (> 0.65).
+            // Decoding in 'ru' mode allows Russian Cyrillic and English loanwords/brand names,
+            // whereas decoding in 'en' mode forces Whisper to translate Russian speech into English!
             if let (_, probs) = try? await kit.detectLanguage(audioPath: audioURL.path) {
-                let best = effectiveAllowed.max(by: { (probs[$0] ?? 0) < (probs[$1] ?? 0) }) ?? (effectiveAllowed.contains("ru") ? "ru" : effectiveAllowed[0])
-                options.language = best
-                options.detectLanguage = false
-                resolvedLang = best
+                if effectiveAllowed.contains("ru") {
+                    let slavicCodes = ["ru", "uk", "be", "bg", "mk", "sr"]
+                    let slavicMax = slavicCodes.compactMap { probs[$0] }.max() ?? 0
+                    let slavicSum = slavicCodes.compactMap { probs[$0] }.reduce(Float(0), +)
+                    let ruEffectiveScore = max(slavicMax, slavicSum * 0.85)
+
+                    let nonRussian = effectiveAllowed.filter { $0 != "ru" }
+                    if let bestOther = nonRussian.max(by: { (probs[$0] ?? 0) < (probs[$1] ?? 0) }) {
+                        let otherScore = probs[bestOther] ?? 0
+                        if otherScore > 0.65 && otherScore > (ruEffectiveScore + 0.25) {
+                            options.language = bestOther
+                            options.detectLanguage = false
+                            resolvedLang = bestOther
+                        } else {
+                            options.language = "ru"
+                            options.detectLanguage = false
+                            resolvedLang = "ru"
+                        }
+                    } else {
+                        options.language = "ru"
+                        options.detectLanguage = false
+                        resolvedLang = "ru"
+                    }
+                } else {
+                    let best = effectiveAllowed.max(by: { (probs[$0] ?? 0) < (probs[$1] ?? 0) }) ?? effectiveAllowed[0]
+                    options.language = best
+                    options.detectLanguage = false
+                    resolvedLang = best
+                }
             } else {
                 let fallback = effectiveAllowed.contains("ru") ? "ru" : effectiveAllowed[0]
                 options.language = fallback
@@ -738,34 +766,34 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
                     let detectStart = Date()
                     let (_, langProbs) = try await kit.detectLanguage(audioPath: path)
 
-                    let enScore = langProbs["en"] ?? -Float.infinity
-                    var ruScore = langProbs["ru"] ?? -Float.infinity
-
-                    // If Russian is allowed, Slavic variants (uk, be, bg, sr) can reinforce Russian acoustic probability
                     if allowedBases.contains("ru") {
-                        let slavicCodes = ["uk", "be", "bg", "mk", "sr"]
-                        for code in slavicCodes {
-                            if let prob = langProbs[code], prob > ruScore {
-                                ruScore = prob
-                            }
-                        }
-                    }
+                        let slavicCodes = ["ru", "uk", "be", "bg", "mk", "sr"]
+                        let slavicMax = slavicCodes.compactMap { langProbs[$0] }.max() ?? 0
+                        let slavicSum = slavicCodes.compactMap { langProbs[$0] }.reduce(Float(0), +)
+                        let ruEffectiveScore = max(slavicMax, slavicSum * 0.85)
 
-                    // Strict, fair language decision:
-                    // When the user speaks English, enScore will be prominent. Never let Russian override English speech!
-                    if allowedBases.contains("en") && enScore > ruScore {
-                        resolvedLang = "en"
-                        options.language = "en"
-                        options.detectLanguage = false
-                        logger.info("Aether language detection: locked to 'en' (enScore: \(enScore) vs ruScore: \(ruScore), duration: \(String(format: "%.3f", Date().timeIntervalSince(detectStart)))s)")
-                    } else if allowedBases.contains("ru") && ruScore > (enScore + 0.10) {
-                        resolvedLang = "ru"
-                        options.language = "ru"
-                        options.detectLanguage = false
-                        logger.info("Aether language detection: locked to 'ru' (ruScore: \(ruScore) vs enScore: \(enScore), duration: \(String(format: "%.3f", Date().timeIntervalSince(detectStart)))s)")
+                        let nonRussian = allowedBases.filter { $0 != "ru" }
+                        if let bestOther = nonRussian.max(by: { (langProbs[$0] ?? 0) < (langProbs[$1] ?? 0) }) {
+                            let otherScore = langProbs[bestOther] ?? 0
+                            if otherScore > 0.65 && otherScore > (ruEffectiveScore + 0.25) {
+                                resolvedLang = bestOther
+                                options.language = bestOther
+                                options.detectLanguage = false
+                                logger.info("Aether language detection: locked to '\(bestOther)' (dominant speech: score=\(otherScore) vs ruScore=\(ruEffectiveScore), duration: \(String(format: "%.3f", Date().timeIntervalSince(detectStart)))s)")
+                            } else {
+                                resolvedLang = "ru"
+                                options.language = "ru"
+                                options.detectLanguage = false
+                                logger.info("Aether language detection: locked to 'ru' (Slavic speech / Russian with loanwords: ruScore=\(ruEffectiveScore) vs otherScore=\(otherScore), duration: \(String(format: "%.3f", Date().timeIntervalSince(detectStart)))s)")
+                            }
+                        } else {
+                            resolvedLang = "ru"
+                            options.language = "ru"
+                            options.detectLanguage = false
+                            logger.info("Aether language detection: locked to 'ru' from allowed \(allowedBases)")
+                        }
                     } else {
-                        // Close margin or noise: strictly constrain to best scoring language from allowedBases
-                        let best = allowedBases.max(by: { (langProbs[$0] ?? 0) < (langProbs[$1] ?? 0) }) ?? (allowedBases.contains("ru") ? "ru" : allowedBases[0])
+                        let best = allowedBases.max(by: { (langProbs[$0] ?? 0) < (langProbs[$1] ?? 0) }) ?? allowedBases[0]
                         resolvedLang = best
                         options.language = best
                         options.detectLanguage = false
