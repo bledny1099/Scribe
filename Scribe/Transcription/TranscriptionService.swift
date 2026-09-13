@@ -863,7 +863,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             language: resolvedLang != "auto" ? resolvedLang : language
         )
 
-        options.wordTimestamps = true
+        options.wordTimestamps = false
         options.usePrefillPrompt = true
         options.usePrefillCache = true
         options.promptTokens = nil
@@ -934,7 +934,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             var redecodeOptions = options
             redecodeOptions.language = targetFallback
             redecodeOptions.detectLanguage = false
-            redecodeOptions.wordTimestamps = true
+            redecodeOptions.wordTimestamps = false
 
             redecodeOptions.usePrefillPrompt = true
             redecodeOptions.usePrefillCache = true
@@ -959,7 +959,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             var scriptRedecodeOpts = options
             scriptRedecodeOpts.language = "en"
             scriptRedecodeOpts.detectLanguage = false
-            scriptRedecodeOpts.wordTimestamps = true
+            scriptRedecodeOpts.wordTimestamps = false
             scriptRedecodeOpts.usePrefillPrompt = true
             scriptRedecodeOpts.usePrefillCache = true
             scriptRedecodeOpts.promptTokens = nil
@@ -978,7 +978,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             var scriptRedecodeOpts = options
             scriptRedecodeOpts.language = "ru"
             scriptRedecodeOpts.detectLanguage = false
-            scriptRedecodeOpts.wordTimestamps = true
+            scriptRedecodeOpts.wordTimestamps = false
             scriptRedecodeOpts.usePrefillPrompt = true
             scriptRedecodeOpts.usePrefillCache = true
             scriptRedecodeOpts.promptTokens = nil

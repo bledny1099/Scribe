@@ -621,11 +621,7 @@ final class AppState: ObservableObject {
     }
 
     public var isAIPostProcessingActive: Bool {
-        guard enableCloudAI else { return false }
-        if cloudAIProvider == .ollama {
-            return !ollamaEndpoint.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        }
-        return !activeCloudAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return false
     }
 
     public static let defaultVocabularyPresets: [VocabularyPreset] = [
@@ -1186,28 +1182,6 @@ final class AppState: ObservableObject {
                     to: text
                 )
 
-                // 3. Optional AI Post-Processing & Refinement (Claude / Groq / OpenAI / Ollama)
-                if self.isAIPostProcessingActive && self.selectedAIRefinementMode != .raw && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    logger.info("Applying AI refinement (\(self.selectedAIRefinementMode.rawValue)) via \(self.cloudAIProvider.rawValue)...")
-                    do {
-                        let refined = try await CloudAIService.shared.refineText(
-                            text: text,
-                            mode: self.selectedAIRefinementMode,
-                            provider: self.cloudAIProvider,
-                            apiKey: self.activeCloudAPIKey,
-                            ollamaEndpoint: self.ollamaEndpoint,
-                            ollamaModel: self.ollamaModel
-                        )
-                        let trimmed = refined.trimmingCharacters(in: .whitespacesAndNewlines)
-                        if !trimmed.isEmpty {
-                            logger.info("AI refinement applied successfully.")
-                            text = trimmed
-                        }
-                    } catch {
-                        logger.warning("AI refinement failed: \(error.localizedDescription), using raw transcript.")
-                    }
-                }
-
                 // Smart Casing: Lowercase first letter if continuing an active sentence
                 text = PasteService.adjustCasingForContext(text: text)
 
@@ -1403,27 +1377,7 @@ final class AppState: ObservableObject {
                     to: text
                 )
 
-                // 3. Optional AI Post-Processing & Refinement
-                if self.isAIPostProcessingActive && self.selectedAIRefinementMode != .raw && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    do {
-                        let refined = try await CloudAIService.shared.refineText(
-                            text: text,
-                            mode: self.selectedAIRefinementMode,
-                            provider: self.cloudAIProvider,
-                            apiKey: self.activeCloudAPIKey,
-                            ollamaEndpoint: self.ollamaEndpoint,
-                            ollamaModel: self.ollamaModel
-                        )
-                        let trimmed = refined.trimmingCharacters(in: .whitespacesAndNewlines)
-                        if !trimmed.isEmpty {
-                            text = trimmed
-                        }
-                    } catch {
-                        logger.warning("AI refinement during file import failed: \(error.localizedDescription)")
-                    }
-                }
-
-                // 4. Save to History
+                // 3. Save to History
                 let filename = url.deletingPathExtension().lastPathComponent
                 let record = TranscriptionRecord(
                     text: text,

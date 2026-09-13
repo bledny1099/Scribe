@@ -6107,7 +6107,7 @@ struct LecturesSettingsView: View {
                                         .fill(Color.primary.opacity(0.06))
                                         .frame(height: 6)
                                     Capsule()
-                                        .fill(LinearGradient(colors: [.indigo, .red], startPoint: .leading, endPoint: .trailing))
+                                        .fill(LinearGradient(colors: [.primary.opacity(0.4), .red], startPoint: .leading, endPoint: .trailing))
                                         .frame(width: max(8, geo.size.width * CGFloat(min(1.0, max(0.05, appState.audioLevel * 3.5)))), height: 6)
                                         .animation(.easeOut(duration: 0.08), value: appState.audioLevel)
                                 }
@@ -6175,10 +6175,15 @@ struct LecturesSettingsView: View {
                                 }
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 9)
-                                .background(Color.indigo)
-                                .foregroundStyle(.white)
-                                .cornerRadius(10)
-                                .shadow(color: Color.indigo.opacity(0.3), radius: 4, x: 0, y: 2)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(Color.primary.opacity(0.08))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .stroke(Color.primary.opacity(0.14), lineWidth: 1)
+                                )
+                                .foregroundStyle(.primary)
                             }
                             .buttonStyle(.plain)
                         }
@@ -6874,203 +6879,6 @@ struct RecognitionSettingsView: View {
                 }
             }
 
-            // SECTION: AI Post-Processing & Refinement
-            GlassSection(title: appState.l("AI Post-Processing (LLM Polish)"), icon: "wand.and.stars") {
-                VStack(alignment: .leading, spacing: 14) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(appState.l("Enable AI Post-Processing"))
-                                .font(.system(size: 14, weight: .medium, design: .rounded))
-                                .foregroundStyle(.primary)
-                            Text(appState.l("Cleans up grammar, hesitations, and false starts after Whisper transcription"))
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Toggle("", isOn: $appState.enableCloudAI)
-                            .toggleStyle(.switch)
-                            .labelsHidden()
-                    }
-
-                    if appState.enableCloudAI {
-                        Divider().opacity(0.3)
-
-                        // Provider Picker
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(appState.l("AI Engine / Provider"))
-                                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.primary)
-                                Text(appState.l("Ultra-fast cloud inference or local offline model"))
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            LiquidGlassMenu(
-                                items: [CloudAIProvider.groq.rawValue, CloudAIProvider.anthropic.rawValue, CloudAIProvider.openAI.rawValue, CloudAIProvider.ollama.rawValue],
-                                selection: $appState.cloudAIProviderRaw,
-                                title: { id in CloudAIProvider(rawValue: id)?.displayName ?? id },
-                                displayTitle: { id in CloudAIProvider(rawValue: id)?.displayName ?? id }
-                            )
-                        }
-
-                        // Refinement Mode Picker
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(appState.l("Refinement Mode"))
-                                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.primary)
-                                Text(appState.l(appState.selectedAIRefinementMode == .polish ? "Claude-style smart cleanup (preserves length and language)" : "Transforms speech output structure"))
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            LiquidGlassMenu(
-                                items: [AIRefinementMode.polish.rawValue, AIRefinementMode.summary.rawValue, AIRefinementMode.executive.rawValue, AIRefinementMode.actionItems.rawValue, AIRefinementMode.translation.rawValue, AIRefinementMode.raw.rawValue],
-                                selection: $appState.selectedAIRefinementModeRaw,
-                                title: { id in AIRefinementMode(rawValue: id)?.displayName ?? id },
-                                displayTitle: { id in AIRefinementMode(rawValue: id)?.displayName ?? id }
-                            )
-                        }
-
-                        // API Key / Endpoint Configuration
-                        switch appState.cloudAIProvider {
-                        case .groq:
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(appState.l("Groq API Key"))
-                                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.secondary)
-                                SecureField("gsk_...", text: $appState.groqAPIKey)
-                                    .textFieldStyle(.roundedBorder)
-                                Text(appState.l("Runs Qwen 2.5 27B on Groq (~200ms ultra-low latency). Stored locally."))
-                                    .font(.system(size: 10))
-                                    .foregroundStyle(.tertiary)
-                            }
-                        case .anthropic:
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(appState.l("Anthropic API Key"))
-                                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.secondary)
-                                SecureField("sk-ant-...", text: $appState.anthropicAPIKey)
-                                    .textFieldStyle(.roundedBorder)
-                                Text(appState.l("Runs Claude 3.5 Haiku directly via Anthropic Messages API."))
-                                    .font(.system(size: 10))
-                                    .foregroundStyle(.tertiary)
-                            }
-                        case .openAI, .scribeCloud:
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(appState.l("OpenAI API Key"))
-                                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.secondary)
-                                SecureField("sk-...", text: $appState.openAIAPIKey)
-                                    .textFieldStyle(.roundedBorder)
-                                Text(appState.l("Runs GPT-4o-mini via OpenAI Chat Completions API."))
-                                    .font(.system(size: 10))
-                                    .foregroundStyle(.tertiary)
-                            }
-                        case .ollama:
-                            VStack(alignment: .leading, spacing: 8) {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(appState.l("Ollama Endpoint"))
-                                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                                        .foregroundStyle(.secondary)
-                                    TextField("http://localhost:11434", text: $appState.ollamaEndpoint)
-                                        .textFieldStyle(.roundedBorder)
-                                }
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(appState.l("Ollama Model"))
-                                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                                        .foregroundStyle(.secondary)
-                                    TextField("qwen2.5:7b", text: $appState.ollamaModel)
-                                        .textFieldStyle(.roundedBorder)
-                                }
-                            }
-                        }
-
-                        // Test Connection Button & Status
-                        AITestConnectionView(appState: appState)
-                    }
-                }
-            }
-        }
-    }
-}
-
-// MARK: - AI Test Connection View
-struct AITestConnectionView: View {
-    @ObservedObject var appState: AppState
-    @State private var isTesting: Bool = false
-    @State private var testResult: String? = nil
-    @State private var isSuccess: Bool = false
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Button {
-                runTest()
-            } label: {
-                HStack(spacing: 5) {
-                    if isTesting {
-                        ProgressView()
-                            .controlSize(.mini)
-                            .frame(width: 12, height: 12)
-                    } else {
-                        Image(systemName: "bolt.horizontal.fill")
-                    }
-                    Text(isTesting ? appState.l("Testing...") : appState.l("Test Connection"))
-                }
-                .font(.system(size: 11.5, weight: .medium, design: .rounded))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(Color.primary.opacity(0.06))
-                .cornerRadius(6)
-            }
-            .buttonStyle(.plain)
-            .disabled(isTesting)
-
-            Spacer()
-
-            if let result = testResult {
-                HStack(spacing: 4) {
-                    Image(systemName: isSuccess ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                        .foregroundStyle(isSuccess ? Color.green : Color.orange)
-                        .font(.system(size: 11))
-                    Text(result)
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                        .foregroundStyle(isSuccess ? Color.green : Color.orange)
-                        .lineLimit(1)
-                }
-            }
-        }
-        .padding(.top, 4)
-    }
-
-    private func runTest() {
-        isTesting = true
-        testResult = nil
-        let start = CFAbsoluteTimeGetCurrent()
-        Task {
-            do {
-                let res = try await CloudAIService.shared.refineText(
-                    text: "Привет, это тестовая проверка связи для Scribe.",
-                    mode: appState.selectedAIRefinementMode,
-                    provider: appState.cloudAIProvider,
-                    apiKey: appState.activeCloudAPIKey,
-                    ollamaEndpoint: appState.ollamaEndpoint,
-                    ollamaModel: appState.ollamaModel
-                )
-                let elapsed = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
-                await MainActor.run {
-                    isSuccess = true
-                    testResult = "OK (\(elapsed)ms): \(res.prefix(25))..."
-                    isTesting = false
-                }
-            } catch {
-                await MainActor.run {
-                    isSuccess = false
-                    testResult = "Error: \(error.localizedDescription)"
-                    isTesting = false
-                }
-            }
         }
     }
 }

@@ -243,14 +243,14 @@ struct LiquidGlassMenuBarView: View {
                         HStack(spacing: 7) {
                             Image(systemName: "mic.badge.plus")
                                 .font(.system(size: 11.5, weight: .semibold))
-                                .foregroundStyle(Color.indigo)
+                                .foregroundStyle(.primary)
                             Text(appState.l("Start Lecture Recording"))
                                 .font(.system(size: 12, weight: .medium, design: .rounded))
                                 .foregroundStyle(.primary)
                             Spacer()
                             Image(systemName: "circle.fill")
                                 .font(.system(size: 6))
-                                .foregroundStyle(Color.indigo.opacity(0.6))
+                                .foregroundStyle(Color.primary.opacity(0.4))
                         }
                         .padding(.horizontal, 10)
                         .padding(.vertical, 8)
@@ -262,47 +262,6 @@ struct LiquidGlassMenuBarView: View {
                     .help(appState.l("Record lecture in background without on-screen overlay and save to Notes"))
                 }
             }
-
-            // AI Post-Processing Quick Toggle
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    appState.enableCloudAI.toggle()
-                }
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "wand.and.stars")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(appState.enableCloudAI ? Color.purple : Color.secondary)
-
-                    VStack(alignment: .leading, spacing: 1.5) {
-                        Text(appState.l("AI-обработка"))
-                            .font(.system(size: 12, weight: .medium, design: .rounded))
-                            .foregroundStyle(.primary)
-                        Text(appState.enableCloudAI ? (appState.cloudAIProvider == .groq ? "Qwen 27B (Groq)" : appState.cloudAIProvider.displayName) : appState.l("Выключена (сырой текст)"))
-                            .font(.system(size: 9.5))
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Spacer()
-
-                    Toggle("", isOn: $appState.enableCloudAI)
-                        .toggleStyle(.switch)
-                        .controlSize(.mini)
-                        .allowsHitTesting(false)
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 7)
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(appState.enableCloudAI ? Color.purple.opacity(0.08) : Color.primary.opacity(0.04))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(appState.enableCloudAI ? Color.purple.opacity(0.25) : Color.primary.opacity(0.06), lineWidth: 1)
-                )
-            }
-            .buttonStyle(.plain)
-            .help(appState.l("Быстрое включение и выключение AI-обработки текста после записи"))
 
             // Footer
             HStack(spacing: 8) {
