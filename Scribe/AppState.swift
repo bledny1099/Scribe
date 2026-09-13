@@ -1219,7 +1219,7 @@ final class AppState: ObservableObject {
                 // LLM Refinement if Cloud AI post-processing is active
                 let effectiveAIMode = (localMode == .raw) ? .polish : localMode
                 let canRunLLM = localEnableCloud && (!localAPIKey.isEmpty || localProvider == .ollama)
-                if canRunLLM && localMode != .raw {
+                if canRunLLM {
                     logger.info("Refining text with LLM (\(effectiveAIMode.displayName) via \(localProvider.displayName))…")
                     do {
                         let refined = try await CloudAIService.shared.refineText(

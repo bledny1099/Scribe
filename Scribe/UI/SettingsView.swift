@@ -1014,9 +1014,8 @@ struct CyberShieldCardView: View {
 
             // User Name Title Row
             VStack(alignment: .leading, spacing: 2) {
-                TextField(appState.l("Name or Nickname"), text: $appState.userName)
+                Text(appState.userName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? appState.l("Voice Pioneer") : appState.userName)
                     .font(.system(size: 24, weight: .bold, design: .rounded))
-                    .textFieldStyle(.plain)
                     .foregroundStyle(.primary)
 
                 Text(appState.l("Voice Dictation & Speech Mastery"))
@@ -1269,9 +1268,8 @@ struct GoldCertificateCardView: View {
                             .tracking(1.8)
                     }
 
-                    TextField(appState.l("Name or Nickname"), text: $appState.userName)
+                    Text(appState.userName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? appState.l("Voice Pioneer") : appState.userName)
                         .font(.system(size: 24, weight: .bold, design: .serif))
-                        .textFieldStyle(.plain)
                         .foregroundStyle(themeGradient)
                         .shadow(color: secondaryThemeColor.opacity(0.3), radius: 6)
 
@@ -1505,9 +1503,9 @@ struct AppleRingsCardView: View {
             }
 
             VStack(alignment: .leading, spacing: 8) {
-                TextField(appState.l("Name or Nickname"), text: $appState.userName)
+                Text(appState.userName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? appState.l("Voice Pioneer") : appState.userName)
                     .font(.system(size: 20, weight: .bold, design: .rounded))
-                    .textFieldStyle(.plain)
+                    .foregroundStyle(.primary)
 
                 HStack(spacing: 8) {
                     // Pill 1: Day Streak
@@ -7282,6 +7280,8 @@ struct SidebarAccountFooterView: View {
                 .buttonStyle(.plain)
             }
         }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
     }
 }
 
@@ -7296,6 +7296,7 @@ struct AccountSettingsModalView: View {
     @State private var isSuccessStatus = false
     @State private var showingDeleteAlert = false
     @State private var isLoading = false
+    @FocusState private var isNicknameFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -7324,342 +7325,369 @@ struct AccountSettingsModalView: View {
             Divider()
 
             if let user = authService.currentUser {
-                VStack(spacing: 16) {
-                    // Profile Header Card
-                    HStack(spacing: 14) {
-                        ZStack {
-                            Circle()
-                                .fill(Color.blue.opacity(0.2))
-                                .frame(width: 44, height: 44)
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 16) {
+                        // Profile Header Card
+                        HStack(spacing: 14) {
+                            ZStack {
+                                Circle()
+                                    .fill(Color.blue.opacity(0.2))
+                                    .frame(width: 44, height: 44)
 
-                            Text(user.initials)
-                                .font(.system(size: 16, weight: .bold, design: .rounded))
-                                .foregroundStyle(Color.blue)
-                        }
-
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(user.name.isEmpty ? "User" : user.name)
-                                .font(.system(size: 14, weight: .bold, design: .rounded))
-                                .foregroundStyle(.primary)
-
-                            if !user.email.isEmpty && !user.email.contains("noreply.github.com") && !user.email.hasSuffix("@github.com") {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "envelope.fill")
-                                        .font(.system(size: 9))
-                                    Text(user.email)
-                                        .font(.system(size: 11, weight: .medium))
-                                }
-                                .foregroundStyle(.secondary)
+                                Text(user.initials)
+                                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                                    .foregroundStyle(Color.blue)
                             }
 
-                            HStack(spacing: 4) {
-                                Image(systemName: user.providerIcon)
-                                    .font(.system(size: 9))
-                                Text(user.providerDisplayName)
-                                    .font(.system(size: 10, weight: .semibold, design: .rounded))
-                            }
-                            .foregroundStyle(.tertiary)
-                        }
-                        Spacer()
-                    }
-                    .padding(14)
-                    .background(Color.primary.opacity(0.04))
-                    .cornerRadius(12)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(user.name.isEmpty ? "User" : user.name)
+                                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                                    .foregroundStyle(.primary)
 
-                    // Edit Nickname
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(appState.l("Nickname / Display Name"))
-                            .font(.system(size: 11, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.secondary)
-
-                        HStack(spacing: 8) {
-                            TextField(appState.l("Enter nickname"), text: $nickname)
-                                .textFieldStyle(.plain)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                                .background(Color.primary.opacity(0.04))
-                                .cornerRadius(8)
-                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.1), lineWidth: 1))
-
-                            Button(appState.l("Save")) {
-                                Task {
-                                    do {
-                                        try await authService.updateDisplayName(nickname)
-                                        statusMessage = appState.l("Name updated successfully!")
-                                        isSuccessStatus = true
-                                    } catch {
-                                        statusMessage = error.localizedDescription
-                                        isSuccessStatus = false
+                                if !user.email.isEmpty && !user.email.contains("noreply.github.com") && !user.email.hasSuffix("@github.com") {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "envelope.fill")
+                                            .font(.system(size: 9))
+                                        Text(user.email)
+                                            .font(.system(size: 11, weight: .medium))
                                     }
+                                    .foregroundStyle(.secondary)
                                 }
+
+                                HStack(spacing: 4) {
+                                    Image(systemName: user.providerIcon)
+                                        .font(.system(size: 9))
+                                    Text(user.providerDisplayName)
+                                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                                }
+                                .foregroundStyle(.tertiary)
                             }
-                            .buttonStyle(.borderedProminent)
+                            Spacer()
                         }
-                    }
+                        .padding(14)
+                        .background(Color.primary.opacity(0.04))
+                        .cornerRadius(12)
 
-                    if let msg = statusMessage {
-                        Text(msg)
-                            .font(.system(size: 11, weight: .medium, design: .rounded))
-                            .foregroundStyle(isSuccessStatus ? Color.green : Color.red)
-                            .multilineTextAlignment(.center)
-                    }
-
-                    // Linked Devices Section
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Label(appState.l("Linked Devices"), systemImage: "laptopcomputer.and.iphone")
+                        // Edit Nickname
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(appState.l("Nickname / Display Name"))
                                 .font(.system(size: 11, weight: .semibold, design: .rounded))
                                 .foregroundStyle(.secondary)
-                            Spacer()
-                            Text("\(authService.linkedDevicesCount) / \(authService.maxAllowedDevices) \(appState.l("Macs"))")
-                                .font(.system(size: 10, weight: .bold, design: .rounded))
-                                .foregroundStyle(authService.isDeviceLimitReached ? .orange : .secondary)
-                                .padding(.horizontal, 7)
-                                .padding(.vertical, 2.5)
-                                .background((authService.isDeviceLimitReached ? Color.orange : Color.primary).opacity(0.08))
-                                .cornerRadius(6)
+
+                            HStack(spacing: 8) {
+                                TextField(appState.l("Enter nickname"), text: $nickname)
+                                    .textFieldStyle(.plain)
+                                    .focused($isNicknameFocused)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .background(Color.primary.opacity(0.04))
+                                    .cornerRadius(8)
+                                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.1), lineWidth: 1))
+
+                                Button(appState.l("Save")) {
+                                    isNicknameFocused = false
+                                    NSApp.keyWindow?.makeFirstResponder(nil)
+                                    let clean = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+                                    Task {
+                                        do {
+                                            try await authService.updateDisplayName(clean)
+                                            await MainActor.run {
+                                                appState.userName = clean
+                                                UserDefaults.standard.set(clean, forKey: "userName")
+                                                statusMessage = appState.l("Name updated successfully!")
+                                                isSuccessStatus = true
+                                            }
+                                        } catch {
+                                            await MainActor.run {
+                                                statusMessage = error.localizedDescription
+                                                isSuccessStatus = false
+                                            }
+                                        }
+                                    }
+                                }
+                                .buttonStyle(.borderedProminent)
+                            }
                         }
 
-                        // Apple Account Protection Status
-                        HStack(spacing: 6) {
-                            Image(systemName: "apple.logo")
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(authService.isAppleAccountMismatch ? .red : .primary)
-                            Text(appState.l("Apple Account Protection"))
+                        if let msg = statusMessage {
+                            Text(msg)
                                 .font(.system(size: 11, weight: .medium, design: .rounded))
+                                .foregroundStyle(isSuccessStatus ? Color.green : Color.red)
+                                .multilineTextAlignment(.center)
+                        }
+
+                        // Linked Devices Section
+                        VStack(alignment: .leading, spacing: 8) {
+                            if authService.linkedDevicesCount >= 2 {
+                                HStack {
+                                    Label(appState.l("Linked Devices"), systemImage: "laptopcomputer.and.iphone")
+                                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                        .foregroundStyle(.secondary)
+                                    Spacer()
+                                    Text("\(authService.linkedDevicesCount) / \(authService.maxAllowedDevices) \(appState.l("Macs"))")
+                                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                                        .foregroundStyle(authService.isDeviceLimitReached ? .orange : .secondary)
+                                        .padding(.horizontal, 7)
+                                        .padding(.vertical, 2.5)
+                                        .background((authService.isDeviceLimitReached ? Color.orange : Color.primary).opacity(0.08))
+                                        .cornerRadius(6)
+                                }
+                            }
+
+                            // Apple Account Protection Status
+                            HStack(spacing: 6) {
+                                Image(systemName: "apple.logo")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(authService.isAppleAccountMismatch ? .red : .primary)
+                                Text(appState.l("Apple Account Protection"))
+                                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                if authService.isAppleAccountMismatch {
+                                    Text(appState.l("Mismatch"))
+                                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                                        .foregroundStyle(.red)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(Color.red.opacity(0.12))
+                                        .cornerRadius(5)
+                                } else {
+                                    Text(appState.l("Active"))
+                                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                                        .foregroundStyle(.green)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(Color.green.opacity(0.12))
+                                        .cornerRadius(5)
+                                }
+                            }
+                            .padding(.vertical, 2)
+
+                            Text(appState.l("Statistics are automatically summed and synchronized across up to 3 verified Macs under your account."))
+                                .font(.system(size: 11, weight: .regular))
                                 .foregroundStyle(.secondary)
-                            Spacer()
+                                .lineLimit(nil)
+                                .fixedSize(horizontal: false, vertical: true)
+
                             if authService.isAppleAccountMismatch {
-                                Text(appState.l("Mismatch"))
-                                    .font(.system(size: 10, weight: .bold, design: .rounded))
-                                    .foregroundStyle(.red)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(Color.red.opacity(0.12))
-                                    .cornerRadius(5)
-                            } else {
-                                Text(appState.l("Active"))
-                                    .font(.system(size: 10, weight: .bold, design: .rounded))
-                                    .foregroundStyle(.green)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(Color.green.opacity(0.12))
-                                    .cornerRadius(5)
+                                VStack(alignment: .leading, spacing: 6) {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "exclamationmark.triangle.fill")
+                                            .font(.system(size: 11, weight: .bold))
+                                            .foregroundStyle(.red)
+                                        Text(appState.l("Apple Account mismatch"))
+                                            .font(.system(size: 11.5, weight: .bold, design: .rounded))
+                                            .foregroundStyle(.red)
+                                    }
+
+                                    Text(appState.l("This Mac is not signed into the registered Apple ID for this Scribe profile."))
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(.secondary)
+
+                                    Button {
+                                        openDeviceLimitSupport(appState: appState)
+                                    } label: {
+                                        HStack(spacing: 4) {
+                                            Text(appState.l("Contact Support"))
+                                                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                            Image(systemName: "arrow.up.right")
+                                                .font(.system(size: 9, weight: .bold))
+                                        }
+                                        .foregroundStyle(.red)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 5)
+                                        .background(Color.red.opacity(0.12))
+                                        .cornerRadius(6)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .padding(.top, 2)
+                                }
+                                .padding(10)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color.red.opacity(0.07))
+                                .cornerRadius(10)
+                                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.red.opacity(0.25), lineWidth: 1))
+                            } else if authService.isDeviceLimitReached {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "exclamationmark.triangle.fill")
+                                            .font(.system(size: 11, weight: .bold))
+                                            .foregroundStyle(.orange)
+                                        Text(appState.l("Device limit reached (max 3)"))
+                                            .font(.system(size: 11.5, weight: .bold, design: .rounded))
+                                            .foregroundStyle(.orange)
+                                    }
+
+                                    Text(appState.l("To link more than 3 devices, please contact support for verification."))
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(.secondary)
+
+                                    Button {
+                                        openDeviceLimitSupport(appState: appState)
+                                    } label: {
+                                        HStack(spacing: 4) {
+                                            Text(appState.l("Contact Support"))
+                                                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                            Image(systemName: "arrow.up.right")
+                                                .font(.system(size: 9, weight: .bold))
+                                        }
+                                        .foregroundStyle(.orange)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 5)
+                                        .background(Color.orange.opacity(0.12))
+                                        .cornerRadius(6)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .padding(.top, 2)
+                                }
+                                .padding(10)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color.orange.opacity(0.07))
+                                .cornerRadius(10)
+                                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.orange.opacity(0.25), lineWidth: 1))
                             }
                         }
-                        .padding(.vertical, 2)
+                        .padding(12)
+                        .background(Color.primary.opacity(0.03))
+                        .cornerRadius(12)
 
-                        Text(appState.l("Statistics are automatically summed and synchronized across up to 3 verified Macs under your account."))
-                            .font(.system(size: 11, weight: .regular))
-                            .foregroundStyle(.secondary)
+                        Divider()
+                            .padding(.vertical, 4)
 
-                        if authService.isAppleAccountMismatch {
-                            VStack(alignment: .leading, spacing: 6) {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "exclamationmark.triangle.fill")
-                                        .font(.system(size: 11, weight: .bold))
-                                        .foregroundStyle(.red)
-                                    Text(appState.l("Apple Account mismatch"))
-                                        .font(.system(size: 11.5, weight: .bold, design: .rounded))
-                                        .foregroundStyle(.red)
-                                }
-
-                                Text(appState.l("This Mac is not signed into the registered Apple ID for this Scribe profile."))
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(.secondary)
-
-                                Button {
-                                    openDeviceLimitSupport(appState: appState)
-                                } label: {
-                                    HStack(spacing: 4) {
-                                        Text(appState.l("Contact Support"))
-                                            .font(.system(size: 11, weight: .semibold, design: .rounded))
-                                        Image(systemName: "arrow.up.right")
-                                            .font(.system(size: 9, weight: .bold))
-                                    }
-                                    .foregroundStyle(.red)
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 5)
-                                    .background(Color.red.opacity(0.12))
-                                    .cornerRadius(6)
-                                }
-                                .buttonStyle(.plain)
-                                .padding(.top, 2)
-                            }
-                            .padding(10)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.red.opacity(0.07))
-                            .cornerRadius(10)
-                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.red.opacity(0.25), lineWidth: 1))
-                        } else if authService.isDeviceLimitReached {
-                            VStack(alignment: .leading, spacing: 6) {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "exclamationmark.triangle.fill")
-                                        .font(.system(size: 11, weight: .bold))
-                                        .foregroundStyle(.orange)
-                                    Text(appState.l("Device limit reached (max 3)"))
-                                        .font(.system(size: 11.5, weight: .bold, design: .rounded))
-                                        .foregroundStyle(.orange)
-                                }
-
-                                Text(appState.l("To link more than 3 devices, please contact support for verification."))
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(.secondary)
-
-                                Button {
-                                    openDeviceLimitSupport(appState: appState)
-                                } label: {
-                                    HStack(spacing: 4) {
-                                        Text(appState.l("Contact Support"))
-                                            .font(.system(size: 11, weight: .semibold, design: .rounded))
-                                        Image(systemName: "arrow.up.right")
-                                            .font(.system(size: 9, weight: .bold))
-                                    }
-                                    .foregroundStyle(.orange)
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 5)
-                                    .background(Color.orange.opacity(0.12))
-                                    .cornerRadius(6)
-                                }
-                                .buttonStyle(.plain)
-                                .padding(.top, 2)
-                            }
-                            .padding(10)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.orange.opacity(0.07))
-                            .cornerRadius(10)
-                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.orange.opacity(0.25), lineWidth: 1))
-                        }
-                    }
-                    .padding(12)
-                    .background(Color.primary.opacity(0.03))
-                    .cornerRadius(12)
-
-                    Divider()
-                        .padding(.vertical, 4)
-
-                    // Account Actions
-                    VStack(spacing: 10) {
-                                             Button {
-                            let isGoogle = user.id.hasPrefix("google_") || 
-                                           user.email.hasSuffix("@gmail.com") || 
-                                           user.email.hasSuffix("@googlemail.com") ||
-                                           (Auth.auth().currentUser?.providerData.contains(where: { $0.providerID == "google.com" }) ?? false)
-                            let isGitHub = user.id.hasPrefix("gh_")
-
-                            if isGoogle {
-                                if let url = URL(string: "https://myaccount.google.com/signinoptions/password") {
-                                    NSWorkspace.shared.open(url)
-                                }
-                                statusMessage = appState.l("Opened official Google password reset page in browser.")
-                                isSuccessStatus = true
-                            } else if isGitHub || user.email.isEmpty {
-                                if let url = URL(string: "https://github.com/password_reset") {
-                                    NSWorkspace.shared.open(url)
-                                }
-                                statusMessage = appState.l("Opened GitHub password reset page in browser.")
-                                isSuccessStatus = true
-                            } else {
-                                Task {
-                                    do {
-                                        try await authService.resetPassword()
-                                        statusMessage = "\(appState.l("Password reset email sent to")) \(user.email). Check Spam/Inbox."
-                                        isSuccessStatus = true
-                                    } catch {
-                                        statusMessage = error.localizedDescription
-                                        isSuccessStatus = false
-                                    }
-                                }
-                            }
-                        } label: {
-                            HStack {
+                        // Account Actions
+                        VStack(spacing: 10) {
+                            Button {
                                 let isGoogle = user.id.hasPrefix("google_") || 
                                                user.email.hasSuffix("@gmail.com") || 
                                                user.email.hasSuffix("@googlemail.com") ||
                                                (Auth.auth().currentUser?.providerData.contains(where: { $0.providerID == "google.com" }) ?? false)
                                 let isGitHub = user.id.hasPrefix("gh_")
 
-                                Image(systemName: (isGoogle || isGitHub) ? "arrow.up.right.square" : "key.fill")
-                                Text(isGoogle ? appState.l("Manage Password on Google.com") : (isGitHub ? appState.l("Reset Password on GitHub.com") : appState.l("Reset / Change Password")))
-                                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 10))
-                                    .foregroundStyle(.tertiary)
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 10)
-                            .background(Color.primary.opacity(0.04))
-                            .cornerRadius(10)
-                        }
-                        .buttonStyle(.plain)
-
-                        // Sign Out Button
-                        Button {
-                            authService.signOut()
-                            dismiss()
-                        } label: {
-                            HStack {
-                                Image(systemName: "rectangle.portrait.and.arrow.right")
-                                Text(appState.l("Sign Out"))
-                                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                                Spacer()
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 10)
-                            .background(Color.primary.opacity(0.04))
-                            .cornerRadius(10)
-                        }
-                        .buttonStyle(.plain)
-
-                        // Delete Account Button
-                        Button {
-                            showingDeleteAlert = true
-                        } label: {
-                            HStack {
-                                Image(systemName: "trash.fill")
-                                Text(appState.l("Delete Account"))
-                                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                                Spacer()
-                            }
-                            .foregroundStyle(.red)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 10)
-                            .background(Color.red.opacity(0.08))
-                            .cornerRadius(10)
-                        }
-                        .buttonStyle(.plain)
-                        .alert(appState.l("Delete Account"), isPresented: $showingDeleteAlert) {
-                            Button(appState.l("Delete"), role: .destructive) {
-                                Task {
-                                    do {
-                                        try await authService.deleteAccount()
-                                        dismiss()
-                                    } catch {
-                                        statusMessage = error.localizedDescription
-                                        isSuccessStatus = false
+                                if isGoogle {
+                                    if let url = URL(string: "https://myaccount.google.com/signinoptions/password") {
+                                        NSWorkspace.shared.open(url)
+                                    }
+                                    statusMessage = appState.l("Opened official Google password reset page in browser.")
+                                    isSuccessStatus = true
+                                } else if isGitHub || user.email.isEmpty {
+                                    if let url = URL(string: "https://github.com/password_reset") {
+                                        NSWorkspace.shared.open(url)
+                                    }
+                                    statusMessage = appState.l("Opened GitHub password reset page in browser.")
+                                    isSuccessStatus = true
+                                } else {
+                                    Task {
+                                        do {
+                                            try await authService.resetPassword()
+                                            statusMessage = "\(appState.l("Password reset email sent to")) \(user.email). Check Spam/Inbox."
+                                            isSuccessStatus = true
+                                        } catch {
+                                            statusMessage = error.localizedDescription
+                                            isSuccessStatus = false
+                                        }
                                     }
                                 }
+                            } label: {
+                                HStack {
+                                    let isGoogle = user.id.hasPrefix("google_") || 
+                                                   user.email.hasSuffix("@gmail.com") || 
+                                                   user.email.hasSuffix("@googlemail.com") ||
+                                                   (Auth.auth().currentUser?.providerData.contains(where: { $0.providerID == "google.com" }) ?? false)
+                                    let isGitHub = user.id.hasPrefix("gh_")
+
+                                    Image(systemName: (isGoogle || isGitHub) ? "arrow.up.right.square" : "key.fill")
+                                    Text(isGoogle ? appState.l("Manage Password on Google.com") : (isGitHub ? appState.l("Reset Password on GitHub.com") : appState.l("Reset / Change Password")))
+                                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 10))
+                                        .foregroundStyle(.tertiary)
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 10)
+                                .background(Color.primary.opacity(0.04))
+                                .cornerRadius(10)
                             }
-                            Button(appState.l("Cancel"), role: .cancel) {}
-                        } message: {
-                            Text(appState.l("Are you sure you want to delete your account? This action cannot be undone and your synced data will be removed."))
+                            .buttonStyle(.plain)
+
+                            // Sign Out Button
+                            Button {
+                                authService.signOut()
+                                dismiss()
+                            } label: {
+                                HStack {
+                                    Image(systemName: "rectangle.portrait.and.arrow.right")
+                                    Text(appState.l("Sign Out"))
+                                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                    Spacer()
+                                }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 10)
+                                .background(Color.primary.opacity(0.04))
+                                .cornerRadius(10)
+                            }
+                            .buttonStyle(.plain)
+
+                            // Delete Account Button
+                            Button {
+                                showingDeleteAlert = true
+                            } label: {
+                                HStack {
+                                    Image(systemName: "trash.fill")
+                                    Text(appState.l("Delete Account"))
+                                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                    Spacer()
+                                }
+                                .foregroundStyle(.red)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 10)
+                                .background(Color.red.opacity(0.08))
+                                .cornerRadius(10)
+                            }
+                            .buttonStyle(.plain)
+                            .alert(appState.l("Delete Account"), isPresented: $showingDeleteAlert) {
+                                Button(appState.l("Delete"), role: .destructive) {
+                                    Task {
+                                        do {
+                                            try await authService.deleteAccount()
+                                            dismiss()
+                                        } catch {
+                                            statusMessage = error.localizedDescription
+                                            isSuccessStatus = false
+                                        }
+                                    }
+                                }
+                                Button(appState.l("Cancel"), role: .cancel) {}
+                            } message: {
+                                Text(appState.l("Are you sure you want to delete your account? This action cannot be undone and your synced data will be removed."))
+                            }
                         }
                     }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 16)
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
                 .onAppear {
-                    nickname = user.name
+                    let current = user.name
+                    nickname = current.isEmpty ? appState.userName : current
+                    isNicknameFocused = false
+                    DispatchQueue.main.async {
+                        isNicknameFocused = false
+                        NSApp.keyWindow?.makeFirstResponder(nil)
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+                        isNicknameFocused = false
+                        NSApp.keyWindow?.makeFirstResponder(nil)
+                    }
                 }
+            } else {
+                Spacer()
             }
-
-            Spacer(minLength: 0)
         }
-        .frame(width: 380, height: 430)
+        .frame(width: 390, height: 530)
         .background(.ultraThinMaterial)
     }
 }
+
 
 // MARK: - Auth Modal View
 struct AuthModalView: View {
