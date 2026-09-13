@@ -279,7 +279,6 @@ struct WaveformOverlay: View {
 
     var body: some View {
         let isEmbeddedActive = false
-        let isAIModeActive = appState.enableCloudAI && appState.selectedAIRefinementMode != .raw && (appState.recordingStatus == .recording || appState.recordingStatus == .transcribing)
         let isStatusMessage = appState.recordingStatus != .recording && !appState.isShowingPreview && !statusLabel.isEmpty
         let effectiveAppName = appState.showTargetAppInOverlay ? ((appState.recordingStatus == .recording || appState.recordingStatus == .transcribing) ? appState.targetAppName : (appState.isShowingPreview ? "Scribe" : "")) : ""
         let isTimerVisible = appState.durationVisible && (appState.recordingStatus == .recording || appState.isShowingPreview)
@@ -291,7 +290,7 @@ struct WaveformOverlay: View {
             previewTextLength: appState.livePreviewText.count,
             targetAppName: effectiveAppName,
             isTimerVisible: isTimerVisible,
-            hasAIMode: isAIModeActive,
+            hasAIMode: false,
             isStatusMessage: isStatusMessage,
             statusTextLength: statusLabel.count
         )
@@ -331,20 +330,6 @@ struct WaveformOverlay: View {
 
                     // Right: status label + target app badge + timer + stop button
                     HStack(spacing: 10) {
-                        if isAIModeActive {
-                            HStack(spacing: 4) {
-                                Image(systemName: appState.selectedAIRefinementMode.icon)
-                                    .font(.system(size: 10, weight: .bold))
-                                Text(appState.selectedAIRefinementMode.displayName)
-                                    .font(.system(size: 10, weight: .bold, design: .rounded))
-                            }
-                            .foregroundStyle(appState.selectedTheme.gradientColors.first!)
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 3)
-                            .background(appState.selectedTheme.gradientColors.first!.opacity(0.12))
-                            .cornerRadius(6)
-                        }
-
                         if !effectiveAppName.isEmpty {
                             TargetAppBadgeView(
                                 name: effectiveAppName,

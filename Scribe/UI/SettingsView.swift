@@ -2250,7 +2250,7 @@ struct OverlayPreviewStageView: View {
     var body: some View {
         let previewAppName = appState.showTargetAppInOverlay ? "Scribe" : ""
         let isTimerVis = appState.durationVisible
-        let hasAI = appState.enableCloudAI && appState.selectedAIRefinementMode != .raw
+        let hasAI = false
 
         let baseSize = RecordingPanel.size(
             for: currentStyle,
@@ -3112,9 +3112,6 @@ struct IntegrationsSettingsView: View {
     
     var body: some View {
         VStack(spacing: 16) {
-            // Cloud AI Post-Processing & Smart Polish
-            CloudAISettingsView()
-
             // General Output Mode Card
             GlassSection(title: appState.l("Output Options"), icon: "slider.horizontal.3") {
                 VStack(alignment: .leading, spacing: 14) {
@@ -6876,6 +6873,204 @@ struct RecognitionSettingsView: View {
                     )
                 }
             }
+
+            // SECTION: AI Post-Processing & Refinement
+            GlassSection(title: appState.l("AI Post-Processing (LLM Polish)"), icon: "wand.and.stars") {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(appState.l("Enable AI Post-Processing"))
+                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                .foregroundStyle(.primary)
+                            Text(appState.l("Cleans up grammar, hesitations, and false starts after Whisper transcription"))
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Toggle("", isOn: $appState.enableCloudAI)
+                            .toggleStyle(.switch)
+                            .labelsHidden()
+                    }
+
+                    if appState.enableCloudAI {
+                        Divider().opacity(0.3)
+
+                        // Provider Picker
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(appState.l("AI Engine / Provider"))
+                                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                Text(appState.l("Ultra-fast cloud inference or local offline model"))
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            LiquidGlassMenu(
+                                items: [CloudAIProvider.groq.rawValue, CloudAIProvider.anthropic.rawValue, CloudAIProvider.openAI.rawValue, CloudAIProvider.ollama.rawValue],
+                                selection: $appState.cloudAIProviderRaw,
+                                title: { id in CloudAIProvider(rawValue: id)?.displayName ?? id },
+                                displayTitle: { id in CloudAIProvider(rawValue: id)?.displayName ?? id }
+                            )
+                        }
+
+                        // Refinement Mode Picker
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(appState.l("Refinement Mode"))
+                                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                Text(appState.l(appState.selectedAIRefinementMode == .polish ? "Claude-style smart cleanup (preserves length and language)" : "Transforms speech output structure"))
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            LiquidGlassMenu(
+                                items: [AIRefinementMode.polish.rawValue, AIRefinementMode.summary.rawValue, AIRefinementMode.executive.rawValue, AIRefinementMode.actionItems.rawValue, AIRefinementMode.translation.rawValue, AIRefinementMode.raw.rawValue],
+                                selection: $appState.selectedAIRefinementModeRaw,
+                                title: { id in AIRefinementMode(rawValue: id)?.displayName ?? id },
+                                displayTitle: { id in AIRefinementMode(rawValue: id)?.displayName ?? id }
+                            )
+                        }
+
+                        // API Key / Endpoint Configuration
+                        switch appState.cloudAIProvider {
+                        case .groq:
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(appState.l("Groq API Key"))
+                                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                                SecureField("gsk_...", text: $appState.groqAPIKey)
+                                    .textFieldStyle(.roundedBorder)
+                                Text(appState.l("Runs Qwen 2.5 27B on Groq (~200ms ultra-low latency). Stored locally."))
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(.tertiary)
+                            }
+                        case .anthropic:
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(appState.l("Anthropic API Key"))
+                                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                                SecureField("sk-ant-...", text: $appState.anthropicAPIKey)
+                                    .textFieldStyle(.roundedBorder)
+                                Text(appState.l("Runs Claude 3.5 Haiku directly via Anthropic Messages API."))
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(.tertiary)
+                            }
+                        case .openAI, .scribeCloud:
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(appState.l("OpenAI API Key"))
+                                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                                SecureField("sk-...", text: $appState.openAIAPIKey)
+                                    .textFieldStyle(.roundedBorder)
+                                Text(appState.l("Runs GPT-4o-mini via OpenAI Chat Completions API."))
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(.tertiary)
+                            }
+                        case .ollama:
+                            VStack(alignment: .leading, spacing: 8) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(appState.l("Ollama Endpoint"))
+                                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                                        .foregroundStyle(.secondary)
+                                    TextField("http://localhost:11434", text: $appState.ollamaEndpoint)
+                                        .textFieldStyle(.roundedBorder)
+                                }
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(appState.l("Ollama Model"))
+                                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                                        .foregroundStyle(.secondary)
+                                    TextField("qwen2.5:7b", text: $appState.ollamaModel)
+                                        .textFieldStyle(.roundedBorder)
+                                }
+                            }
+                        }
+
+                        // Test Connection Button & Status
+                        AITestConnectionView(appState: appState)
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - AI Test Connection View
+struct AITestConnectionView: View {
+    @ObservedObject var appState: AppState
+    @State private var isTesting: Bool = false
+    @State private var testResult: String? = nil
+    @State private var isSuccess: Bool = false
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Button {
+                runTest()
+            } label: {
+                HStack(spacing: 5) {
+                    if isTesting {
+                        ProgressView()
+                            .controlSize(.mini)
+                            .frame(width: 12, height: 12)
+                    } else {
+                        Image(systemName: "bolt.horizontal.fill")
+                    }
+                    Text(isTesting ? appState.l("Testing...") : appState.l("Test Connection"))
+                }
+                .font(.system(size: 11.5, weight: .medium, design: .rounded))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(Color.primary.opacity(0.06))
+                .cornerRadius(6)
+            }
+            .buttonStyle(.plain)
+            .disabled(isTesting)
+
+            Spacer()
+
+            if let result = testResult {
+                HStack(spacing: 4) {
+                    Image(systemName: isSuccess ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                        .foregroundStyle(isSuccess ? Color.green : Color.orange)
+                        .font(.system(size: 11))
+                    Text(result)
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundStyle(isSuccess ? Color.green : Color.orange)
+                        .lineLimit(1)
+                }
+            }
+        }
+        .padding(.top, 4)
+    }
+
+    private func runTest() {
+        isTesting = true
+        testResult = nil
+        let start = CFAbsoluteTimeGetCurrent()
+        Task {
+            do {
+                let res = try await CloudAIService.shared.refineText(
+                    text: "Привет, это тестовая проверка связи для Scribe.",
+                    mode: appState.selectedAIRefinementMode,
+                    provider: appState.cloudAIProvider,
+                    apiKey: appState.activeCloudAPIKey,
+                    ollamaEndpoint: appState.ollamaEndpoint,
+                    ollamaModel: appState.ollamaModel
+                )
+                let elapsed = Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
+                await MainActor.run {
+                    isSuccess = true
+                    testResult = "OK (\(elapsed)ms): \(res.prefix(25))..."
+                    isTesting = false
+                }
+            } catch {
+                await MainActor.run {
+                    isSuccess = false
+                    testResult = "Error: \(error.localizedDescription)"
+                    isTesting = false
+                }
+            }
         }
     }
 }
@@ -6944,246 +7139,6 @@ struct SystemSettingsView: View {
         }
         .onAppear {
             isLaunchAtLoginEnabled = LaunchAtLoginHelper.isEnabled
-        }
-    }
-}
-
-// MARK: - Cloud AI Settings View
-struct CloudAISettingsView: View {
-    @EnvironmentObject var appState: AppState
-    @State private var testingConnection = false
-    @State private var testStatusMessage: String? = nil
-    @State private var testIsSuccess: Bool = false
-
-    var body: some View {
-        GlassSection(title: appState.l("AI Post-Processing & Smart Polish"), icon: "sparkles") {
-            VStack(alignment: .leading, spacing: 16) {
-                // Header toggle
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        HStack(spacing: 6) {
-                            Text(appState.l("AI-обработка текста (LLM)"))
-                                .font(.system(size: 14, weight: .bold, design: .rounded))
-                                .foregroundStyle(.primary)
-                            if appState.enableCloudAI {
-                                Text("ACTIVE")
-                                    .font(.system(size: 9, weight: .bold, design: .monospaced))
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(Color.purple.opacity(0.18))
-                                    .foregroundStyle(Color.purple)
-                                    .cornerRadius(4)
-                            }
-                        }
-                        Text(appState.l("Исправляет грамматику, ложные старты, оговорки и пунктуацию с сохранением смысла и языка оригинала."))
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    Spacer()
-                    Toggle("", isOn: $appState.enableCloudAI)
-                        .toggleStyle(.switch)
-                        .labelsHidden()
-                }
-
-                if appState.enableCloudAI {
-                    Divider().opacity(0.3)
-
-                    // Refinement Mode Selector
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(appState.l("Режим обработки"))
-                            .font(.system(size: 12.5, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.primary)
-
-                        LiquidGlassSegmentedPicker(
-                            items: AIRefinementMode.allCases,
-                            selection: $appState.selectedAIRefinementMode,
-                            label: { ($0.displayName, $0.icon) }
-                        )
-                    }
-
-                    Divider().opacity(0.3)
-
-                    // Provider Selector
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(appState.l("AI-провайдер"))
-                            .font(.system(size: 12.5, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.primary)
-
-                        LiquidGlassSegmentedPicker(
-                            items: [CloudAIProvider.groq, CloudAIProvider.anthropic, CloudAIProvider.openAI, CloudAIProvider.ollama],
-                            selection: $appState.cloudAIProvider,
-                            label: { ($0.displayName, providerIcon(for: $0)) }
-                        )
-                    }
-
-                    // Provider configuration
-                    VStack(alignment: .leading, spacing: 8) {
-                        switch appState.cloudAIProvider {
-                        case .groq:
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(appState.l("Groq API Key (qwen/qwen3.8-27b • ~200ms)"))
-                                    .font(.system(size: 11.5, weight: .medium))
-                                    .foregroundStyle(.secondary)
-                                HStack {
-                                    SecureField("gsk_...", text: $appState.groqAPIKey)
-                                        .textFieldStyle(.roundedBorder)
-                                    Button(action: testConnection) {
-                                        if testingConnection {
-                                            ProgressView().controlSize(.small)
-                                        } else {
-                                            Text(appState.l("Проверить"))
-                                                .font(.system(size: 12, weight: .semibold))
-                                        }
-                                    }
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 5)
-                                    .background(Color.primary.opacity(0.08))
-                                    .cornerRadius(6)
-                                    .buttonStyle(.plain)
-                                }
-                            }
-
-                        case .anthropic:
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(appState.l("Anthropic Claude API Key (claude-3-5-haiku-latest)"))
-                                    .font(.system(size: 11.5, weight: .medium))
-                                    .foregroundStyle(.secondary)
-                                HStack {
-                                    SecureField("sk-ant-...", text: $appState.anthropicAPIKey)
-                                        .textFieldStyle(.roundedBorder)
-                                    Button(action: testConnection) {
-                                        if testingConnection {
-                                            ProgressView().controlSize(.small)
-                                        } else {
-                                            Text(appState.l("Проверить"))
-                                                .font(.system(size: 12, weight: .semibold))
-                                        }
-                                    }
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 5)
-                                    .background(Color.primary.opacity(0.08))
-                                    .cornerRadius(6)
-                                    .buttonStyle(.plain)
-                                }
-                            }
-
-                        case .openAI, .scribeCloud:
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(appState.l("OpenAI API Key (gpt-4o-mini)"))
-                                    .font(.system(size: 11.5, weight: .medium))
-                                    .foregroundStyle(.secondary)
-                                HStack {
-                                    SecureField("sk-...", text: $appState.openAIAPIKey)
-                                        .textFieldStyle(.roundedBorder)
-                                    Button(action: testConnection) {
-                                        if testingConnection {
-                                            ProgressView().controlSize(.small)
-                                        } else {
-                                            Text(appState.l("Проверить"))
-                                                .font(.system(size: 12, weight: .semibold))
-                                        }
-                                    }
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 5)
-                                    .background(Color.primary.opacity(0.08))
-                                    .cornerRadius(6)
-                                    .buttonStyle(.plain)
-                                }
-                            }
-
-                        case .ollama:
-                            VStack(alignment: .leading, spacing: 8) {
-                                HStack(spacing: 12) {
-                                    VStack(alignment: .leading, spacing: 3) {
-                                        Text(appState.l("Ollama Endpoint"))
-                                            .font(.system(size: 11, weight: .medium))
-                                            .foregroundStyle(.secondary)
-                                        TextField("http://localhost:11434", text: $appState.ollamaEndpoint)
-                                            .textFieldStyle(.roundedBorder)
-                                    }
-                                    VStack(alignment: .leading, spacing: 3) {
-                                        Text(appState.l("Model Name"))
-                                            .font(.system(size: 11, weight: .medium))
-                                            .foregroundStyle(.secondary)
-                                        TextField("qwen2.5:7b", text: $appState.ollamaModel)
-                                            .textFieldStyle(.roundedBorder)
-                                    }
-                                    Button(action: testConnection) {
-                                        if testingConnection {
-                                            ProgressView().controlSize(.small)
-                                        } else {
-                                            Text(appState.l("Проверить"))
-                                                .font(.system(size: 12, weight: .semibold))
-                                        }
-                                    }
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 5)
-                                    .background(Color.primary.opacity(0.08))
-                                    .cornerRadius(6)
-                                    .buttonStyle(.plain)
-                                }
-                            }
-                        }
-
-                        if let msg = testStatusMessage {
-                            HStack(spacing: 6) {
-                                Image(systemName: testIsSuccess ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(testIsSuccess ? Color.green : Color.red)
-                                Text(msg)
-                                    .font(.system(size: 11, weight: .medium))
-                                    .foregroundStyle(testIsSuccess ? Color.green : Color.red)
-                            }
-                            .padding(.top, 2)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private func providerIcon(for provider: CloudAIProvider) -> String {
-        switch provider {
-        case .groq: return "bolt.fill"
-        case .anthropic: return "sparkles"
-        case .openAI, .scribeCloud: return "brain"
-        case .ollama: return "desktopcomputer"
-        }
-    }
-
-    private func testConnection() {
-        let key = appState.activeCloudAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        if appState.cloudAIProvider != .ollama && key.isEmpty {
-            testIsSuccess = false
-            testStatusMessage = "Введите API-ключ для проверки"
-            return
-        }
-        testingConnection = true
-        testStatusMessage = nil
-
-        Task {
-            do {
-                let res = try await CloudAIService.shared.refineText(
-                    text: "Привет, это тестовая проверка связи с AI.",
-                    mode: .polish,
-                    provider: appState.cloudAIProvider,
-                    apiKey: key,
-                    ollamaEndpoint: appState.ollamaEndpoint,
-                    ollamaModel: appState.ollamaModel
-                )
-                await MainActor.run {
-                    testingConnection = false
-                    testIsSuccess = true
-                    testStatusMessage = "Успешно! Ответ: \"\(res.prefix(40))…\""
-                }
-            } catch {
-                await MainActor.run {
-                    testingConnection = false
-                    testIsSuccess = false
-                    testStatusMessage = "Ошибка: \(error.localizedDescription)"
-                }
-            }
         }
     }
 }

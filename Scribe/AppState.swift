@@ -587,6 +587,47 @@ final class AppState: ObservableObject {
     @AppStorage("userCityLocation") public var userCityLocation: String = ""
     @AppStorage("smartCasingEnabled") public var smartCasingEnabled: Bool = true
 
+    // MARK: - AI Post-Processing & Refinement
+    @AppStorage("enableCloudAI") public var enableCloudAI: Bool = false
+    @AppStorage("cloudAIProvider") public var cloudAIProviderRaw: String = CloudAIProvider.groq.rawValue
+    @AppStorage("selectedAIRefinementMode") public var selectedAIRefinementModeRaw: String = AIRefinementMode.polish.rawValue
+    @AppStorage("groqAPIKey") public var groqAPIKey: String = ""
+    @AppStorage("anthropicAPIKey") public var anthropicAPIKey: String = ""
+    @AppStorage("openAIAPIKey") public var openAIAPIKey: String = ""
+    @AppStorage("ollamaEndpoint") public var ollamaEndpoint: String = "http://localhost:11434"
+    @AppStorage("ollamaModel") public var ollamaModel: String = "qwen2.5:7b"
+
+    public var cloudAIProvider: CloudAIProvider {
+        get { CloudAIProvider(rawValue: cloudAIProviderRaw) ?? .groq }
+        set { cloudAIProviderRaw = newValue.rawValue }
+    }
+
+    public var selectedAIRefinementMode: AIRefinementMode {
+        get { AIRefinementMode(rawValue: selectedAIRefinementModeRaw) ?? .polish }
+        set { selectedAIRefinementModeRaw = newValue.rawValue }
+    }
+
+    public var activeCloudAPIKey: String {
+        switch cloudAIProvider {
+        case .groq:
+            return groqAPIKey
+        case .anthropic:
+            return anthropicAPIKey
+        case .openAI, .scribeCloud:
+            return openAIAPIKey
+        case .ollama:
+            return ""
+        }
+    }
+
+    public var isAIPostProcessingActive: Bool {
+        guard enableCloudAI else { return false }
+        if cloudAIProvider == .ollama {
+            return !ollamaEndpoint.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        return !activeCloudAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     public static let defaultVocabularyPresets: [VocabularyPreset] = [
         VocabularyPreset(
             name: "IDE & Vibe Coding",
@@ -684,38 +725,10 @@ final class AppState: ObservableObject {
 
     @AppStorage("pushToTalk") public var pushToTalk: Bool = false
     @AppStorage("scribeTranscriptionMode") public var transcriptionModeRaw: String = ScribeMode.clean.rawValue
-    @AppStorage("enableCloudAI") public var enableCloudAI: Bool = false
-    @AppStorage("cloudAIProvider") public var cloudAIProviderRaw: String = CloudAIProvider.groq.rawValue
-    @AppStorage("groqAPIKey") public var groqAPIKey: String = ""
-    @AppStorage("anthropicAPIKey") public var anthropicAPIKey: String = ""
-    @AppStorage("openAIAPIKey") public var openAIAPIKey: String = ""
-    @AppStorage("ollamaEndpoint") public var ollamaEndpoint: String = "http://localhost:11434"
-    @AppStorage("ollamaModel") public var ollamaModel: String = "qwen2.5:7b"
-    @AppStorage("selectedAIRefinementMode") public var selectedAIRefinementModeRaw: String = AIRefinementMode.polish.rawValue
-    @AppStorage("useCloudSpeechTranscription") public var useCloudSpeechTranscription: Bool = false
 
     public var transcriptionMode: ScribeMode {
         get { ScribeMode(rawValue: transcriptionModeRaw) ?? .clean }
         set { transcriptionModeRaw = newValue.rawValue }
-    }
-
-    public var cloudAIProvider: CloudAIProvider {
-        get { CloudAIProvider(rawValue: cloudAIProviderRaw) ?? .groq }
-        set { cloudAIProviderRaw = newValue.rawValue }
-    }
-
-    public var selectedAIRefinementMode: AIRefinementMode {
-        get { AIRefinementMode(rawValue: selectedAIRefinementModeRaw) ?? .polish }
-        set { selectedAIRefinementModeRaw = newValue.rawValue }
-    }
-
-    public var activeCloudAPIKey: String {
-        switch cloudAIProvider {
-        case .groq:                 return groqAPIKey
-        case .anthropic:            return anthropicAPIKey
-        case .openAI, .scribeCloud: return openAIAPIKey
-        case .ollama:               return "local"
-        }
     }
 
     @AppStorage("defaultNoteTags") public var defaultNoteTags: String = ""
@@ -1081,13 +1094,6 @@ final class AppState: ObservableObject {
         recordingStatus = .transcribing
         self.audioRecorder.audioLevel = 0
 
-        let localProvider = self.cloudAIProvider
-        let localMode = self.selectedAIRefinementMode
-        let localAPIKey = self.activeCloudAPIKey
-        let localEnableCloud = self.enableCloudAI
-        let localOllamaEndpoint = self.ollamaEndpoint
-        let localOllamaModel = self.ollamaModel
-        let localUseCloudSpeech = self.useCloudSpeechTranscription
         let soundFeedback = self.soundFeedbackEnabled
         let livePreview = self.livePreviewEnabled
 
@@ -1127,54 +1133,18 @@ final class AppState: ObservableObject {
                     (self.multilingualLanguages.isEmpty ? ["ru", "en"] : self.multilingualLanguages)
 
                 logger.info("Starting transcription with model=\(self.effectiveModel), mode=\(self.recognitionMode), lang=\(langParam ?? "auto"), preferred=\(preferredLangs)…")
-                var text = ""
 
-                if localUseCloudSpeech && localEnableCloud && !localAPIKey.isEmpty {
-                    logger.info("Using Cloud AI transcription via \(localProvider.displayName)…")
-                    do {
-                        if let conditionedURL = AetherAudioConditioner.shared.condition(audioURL: audioURL) {
-                            defer {
-                                if conditionedURL != audioURL {
-                                    try? FileManager.default.removeItem(at: conditionedURL)
-                                }
-                            }
-                            text = try await CloudAIService.shared.transcribeAudio(
-                                audioURL: conditionedURL,
-                                provider: localProvider,
-                                apiKey: localAPIKey,
-                                language: langParam
-                            )
-                        } else {
-                            logger.info("No audible speech detected, skipping Cloud AI transcription.")
-                            text = ""
-                        }
-                    } catch {
-                        logger.warning("Cloud transcription failed (\(error.localizedDescription)), falling back to local WhisperKit…")
-                        text = try await transcriptionService.transcribe(
-                            audioURL: audioURL,
-                            modelName: self.effectiveModel,
-                            language: self.isInstantEngine ? "en" : langParam,
-                            preferredLanguages: self.isInstantEngine ? ["en"] : preferredLangs,
-                            autoTranslate: self.isInstantEngine ? false : self.autoTranslate,
-                            customVocabulary: self.vocabulary,
-                            userLocation: self.effectiveUserLocation,
-                            targetApp: self.targetRunningApplication,
-                            recognitionEngine: self.recognitionEngine
-                        )
-                    }
-                } else {
-                    text = try await transcriptionService.transcribe(
-                        audioURL: audioURL,
-                        modelName: self.effectiveModel,
-                        language: self.isInstantEngine ? "en" : langParam,
-                        preferredLanguages: self.isInstantEngine ? ["en"] : preferredLangs,
-                        autoTranslate: self.isInstantEngine ? false : self.autoTranslate,
-                        customVocabulary: self.vocabulary,
-                        userLocation: self.effectiveUserLocation,
-                        targetApp: self.targetRunningApplication,
-                        recognitionEngine: self.recognitionEngine
-                    )
-                }
+                var text = try await transcriptionService.transcribe(
+                    audioURL: audioURL,
+                    modelName: self.effectiveModel,
+                    language: self.isInstantEngine ? "en" : langParam,
+                    preferredLanguages: self.isInstantEngine ? ["en"] : preferredLangs,
+                    autoTranslate: self.isInstantEngine ? false : self.autoTranslate,
+                    customVocabulary: self.vocabulary,
+                    userLocation: self.effectiveUserLocation,
+                    targetApp: self.targetRunningApplication,
+                    recognitionEngine: self.recognitionEngine
+                )
 
                 // Fast exit if no speech was detected
                 if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -1216,25 +1186,25 @@ final class AppState: ObservableObject {
                     to: text
                 )
 
-                // LLM Refinement if Cloud AI post-processing is active
-                let effectiveAIMode = (localMode == .raw) ? .polish : localMode
-                let canRunLLM = localEnableCloud && (!localAPIKey.isEmpty || localProvider == .ollama)
-                if canRunLLM {
-                    logger.info("Refining text with LLM (\(effectiveAIMode.displayName) via \(localProvider.displayName))…")
+                // 3. Optional AI Post-Processing & Refinement (Claude / Groq / OpenAI / Ollama)
+                if self.isAIPostProcessingActive && self.selectedAIRefinementMode != .raw && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    logger.info("Applying AI refinement (\(self.selectedAIRefinementMode.rawValue)) via \(self.cloudAIProvider.rawValue)...")
                     do {
                         let refined = try await CloudAIService.shared.refineText(
                             text: text,
-                            mode: effectiveAIMode,
-                            provider: localProvider,
-                            apiKey: localAPIKey,
-                            ollamaEndpoint: localOllamaEndpoint,
-                            ollamaModel: localOllamaModel
+                            mode: self.selectedAIRefinementMode,
+                            provider: self.cloudAIProvider,
+                            apiKey: self.activeCloudAPIKey,
+                            ollamaEndpoint: self.ollamaEndpoint,
+                            ollamaModel: self.ollamaModel
                         )
-                        if !refined.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                            text = refined
+                        let trimmed = refined.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !trimmed.isEmpty {
+                            logger.info("AI refinement applied successfully.")
+                            text = trimmed
                         }
                     } catch {
-                        logger.warning("LLM text refinement failed (\(error.localizedDescription)), keeping original transcribed text.")
+                        logger.warning("AI refinement failed: \(error.localizedDescription), using raw transcript.")
                     }
                 }
 
@@ -1433,7 +1403,27 @@ final class AppState: ObservableObject {
                     to: text
                 )
 
-                // 3. Save to History
+                // 3. Optional AI Post-Processing & Refinement
+                if self.isAIPostProcessingActive && self.selectedAIRefinementMode != .raw && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    do {
+                        let refined = try await CloudAIService.shared.refineText(
+                            text: text,
+                            mode: self.selectedAIRefinementMode,
+                            provider: self.cloudAIProvider,
+                            apiKey: self.activeCloudAPIKey,
+                            ollamaEndpoint: self.ollamaEndpoint,
+                            ollamaModel: self.ollamaModel
+                        )
+                        let trimmed = refined.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !trimmed.isEmpty {
+                            text = trimmed
+                        }
+                    } catch {
+                        logger.warning("AI refinement during file import failed: \(error.localizedDescription)")
+                    }
+                }
+
+                // 4. Save to History
                 let filename = url.deletingPathExtension().lastPathComponent
                 let record = TranscriptionRecord(
                     text: text,
@@ -1491,7 +1481,7 @@ final class AppState: ObservableObject {
             .environmentObject(audioRecorder)
 
         let isEmbedded = false
-        let hasAI = enableCloudAI && selectedAIRefinementMode != .raw
+        let hasAI = false
         let activeAppName = showTargetAppInOverlay ? targetAppName : ""
         let isTimerVis = durationVisible
         let panel = RecordingPanel.make(
@@ -1734,7 +1724,7 @@ final class AppState: ObservableObject {
             .environmentObject(audioRecorder)
 
         let isEmbeddedActive = false
-        let hasAI = enableCloudAI && selectedAIRefinementMode != .raw
+        let hasAI = false
         let previewAppName = showTargetAppInOverlay ? "Scribe" : ""
         let isTimerVis = durationVisible
         let targetSize = RecordingPanel.size(

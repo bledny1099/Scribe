@@ -261,63 +261,48 @@ struct LiquidGlassMenuBarView: View {
                     .buttonStyle(.plain)
                     .help(appState.l("Record lecture in background without on-screen overlay and save to Notes"))
                 }
-
-                // MARK: - AI Post-Processing Quick Toggle
-                Button {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
-                        appState.enableCloudAI.toggle()
-                    }
-                } label: {
-                    HStack(spacing: 9) {
-                        ZStack {
-                            Circle()
-                                .fill(appState.enableCloudAI ? Color.purple.opacity(0.18) : Color.primary.opacity(0.06))
-                                .frame(width: 28, height: 28)
-                            Image(systemName: "wand.and.stars")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(appState.enableCloudAI ? Color.purple : Color.secondary)
-                        }
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 5) {
-                                Text(appState.l("AI-обработка"))
-                                    .font(.system(size: 12.5, weight: .bold, design: .rounded))
-                                    .foregroundStyle(appState.enableCloudAI ? Color.primary : Color.secondary)
-                                Text(appState.cloudAIProvider == .anthropic ? "Claude" : appState.cloudAIProvider.displayName)
-                                    .font(.system(size: 9.5, weight: .bold, design: .rounded))
-                                    .padding(.horizontal, 5)
-                                    .padding(.vertical, 1)
-                                    .background(appState.enableCloudAI ? Color.purple.opacity(0.16) : Color.primary.opacity(0.06))
-                                    .foregroundStyle(appState.enableCloudAI ? Color.purple : Color.secondary)
-                                    .cornerRadius(4)
-                            }
-                            Text(appState.enableCloudAI ? appState.selectedAIRefinementMode.displayName : appState.l("Выключена (чистый Whisper)"))
-                                .font(.system(size: 10.5))
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                        }
-
-                        Spacer()
-
-                        Toggle("", isOn: $appState.enableCloudAI)
-                            .labelsHidden()
-                            .toggleStyle(SwitchToggleStyle(tint: .purple))
-                            .scaleEffect(0.75)
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 7)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(appState.enableCloudAI ? Color.purple.opacity(0.08) : Color.primary.opacity(0.03))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(appState.enableCloudAI ? Color.purple.opacity(0.28) : Color.primary.opacity(0.07), lineWidth: 1)
-                    )
-                }
-                .buttonStyle(.plain)
-                .help(appState.l("Быстрое включение и выключение AI-обработки текста после записи"))
             }
+
+            // AI Post-Processing Quick Toggle
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    appState.enableCloudAI.toggle()
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "wand.and.stars")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(appState.enableCloudAI ? Color.purple : Color.secondary)
+
+                    VStack(alignment: .leading, spacing: 1.5) {
+                        Text(appState.l("AI-обработка"))
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .foregroundStyle(.primary)
+                        Text(appState.enableCloudAI ? (appState.cloudAIProvider == .groq ? "Qwen 27B (Groq)" : appState.cloudAIProvider.displayName) : appState.l("Выключена (сырой текст)"))
+                            .font(.system(size: 9.5))
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    Toggle("", isOn: $appState.enableCloudAI)
+                        .toggleStyle(.switch)
+                        .controlSize(.mini)
+                        .allowsHitTesting(false)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(appState.enableCloudAI ? Color.purple.opacity(0.08) : Color.primary.opacity(0.04))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(appState.enableCloudAI ? Color.purple.opacity(0.25) : Color.primary.opacity(0.06), lineWidth: 1)
+                )
+            }
+            .buttonStyle(.plain)
+            .help(appState.l("Быстрое включение и выключение AI-обработки текста после записи"))
 
             // Footer
             HStack(spacing: 8) {
