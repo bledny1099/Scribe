@@ -56,9 +56,13 @@
 		A0010009 /* UserFrequencyDictionary.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010009 /* UserFrequencyDictionary.swift */; };
 		A0010010 /* TelemetryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010010 /* TelemetryService.swift */; };
 		A0010012 /* ScribeMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010012 /* ScribeMode.swift */; };
+		A0010018 /* UserGrammarProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010018 /* UserGrammarProfile.swift */; };
+		A0010019 /* PersonalVocabularyMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0010019 /* PersonalVocabularyMonitor.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		F0010018 /* UserGrammarProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserGrammarProfile.swift; sourceTree = "<group>"; };
+		F0010019 /* PersonalVocabularyMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonalVocabularyMonitor.swift; sourceTree = "<group>"; };
 		F0010012 /* ScribeMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScribeMode.swift; sourceTree = "<group>"; };
 		F0010010 /* TelemetryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TelemetryService.swift; sourceTree = "<group>"; };
 		F0010009 /* UserFrequencyDictionary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserFrequencyDictionary.swift; sourceTree = "<group>"; };
@@ -144,6 +148,8 @@
 			isa = PBXGroup;
 			children = (
 				F0010012 /* ScribeMode.swift */,
+				F0010018 /* UserGrammarProfile.swift */,
+				F0010019 /* PersonalVocabularyMonitor.swift */,
 				F0010009 /* UserFrequencyDictionary.swift */,
 				F0010002 /* AetherContextEngine.swift */,
 				F0010007 /* AetherLinguisticValidator.swift */,
@@ -344,6 +350,8 @@
 				A0010012 /* ScribeMode.swift in Sources */,
 				A0010014 /* AppUpdateProgressView.swift in Sources */,
 				A0010015 /* HardwareAnalyzer.swift in Sources */,
+				A0010018 /* UserGrammarProfile.swift in Sources */,
+				A0010019 /* PersonalVocabularyMonitor.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

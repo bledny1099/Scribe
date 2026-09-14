@@ -1146,12 +1146,20 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         return result
     }
 
-    /// Scores a candidate guess based on user top vocabulary, community dictionary, and distance
+    /// Scores a candidate guess based on user top vocabulary, community dictionary, grammar profile, and distance
     private func scoreGuess(_ guess: String, original: String, userFreqDict: UserFrequencyDictionary) -> Int {
         let lower = guess.lowercased()
         var score = 0
         let userFreq = userFreqDict.frequency(of: lower)
         score += min(userFreq * 25, 200)
+
+        // Boost from UserGrammarProfile directives and idiosyncratic words
+        if UserGrammarProfile.shared.topDirectives().contains(lower) {
+            score += 100
+        }
+        if UserGrammarProfile.shared.topIdiosyncraticWords().contains(lower) {
+            score += 90
+        }
 
         if CommunityVocabularyService.shared.getCachedTermsSetLower().contains(lower) {
             score += 80

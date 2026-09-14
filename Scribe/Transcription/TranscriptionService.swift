@@ -1684,7 +1684,14 @@ final class TextReplacer {
         Replacement(phrase: "девять майс", replacement: "9mice"),
         Replacement(phrase: "9 майс", replacement: "9mice"),
         Replacement(phrase: "nine mice", replacement: "9mice"),
-        Replacement(phrase: "9mice", replacement: "9mice")
+        Replacement(phrase: "9mice", replacement: "9mice"),
+        
+        // Command & developer acoustic corrections
+        Replacement(phrase: "дать почту к", replacement: "дать доступ к"),
+        Replacement(phrase: "дал почту к", replacement: "дал доступ к"),
+        Replacement(phrase: "дали почту к", replacement: "дали доступ к"),
+        Replacement(phrase: "сделай релих", replacement: "сделай релиз"),
+        Replacement(phrase: "сделать релих", replacement: "сделать релиз")
     ]
 
     /// Common Whisper hallucination artifacts and subtitle credits that should never appear in transcriptions

@@ -4501,6 +4501,7 @@ enum VocabularyTab: String, CaseIterable, Identifiable {
 struct VocabularySettingsView: View {
     @EnvironmentObject var appState: AppState
     @ObservedObject private var communityVocab = CommunityVocabularyService.shared
+    @ObservedObject private var monitor = PersonalVocabularyMonitor.shared
     @State private var selectedTab: VocabularyTab = .vocabulary
     @State private var newWord: String = ""
     @State private var newBlockedWord: String = ""
@@ -5066,6 +5067,196 @@ struct VocabularySettingsView: View {
                             .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
                     )
                 }
+            }
+
+            // SECTION: Personal Language & Speech Habits Monitor
+            GlassSection(title: appState.l("Personal Language & Speech Habits Monitor"), icon: "brain.head.profile") {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(appState.l("Scribe learns rare words and your frequent sentence constructions (like 'сделай', 'давай') across Mac apps in real time without interrupting dictation."))
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .lineSpacing(2)
+
+                    // Control & Status Bar
+                    HStack(spacing: 12) {
+                        HStack(spacing: 8) {
+                            Circle()
+                                .fill(monitor.isRunning ? Color.green : Color.secondary.opacity(0.4))
+                                .frame(width: 9, height: 9)
+                            
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(monitor.isRunning ? appState.l("Monitoring Active") : appState.l("Monitoring Inactive"))
+                                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                                    .foregroundStyle(.primary)
+
+                                if monitor.isRunning {
+                                    Text("\(appState.l("Time Remaining:")) \(monitor.remainingTimeFormatted)")
+                                        .font(.system(size: 10, weight: .medium))
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+
+                        Spacer()
+
+                        Button(action: {
+                            monitor.toggleMonitoring()
+                        }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: monitor.isRunning ? "stop.fill" : "play.fill")
+                                    .font(.system(size: 10, weight: .bold))
+                                Text(monitor.isRunning ? appState.l("Stop Learning") : appState.l("Start Learning"))
+                                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(monitor.isRunning ? Color.red.opacity(0.12) : Color.accentColor.opacity(0.15))
+                            .foregroundStyle(monitor.isRunning ? Color.red : Color.accentColor)
+                            .cornerRadius(8)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(12)
+                    .background(Color.primary.opacity(0.03))
+                    .cornerRadius(12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+                    )
+
+                    // Duration Picker
+                    HStack(spacing: 10) {
+                        Text(appState.l("Learning Duration:"))
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.secondary)
+
+                        HStack(spacing: 6) {
+                            ForEach([7, 14, 30], id: \.self) { days in
+                                let isSelected = monitor.durationDays == days
+                                Button(action: {
+                                    monitor.startMonitoring(days: days)
+                                }) {
+                                    Text(days == 7 ? appState.l("1 Week (7 Days)") :
+                                         (days == 14 ? appState.l("2 Weeks (14 Days) — Recommended") : appState.l("1 Month (30 Days) — Maximum Precision")))
+                                        .font(.system(size: 11, weight: isSelected ? .bold : .regular, design: .rounded))
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 5)
+                                        .background(isSelected ? Color.accentColor.opacity(0.18) : Color.primary.opacity(0.04))
+                                        .foregroundStyle(isSelected ? Color.accentColor : Color.primary.opacity(0.8))
+                                        .cornerRadius(7)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 7)
+                                                .strokeBorder(isSelected ? Color.accentColor.opacity(0.35) : Color.clear, lineWidth: 1)
+                                        )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+
+                    // Metrics Tiles
+                    HStack(spacing: 10) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("\(monitor.wordsAnalyzedCount)")
+                                .font(.system(size: 16, weight: .bold, design: .rounded))
+                                .foregroundStyle(.primary)
+                            Text(appState.l("Analyzed Words"))
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(10)
+                        .background(Color.primary.opacity(0.025))
+                        .cornerRadius(10)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("\(monitor.rareWordsLearnedCount)")
+                                .font(.system(size: 16, weight: .bold, design: .rounded))
+                                .foregroundStyle(Color.accentColor)
+                            Text(appState.l("Rare Terms Learned"))
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(10)
+                        .background(Color.primary.opacity(0.025))
+                        .cornerRadius(10)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("\(monitor.constructionsLearnedCount)")
+                                .font(.system(size: 16, weight: .bold, design: .rounded))
+                                .foregroundStyle(.primary)
+                            Text(appState.l("Habitual Directives"))
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(10)
+                        .background(Color.primary.opacity(0.025))
+                        .cornerRadius(10)
+                    }
+
+                    // Recent Learned Terms & Directives
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(appState.l("Recently Learned Words & Directives"))
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .foregroundStyle(Color.primary.opacity(0.75))
+
+                        let directives = UserGrammarProfile.shared.topDirectives(limit: 6)
+                        let recentWords = monitor.recentlyLearnedWords
+
+                        if directives.isEmpty && recentWords.isEmpty {
+                            Text(appState.l("No rare words or directives learned yet. Start typing in any app to train."))
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                                .italic()
+                        } else {
+                            FlowLayout(spacing: 6) {
+                                ForEach(directives, id: \.self) { d in
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "bolt.fill")
+                                            .font(.system(size: 9))
+                                            .foregroundStyle(Color.orange)
+                                        Text(d)
+                                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                    }
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color.orange.opacity(0.12))
+                                    .foregroundStyle(Color.orange)
+                                    .cornerRadius(6)
+                                }
+
+                                ForEach(recentWords, id: \.self) { w in
+                                    Text(w)
+                                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(Color.primary.opacity(0.05))
+                                        .foregroundStyle(.primary)
+                                        .cornerRadius(6)
+                                }
+                            }
+                        }
+                    }
+                    .padding(12)
+                    .background(Color.primary.opacity(0.02))
+                    .cornerRadius(10)
+
+                    // Privacy Assurance Footnote
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "lock.shield.fill")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                            .padding(.top, 1)
+
+                        Text(appState.l("Secure password fields, password managers, tokens, and credit cards are strictly filtered at the Accessibility API level. Text is processed 100% locally in memory and never stored."))
+                            .font(.system(size: 10))
+                            .foregroundStyle(.secondary)
+                            .lineSpacing(2)
+                    }
+                }
+                .padding(14)
             }
 
             // SECTION: Dynamic App Context & Anti-Hallucination

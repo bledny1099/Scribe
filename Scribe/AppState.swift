@@ -587,6 +587,11 @@ final class AppState: ObservableObject {
     @AppStorage("userCityLocation") public var userCityLocation: String = ""
     @AppStorage("smartCasingEnabled") public var smartCasingEnabled: Bool = true
 
+    // MARK: - Personal Writing & Speech Habit Monitor
+    public var vocabularyMonitor: PersonalVocabularyMonitor {
+        PersonalVocabularyMonitor.shared
+    }
+
     // MARK: - AI Post-Processing & Refinement
     @AppStorage("enableCloudAI") public var enableCloudAI: Bool = false
     @AppStorage("cloudAIProvider") public var cloudAIProviderRaw: String = CloudAIProvider.groq.rawValue

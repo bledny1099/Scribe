@@ -828,9 +828,28 @@ public final class AetherContextEngine: @unchecked Sendable {
             components.append("\(locHeader) \(userLocation), \(addressAffixes).")
         }
 
+        // 4. Personal Speech Habits & Directives from Writing Monitor
+        if let habitsHint = UserGrammarProfile.shared.topDirectivesPromptHint() {
+            components.append(habitsHint)
+        }
+
+        let learnedRareWords = UserGrammarProfile.shared.topIdiosyncraticWords(limit: 20)
         let effectiveVocab = activeEffectiveVocabulary(targetApp: targetApp, userVocabulary: customVocabulary, userLocation: userLocation)
-        if !effectiveVocab.isEmpty {
-            components.append("Custom Terms: \(effectiveVocab).")
+        
+        var combinedVocabItems = effectiveVocab.components(separatedBy: CharacterSet(charactersIn: ",\n;"))
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            
+        for rw in learnedRareWords {
+            let norm = rw.normalizedPlainVocabularyWord()
+            if !combinedVocabItems.contains(where: { $0.caseInsensitiveCompare(norm) == .orderedSame }) {
+                combinedVocabItems.append(norm)
+            }
+        }
+        
+        let finalVocab = combinedVocabItems.joined(separator: ", ")
+        if !finalVocab.isEmpty {
+            components.append("Custom Terms: \(finalVocab).")
         }
 
         return components.joined(separator: " ")
@@ -851,6 +870,15 @@ public final class AetherContextEngine: @unchecked Sendable {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
         strings.append(contentsOf: customWords)
+
+        // Add learned rare words from Writing Monitor
+        let learnedRare = UserGrammarProfile.shared.topIdiosyncraticWords(limit: 20)
+        for rw in learnedRare {
+            let norm = rw.normalizedPlainVocabularyWord()
+            if !strings.contains(where: { $0.caseInsensitiveCompare(norm) == .orderedSame }) {
+                strings.append(norm)
+            }
+        }
 
         // Add active window & document keywords
         let winContext = inspectActiveWindowContext(targetApp: targetApp)
