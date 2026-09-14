@@ -3562,7 +3562,7 @@ struct CreatePresetModalView: View {
         let trimmed = wordInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         let items = trimmed.components(separatedBy: CharacterSet(charactersIn: ",\n"))
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).normalizedPlainVocabularyWord() }
             .filter { isValidItem($0) }
         for w in items {
             if !words.contains(where: { $0.caseInsensitiveCompare(w) == .orderedSame }) {
@@ -3578,7 +3578,7 @@ struct CreatePresetModalView: View {
         let preset = VocabularyPreset(
             name: trimmedName,
             description: presetDescription.trimmingCharacters(in: .whitespacesAndNewlines),
-            words: words,
+            words: words.map { $0.normalizedPlainVocabularyWord() },
             shareCode: shareCode.isEmpty ? VocabularyPreset.generateShareCode(category: category) : shareCode,
             category: category
         )
@@ -3603,11 +3603,12 @@ struct CreatePresetModalView: View {
             appState.customVocabularyPresets.append(preset)
             var current = appState.vocabulary
                 .components(separatedBy: CharacterSet(charactersIn: ",\n"))
-                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).normalizedPlainVocabularyWord() }
                 .filter { !$0.isEmpty }
             for w in words {
-                if !current.contains(where: { $0.caseInsensitiveCompare(w) == .orderedSame }) {
-                    current.append(w)
+                let norm = w.normalizedPlainVocabularyWord()
+                if !current.contains(where: { $0.caseInsensitiveCompare(norm) == .orderedSame }) {
+                    current.append(norm)
                 }
             }
             appState.vocabulary = current.joined(separator: ", ")
@@ -3899,15 +3900,17 @@ struct ImportPresetModalView: View {
                 appState.activeLocationPresetIds.append(preset.id.uuidString)
             }
         } else {
-            if !appState.customVocabularyPresets.contains(where: { $0.shareCode == preset.shareCode || $0.name == preset.name }) {
-                appState.customVocabularyPresets.append(preset)
+            var importedPreset = preset
+            importedPreset.words = preset.words.map { $0.normalizedPlainVocabularyWord() }
+            if !appState.customVocabularyPresets.contains(where: { $0.shareCode == importedPreset.shareCode || $0.name == importedPreset.name }) {
+                appState.customVocabularyPresets.append(importedPreset)
             }
             if applyDirectlyToActive {
                 var current = appState.vocabulary
                     .components(separatedBy: CharacterSet(charactersIn: ",\n"))
-                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).normalizedPlainVocabularyWord() }
                     .filter { !$0.isEmpty }
-                for w in preset.words {
+                for w in importedPreset.words {
                     if !current.contains(w) {
                         current.append(w)
                     }
@@ -4530,7 +4533,7 @@ struct VocabularySettingsView: View {
     private var wordsList: [String] {
         appState.vocabulary
             .components(separatedBy: CharacterSet(charactersIn: ",\n"))
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).normalizedPlainVocabularyWord() }
             .filter { !$0.isEmpty }
     }
 
@@ -4551,7 +4554,7 @@ struct VocabularySettingsView: View {
         let trimmed = newWord.trimmingCharacters(in: .whitespacesAndNewlines)
         guard isValidItem(trimmed) else { return }
         let items = trimmed.components(separatedBy: CharacterSet(charactersIn: ",\n"))
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).normalizedPlainVocabularyWord() }
             .filter { isValidItem($0) }
         var current = wordsList
         for w in items {
@@ -4610,8 +4613,9 @@ struct VocabularySettingsView: View {
     private func applyPreset(_ preset: VocabularyPreset) {
         var current = wordsList
         for w in preset.words {
-            if !current.contains(w) {
-                current.append(w)
+            let norm = w.normalizedPlainVocabularyWord()
+            if !current.contains(norm) {
+                current.append(norm)
             }
         }
         appState.vocabulary = current.joined(separator: ", ")

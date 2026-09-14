@@ -913,6 +913,34 @@ final class AppState: ObservableObject {
             }
         }
 
+        // Normalize stored user vocabulary to plain letters (e.g., Dom Pérignon -> Dom Perignon)
+        let sanitizedVocab = self.vocabulary
+            .components(separatedBy: CharacterSet(charactersIn: ",\n"))
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).normalizedPlainVocabularyWord() }
+            .filter { !$0.isEmpty }
+            .joined(separator: ", ")
+        if sanitizedVocab != self.vocabulary {
+            self.vocabulary = sanitizedVocab
+        }
+
+        // Normalize words across custom vocabulary presets if needed
+        var presetsUpdated = false
+        var normalizedPresets: [VocabularyPreset] = []
+        for preset in customVocabularyPresets {
+            let normalizedWords = preset.words.map { $0.normalizedPlainVocabularyWord() }
+            if normalizedWords != preset.words {
+                presetsUpdated = true
+                var updated = preset
+                updated.words = normalizedWords
+                normalizedPresets.append(updated)
+            } else {
+                normalizedPresets.append(preset)
+            }
+        }
+        if presetsUpdated {
+            customVocabularyPresets = normalizedPresets
+        }
+
         // Sync local active words into community dictionary
         CommunityVocabularyService.shared.syncLocalWordsToDictionary(rawVocabulary: self.vocabulary)
         

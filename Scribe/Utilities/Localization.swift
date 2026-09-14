@@ -1885,4 +1885,33 @@ extension String {
     func loc(_ uiLanguage: String) -> String {
         Localization.string(self, lang: uiLanguage)
     }
+
+    /// Normalizes text so only regular/plain letters are used (e.g. "Dom Pérignon" -> "Dom Perignon", "Moët" -> "Moet", "Hermès" -> "Hermes"),
+    /// stripping Latin diacritics/accents and combining acute accents while preserving native Cyrillic (including ё/Ё).
+    public func normalizedPlainVocabularyWord() -> String {
+        var result = ""
+        for scalar in self.unicodeScalars {
+            // Strip combining acute accent / grave (stress marks: U+0301, U+0300)
+            if scalar.value == 0x0301 || scalar.value == 0x0300 {
+                continue
+            }
+            // Preserve Cyrillic alphabet (including Ё \u0401, ё \u0451)
+            if (0x0400...0x04FF).contains(scalar.value) || (0x0500...0x052F).contains(scalar.value) {
+                result.append(String(scalar))
+            } else {
+                // Fold Latin accented letters (é -> e, ü -> u, ñ -> n, etc.)
+                let str = String(scalar)
+                let folded = str.folding(options: .diacriticInsensitive, locale: Locale(identifier: "en_US"))
+                result.append(folded)
+            }
+        }
+        return result
+            .replacingOccurrences(of: "œ", with: "oe")
+            .replacingOccurrences(of: "Œ", with: "Oe")
+            .replacingOccurrences(of: "æ", with: "ae")
+            .replacingOccurrences(of: "Æ", with: "Ae")
+            .replacingOccurrences(of: "ø", with: "o")
+            .replacingOccurrences(of: "Ø", with: "O")
+            .replacingOccurrences(of: "ß", with: "ss")
+    }
 }

@@ -505,13 +505,13 @@ public final class AetherContextEngine: @unchecked Sendable {
             ]
         case .general:
             return [
-                "Dom Pérignon", "Moët & Chandon", "Veuve Clicquot", "Cristal", "Prosecco", "Chianti", "Bordeaux",
+                "Dom Perignon", "Moet & Chandon", "Veuve Clicquot", "Cristal", "Prosecco", "Chianti", "Bordeaux",
                 "Cabernet Sauvignon", "Sauvignon Blanc", "Hennessy", "The Macallan", "Jameson", "Jack Daniel's",
-                "Aperol Spritz", "Jägermeister", "Guinness", "Rolex", "Patek Philippe", "Audemars Piguet",
+                "Aperol Spritz", "Jagermeister", "Guinness", "Rolex", "Patek Philippe", "Audemars Piguet",
                 "Vacheron Constantin", "Richard Mille", "Cartier", "Omega", "Breitling", "IWC", "Hublot",
-                "TAG Heuer", "Tissot", "Casio", "G-Shock", "Louis Vuitton", "Hermès", "Chanel", "Dior",
+                "TAG Heuer", "Tissot", "Casio", "G-Shock", "Louis Vuitton", "Hermes", "Chanel", "Dior",
                 "Gucci", "Prada", "Saint Laurent", "Balenciaga", "Bottega Veneta", "Loro Piana", "Brunello Cucinelli",
-                "Stone Island", "Supreme", "Stüssy", "Massimo Dutti", "Zara", "H&M", "Uniqlo", "Nike", "Adidas",
+                "Stone Island", "Supreme", "Stussy", "Massimo Dutti", "Zara", "H&M", "Uniqlo", "Nike", "Adidas",
                 "New Balance", "масс-маркет", "люкс", "оверсайз", "тихая роскошь", "худи", "свитшот", "лоферы"
             ]
         }
@@ -565,20 +565,21 @@ public final class AetherContextEngine: @unchecked Sendable {
         let domainWords = domainSpecificVocabulary(for: domain)
         
         var userWords = userVocabulary.components(separatedBy: CharacterSet(charactersIn: ",\n;"))
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).normalizedPlainVocabularyWord() }
             .filter { !$0.isEmpty }
 
         if !userLocation.isEmpty {
             let locWords = userLocation.components(separatedBy: CharacterSet(charactersIn: ",\n;"))
-                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).normalizedPlainVocabularyWord() }
                 .filter { !$0.isEmpty }
             userWords.append(contentsOf: locWords)
         }
 
         var combined = userWords
         for w in domainWords {
-            if !combined.contains(where: { $0.caseInsensitiveCompare(w) == .orderedSame }) {
-                combined.append(w)
+            let norm = w.normalizedPlainVocabularyWord()
+            if !combined.contains(where: { $0.caseInsensitiveCompare(norm) == .orderedSame }) {
+                combined.append(norm)
             }
         }
         return combined.joined(separator: ", ")

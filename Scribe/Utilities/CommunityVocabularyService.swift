@@ -276,7 +276,7 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
            let pPayload = try? JSONDecoder().decode(PhoneticRecognizerPayload.self, from: pData),
            let trans = pPayload.transliterations {
             for (k, v) in trans {
-                phoneticMap[k] = v
+                phoneticMap[k.trimmingCharacters(in: .whitespacesAndNewlines).normalizedPlainVocabularyWord().lowercased()] = v.trimmingCharacters(in: .whitespacesAndNewlines).normalizedPlainVocabularyWord()
             }
         }
 
@@ -371,14 +371,14 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
     public func syncLocalWordsToDictionary(rawVocabulary: String? = nil) -> Int {
         let rawVocab = rawVocabulary ?? UserDefaults.standard.string(forKey: "vocabulary") ?? ""
         var localWords = rawVocab.components(separatedBy: CharacterSet(charactersIn: ",\n;"))
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).normalizedPlainVocabularyWord() }
             .filter { $0.count >= 2 }
 
         if let presetsData = UserDefaults.standard.data(forKey: "customVocabularyPresets"),
            let presets = try? JSONDecoder().decode([VocabularyPreset].self, from: presetsData) {
             for preset in presets {
                 for w in preset.words {
-                    let trimmed = w.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let trimmed = w.trimmingCharacters(in: .whitespacesAndNewlines).normalizedPlainVocabularyWord()
                     if trimmed.count >= 2 {
                         localWords.append(trimmed)
                     }
@@ -560,7 +560,10 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
     // MARK: - Strict Deduplication & Payload Application
 
     private func applyPayload(_ payload: CommunityDictionaryPayload, basePhoneticMap: [String: String] = [:]) {
-        var map = basePhoneticMap
+        var map: [String: String] = [:]
+        for (k, v) in basePhoneticMap {
+            map[k.trimmingCharacters(in: .whitespacesAndNewlines).normalizedPlainVocabularyWord().lowercased()] = v.trimmingCharacters(in: .whitespacesAndNewlines).normalizedPlainVocabularyWord()
+        }
         var termsSeen = Set<String>()
         var uniqueTerms: [String] = []
         var cleanCategories: [CommunityCategory] = []
@@ -569,7 +572,7 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
             var catTerms: [String] = []
 
             for t in cat.terms {
-                let trimmed = t.trimmingCharacters(in: .whitespacesAndNewlines)
+                let trimmed = t.trimmingCharacters(in: .whitespacesAndNewlines).normalizedPlainVocabularyWord()
                 let lower = trimmed.lowercased()
 
                 if !trimmed.isEmpty && !termsSeen.contains(lower) {

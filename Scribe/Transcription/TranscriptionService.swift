@@ -1848,7 +1848,7 @@ final class TextReplacer {
 
         // 2. Vocabulary Auto-Casing & Aether Fuzzy Alignment (Stage C)
         let userVocabItems = vocabulary.components(separatedBy: CharacterSet(charactersIn: ",\n"))
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).normalizedPlainVocabularyWord() }
             .filter { !$0.isEmpty }
 
         let allVocabItems = builtInVocabulary + userVocabItems

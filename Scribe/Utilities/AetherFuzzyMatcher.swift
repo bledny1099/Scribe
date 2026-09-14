@@ -161,24 +161,24 @@ public final class AetherFuzzyMatcher: @unchecked Sendable {
         }
 
         // 2. Exact Case-Insensitive Vocabulary Alignment
-        for term in vocabulary {
-            let trimmed = term.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard trimmed.count >= 2 else { continue }
+        let cleanVocabulary = vocabulary.map { $0.trimmingCharacters(in: .whitespacesAndNewlines).normalizedPlainVocabularyWord() }
+        for term in cleanVocabulary {
+            guard term.count >= 2 else { continue }
 
-            let pattern = "\\b\(NSRegularExpression.escapedPattern(for: trimmed))\\b"
+            let pattern = "\\b\(NSRegularExpression.escapedPattern(for: term))\\b"
             if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) {
                 result = regex.stringByReplacingMatches(
                     in: result,
                     options: [],
                     range: NSRange(location: 0, length: result.utf16.count),
-                    withTemplate: trimmed
+                    withTemplate: term
                 )
             }
         }
 
         // 3. Levenshtein Fuzzy Alignment for Longer Custom, User Top 100 & Built-in Vocabulary (>5 chars)
         let userTopTargets = UserFrequencyDictionary.shared.topWords(limit: 100).filter { $0.count >= 5 }
-        let combinedTargets = builtInDictionaryTargets + vocabulary.filter { $0.count >= 5 } + userTopTargets
+        let combinedTargets = builtInDictionaryTargets + cleanVocabulary.filter { $0.count >= 5 } + userTopTargets
         if !combinedTargets.isEmpty {
             result = applyLevenshteinAlignment(text: result, targets: combinedTargets)
         }
