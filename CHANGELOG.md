@@ -5,6 +5,20 @@ All notable changes to Scribe will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.0] - 2026-09-14
+
+## Added
+- Dedicated Lectures tab in Settings with background recording options, media file import, and Apple Notes export settings.
+- Automatic plain-letter normalization for custom vocabulary entries, presets, and community aliases.
+
+## Changed
+- Neutralized the lecture toggle appearance in the menu bar popover to align with system controls.
+- Optimized transcription pipeline throughput and reduced post-processing inference latency.
+
+## Fixed
+- Fixed vocabulary diacritic handling to preserve Cyrillic letters while removing combining stress marks and accented Latin variants.
+- Resolved profile modal auto-focus behavior in account settings.
+
 ## [2.7.0] - 2026-09-12
 
 ## Added
