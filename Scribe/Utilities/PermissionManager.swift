@@ -84,6 +84,22 @@ final class PermissionManager: ObservableObject {
         pollCount = 0
     }
 
+    /// Resets all macOS TCC permissions for Scribe and flushes the permission cache.
+    func resetPermissionsCache() {
+        logger.info("Resetting macOS TCC permissions cache for com.aleksei.scribe...")
+        let bundleID = "com.aleksei.scribe"
+        let services = ["All", "Accessibility", "Microphone", "AppleEvents", "SpeechRecognition"]
+        for svc in services {
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
+            task.arguments = ["reset", svc, bundleID]
+            try? task.run()
+            task.waitUntilExit()
+        }
+        checkPermissions()
+        startPolling()
+    }
+
     func requestMicrophone() {
         startPolling()
         let status = AVCaptureDevice.authorizationStatus(for: .audio)

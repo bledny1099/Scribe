@@ -56,6 +56,29 @@ struct PermissionsCard: View {
                 RoundedRectangle(cornerRadius: 16)
                     .strokeBorder(Color.primary.opacity(0.1), lineWidth: 1)
             )
+
+            HStack {
+                Spacer()
+                Button {
+                    permissionManager.resetPermissionsCache()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.counterclockwise")
+                            .font(.system(size: 10, weight: .semibold))
+                        Text(appState.l("Reset Permissions Cache"))
+                            .font(.system(size: 11, weight: .medium))
+                    }
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 4)
+                    .padding(.horizontal, 8)
+                    .background(Color.primary.opacity(0.04))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+                .buttonStyle(.plain)
+                .help(appState.l("Flushes macOS TCC cache if permissions get out of sync"))
+            }
+            .padding(.top, 8)
+            .padding(.trailing, 2)
         }
     }
 }

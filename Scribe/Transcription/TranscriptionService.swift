@@ -507,15 +507,21 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             // whereas decoding in 'en' mode forces Whisper to translate Russian speech into English!
             if let (_, probs) = try? await kit.detectLanguage(audioPath: audioURL.path) {
                 if effectiveAllowed.contains("ru") {
-                    let slavicCodes = ["ru", "uk", "be", "bg", "mk", "sr"]
-                    let slavicMax = slavicCodes.compactMap { probs[$0] }.max() ?? 0
-                    let slavicSum = slavicCodes.compactMap { probs[$0] }.reduce(Float(0), +)
-                    let ruEffectiveScore = max(slavicMax, slavicSum * 0.85)
+                    let ruScore = probs["ru"] ?? 0
+                    let ukScore = probs["uk"] ?? 0
+                    let beScore = probs["be"] ?? 0
+                    let eastSlavicMax = max(ruScore, max(ukScore, beScore))
 
                     let nonRussian = effectiveAllowed.filter { $0 != "ru" }
                     if let bestOther = nonRussian.max(by: { (probs[$0] ?? 0) < (probs[$1] ?? 0) }) {
                         let otherScore = probs[bestOther] ?? 0
-                        if otherScore > 0.35 && otherScore > ruEffectiveScore && (otherScore - ruEffectiveScore) > 0.10 {
+                        let appDomain = AetherContextEngine.shared.detectActiveAppDomain(targetApp: targetApp).domain
+                        let isDevApp = (appDomain == .ideAndCoding)
+
+                        // Fair detection: if otherScore beats East Slavic acoustic maximum,
+                        // or if running in developer context and otherScore is at least equal to ruScore,
+                        // or if otherScore exceeds 0.20 and beats ruScore, select bestOther.
+                        if otherScore >= eastSlavicMax || (isDevApp && otherScore >= ruScore && otherScore > 0.12) || (otherScore > 0.20 && otherScore > ruScore) {
                             options.language = bestOther
                             options.detectLanguage = false
                             resolvedLang = bestOther
@@ -536,7 +542,8 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
                     resolvedLang = best
                 }
             } else {
-                let fallback = effectiveAllowed.contains("ru") ? "ru" : effectiveAllowed[0]
+                let appDomain = AetherContextEngine.shared.detectActiveAppDomain(targetApp: targetApp).domain
+                let fallback = (appDomain == .ideAndCoding && effectiveAllowed.contains("en")) ? "en" : (effectiveAllowed.contains("ru") ? "ru" : effectiveAllowed[0])
                 options.language = fallback
                 options.detectLanguage = false
                 resolvedLang = fallback
@@ -785,24 +792,27 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
                     let (_, langProbs) = try await kit.detectLanguage(audioPath: path)
 
                     if allowedBases.contains("ru") {
-                        let slavicCodes = ["ru", "uk", "be", "bg", "mk", "sr"]
-                        let slavicMax = slavicCodes.compactMap { langProbs[$0] }.max() ?? 0
-                        let slavicSum = slavicCodes.compactMap { langProbs[$0] }.reduce(Float(0), +)
-                        let ruEffectiveScore = max(slavicMax, slavicSum * 0.85)
+                        let ruScore = langProbs["ru"] ?? 0
+                        let ukScore = langProbs["uk"] ?? 0
+                        let beScore = langProbs["be"] ?? 0
+                        let eastSlavicMax = max(ruScore, max(ukScore, beScore))
 
                         let nonRussian = allowedBases.filter { $0 != "ru" }
                         if let bestOther = nonRussian.max(by: { (langProbs[$0] ?? 0) < (langProbs[$1] ?? 0) }) {
                             let otherScore = langProbs[bestOther] ?? 0
-                            if otherScore > 0.35 && otherScore > ruEffectiveScore && (otherScore - ruEffectiveScore) > 0.10 {
+                            let appDomain = AetherContextEngine.shared.detectActiveAppDomain(targetApp: targetApp).domain
+                            let isDevApp = (appDomain == .ideAndCoding)
+
+                            if otherScore >= eastSlavicMax || (isDevApp && otherScore >= ruScore && otherScore > 0.12) || (otherScore > 0.20 && otherScore > ruScore) {
                                 resolvedLang = bestOther
                                 options.language = bestOther
                                 options.detectLanguage = false
-                                logger.info("Aether language detection: locked to '\(bestOther)' (dominant speech: score=\(otherScore) vs ruScore=\(ruEffectiveScore), duration: \(String(format: "%.3f", Date().timeIntervalSince(detectStart)))s)")
+                                logger.info("Aether language detection: locked to '\(bestOther)' (dominant speech: score=\(otherScore) vs ruScore=\(ruScore), duration: \(String(format: "%.3f", Date().timeIntervalSince(detectStart)))s)")
                             } else {
                                 resolvedLang = "ru"
                                 options.language = "ru"
                                 options.detectLanguage = false
-                                logger.info("Aether language detection: locked to 'ru' (Slavic speech / Russian with loanwords: ruScore=\(ruEffectiveScore) vs otherScore=\(otherScore), duration: \(String(format: "%.3f", Date().timeIntervalSince(detectStart)))s)")
+                                logger.info("Aether language detection: locked to 'ru' (ruScore=\(ruScore), eastSlavicMax=\(eastSlavicMax) vs otherScore=\(otherScore), duration: \(String(format: "%.3f", Date().timeIntervalSince(detectStart)))s)")
                             }
                         } else {
                             resolvedLang = "ru"
@@ -819,13 +829,15 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
                     }
                 } catch {
                     logger.warning("WhisperKit.detectLanguage failed: \(error.localizedDescription); locking to fallback from allowed \(allowedBases)")
-                    let fallback = allowedBases.contains("ru") ? "ru" : allowedBases[0]
+                    let appDomain = AetherContextEngine.shared.detectActiveAppDomain(targetApp: targetApp).domain
+                    let fallback = (appDomain == .ideAndCoding && allowedBases.contains("en")) ? "en" : (allowedBases.contains("ru") ? "ru" : allowedBases[0])
                     options.language = fallback
                     options.detectLanguage = false
                     resolvedLang = fallback
                 }
             } else {
-                let fallback = allowedBases.contains("ru") ? "ru" : allowedBases[0]
+                let appDomain = AetherContextEngine.shared.detectActiveAppDomain(targetApp: targetApp).domain
+                let fallback = (appDomain == .ideAndCoding && allowedBases.contains("en")) ? "en" : (allowedBases.contains("ru") ? "ru" : allowedBases[0])
                 options.language = fallback
                 options.detectLanguage = false
                 resolvedLang = fallback

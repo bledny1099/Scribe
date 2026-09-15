@@ -5,6 +5,21 @@ All notable changes to Scribe will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.1] - 2026-09-15
+
+## Added
+- Dedicated TCC permissions cache reset script (`scripts/reset_permissions.sh`) and in-app reset button in settings.
+- Liquid Glass card selector for personal language monitor duration with balanced multi-column layout.
+
+## Changed
+- Localized speech habit monitor descriptions and examples natively across all supported languages without cross-language leakage.
+- Enhanced Start Learning action button with high-contrast accent styling and improved readability in dark mode.
+
+## Fixed
+- Fixed live preview language detection bias that incorrectly forced Russian decoding and translations during English speech.
+- Filtered out broadcast and subtitle hallucination loops from the live preview floating card.
+- Replaced ad-hoc code signing with persistent Apple Development identity and Team ID to prevent macOS TCC permissions from dropping across rebuilds and updates.
+
 ## [2.8.0] - 2026-09-14
 
 ## Added

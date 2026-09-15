@@ -2203,8 +2203,8 @@ final class AppState: ObservableObject {
         }
 
         // 2. Block Spanish hallucinations if Spanish is not an allowed language
+        let lower = text.lowercased()
         if !allowsSpanish {
-            let lower = text.lowercased()
             let spanishMarkers = [
                 "gracias", "subtítulos", "subtitulos", "amara.org", "hola a todos",
                 "por favor", "suscríbete", "suscribete", "hasta luego", "hasta la próxima",
@@ -2214,6 +2214,18 @@ final class AppState: ObservableObject {
                 if lower.contains(marker) {
                     return false
                 }
+            }
+        }
+
+        // 3. Block Whisper subtitle and broadcast hallucination loops
+        let subtitleHallucinations = [
+            "субтитры", "субтитров", "подписывайтесь", "подпишитесь",
+            "спасибо за просмотр", "до встречи в следующем видео", "продолжение следует",
+            "amara.org", "subtitles by", "thanks for watching", "thank you for watching"
+        ]
+        for marker in subtitleHallucinations {
+            if lower.contains(marker) {
+                return false
             }
         }
 

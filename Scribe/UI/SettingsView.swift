@@ -5072,7 +5072,7 @@ struct VocabularySettingsView: View {
             // SECTION: Personal Language & Speech Habits Monitor
             GlassSection(title: appState.l("Personal Language & Speech Habits Monitor"), icon: "brain.head.profile") {
                 VStack(alignment: .leading, spacing: 14) {
-                    Text(appState.l("Scribe learns rare words and your frequent sentence constructions (like 'сделай', 'давай') across Mac apps in real time without interrupting dictation."))
+                    Text(appState.l("Learns unique vocabulary and command phrasing (like 'create', 'run') across apps in real time."))
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                         .lineSpacing(2)
@@ -5108,11 +5108,20 @@ struct VocabularySettingsView: View {
                                 Text(monitor.isRunning ? appState.l("Stop Learning") : appState.l("Start Learning"))
                                     .font(.system(size: 12, weight: .semibold, design: .rounded))
                             }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(monitor.isRunning ? Color.red.opacity(0.12) : Color.accentColor.opacity(0.15))
-                            .foregroundStyle(monitor.isRunning ? Color.red : Color.accentColor)
-                            .cornerRadius(8)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 7)
+                            .background(
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(monitor.isRunning ? Color.red.opacity(0.18) : Color.accentColor)
+                                    if !monitor.isRunning {
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .strokeBorder(Color.white.opacity(0.2), lineWidth: 0.8)
+                                    }
+                                }
+                            )
+                            .foregroundStyle(monitor.isRunning ? Color.red : Color.white)
+                            .shadow(color: monitor.isRunning ? Color.clear : Color.accentColor.opacity(0.25), radius: 4, y: 1)
                         }
                         .buttonStyle(.plain)
                     }
@@ -5124,30 +5133,52 @@ struct VocabularySettingsView: View {
                             .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
                     )
 
-                    // Duration Picker
-                    HStack(spacing: 10) {
-                        Text(appState.l("Learning Duration:"))
-                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    // Duration Picker (Liquid Glass)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(appState.l("Learning Duration:").uppercased())
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
                             .foregroundStyle(.secondary)
 
-                        HStack(spacing: 6) {
-                            ForEach([7, 14, 30], id: \.self) { days in
+                        HStack(spacing: 8) {
+                            ForEach([(7, "7 Days", "1 Week"), (14, "14 Days", "Recommended"), (30, "30 Days", "1 Month")], id: \.0) { item in
+                                let days = item.0
                                 let isSelected = monitor.durationDays == days
                                 Button(action: {
-                                    monitor.startMonitoring(days: days)
+                                    withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                                        monitor.startMonitoring(days: days)
+                                    }
                                 }) {
-                                    Text(days == 7 ? appState.l("1 Week (7 Days)") :
-                                         (days == 14 ? appState.l("2 Weeks (14 Days) — Recommended") : appState.l("1 Month (30 Days) — Maximum Precision")))
-                                        .font(.system(size: 11, weight: isSelected ? .bold : .regular, design: .rounded))
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 5)
-                                        .background(isSelected ? Color.accentColor.opacity(0.18) : Color.primary.opacity(0.04))
-                                        .foregroundStyle(isSelected ? Color.accentColor : Color.primary.opacity(0.8))
-                                        .cornerRadius(7)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 7)
-                                                .strokeBorder(isSelected ? Color.accentColor.opacity(0.35) : Color.clear, lineWidth: 1)
-                                        )
+                                    VStack(spacing: 3) {
+                                        Text(appState.l(item.1))
+                                            .font(.system(size: 12, weight: isSelected ? .bold : .semibold, design: .rounded))
+                                            .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
+                                        Text(appState.l(item.2))
+                                            .font(.system(size: 10, weight: isSelected ? .semibold : .medium, design: .rounded))
+                                            .foregroundStyle(isSelected ? Color.accentColor.opacity(0.85) : Color.secondary)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 8)
+                                    .background(
+                                        ZStack {
+                                            RoundedRectangle(cornerRadius: 10)
+                                                .fill(isSelected ? Color.accentColor.opacity(0.16) : Color.primary.opacity(0.04))
+                                            if isSelected {
+                                                RoundedRectangle(cornerRadius: 10)
+                                                    .strokeBorder(
+                                                        LinearGradient(
+                                                            colors: [Color.accentColor.opacity(0.6), Color.accentColor.opacity(0.2)],
+                                                            startPoint: .topLeading,
+                                                            endPoint: .bottomTrailing
+                                                        ),
+                                                        lineWidth: 1.2
+                                                    )
+                                            } else {
+                                                RoundedRectangle(cornerRadius: 10)
+                                                    .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.8)
+                                            }
+                                        }
+                                    )
+                                    .contentShape(Rectangle())
                                 }
                                 .buttonStyle(.plain)
                             }

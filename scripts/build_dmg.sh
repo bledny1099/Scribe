@@ -24,7 +24,10 @@ xcodebuild -project Scribe.xcodeproj \
     -derivedDataPath "$BUILD_DIR/DerivedData" \
     build
 
-APP_PATH=$(find "$BUILD_DIR/DerivedData" -type d -name "${APP_NAME}.app" | grep -v "Index.noindex" | head -n 1)
+APP_PATH=$(find "$BUILD_DIR/DerivedData" -type d -path "*/Products/Release/${APP_NAME}.app" | head -n 1)
+if [ -z "$APP_PATH" ]; then
+    APP_PATH=$(find "$BUILD_DIR/DerivedData" -type d -name "${APP_NAME}.app" | grep -v "Index.noindex" | head -n 1)
+fi
 
 if [ -z "$APP_PATH" ]; then
     echo "❌ Error: Could not find ${APP_NAME}.app in build output."
@@ -38,8 +41,8 @@ if [ -n "$CODE_SIGN_IDENTITY" ]; then
     echo "🔏 Signing app with identity: $CODE_SIGN_IDENTITY"
     codesign --force --deep --sign "$CODE_SIGN_IDENTITY" "$APP_PATH"
 else
-    echo "🔏 Signing app ad-hoc with stable bundle identifier..."
-    codesign --force --deep --identifier "com.aleksei.scribe" --sign - "$APP_PATH"
+    echo "🔏 Signing app ad-hoc with stable bundle identifier and requirement..."
+    codesign --force --deep --identifier "com.aleksei.scribe" -r='designated => identifier "com.aleksei.scribe"' --sign - "$APP_PATH"
 fi
 
 # Ensure existing mounts are unmounted before recreating DMG
