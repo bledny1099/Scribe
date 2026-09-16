@@ -1639,54 +1639,58 @@ struct GlassCollapsibleSection<Content: View>: View {
     @EnvironmentObject var appState: AppState
     let title: String
     let icon: String
-    var badge: String? = nil
     @Binding var isExpanded: Bool
     let content: Content
 
-    init(title: String, icon: String, badge: String? = nil, isExpanded: Binding<Bool>, @ViewBuilder content: () -> Content) {
+    init(title: String, icon: String, isExpanded: Binding<Bool>, @ViewBuilder content: () -> Content) {
         self.title = title
         self.icon = icon
-        self.badge = badge
         self._isExpanded = isExpanded
         self.content = content()
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: isExpanded ? 12 : 0) {
-            Button(action: {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.primary)
+                Text(title.uppercased())
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color.primary.opacity(0.72))
+
+                Spacer()
+
+                Button(action: {
+                    withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+                        isExpanded.toggle()
+                    }
+                }) {
+                    HStack(spacing: 5) {
+                        Text(appState.l(isExpanded ? "Hide" : "Show"))
+                            .font(.system(size: 10.5, weight: .medium, design: .rounded))
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 8.5, weight: .bold))
+                    }
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 3.5)
+                    .background(Color.primary.opacity(0.05))
+                    .clipShape(Capsule())
+                    .overlay(
+                        Capsule()
+                            .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.8)
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 4)
+            .contentShape(Rectangle())
+            .onTapGesture {
                 withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
                     isExpanded.toggle()
                 }
-            }) {
-                HStack(spacing: 6) {
-                    Image(systemName: icon)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.primary)
-                    Text(title.uppercased())
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .foregroundStyle(Color.primary.opacity(0.72))
-
-                    if let badge = badge, !badge.isEmpty {
-                        Text(badge)
-                            .font(.system(size: 10, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.primary.opacity(0.06))
-                            .clipShape(Capsule())
-                    }
-
-                    Spacer()
-
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.secondary)
-                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                }
-                .padding(.horizontal, 4)
-                .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
 
             if isExpanded {
                 content
@@ -4988,12 +4992,9 @@ struct VocabularySettingsView: View {
 
             if selectedTab == .vocabulary {
                 // SECTION: Cities & Street Locations
-                let cityCount = appState.userCityLocation.split(separator: ",").filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }.count
-                let cityBadge = cityCount > 0 ? "\(cityCount)" : nil
                 GlassCollapsibleSection(
                     title: appState.l("Cities & Locations"),
                     icon: "mappin.and.ellipse",
-                    badge: cityBadge,
                     isExpanded: $isCitiesExpanded
                 ) {
                     VStack(alignment: .leading, spacing: 12) {
@@ -5352,12 +5353,9 @@ struct VocabularySettingsView: View {
             }
 
             // SECTION: Custom Presets (Unified)
-            let totalPresets = appState.customVocabularyPresets.count + appState.customBlockedWordsPresets.count + appState.customLocationPresets.count
-            let presetsBadge = totalPresets > 0 ? "\(totalPresets)" : nil
             GlassCollapsibleSection(
                 title: appState.l("Custom Presets"),
                 icon: "square.grid.2x2.fill",
-                badge: presetsBadge,
                 isExpanded: $isPresetsExpanded
             ) {
                 VStack(alignment: .leading, spacing: 14) {
