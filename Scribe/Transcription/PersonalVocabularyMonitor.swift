@@ -54,21 +54,48 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
         }
     }
 
-    // MARK: - Public Controls
-
-    /// Starts or resumes monitoring with a specific duration in days (7, 14, 30)
-    public func startMonitoring(days: Int = 14) {
+    /// Sets or updates the target monitoring duration in days without starting monitoring.
+    public func setDuration(days: Int) {
         lock.lock()
         self.durationDays = days
+        if isRunning, let start = startDate {
+            self.endDate = Calendar.current.date(byAdding: .day, value: days, to: start)
+        }
+        savePersistedStateUnderLock()
+        lock.unlock()
+
+        if Thread.isMainThread {
+            self.objectWillChange.send()
+        } else {
+            DispatchQueue.main.async {
+                self.objectWillChange.send()
+            }
+        }
+        logger.info("Set PersonalVocabularyMonitor duration to \(days) days (isRunning: \(self.isRunning))")
+    }
+
+    /// Starts or resumes monitoring with a specific duration in days (7, 14, 30)
+    public func startMonitoring(days: Int? = nil) {
+        lock.lock()
+        let targetDays = days ?? self.durationDays
+        self.durationDays = targetDays
         let now = Date()
         self.startDate = now
-        self.endDate = Calendar.current.date(byAdding: .day, value: days, to: now)
+        self.endDate = Calendar.current.date(byAdding: .day, value: targetDays, to: now)
         self.isRunning = true
         savePersistedStateUnderLock()
         lock.unlock()
 
+        if Thread.isMainThread {
+            self.objectWillChange.send()
+        } else {
+            DispatchQueue.main.async {
+                self.objectWillChange.send()
+            }
+        }
+
         startEventMonitors()
-        logger.info("Started PersonalVocabularyMonitor for \(days) days (until \(String(describing: self.endDate)))")
+        logger.info("Started PersonalVocabularyMonitor for \(targetDays) days (until \(String(describing: self.endDate)))")
     }
 
     /// Stops monitoring, keeping all learned words and constructions intact
@@ -77,6 +104,14 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
         self.isRunning = false
         savePersistedStateUnderLock()
         lock.unlock()
+
+        if Thread.isMainThread {
+            self.objectWillChange.send()
+        } else {
+            DispatchQueue.main.async {
+                self.objectWillChange.send()
+            }
+        }
 
         stopEventMonitors()
         logger.info("Stopped PersonalVocabularyMonitor")

@@ -1639,14 +1639,14 @@ struct GlassCollapsibleSection<Content: View>: View {
     @EnvironmentObject var appState: AppState
     let title: String
     let icon: String
+    var badge: String? = nil
     @Binding var isExpanded: Bool
     let content: Content
 
-    @State private var contentHeight: CGFloat = 0
-
-    init(title: String, icon: String, isExpanded: Binding<Bool>, @ViewBuilder content: () -> Content) {
+    init(title: String, icon: String, badge: String? = nil, isExpanded: Binding<Bool>, @ViewBuilder content: () -> Content) {
         self.title = title
         self.icon = icon
+        self.badge = badge
         self._isExpanded = isExpanded
         self.content = content()
     }
@@ -1654,7 +1654,7 @@ struct GlassCollapsibleSection<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: isExpanded ? 12 : 0) {
             Button(action: {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
+                withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
                     isExpanded.toggle()
                 }
             }) {
@@ -1666,11 +1666,21 @@ struct GlassCollapsibleSection<Content: View>: View {
                         .font(.system(size: 11, weight: .bold, design: .rounded))
                         .foregroundStyle(Color.primary.opacity(0.72))
 
+                    if let badge = badge, !badge.isEmpty {
+                        Text(badge)
+                            .font(.system(size: 10, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.primary.opacity(0.06))
+                            .clipShape(Capsule())
+                    }
+
                     Spacer()
 
                     Image(systemName: "chevron.right")
                         .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(.secondary)
                         .rotationEffect(.degrees(isExpanded ? 90 : 0))
                 }
                 .padding(.horizontal, 4)
@@ -1678,40 +1688,28 @@ struct GlassCollapsibleSection<Content: View>: View {
             }
             .buttonStyle(.plain)
 
-            content
-                .padding(16)
-                .background(
-                    ZStack {
+            if isExpanded {
+                content
+                    .padding(16)
+                    .background(
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(.ultraThinMaterial.opacity(appState.selectedPanelAppearance == .liquidGlass ? 0.35 : 0.55))
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(appState.selectedPanelAppearance == .liquidGlass ? Color.white.opacity(0.08) : Color.primary.opacity(0.06))
+                        }
+                    )
+                    .overlay(
                         RoundedRectangle(cornerRadius: 16)
-                            .fill(.ultraThinMaterial.opacity(appState.selectedPanelAppearance == .liquidGlass ? 0.35 : 0.55))
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(appState.selectedPanelAppearance == .liquidGlass ? Color.white.opacity(0.08) : Color.primary.opacity(0.06))
-                    }
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .strokeBorder(appState.selectedPanelAppearance == .liquidGlass ? Color.white.opacity(0.18) : Color.primary.opacity(0.12), lineWidth: 1)
-                )
-                .background(
-                    GeometryReader { geo in
-                        Color.clear.preference(key: CollapsibleHeightKey.self, value: geo.size.height)
-                    }
-                )
-                .onPreferenceChange(CollapsibleHeightKey.self) { h in
-                    if h > 0 { contentHeight = h }
-                }
-                .frame(height: isExpanded ? contentHeight : 0, alignment: .top)
-                .clipped()
-                .opacity(isExpanded ? 1 : 0)
+                            .strokeBorder(appState.selectedPanelAppearance == .liquidGlass ? Color.white.opacity(0.18) : Color.primary.opacity(0.12), lineWidth: 1)
+                    )
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .scale(scale: 0.98, anchor: .top)),
+                        removal: .opacity
+                    ))
+            }
         }
-        .animation(.spring(response: 0.35, dampingFraction: 0.78), value: isExpanded)
-    }
-}
-
-private struct CollapsibleHeightKey: PreferenceKey {
-    nonisolated(unsafe) static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
+        .animation(.spring(response: 0.32, dampingFraction: 0.82), value: isExpanded)
     }
 }
 
@@ -4502,6 +4500,8 @@ struct VocabularySettingsView: View {
     @EnvironmentObject var appState: AppState
     @ObservedObject private var communityVocab = CommunityVocabularyService.shared
     @ObservedObject private var monitor = PersonalVocabularyMonitor.shared
+    @AppStorage("vocabularyCitiesExpanded") private var isCitiesExpanded: Bool = true
+    @AppStorage("vocabularyPresetsExpanded") private var isPresetsExpanded: Bool = true
     @State private var selectedTab: VocabularyTab = .vocabulary
     @State private var newWord: String = ""
     @State private var newBlockedWord: String = ""
@@ -4988,7 +4988,14 @@ struct VocabularySettingsView: View {
 
             if selectedTab == .vocabulary {
                 // SECTION: Cities & Street Locations
-                GlassSection(title: appState.l("Cities & Locations"), icon: "mappin.and.ellipse") {
+                let cityCount = appState.userCityLocation.split(separator: ",").filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }.count
+                let cityBadge = cityCount > 0 ? "\(cityCount)" : nil
+                GlassCollapsibleSection(
+                    title: appState.l("Cities & Locations"),
+                    icon: "mappin.and.ellipse",
+                    badge: cityBadge,
+                    isExpanded: $isCitiesExpanded
+                ) {
                     VStack(alignment: .leading, spacing: 12) {
                         Text(appState.l("Specify your city, frequent neighborhoods or street names (comma-separated). Scribe will bias the transcription model to accurately recognize local addresses, street prefixes, and locations."))
                             .font(.system(size: 12))
@@ -5053,19 +5060,6 @@ struct VocabularySettingsView: View {
                             }
                         }
                     }
-                    .padding(14)
-                    .background(
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(.ultraThinMaterial.opacity(0.6))
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(Color.primary.opacity(0.06))
-                        }
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
-                    )
                 }
             }
 
@@ -5145,7 +5139,7 @@ struct VocabularySettingsView: View {
                                 let isSelected = monitor.durationDays == days
                                 Button(action: {
                                     withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-                                        monitor.startMonitoring(days: days)
+                                        monitor.setDuration(days: days)
                                     }
                                 }) {
                                     VStack(spacing: 3) {
@@ -5358,7 +5352,14 @@ struct VocabularySettingsView: View {
             }
 
             // SECTION: Custom Presets (Unified)
-            GlassSection(title: appState.l("Custom Presets"), icon: "square.grid.2x2.fill") {
+            let totalPresets = appState.customVocabularyPresets.count + appState.customBlockedWordsPresets.count + appState.customLocationPresets.count
+            let presetsBadge = totalPresets > 0 ? "\(totalPresets)" : nil
+            GlassCollapsibleSection(
+                title: appState.l("Custom Presets"),
+                icon: "square.grid.2x2.fill",
+                badge: presetsBadge,
+                isExpanded: $isPresetsExpanded
+            ) {
                 VStack(alignment: .leading, spacing: 14) {
                     VStack(spacing: 10) {
                         HStack(alignment: .center, spacing: 12) {
