@@ -5224,12 +5224,35 @@ struct VocabularySettingsView: View {
 
                     // Recent Learned Terms & Directives
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(appState.l("Recently Learned Words & Directives"))
-                            .font(.system(size: 11, weight: .bold, design: .rounded))
-                            .foregroundStyle(Color.primary.opacity(0.75))
-
                         let directives = UserGrammarProfile.shared.topDirectives(limit: 6)
                         let recentWords = monitor.recentlyLearnedWords
+
+                        HStack {
+                            Text(appState.l("Recently Learned Words & Directives"))
+                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                                .foregroundStyle(Color.primary.opacity(0.75))
+
+                            Spacer()
+
+                            if !directives.isEmpty || !recentWords.isEmpty {
+                                Button(action: {
+                                    monitor.clearAllLearnedWords()
+                                }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "trash")
+                                            .font(.system(size: 8))
+                                        Text(appState.l("Clear All"))
+                                            .font(.system(size: 10, weight: .medium, design: .rounded))
+                                    }
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color.red.opacity(0.08))
+                                    .foregroundStyle(Color.red.opacity(0.85))
+                                    .cornerRadius(4)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
 
                         if directives.isEmpty && recentWords.isEmpty {
                             Text(appState.l("No rare words or directives learned yet. Start typing in any app to train."))
@@ -5245,6 +5268,14 @@ struct VocabularySettingsView: View {
                                             .foregroundStyle(Color.orange)
                                         Text(d)
                                             .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                        Button(action: {
+                                            monitor.removeLearnedDirective(d)
+                                        }) {
+                                            Image(systemName: "xmark")
+                                                .font(.system(size: 8, weight: .bold))
+                                                .foregroundStyle(Color.orange.opacity(0.7))
+                                        }
+                                        .buttonStyle(.plain)
                                     }
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
@@ -5254,13 +5285,23 @@ struct VocabularySettingsView: View {
                                 }
 
                                 ForEach(recentWords, id: \.self) { w in
-                                    Text(w)
-                                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(Color.primary.opacity(0.05))
-                                        .foregroundStyle(.primary)
-                                        .cornerRadius(6)
+                                    HStack(spacing: 4) {
+                                        Text(w)
+                                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                                        Button(action: {
+                                            monitor.removeLearnedWord(w)
+                                        }) {
+                                            Image(systemName: "xmark")
+                                                .font(.system(size: 8, weight: .bold))
+                                                .foregroundStyle(Color.secondary.opacity(0.7))
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color.primary.opacity(0.05))
+                                    .foregroundStyle(.primary)
+                                    .cornerRadius(6)
                                 }
                             }
                         }

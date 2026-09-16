@@ -829,7 +829,7 @@ public final class AetherContextEngine: @unchecked Sendable {
         }
 
         // 4. Personal Speech Habits & Directives from Writing Monitor
-        if let habitsHint = UserGrammarProfile.shared.topDirectivesPromptHint() {
+        if let habitsHint = UserGrammarProfile.shared.topDirectivesPromptHint(language: language) {
             components.append(habitsHint)
         }
 
@@ -840,7 +840,12 @@ public final class AetherContextEngine: @unchecked Sendable {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
             
+        let isEnglishTarget = language?.lowercased().starts(with: "en") == true
         for rw in learnedRareWords {
+            if isEnglishTarget {
+                let hasCyrillic = rw.unicodeScalars.contains { ($0.value >= 0x0400 && $0.value <= 0x04FF) || ($0.value >= 0x0500 && $0.value <= 0x052F) }
+                if hasCyrillic { continue }
+            }
             let norm = rw.normalizedPlainVocabularyWord()
             if !combinedVocabItems.contains(where: { $0.caseInsensitiveCompare(norm) == .orderedSame }) {
                 combinedVocabItems.append(norm)

@@ -40,7 +40,41 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
         "com.apple.keychainaccess",
         "com.lastpass.lastpass",
         "com.apple.Preferences",
-        "com.apple.systempreferences"
+        "com.apple.systempreferences",
+        // Terminal emulators and CLI consoles (never harvest shell, port scan or log dumps)
+        "com.apple.terminal",
+        "com.googlecode.iterm2",
+        "net.kovidgoyal.kitty",
+        "org.alacritty",
+        "dev.warp.warp-gke",
+        "co.zeit.hyper",
+        "com.mitchellh.ghostty",
+        "org.gnu.emacs"
+    ]
+
+    /// Common English and Russian stopwords that should never be marked as idiosyncratic/rare
+    private let stopWords: Set<String> = [
+        // English
+        "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by", "from",
+        "up", "about", "into", "over", "after", "is", "are", "was", "were", "be", "been", "being",
+        "have", "has", "had", "do", "does", "did", "shall", "will", "should", "would", "may", "might",
+        "must", "can", "could", "you", "he", "she", "it", "we", "they", "him", "her", "them", "his",
+        "their", "our", "what", "which", "who", "whom", "this", "that", "these", "those", "there",
+        "here", "when", "where", "why", "how", "all", "any", "both", "each", "few", "more", "most",
+        "other", "some", "such", "nor", "not", "only", "own", "same", "than", "too", "very", "just",
+        "now", "attached", "last", "next", "first", "pro", "then", "also", "back", "even", "well",
+        "sep", "oct", "nov", "dec", "jan", "feb", "mar", "apr", "jun", "jul", "aug",
+        "mon", "tue", "wed", "thu", "fri", "sat", "sun",
+        // Russian
+        "что", "это", "как", "так", "для", "или", "если", "чтобы", "когда", "где", "куда", "откуда",
+        "почему", "зачем", "все", "всё", "весь", "вся", "оно", "она", "они", "этот", "эта", "эти",
+        "того", "тому", "тем", "том", "при", "про", "без", "под", "над", "перед", "между", "через",
+        "после", "из", "от", "по", "на", "об", "обо", "нет", "еще", "ещё", "даже", "вдруг", "тут",
+        "там", "потом", "себя", "ничего", "может", "надо", "тебя", "чем", "была", "были", "быть",
+        "было", "будет", "тоже", "тогда", "кто", "потому", "этого", "какой", "совсем", "здесь",
+        "этом", "один", "почти", "мой", "никогда", "можно", "наконец", "другой", "больше", "тот",
+        "всего", "какая", "много", "разве", "моя", "хорошо", "свою", "этой", "иногда", "лучше",
+        "нельзя", "такой", "более", "всегда", "конечно", "всю", "вчера", "сегодня", "завтра"
     ]
 
     private init() {
@@ -207,13 +241,13 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
     private func inspectFocusedElement() {
         guard AXIsProcessTrusted() else { return }
 
-        // Check frontmost app to exclude password managers and settings
+        // Check frontmost app to exclude password managers, settings, and terminal emulators
         if let frontApp = NSWorkspace.shared.frontmostApplication {
             if let bundleId = frontApp.bundleIdentifier?.lowercased() {
                 for excluded in excludedBundleIdentifiers {
                     if bundleId.contains(excluded) { return }
                 }
-                if bundleId.contains("password") || bundleId.contains("keychain") || bundleId.contains("auth") {
+                if bundleId.contains("password") || bundleId.contains("keychain") || bundleId.contains("auth") || bundleId.contains("terminal") {
                     return
                 }
             }
@@ -226,7 +260,15 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
             return
         }
 
-        // 1. STRICT PRIVACY: Verify element is NOT a password/secure field
+        // 1. STRICT PRIVACY: Verify element is NOT a password/secure field or terminal console
+        var roleObj: AnyObject?
+        if AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &roleObj) == .success,
+           let role = roleObj as? String {
+            if role == "AXTerminal" || role == "AXConsole" {
+                return // NEVER TOUCH TERMINAL/SHELL CONSOLES
+            }
+        }
+
         var subroleObj: AnyObject?
         if AXUIElementCopyAttributeValue(element, kAXSubroleAttribute as CFString, &subroleObj) == .success,
            let subrole = subroleObj as? String {
@@ -241,10 +283,10 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
             return // NEVER TOUCH PASSWORD FIELDS
         }
 
-        // 2. Read text value
+        // 2. Read text value (ignoring gigantic buffer dumps > 1500 chars)
         var valueObj: AnyObject?
         guard AXUIElementCopyAttributeValue(element, kAXValueAttribute as CFString, &valueObj) == .success,
-              let rawString = valueObj as? String, !rawString.isEmpty else {
+              let rawString = valueObj as? String, !rawString.isEmpty, rawString.count <= 1500 else {
             return
         }
 
@@ -296,19 +338,48 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
         for token in wordTokens {
             let lower = token.lowercased().normalizedPlainVocabularyWord()
 
-            // Skip numbers or common generic stop-words
+            // Skip short tokens, numbers, or stop-words
+            if lower.count < 3 { continue }
+            if stopWords.contains(lower) { continue }
             if CharacterSet.decimalDigits.isSuperset(of: CharacterSet(charactersIn: lower)) { continue }
 
             // Candidate frequency tracking
             let count = (candidateFrequencies[lower] ?? 0) + 1
             candidateFrequencies[lower] = count
 
-            // Check if this is an idiosyncratic / rare term:
-            // Condition A: NSSpellChecker flags it as non-standard / specialized
-            // Condition B: Or it's a technical token / mixed language term
             if count >= 2 {
-                let range = spellChecker.checkSpelling(of: token, startingAt: 0)
-                let isNonStandardOrRare = range.location != NSNotFound || token.contains("-") || token.contains("_") || (token.rangeOfCharacter(from: .uppercaseLetters) != nil && !token.hasPrefix("http"))
+                // Bilingual validation: standard in English OR Russian is NOT rare
+                var enWordCount: Int = 0
+                let enRange = spellChecker.checkSpelling(
+                    of: token,
+                    startingAt: 0,
+                    language: "en",
+                    wrap: false,
+                    inSpellDocumentWithTag: 0,
+                    wordCount: &enWordCount
+                )
+                var ruWordCount: Int = 0
+                let ruRange = spellChecker.checkSpelling(
+                    of: token,
+                    startingAt: 0,
+                    language: "ru",
+                    wrap: false,
+                    inSpellDocumentWithTag: 0,
+                    wordCount: &ruWordCount
+                )
+                let isStandardWord = (enRange.length == 0 || enRange.location == NSNotFound) || (ruRange.length == 0 || ruRange.location == NSNotFound)
+
+                // CamelCase / internal capitalization (e.g. MacBook, WhisperKit)
+                let hasInnerCapital = token.dropFirst().contains { $0.isUppercase }
+                // Acronym (e.g. API, GPU, CLI, 2-6 uppercase letters/digits)
+                let isAcronym = token.count >= 2 && token.count <= 6 && token.allSatisfy { $0.isUppercase || $0.isNumber }
+                // Technical compound identifier (e.g. dev_mode, lang-code)
+                let isTechnicalCompound = token.contains("-") || token.contains("_")
+
+                // A word is rare/idiosyncratic ONLY if it is non-standard in both dictionaries
+                // OR has distinctive technical casing (CamelCase, acronym, compound).
+                // Initial sentence capitalization (e.g. "There", "What") will NEVER qualify.
+                let isNonStandardOrRare = (!isStandardWord) || hasInnerCapital || isAcronym || isTechnicalCompound
 
                 if isNonStandardOrRare {
                     // Normalize to plain letters
@@ -316,7 +387,11 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
                     UserGrammarProfile.shared.recordIdiosyncraticWord(normalizedWord)
                     UserFrequencyDictionary.shared.record(text: normalizedWord)
 
-                    if !recentlyLearnedWords.contains(normalizedWord) {
+                    let lowerNorm = normalizedWord.lowercased()
+                    let alreadyInRecent = recentlyLearnedWords.contains { $0.lowercased() == lowerNorm }
+                    let alreadyInNew = newlyLearned.contains { $0.lowercased() == lowerNorm }
+
+                    if !alreadyInRecent && !alreadyInNew {
                         newlyLearned.append(normalizedWord)
                     }
                 }
@@ -326,6 +401,14 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
         if !newlyLearned.isEmpty {
             for w in newlyLearned {
                 recentlyLearnedWords.insert(w, at: 0)
+            }
+            // Strict case-insensitive deduplication
+            var seen = Set<String>()
+            recentlyLearnedWords = recentlyLearnedWords.filter { w in
+                let low = w.lowercased()
+                if seen.contains(low) { return false }
+                seen.insert(low)
+                return true
             }
             if recentlyLearnedWords.count > 40 {
                 recentlyLearnedWords = Array(recentlyLearnedWords.prefix(40))
@@ -340,6 +423,58 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
         DispatchQueue.main.async {
             self.objectWillChange.send()
         }
+    }
+
+    // MARK: - Learned Vocabulary Deletion & Reset API
+
+    /// Removes an individual learned word from the monitor and profile
+    public func removeLearnedWord(_ word: String) {
+        let lower = word.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        lock.lock()
+        recentlyLearnedWords.removeAll { $0.lowercased() == lower }
+        candidateFrequencies.removeValue(forKey: lower)
+        rareWordsLearnedCount = max(0, rareWordsLearnedCount - 1)
+        savePersistedStateUnderLock()
+        lock.unlock()
+
+        UserGrammarProfile.shared.removeIdiosyncraticWord(lower)
+
+        DispatchQueue.main.async {
+            self.objectWillChange.send()
+        }
+        logger.info("Removed learned word '\(word)'")
+    }
+
+    /// Removes an individual learned directive from the grammar profile
+    public func removeLearnedDirective(_ directive: String) {
+        UserGrammarProfile.shared.removeDirective(directive)
+        lock.lock()
+        constructionsLearnedCount = UserGrammarProfile.shared.learnedConstructionsCount
+        savePersistedStateUnderLock()
+        lock.unlock()
+
+        DispatchQueue.main.async {
+            self.objectWillChange.send()
+        }
+        logger.info("Removed learned directive '\(directive)'")
+    }
+
+    /// Clears all learned words, directives, and monitor cache
+    public func clearAllLearnedWords() {
+        lock.lock()
+        recentlyLearnedWords.removeAll()
+        candidateFrequencies.removeAll()
+        rareWordsLearnedCount = 0
+        constructionsLearnedCount = 0
+        savePersistedStateUnderLock()
+        lock.unlock()
+
+        UserGrammarProfile.shared.clearAll()
+
+        DispatchQueue.main.async {
+            self.objectWillChange.send()
+        }
+        logger.info("Cleared all learned words and directives in PersonalVocabularyMonitor")
     }
 
     // MARK: - State Persistence

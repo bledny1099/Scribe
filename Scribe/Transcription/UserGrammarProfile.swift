@@ -113,11 +113,66 @@ public final class UserGrammarProfile: @unchecked Sendable {
             .map { $0.key }
     }
 
-    /// Generates a concise Russian/English prompt hint for Whisper context conditioning
-    public func topDirectivesPromptHint() -> String? {
+    /// Generates a language-aware prompt hint for Whisper context conditioning.
+    /// Never injects Russian prompt labels into English speech contexts.
+    public func topDirectivesPromptHint(language: String? = nil) -> String? {
         let directives = topDirectives(limit: 6)
         guard !directives.isEmpty else { return nil }
-        return "Речевой стиль и частые конструкции: " + directives.joined(separator: ", ") + "."
+
+        let isEnglish = language?.lowercased().starts(with: "en") == true
+        let isRussian = language?.lowercased().starts(with: "ru") == true
+
+        if isEnglish {
+            let latinDirectives = directives.filter { d in
+                d.unicodeScalars.allSatisfy { ($0.value >= 0x0041 && $0.value <= 0x005A) || ($0.value >= 0x0061 && $0.value <= 0x007A) }
+            }
+            guard !latinDirectives.isEmpty else { return nil }
+            return "Speech style and frequent directives: " + latinDirectives.joined(separator: ", ") + "."
+        } else if isRussian {
+            let cyrillicDirectives = directives.filter { d in
+                d.unicodeScalars.contains { ($0.value >= 0x0400 && $0.value <= 0x04FF) || ($0.value >= 0x0500 && $0.value <= 0x052F) }
+            }
+            guard !cyrillicDirectives.isEmpty else { return nil }
+            return "Речевой стиль и частые конструкции: " + cyrillicDirectives.joined(separator: ", ") + "."
+        } else {
+            // Mixed or auto mode: only output directives without Russian-only bias
+            return "Common directives: " + directives.joined(separator: ", ") + "."
+        }
+    }
+
+    /// Removes a specific idiosyncratic word from the profile
+    public func removeIdiosyncraticWord(_ word: String) {
+        let lower = word.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        lock.lock()
+        idiosyncraticWordFrequencies.removeValue(forKey: lower)
+        lastUpdated = Date()
+        isDirty = true
+        lock.unlock()
+        scheduleSave()
+    }
+
+    /// Removes a specific directive from the profile
+    public func removeDirective(_ directive: String) {
+        let lower = directive.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        lock.lock()
+        directiveFrequencies.removeValue(forKey: lower)
+        lastUpdated = Date()
+        isDirty = true
+        lock.unlock()
+        scheduleSave()
+    }
+
+    /// Purges all learned directives, collocations, and idiosyncratic words
+    public func clearAll() {
+        lock.lock()
+        directiveFrequencies.removeAll()
+        collocationFrequencies.removeAll()
+        idiosyncraticWordFrequencies.removeAll()
+        totalProcessedSegments = 0
+        lastUpdated = Date()
+        isDirty = true
+        lock.unlock()
+        saveToDisk()
     }
 
     /// Returns top learned collocations/bigrams (e.g. "сделай чтобы", "давай сделаем")
