@@ -5,6 +5,20 @@ All notable changes to Scribe will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.2] - 2026-09-16
+
+## Added
+- Quick "Clear All" action and individual item removal buttons for learned words and directives in Settings.
+- Comprehensive stopword filtering and bilingual dictionary validation for the background writing monitor.
+
+## Changed
+- Replaced sentence-initial capitalization heuristics with structural checks (CamelCase, uppercase acronyms, compounds) to prevent common words from being flagged as rare.
+- Localized context prompt conditioning so language-specific directives and speech style hints match the active target language.
+
+## Fixed
+- Fixed an issue where English speech was translated into Russian during transcription due to Slavic probability bias and Russian context leakage.
+- Excluded terminal emulators, CLI tools, and console buffers from accessibility text observation to prevent system service dumps from polluting the vocabulary profile.
+
 ## [2.8.1] - 2026-09-15
 
 ## Added
