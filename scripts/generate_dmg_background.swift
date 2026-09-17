@@ -2,10 +2,14 @@ import Cocoa
 import CoreGraphics
 
 func renderDMGBackground(scale: CGFloat) -> NSImage {
-    // Compact, perfectly proportioned canvas matching Picture 2
-    let baseWidth: CGFloat = 540
-    let baseHeight: CGFloat = 420
-    let contentCenterX: CGFloat = baseWidth / 2 // 270
+    // Ultra-wide high resolution canvas so Finder background seamlessly covers any window width or resizing
+    let baseWidth: CGFloat = 2560
+    let baseHeight: CGFloat = 1200
+    
+    // Layout anchor coordinates (matches compact window 540x420)
+    let contentWidth: CGFloat = 540
+    let contentHeight: CGFloat = 420
+    let contentCenterX: CGFloat = contentWidth / 2 // 270
     
     let pixelWidth = Int(baseWidth * scale)
     let pixelHeight = Int(baseHeight * scale)
@@ -26,7 +30,7 @@ func renderDMGBackground(scale: CGFloat) -> NSImage {
     context.scaleBy(x: scale, y: scale)
     
     // 1. Sleek Vertical Gradient (Dark Charcoal Top to Soft White Bottom)
-    // CoreGraphics coordinates: (0,0) is bottom-left, (0, height) is top-left
+    // Extends across full 2560 width so no matter how wide the window is, the gradient never disappears
     let colors = [
         NSColor(red: 0.11, green: 0.12, blue: 0.14, alpha: 1.0).cgColor, // Top dark charcoal (#1C1E24)
         NSColor(red: 0.16, green: 0.18, blue: 0.21, alpha: 1.0).cgColor, // Slate dark (#292E36)
@@ -42,12 +46,12 @@ func renderDMGBackground(scale: CGFloat) -> NSImage {
         context.drawLinearGradient(
             gradient,
             start: CGPoint(x: baseWidth / 2, y: baseHeight),
-            end: CGPoint(x: baseWidth / 2, y: 0),
-            options: []
+            end: CGPoint(x: baseWidth / 2, y: baseHeight - contentHeight),
+            options: [.drawsBeforeStartLocation, .drawsAfterEndLocation]
         )
     }
     
-    // 2. Subtle Radial Light Accent at Top
+    // 2. Subtle Radial Light Accent at Top centered above content
     let ambientColors = [
         NSColor(red: 1.0, green: 1.0, blue: 1.0, alpha: 0.09).cgColor,
         NSColor(red: 1.0, green: 1.0, blue: 1.0, alpha: 0.0).cgColor
@@ -59,7 +63,7 @@ func renderDMGBackground(scale: CGFloat) -> NSImage {
             startCenter: CGPoint(x: contentCenterX, y: baseHeight),
             startRadius: 0,
             endCenter: CGPoint(x: contentCenterX, y: baseHeight),
-            endRadius: 280,
+            endRadius: 340,
             options: []
         )
     }
@@ -114,7 +118,7 @@ func renderDMGBackground(scale: CGFloat) -> NSImage {
     ]
     
     let topString = NSAttributedString(string: "One drag away from saving hours.", attributes: topAttributes)
-    topString.draw(in: CGRect(x: 0, y: baseHeight - 38, width: baseWidth, height: 24))
+    topString.draw(in: CGRect(x: 0, y: baseHeight - 38, width: contentWidth, height: 24))
     
     // Subtitle helper
     let subParagraph = NSMutableParagraphStyle()
@@ -126,7 +130,7 @@ func renderDMGBackground(scale: CGFloat) -> NSImage {
         .paragraphStyle: subParagraph
     ]
     let subString = NSAttributedString(string: "Drag to Applications • If blocked by Gatekeeper, see README below", attributes: subAttributes)
-    subString.draw(in: CGRect(x: 0, y: baseHeight - 56, width: baseWidth, height: 16))
+    subString.draw(in: CGRect(x: 0, y: baseHeight - 56, width: contentWidth, height: 16))
     
     NSGraphicsContext.restoreGraphicsState()
     
@@ -153,4 +157,4 @@ if let tiff2x = img2x.tiffRepresentation, let rep2x = NSBitmapImageRep(data: tif
     try png2x.write(to: url2x)
 }
 
-print("Rendered 1x and 2x background images (540x420) in: \(distDir)")
+print("Rendered 1x and 2x background images (2560x1200) in: \(distDir)")
