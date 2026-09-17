@@ -105,7 +105,12 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
             }
         }
  
-        let recordingFormat = inputNode.outputFormat(forBus: 0)
+        var recordingFormat = inputNode.outputFormat(forBus: 0)
+        if recordingFormat.sampleRate <= 0 || recordingFormat.channelCount == 0 {
+            if let fallback = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 44100, channels: 1, interleaved: false) {
+                recordingFormat = fallback
+            }
+        }
         currentFormat = recordingFormat
  
         logger.info("Mic format: \(recordingFormat.sampleRate) Hz, \(recordingFormat.channelCount) ch")
@@ -119,6 +124,9 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
         let tracker = levelTracker
         let queue = audioProcessingQueue
  
+        // Ensure any lingering tap is removed before installing a new one
+        inputNode.removeTap(onBus: 0)
+
         inputNode.installTap(onBus: 0, bufferSize: 2048, format: recordingFormat) { [weak self] buffer, _ in
             guard let self = self, self.isRecording else {
                 return
@@ -157,7 +165,14 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
 
         isRecording = true
         audioEngine.prepare()
-        try audioEngine.start()
+        do {
+            try audioEngine.start()
+        } catch {
+            inputNode.removeTap(onBus: 0)
+            isRecording = false
+            logger.error("Failed to start audio engine: \(error.localizedDescription)")
+            throw error
+        }
 
         recordingURL = url
         logger.info("Recording started to \(url.lastPathComponent)")

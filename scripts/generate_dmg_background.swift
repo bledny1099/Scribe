@@ -2,8 +2,14 @@ import Cocoa
 import CoreGraphics
 
 func renderDMGBackground(scale: CGFloat) -> NSImage {
-    let baseWidth: CGFloat = 540
-    let baseHeight: CGFloat = 360
+    // Ultra-wide high resolution canvas so Finder background seamlessly covers any window size
+    let baseWidth: CGFloat = 2880
+    let baseHeight: CGFloat = 1800
+    
+    // Layout anchor coordinates (matches Finder default window 600x460)
+    let layoutWidth: CGFloat = 600
+    let layoutHeight: CGFloat = 460
+    let contentCenterX: CGFloat = layoutWidth / 2 // 300
     
     let pixelWidth = Int(baseWidth * scale)
     let pixelHeight = Int(baseHeight * scale)
@@ -40,8 +46,8 @@ func renderDMGBackground(scale: CGFloat) -> NSImage {
         context.drawLinearGradient(
             gradient,
             start: CGPoint(x: baseWidth / 2, y: baseHeight),
-            end: CGPoint(x: baseWidth / 2, y: 0),
-            options: []
+            end: CGPoint(x: baseWidth / 2, y: baseHeight - layoutHeight),
+            options: [.drawsAfterEndLocation, .drawsBeforeStartLocation]
         )
     }
     
@@ -54,20 +60,20 @@ func renderDMGBackground(scale: CGFloat) -> NSImage {
     if let radialGrad = CGGradient(colorsSpace: colorSpace, colors: ambientColors, locations: [0.0, 1.0]) {
         context.drawRadialGradient(
             radialGrad,
-            startCenter: CGPoint(x: baseWidth / 2, y: baseHeight),
+            startCenter: CGPoint(x: contentCenterX, y: baseHeight),
             startRadius: 0,
-            endCenter: CGPoint(x: baseWidth / 2, y: baseHeight),
-            endRadius: 280,
+            endCenter: CGPoint(x: contentCenterX, y: baseHeight),
+            endRadius: 360,
             options: []
         )
     }
     
-    // 3. Bold, Clean, Minimalist Apple-Style Arrow (NO OVAL / NO CAPSULE)
-    // Scribe icon center: X = 140, Y = 170 in Finder -> CG Y = 360 - 170 = 190
-    // Applications folder center: X = 400, Y = 170 in Finder -> CG Y = 190
-    // Center between icons: X = 270, CG Y = 190
-    let arrowY: CGFloat = 190
-    let arrowCenterX: CGFloat = 270
+    // 3. Bold, Clean, Minimalist Apple-Style Arrow
+    // Scribe icon center: X = 150, Y = 170 in Finder -> CG Y = baseHeight - 170
+    // Applications folder center: X = 450, Y = 170 in Finder -> CG Y = baseHeight - 170
+    // Center between icons: X = 300
+    let arrowY: CGFloat = baseHeight - 170
+    let arrowCenterX: CGFloat = contentCenterX
     
     context.saveGState()
     
@@ -104,15 +110,27 @@ func renderDMGBackground(scale: CGFloat) -> NSImage {
     let topParagraph = NSMutableParagraphStyle()
     topParagraph.alignment = .center
     
-    let topFont = NSFont.systemFont(ofSize: 17.5, weight: .bold)
+    let topFont = NSFont.systemFont(ofSize: 18, weight: .bold)
     let topAttributes: [NSAttributedString.Key: Any] = [
         .font: topFont,
-        .foregroundColor: NSColor(white: 1.0, alpha: 0.95),
+        .foregroundColor: NSColor(white: 1.0, alpha: 0.96),
         .paragraphStyle: topParagraph
     ]
     
     let topString = NSAttributedString(string: "One drag away from saving hours.", attributes: topAttributes)
-    topString.draw(in: CGRect(x: 0, y: baseHeight - 48, width: baseWidth, height: 26))
+    topString.draw(in: CGRect(x: 0, y: baseHeight - 44, width: layoutWidth, height: 26))
+    
+    // Subtitle helper
+    let subParagraph = NSMutableParagraphStyle()
+    subParagraph.alignment = .center
+    let subFont = NSFont.systemFont(ofSize: 11.5, weight: .medium)
+    let subAttributes: [NSAttributedString.Key: Any] = [
+        .font: subFont,
+        .foregroundColor: NSColor(white: 1.0, alpha: 0.70),
+        .paragraphStyle: subParagraph
+    ]
+    let subString = NSAttributedString(string: "Drag to Applications • If blocked by Gatekeeper, see README below", attributes: subAttributes)
+    subString.draw(in: CGRect(x: 0, y: baseHeight - 64, width: layoutWidth, height: 18))
     
     NSGraphicsContext.restoreGraphicsState()
     
@@ -139,4 +157,4 @@ if let tiff2x = img2x.tiffRepresentation, let rep2x = NSBitmapImageRep(data: tif
     try png2x.write(to: url2x)
 }
 
-print("Rendered 1x and 2x background images (540x360) in: \(distDir)")
+print("Rendered 1x and 2x background images (2880x1800) in: \(distDir)")

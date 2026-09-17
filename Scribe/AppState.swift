@@ -1569,7 +1569,7 @@ final class AppState: ObservableObject {
             panel?.animator().alphaValue = 0
             sub?.animator().alphaValue = 0
         } completionHandler: { [weak self] in
-            MainActor.assumeIsolated {
+            DispatchQueue.main.async {
                 self?.recordingPanel?.close()
                 self?.recordingPanel = nil
                 self?.subtitlePanel?.close()
@@ -1892,7 +1892,7 @@ final class AppState: ObservableObject {
             let currentFrame = panel.frame
             panel.animator().setFrameOrigin(NSPoint(x: currentFrame.minX, y: currentFrame.minY - 24))
         } completionHandler: { [weak self] in
-            MainActor.assumeIsolated {
+            DispatchQueue.main.async {
                 subPanel?.orderOut(nil)
                 subPanel?.close()
                 panel.orderOut(nil)

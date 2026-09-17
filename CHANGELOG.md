@@ -5,6 +5,19 @@ All notable changes to Scribe will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.3] - 2026-09-17
+
+## Added
+- Bundled `README.txt` directly inside the DMG installer root with step-by-step instructions for resolving macOS Gatekeeper quarantine blocks.
+
+## Changed
+- Redesigned the DMG installer layout with a seamless 2880x1800 wide-canvas background, visual guidance, and dedicated file placement.
+- Hardened audio engine initialization with defensive tap resets and format fallbacks for dynamic input device changes.
+
+## Fixed
+- Fixed an intermittent crash (`SIGSEGV` in `MenuBarExtra` on runloop observer flushes) triggered by scene body re-evaluation when starting recording.
+- Replaced `MainActor.assumeIsolated` assertions in overlay hide animations with safe main queue dispatches.
+
 ## [2.8.2] - 2026-09-16
 
 ## Added

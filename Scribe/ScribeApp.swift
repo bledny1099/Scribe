@@ -2,13 +2,37 @@ import SwiftUI
 import KeyboardShortcuts
 import UniformTypeIdentifiers
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
     }
 }
 
+// MARK: - Menu Bar Status Item Label View
+@MainActor
+struct MenuBarLabelView: View {
+    @ObservedObject var appState: AppState
+
+    var body: some View {
+        if appState.isLectureRecording {
+            HStack(spacing: 4) {
+                Image(systemName: "record.circle.fill")
+                Text(appState.formattedDuration.isEmpty ? "00:00" : appState.formattedDuration)
+            }
+        } else if appState.isImportTranscribing {
+            HStack(spacing: 4) {
+                Image(systemName: "waveform.badge.magnifyingglass")
+                Text("Обработка…")
+            }
+        } else {
+            Label("Scribe", systemImage: appState.isRecording ? "waveform" : "mic")
+        }
+    }
+}
+
 @main
+@MainActor
 struct ScribeApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var appState: AppState
@@ -24,19 +48,7 @@ struct ScribeApp: App {
             LiquidGlassMenuBarView(appState: appState)
                 .environmentObject(appState)
         } label: {
-            if appState.isLectureRecording {
-                HStack(spacing: 4) {
-                    Image(systemName: "record.circle.fill")
-                    Text(appState.formattedDuration.isEmpty ? "00:00" : appState.formattedDuration)
-                }
-            } else if appState.isImportTranscribing {
-                HStack(spacing: 4) {
-                    Image(systemName: "waveform.badge.magnifyingglass")
-                    Text("Обработка…")
-                }
-            } else {
-                Label("Scribe", systemImage: appState.isRecording ? "waveform" : "mic")
-            }
+            MenuBarLabelView(appState: appState)
         }
         .menuBarExtraStyle(.window)
 

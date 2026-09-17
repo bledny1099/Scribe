@@ -55,6 +55,8 @@ swift "$SCRIPT_DIR/generate_dmg_background.swift" "$DIST_DIR"
 tiffutil -cathidpicheck "$DIST_DIR/dmg_bg.png" "$DIST_DIR/dmg_bg@2x.png" -out "$DIST_DIR/dmg_background.tiff"
 BG_IMAGE="$DIST_DIR/dmg_background.tiff"
 
+README_FILE="$ROOT_DIR/installer/README.txt"
+
 if command -v create-dmg >/dev/null 2>&1; then
     echo "💿 Creating DMG with create-dmg and gradient background..."
     create-dmg \
@@ -62,12 +64,14 @@ if command -v create-dmg >/dev/null 2>&1; then
         --volicon "$ROOT_DIR/Scribe/AppIcon.icns" \
         --background "$BG_IMAGE" \
         --window-pos 200 120 \
-        --window-size 540 360 \
+        --window-size 600 460 \
         --icon-size 128 \
         --text-size 13 \
-        --icon "$APP_NAME.app" 140 170 \
+        --icon "$APP_NAME.app" 150 170 \
         --hide-extension "$APP_NAME.app" \
-        --app-drop-link 400 170 \
+        --app-drop-link 450 170 \
+        --add-file "README.txt" "$README_FILE" 300 350 \
+        --hide-extension "README.txt" \
         --no-internet-enable \
         --applescript-sleep-duration 6 \
         --overwrite \
@@ -80,6 +84,7 @@ if [ ! -f "$DIST_DIR/$DMG_NAME" ]; then
     echo "💿 Creating DMG with hdiutil fallback..."
     TMP_DMG_DIR=$(mktemp -d /tmp/scribe-dmg.XXXXXX)
     cp -R "$APP_PATH" "$TMP_DMG_DIR/"
+    cp "$README_FILE" "$TMP_DMG_DIR/README.txt"
     ln -s /Applications "$TMP_DMG_DIR/Applications"
     hdiutil create -volname "$APP_NAME" -srcfolder "$TMP_DMG_DIR" -ov -format UDZO "$DIST_DIR/$DMG_NAME"
     rm -rf "$TMP_DMG_DIR"
