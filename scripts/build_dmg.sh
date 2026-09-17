@@ -64,13 +64,13 @@ if command -v create-dmg >/dev/null 2>&1; then
         --volicon "$ROOT_DIR/Scribe/AppIcon.icns" \
         --background "$BG_IMAGE" \
         --window-pos 200 120 \
-        --window-size 600 460 \
-        --icon-size 128 \
-        --text-size 13 \
-        --icon "$APP_NAME.app" 150 170 \
+        --window-size 540 420 \
+        --icon-size 100 \
+        --text-size 12 \
+        --icon "$APP_NAME.app" 135 135 \
         --hide-extension "$APP_NAME.app" \
-        --app-drop-link 450 170 \
-        --add-file "README.txt" "$README_FILE" 300 350 \
+        --app-drop-link 405 135 \
+        --add-file "README.txt" "$README_FILE" 270 260 \
         --hide-extension "README.txt" \
         --no-internet-enable \
         --applescript-sleep-duration 6 \

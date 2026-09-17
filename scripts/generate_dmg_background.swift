@@ -2,14 +2,10 @@ import Cocoa
 import CoreGraphics
 
 func renderDMGBackground(scale: CGFloat) -> NSImage {
-    // Ultra-wide high resolution canvas so Finder background seamlessly covers any window size
-    let baseWidth: CGFloat = 2880
-    let baseHeight: CGFloat = 1800
-    
-    // Layout anchor coordinates (matches Finder default window 600x460)
-    let layoutWidth: CGFloat = 600
-    let layoutHeight: CGFloat = 460
-    let contentCenterX: CGFloat = layoutWidth / 2 // 300
+    // Compact, perfectly proportioned canvas matching Picture 2
+    let baseWidth: CGFloat = 540
+    let baseHeight: CGFloat = 420
+    let contentCenterX: CGFloat = baseWidth / 2 // 270
     
     let pixelWidth = Int(baseWidth * scale)
     let pixelHeight = Int(baseHeight * scale)
@@ -29,7 +25,7 @@ func renderDMGBackground(scale: CGFloat) -> NSImage {
     
     context.scaleBy(x: scale, y: scale)
     
-    // 1. Sleek Vertical Gradient (Dark Charcoal Top to Crisp White Bottom)
+    // 1. Sleek Vertical Gradient (Dark Charcoal Top to Soft White Bottom)
     // CoreGraphics coordinates: (0,0) is bottom-left, (0, height) is top-left
     let colors = [
         NSColor(red: 0.11, green: 0.12, blue: 0.14, alpha: 1.0).cgColor, // Top dark charcoal (#1C1E24)
@@ -46,8 +42,8 @@ func renderDMGBackground(scale: CGFloat) -> NSImage {
         context.drawLinearGradient(
             gradient,
             start: CGPoint(x: baseWidth / 2, y: baseHeight),
-            end: CGPoint(x: baseWidth / 2, y: baseHeight - layoutHeight),
-            options: [.drawsAfterEndLocation, .drawsBeforeStartLocation]
+            end: CGPoint(x: baseWidth / 2, y: 0),
+            options: []
         )
     }
     
@@ -63,36 +59,36 @@ func renderDMGBackground(scale: CGFloat) -> NSImage {
             startCenter: CGPoint(x: contentCenterX, y: baseHeight),
             startRadius: 0,
             endCenter: CGPoint(x: contentCenterX, y: baseHeight),
-            endRadius: 360,
+            endRadius: 280,
             options: []
         )
     }
     
     // 3. Bold, Clean, Minimalist Apple-Style Arrow
-    // Scribe icon center: X = 150, Y = 170 in Finder -> CG Y = baseHeight - 170
-    // Applications folder center: X = 450, Y = 170 in Finder -> CG Y = baseHeight - 170
-    // Center between icons: X = 300
-    let arrowY: CGFloat = baseHeight - 170
+    // Scribe icon center: X = 135, Y = 135 in Finder -> CG Y = baseHeight - 135
+    // Applications folder center: X = 405, Y = 135 in Finder -> CG Y = baseHeight - 135
+    // Center between icons: X = 270
+    let arrowY: CGFloat = baseHeight - 135
     let arrowCenterX: CGFloat = contentCenterX
     
     context.saveGState()
     
     let arrowPath = CGMutablePath()
-    let shaftStart: CGFloat = arrowCenterX - 28
-    let shaftEnd: CGFloat = arrowCenterX + 24
+    let shaftStart: CGFloat = arrowCenterX - 26
+    let shaftEnd: CGFloat = arrowCenterX + 22
     
     // Bold Shaft
     arrowPath.move(to: CGPoint(x: shaftStart, y: arrowY))
     arrowPath.addLine(to: CGPoint(x: shaftEnd, y: arrowY))
     
     // Bold Chevron Arrowhead
-    let headSpread: CGFloat = 10.0
+    let headSpread: CGFloat = 9.5
     arrowPath.move(to: CGPoint(x: shaftEnd - headSpread, y: arrowY + headSpread))
     arrowPath.addLine(to: CGPoint(x: shaftEnd + 3, y: arrowY))
     arrowPath.addLine(to: CGPoint(x: shaftEnd - headSpread, y: arrowY - headSpread))
     
     context.setStrokeColor(NSColor(white: 1.0, alpha: 0.95).cgColor)
-    context.setLineWidth(3.8)
+    context.setLineWidth(3.6)
     context.setLineCap(.round)
     context.setLineJoin(.round)
     context.setShadow(offset: CGSize(width: 0, height: 1.5), blur: 5, color: NSColor(white: 0.0, alpha: 0.35).cgColor)
@@ -110,7 +106,7 @@ func renderDMGBackground(scale: CGFloat) -> NSImage {
     let topParagraph = NSMutableParagraphStyle()
     topParagraph.alignment = .center
     
-    let topFont = NSFont.systemFont(ofSize: 18, weight: .bold)
+    let topFont = NSFont.systemFont(ofSize: 17.5, weight: .bold)
     let topAttributes: [NSAttributedString.Key: Any] = [
         .font: topFont,
         .foregroundColor: NSColor(white: 1.0, alpha: 0.96),
@@ -118,7 +114,7 @@ func renderDMGBackground(scale: CGFloat) -> NSImage {
     ]
     
     let topString = NSAttributedString(string: "One drag away from saving hours.", attributes: topAttributes)
-    topString.draw(in: CGRect(x: 0, y: baseHeight - 44, width: layoutWidth, height: 26))
+    topString.draw(in: CGRect(x: 0, y: baseHeight - 38, width: baseWidth, height: 24))
     
     // Subtitle helper
     let subParagraph = NSMutableParagraphStyle()
@@ -130,7 +126,7 @@ func renderDMGBackground(scale: CGFloat) -> NSImage {
         .paragraphStyle: subParagraph
     ]
     let subString = NSAttributedString(string: "Drag to Applications • If blocked by Gatekeeper, see README below", attributes: subAttributes)
-    subString.draw(in: CGRect(x: 0, y: baseHeight - 64, width: layoutWidth, height: 18))
+    subString.draw(in: CGRect(x: 0, y: baseHeight - 56, width: baseWidth, height: 16))
     
     NSGraphicsContext.restoreGraphicsState()
     
@@ -157,4 +153,4 @@ if let tiff2x = img2x.tiffRepresentation, let rep2x = NSBitmapImageRep(data: tif
     try png2x.write(to: url2x)
 }
 
-print("Rendered 1x and 2x background images (2880x1800) in: \(distDir)")
+print("Rendered 1x and 2x background images (540x420) in: \(distDir)")

@@ -8019,22 +8019,70 @@ struct AuthModalView: View {
                     }
 
                     if let err = errorMessage {
-                        Text(err)
-                            .font(.system(size: 11, weight: .medium, design: .rounded))
-                            .foregroundStyle(.red)
-                            .lineLimit(2)
-                            .multilineTextAlignment(.center)
+                        VStack(spacing: 5) {
+                            Text(err)
+                                .font(.system(size: 11, weight: .medium, design: .rounded))
+                                .foregroundStyle(.red)
+                                .lineLimit(nil)
+                                .multilineTextAlignment(.center)
+
+                            if !isSignUp && (err.contains("не найден") || err.contains("not found")) {
+                                Button {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        isSignUp = true
+                                        errorMessage = nil
+                                    }
+                                } label: {
+                                    Text(appState.l("Зарегистрировать этот email →"))
+                                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                        .foregroundStyle(.blue)
+                                }
+                                .buttonStyle(.plain)
+                            } else if isSignUp && (err.contains("уже существует") || err.contains("already in use")) {
+                                Button {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        isSignUp = false
+                                        errorMessage = nil
+                                    }
+                                } label: {
+                                    Text(appState.l("Войти в этот аккаунт →"))
+                                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                        .foregroundStyle(.blue)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
                     }
 
                     Button {
+                        let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let cleanPass = password.trimmingCharacters(in: .whitespacesAndNewlines)
+
+                        guard !cleanEmail.isEmpty else {
+                            errorMessage = appState.l("Пожалуйста, введите адрес электронной почты.")
+                            return
+                        }
+                        guard AuthService.isValidEmailFormat(cleanEmail) else {
+                            errorMessage = appState.l("Некорректный формат адреса электронной почты.")
+                            return
+                        }
+                        guard !cleanPass.isEmpty else {
+                            errorMessage = appState.l("Пожалуйста, введите пароль.")
+                            return
+                        }
+                        if isSignUp && cleanPass.count < 6 {
+                            errorMessage = appState.l("Пароль должен содержать не менее 6 символов.")
+                            return
+                        }
+
                         isLoading = true
                         errorMessage = nil
                         Task {
                             do {
                                 if isSignUp {
-                                    try await authService.signUpWithEmail(email: email, password: password)
+                                    try await authService.signUpWithEmail(email: cleanEmail, password: cleanPass)
                                 } else {
-                                    try await authService.signInWithEmail(email: email, password: password)
+                                    try await authService.signInWithEmail(email: cleanEmail, password: cleanPass)
                                 }
                                 isLoading = false
                                 dismiss()

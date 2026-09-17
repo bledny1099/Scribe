@@ -20,6 +20,41 @@ final class WebAuthContextProvider: NSObject, ASWebAuthenticationPresentationCon
     }
 }
 
+public enum AuthFriendlyError: LocalizedError {
+    case userNotFound
+    case wrongPassword
+    case emailAlreadyInUse
+    case invalidEmail
+    case weakPassword
+    case accountDisabled
+    case tooManyRequests
+    case registeredWithGoogle
+    case custom(String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .userNotFound:
+            return "Аккаунт с такой почтой не найден. Пожалуйста, зарегистрируйтесь."
+        case .wrongPassword:
+            return "Неверный пароль. Попробуйте еще раз или сбросьте пароль."
+        case .emailAlreadyInUse:
+            return "Аккаунт с такой почтой уже существует. Пожалуйста, войдите."
+        case .invalidEmail:
+            return "Некорректный адрес электронной почты."
+        case .weakPassword:
+            return "Пароль должен содержать не менее 6 символов."
+        case .accountDisabled:
+            return "Этот аккаунт отключен администратором."
+        case .tooManyRequests:
+            return "Слишком много попыток. Пожалуйста, подождите немного."
+        case .registeredWithGoogle:
+            return "Этот адрес привязан к Google. Войдите через кнопку «Войти через Google»."
+        case .custom(let message):
+            return message
+        }
+    }
+}
+
 @MainActor
 public final class AuthService: NSObject, ObservableObject {
     public static let shared = AuthService()
@@ -509,16 +544,62 @@ final class SafeVoidContinuation: @unchecked Sendable {
         )
     }
     
+    public static func isValidEmailFormat(_ email: String) -> Bool {
+        let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        let regex = "^[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}$"
+        return NSPredicate(format: "SELF MATCHES %@", regex).evaluate(with: trimmed)
+    }
+
+    public func checkEmailExists(email: String) async -> Bool {
+        let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard Self.isValidEmailFormat(cleanEmail) else { return false }
+        do {
+            let methods = try await Auth.auth().fetchSignInMethods(forEmail: cleanEmail)
+            return !methods.isEmpty
+        } catch {
+            let nsErr = error as NSError
+            if nsErr.code == AuthErrorCode.userNotFound.rawValue {
+                return false
+            }
+            return false
+        }
+    }
     public func signInWithEmail(email: String, password: String) async throws {
+        let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard Self.isValidEmailFormat(cleanEmail) else {
+            throw AuthFriendlyError.invalidEmail
+        }
+        guard !password.isEmpty else {
+            throw AuthFriendlyError.custom("Пожалуйста, введите пароль.")
+        }
+        
         isSigningIn = true
         defer { isSigningIn = false }
+
+        // Proactive email existence check
         do {
-            let result = try await Auth.auth().signIn(withEmail: email, password: password)
+            let methods = try await Auth.auth().fetchSignInMethods(forEmail: cleanEmail)
+            if methods.isEmpty {
+                throw AuthFriendlyError.userNotFound
+            } else if !methods.contains("password") && methods.contains("google.com") {
+                throw AuthFriendlyError.registeredWithGoogle
+            }
+        } catch let friendly as AuthFriendlyError {
+            throw friendly
+        } catch {
+            let nsErr = error as NSError
+            if nsErr.code == AuthErrorCode.userNotFound.rawValue || nsErr.localizedDescription.lowercased().contains("user not found") {
+                throw AuthFriendlyError.userNotFound
+            }
+        }
+
+        do {
+            let result = try await Auth.auth().signIn(withEmail: cleanEmail, password: password)
             let user = result.user
-            let finalName = resolvePreferredName(suggested: user.displayName, email: user.email ?? email)
+            let finalName = resolvePreferredName(suggested: user.displayName, email: user.email ?? cleanEmail)
             self.currentUser = AuthUser(
                 id: user.uid,
-                email: user.email ?? email,
+                email: user.email ?? cleanEmail,
                 name: finalName,
                 avatarURL: user.photoURL?.absoluteString,
                 subscriptionTier: .pro,
@@ -526,10 +607,10 @@ final class SafeVoidContinuation: @unchecked Sendable {
             )
         } catch {
             if let user = Auth.auth().currentUser {
-                let finalName = resolvePreferredName(suggested: user.displayName, email: user.email ?? email)
+                let finalName = resolvePreferredName(suggested: user.displayName, email: user.email ?? cleanEmail)
                 self.currentUser = AuthUser(
                     id: user.uid,
-                    email: user.email ?? email,
+                    email: user.email ?? cleanEmail,
                     name: finalName,
                     avatarURL: user.photoURL?.absoluteString,
                     subscriptionTier: .pro,
@@ -539,10 +620,10 @@ final class SafeVoidContinuation: @unchecked Sendable {
             }
             let errStr = error.localizedDescription
             if errStr.lowercased().contains("keychain") {
-                let finalName = resolvePreferredName(suggested: nil, email: email)
+                let finalName = resolvePreferredName(suggested: nil, email: cleanEmail)
                 self.currentUser = AuthUser(
                     id: UUID().uuidString,
-                    email: email,
+                    email: cleanEmail,
                     name: finalName,
                     avatarURL: nil,
                     subscriptionTier: .pro,
@@ -550,20 +631,71 @@ final class SafeVoidContinuation: @unchecked Sendable {
                 )
                 return
             }
+
+            let nsErr = error as NSError
+            if nsErr.domain == AuthErrorDomain {
+                if let code = AuthErrorCode(rawValue: nsErr.code) {
+                    switch code {
+                    case .userNotFound:
+                        throw AuthFriendlyError.userNotFound
+                    case .wrongPassword:
+                        throw AuthFriendlyError.wrongPassword
+                    case .invalidEmail:
+                        throw AuthFriendlyError.invalidEmail
+                    case .userDisabled:
+                        throw AuthFriendlyError.accountDisabled
+                    case .tooManyRequests:
+                        throw AuthFriendlyError.tooManyRequests
+                    default:
+                        break
+                    }
+                }
+            }
+
+            let lowerDesc = error.localizedDescription.lowercased()
+            if lowerDesc.contains("email_not_found") || lowerDesc.contains("user-not-found") || lowerDesc.contains("no user") {
+                throw AuthFriendlyError.userNotFound
+            } else if lowerDesc.contains("wrong-password") || lowerDesc.contains("invalid password") {
+                throw AuthFriendlyError.wrongPassword
+            } else if lowerDesc.contains("invalid-email") || lowerDesc.contains("invalid email") {
+                throw AuthFriendlyError.invalidEmail
+            }
+
             throw error
         }
     }
     
     public func signUpWithEmail(email: String, password: String) async throws {
+        let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard Self.isValidEmailFormat(cleanEmail) else {
+            throw AuthFriendlyError.invalidEmail
+        }
+        guard password.count >= 6 else {
+            throw AuthFriendlyError.weakPassword
+        }
+
         isSigningIn = true
         defer { isSigningIn = false }
+
+        // Check if user already exists
         do {
-            let result = try await Auth.auth().createUser(withEmail: email, password: password)
+            let methods = try await Auth.auth().fetchSignInMethods(forEmail: cleanEmail)
+            if !methods.isEmpty {
+                throw AuthFriendlyError.emailAlreadyInUse
+            }
+        } catch let friendly as AuthFriendlyError {
+            throw friendly
+        } catch {
+            // Proceed to createUser
+        }
+
+        do {
+            let result = try await Auth.auth().createUser(withEmail: cleanEmail, password: password)
             let user = result.user
-            let finalName = resolvePreferredName(suggested: user.displayName, email: user.email ?? email)
+            let finalName = resolvePreferredName(suggested: user.displayName, email: user.email ?? cleanEmail)
             self.currentUser = AuthUser(
                 id: user.uid,
-                email: user.email ?? email,
+                email: user.email ?? cleanEmail,
                 name: finalName,
                 avatarURL: user.photoURL?.absoluteString,
                 subscriptionTier: .pro,
@@ -571,10 +703,10 @@ final class SafeVoidContinuation: @unchecked Sendable {
             )
         } catch {
             if let user = Auth.auth().currentUser {
-                let finalName = resolvePreferredName(suggested: user.displayName, email: user.email ?? email)
+                let finalName = resolvePreferredName(suggested: user.displayName, email: user.email ?? cleanEmail)
                 self.currentUser = AuthUser(
                     id: user.uid,
-                    email: user.email ?? email,
+                    email: user.email ?? cleanEmail,
                     name: finalName,
                     avatarURL: user.photoURL?.absoluteString,
                     subscriptionTier: .pro,
@@ -584,10 +716,10 @@ final class SafeVoidContinuation: @unchecked Sendable {
             }
             let errStr = error.localizedDescription
             if errStr.lowercased().contains("keychain") {
-                let finalName = resolvePreferredName(suggested: nil, email: email)
+                let finalName = resolvePreferredName(suggested: nil, email: cleanEmail)
                 self.currentUser = AuthUser(
                     id: UUID().uuidString,
-                    email: email,
+                    email: cleanEmail,
                     name: finalName,
                     avatarURL: nil,
                     subscriptionTier: .pro,
@@ -595,6 +727,30 @@ final class SafeVoidContinuation: @unchecked Sendable {
                 )
                 return
             }
+
+            let nsErr = error as NSError
+            if nsErr.domain == AuthErrorDomain {
+                if let code = AuthErrorCode(rawValue: nsErr.code) {
+                    switch code {
+                    case .emailAlreadyInUse:
+                        throw AuthFriendlyError.emailAlreadyInUse
+                    case .invalidEmail:
+                        throw AuthFriendlyError.invalidEmail
+                    case .weakPassword:
+                        throw AuthFriendlyError.weakPassword
+                    default:
+                        break
+                    }
+                }
+            }
+
+            let lowerDesc = error.localizedDescription.lowercased()
+            if lowerDesc.contains("email_exists") || lowerDesc.contains("email-already-in-use") || lowerDesc.contains("already in use") {
+                throw AuthFriendlyError.emailAlreadyInUse
+            } else if lowerDesc.contains("invalid-email") || lowerDesc.contains("invalid email") {
+                throw AuthFriendlyError.invalidEmail
+            }
+
             throw error
         }
     }
@@ -615,11 +771,38 @@ final class SafeVoidContinuation: @unchecked Sendable {
     }
     
     public func resetPassword(email: String? = nil) async throws {
-        let targetEmail = email ?? Auth.auth().currentUser?.email ?? currentUser?.email ?? ""
-        guard !targetEmail.isEmpty else {
-            throw NSError(domain: "AuthService", code: -1, userInfo: [NSLocalizedDescriptionKey: "Email address is required for password reset."])
+        let cleanEmail = (email ?? Auth.auth().currentUser?.email ?? currentUser?.email ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !cleanEmail.isEmpty else {
+            throw AuthFriendlyError.custom("Пожалуйста, введите адрес электронной почты.")
         }
-        try await Auth.auth().sendPasswordReset(withEmail: targetEmail)
+        guard Self.isValidEmailFormat(cleanEmail) else {
+            throw AuthFriendlyError.invalidEmail
+        }
+
+        do {
+            let methods = try await Auth.auth().fetchSignInMethods(forEmail: cleanEmail)
+            if methods.isEmpty {
+                throw AuthFriendlyError.userNotFound
+            }
+        } catch let friendly as AuthFriendlyError {
+            throw friendly
+        } catch {
+            // Proceed
+        }
+
+        do {
+            try await Auth.auth().sendPasswordReset(withEmail: cleanEmail)
+        } catch {
+            let nsErr = error as NSError
+            if nsErr.domain == AuthErrorDomain, let code = AuthErrorCode(rawValue: nsErr.code), code == .userNotFound {
+                throw AuthFriendlyError.userNotFound
+            }
+            let lower = error.localizedDescription.lowercased()
+            if lower.contains("user-not-found") || lower.contains("email_not_found") {
+                throw AuthFriendlyError.userNotFound
+            }
+            throw error
+        }
     }
     
     public func updateDisplayName(_ newName: String) async throws {
