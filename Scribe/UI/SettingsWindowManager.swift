@@ -18,10 +18,11 @@ final class SettingsWindowManager {
         if let existingWindow = window {
             existingWindow.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
+            resizeWindow(to: tab.preferredWidth, animate: true)
             return
         }
 
-        let initialWidth: CGFloat = 800
+        let initialWidth: CGFloat = tab.preferredWidth
         let initialHeight: CGFloat = 620
 
         let newWindow = NSWindow(
@@ -106,13 +107,34 @@ final class SettingsWindowManager {
         window?.frame
     }
 
-    func resizeWindow(to width: CGFloat) {
+    func resizeWindow(to width: CGFloat, animate: Bool = true) {
         guard let window = window else { return }
         var frame = window.frame
         let diff = width - frame.size.width
+        if abs(diff) < 2 { return }
+
         frame.size.width = width
         frame.origin.x -= diff / 2 // Keep it centered
-        window.setFrame(frame, display: true, animate: true)
+
+        if let screen = window.screen ?? NSScreen.main {
+            let visible = screen.visibleFrame
+            if frame.maxX > visible.maxX - 16 {
+                frame.origin.x = visible.maxX - frame.size.width - 16
+            }
+            if frame.minX < visible.minX + 16 {
+                frame.origin.x = visible.minX + 16
+            }
+        }
+
+        if animate {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.28
+                context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                window.animator().setFrame(frame, display: true)
+            }
+        } else {
+            window.setFrame(frame, display: true)
+        }
     }
 
     func ensureMinimumY(_ minY: CGFloat) {

@@ -31,6 +31,19 @@ enum SettingsTab: String, CaseIterable {
         case .statistics:   return "chart.bar.fill"
         }
     }
+
+    var preferredWidth: CGFloat {
+        switch self {
+        case .ai:
+            return 880
+        case .vocabulary, .replacements, .history:
+            return 740
+        case .statistics:
+            return 720
+        default:
+            return 700
+        }
+    }
 }
 
 
@@ -128,6 +141,7 @@ struct SettingsView: View {
             selectedTab = tab
             appState.requestedSettingsTab = nil
         }
+        SettingsWindowManager.shared.resizeWindow(to: selectedTab.preferredWidth, animate: false)
         if selectedTab == .statistics {
             triggerLevelUpSweepIfNeeded()
         }
@@ -137,12 +151,14 @@ struct SettingsView: View {
         guard let tab = newTab else { return }
         selectedTab = tab
         appState.requestedSettingsTab = nil
+        SettingsWindowManager.shared.resizeWindow(to: tab.preferredWidth, animate: true)
         if tab == .statistics {
             triggerLevelUpSweepIfNeeded()
         }
     }
 
     private func handleSelectedTabChange(_ newTab: SettingsTab) {
+        SettingsWindowManager.shared.resizeWindow(to: newTab.preferredWidth, animate: true)
         if newTab == .statistics {
             triggerLevelUpSweepIfNeeded()
         }
@@ -1785,7 +1801,7 @@ struct LiquidGlassSegmentedPicker<T: Hashable>: View {
                                 .fixedSize(horizontal: true, vertical: false)
                         }
                     }
-                    .padding(.horizontal, 12)
+                    .padding(.horizontal, 10)
                     .padding(.vertical, 7)
                     .background(
                         ZStack {
