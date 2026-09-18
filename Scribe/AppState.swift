@@ -603,12 +603,13 @@ final class AppState: ObservableObject {
     @AppStorage("customOpenAIKey") public var customOpenAIKey: String = ""
     @AppStorage("customOpenAIModel") public var customOpenAIModel: String = "gpt-4o-mini"
     @AppStorage("geminiModel") public var geminiModel: String = "gemini-2.0-flash"
-    @AppStorage("cerebrasModel") public var cerebrasModel: String = "llama3.3-70b"
+    @AppStorage("cerebrasModel") public var cerebrasModel: String = "llama-3.3-70b"
     @AppStorage("groqModel") public var groqModel: String = "llama-3.3-70b-versatile"
     @AppStorage("anthropicAPIKey") public var anthropicAPIKey: String = ""
     @AppStorage("openAIAPIKey") public var openAIAPIKey: String = ""
     @AppStorage("ollamaEndpoint") public var ollamaEndpoint: String = "http://localhost:11434"
     @AppStorage("ollamaModel") public var ollamaModel: String = "qwen2.5:7b"
+    @Published public var lastAIErrorMessage: String? = nil
 
     public var cloudAIProvider: CloudAIProvider {
         get { CloudAIProvider(rawValue: cloudAIProviderRaw) ?? .groq }
@@ -640,7 +641,7 @@ final class AppState: ObservableObject {
     }
 
     public var isAIPostProcessingActive: Bool {
-        guard enableCloudAI && selectedAIRefinementMode != .raw else { return false }
+        guard enableCloudAI else { return false }
         if cloudAIProvider == .ollama { return true }
         return !activeCloudAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
@@ -1227,7 +1228,7 @@ final class AppState: ObservableObject {
                 )
 
                 // AI Refinement with Cloud / LLM Provider & Vocabulary Phonetic Correction
-                if self.enableCloudAI && self.selectedAIRefinementMode != .raw {
+                if self.enableCloudAI {
                     let key = self.activeCloudAPIKey
                     let provider = self.cloudAIProvider
                     if provider == .ollama || !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -1250,8 +1251,20 @@ final class AppState: ObservableObject {
                             if !cleanedRefined.isEmpty {
                                 text = cleanedRefined
                             }
+                            await MainActor.run {
+                                self.lastAIErrorMessage = nil
+                            }
                         } catch {
                             logger.error("AI refinement failed: \(error.localizedDescription)")
+                            await MainActor.run {
+                                self.lastAIErrorMessage = error.localizedDescription
+                            }
+                        }
+                    } else {
+                        let errMsg = "\(provider.displayName): API key is not configured"
+                        logger.warning("\(errMsg)")
+                        await MainActor.run {
+                            self.lastAIErrorMessage = errMsg
                         }
                     }
                 }
@@ -1455,7 +1468,7 @@ final class AppState: ObservableObject {
                 )
 
                 // AI Refinement with Cloud / LLM Provider & Vocabulary Phonetic Correction
-                if self.enableCloudAI && self.selectedAIRefinementMode != .raw {
+                if self.enableCloudAI {
                     let key = self.activeCloudAPIKey
                     let provider = self.cloudAIProvider
                     if provider == .ollama || !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -1478,8 +1491,20 @@ final class AppState: ObservableObject {
                             if !cleanedRefined.isEmpty {
                                 text = cleanedRefined
                             }
+                            await MainActor.run {
+                                self.lastAIErrorMessage = nil
+                            }
                         } catch {
                             logger.error("AI refinement failed for imported file: \(error.localizedDescription)")
+                            await MainActor.run {
+                                self.lastAIErrorMessage = error.localizedDescription
+                            }
+                        }
+                    } else {
+                        let errMsg = "\(provider.displayName): API key is not configured"
+                        logger.warning("\(errMsg)")
+                        await MainActor.run {
+                            self.lastAIErrorMessage = errMsg
                         }
                     }
                 }

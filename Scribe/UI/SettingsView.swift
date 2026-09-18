@@ -5315,6 +5315,85 @@ struct VocabularySettingsView: View {
                     .background(Color.primary.opacity(0.02))
                     .cornerRadius(10)
 
+                    // Ignored Applications Section
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(appState.l("Ignored Applications"))
+                                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                Text(appState.l("Terminal emulators, shells, and security apps are never monitored to prevent shell commands or sensitive fragments (e.g. Ghostty, Termius) from entering your vocabulary."))
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Button(action: {
+                                monitor.resetIgnoredAppsToDefault()
+                            }) {
+                                Text(appState.l("Reset Defaults"))
+                                    .font(.system(size: 10.5, weight: .medium))
+                                    .foregroundStyle(.blue)
+                            }
+                            .buttonStyle(.plain)
+                        }
+
+                        // App chips
+                        FlowLayout(spacing: 6) {
+                            ForEach(monitor.ignoredApplications) { app in
+                                HStack(spacing: 4) {
+                                    Image(systemName: "terminal")
+                                        .font(.system(size: 8.5))
+                                        .foregroundStyle(.secondary)
+                                    Text(app.name)
+                                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                                    Button(action: {
+                                        monitor.removeIgnoredApp(bundleId: app.bundleId)
+                                    }) {
+                                        Image(systemName: "xmark")
+                                            .font(.system(size: 8, weight: .bold))
+                                            .foregroundStyle(.secondary.opacity(0.8))
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.primary.opacity(0.06))
+                                .cornerRadius(6)
+                            }
+                        }
+
+                        // Add application row
+                        HStack {
+                            Menu {
+                                ForEach(NSWorkspace.shared.runningApplications.filter {
+                                    $0.activationPolicy == .regular &&
+                                    $0.bundleIdentifier != nil &&
+                                    !monitor.isAppIgnored(bundleId: $0.bundleIdentifier, name: $0.localizedName)
+                                }, id: \.processIdentifier) { runningApp in
+                                    Button(runningApp.localizedName ?? runningApp.bundleIdentifier ?? "App") {
+                                        if let bId = runningApp.bundleIdentifier {
+                                            monitor.addIgnoredApp(bundleId: bId, name: runningApp.localizedName ?? bId)
+                                        }
+                                    }
+                                }
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "plus.circle.fill")
+                                    Text(appState.l("Add Running App..."))
+                                }
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(.blue)
+                            }
+                            .menuStyle(.borderlessButton)
+                            .fixedSize()
+
+                            Spacer()
+                        }
+                    }
+                    .padding(12)
+                    .background(Color.primary.opacity(0.02))
+                    .cornerRadius(10)
+
                     // Privacy Assurance Footnote
                     HStack(alignment: .top, spacing: 8) {
                         Image(systemName: "lock.shield.fill")
@@ -7107,8 +7186,42 @@ struct RecognitionSettingsView: View {
                     }
                 }
             }
+        }
+    }
+}
 
-            // SECTION: Dictation Modes
+// MARK: - AI Settings View
+struct AISettingsView: View {
+    @EnvironmentObject var appState: AppState
+    @State private var isKeyVisible: Bool = false
+    @State private var testInputText: String = "я зашел на чад gpt.com чтобы пофиксить код в экскоде"
+    @State private var testOutputText: String = ""
+    @State private var isTestingRefinement: Bool = false
+    @State private var testErrorMessage: String? = nil
+    @State private var testDurationMs: Int? = nil
+
+    private let groqModels: [(id: String, name: String)] = [
+        ("llama-3.3-70b-versatile", "Llama 3.3 70B Versatile (Recommended)"),
+        ("llama-3.1-8b-instant", "Llama 3.1 8B Instant (Ultra-Fast)")
+    ]
+
+    private let cerebrasModels: [(id: String, name: String)] = [
+        ("llama-3.3-70b", "Llama 3.3 70B (Recommended)"),
+        ("llama3.3-70b", "Llama 3.3 70B (Legacy ID)"),
+        ("llama-3.1-8b", "Llama 3.1 8B (Ultra-Fast)"),
+        ("qwen-3.8-27b", "Qwen 3.8 27B"),
+        ("gpt-oss-120b", "GPT-OSS 120B")
+    ]
+
+    private let geminiModels: [(id: String, name: String)] = [
+        ("gemini-2.0-flash", "Gemini 2.0 Flash (Recommended)"),
+        ("gemini-1.5-flash", "Gemini 1.5 Flash"),
+        ("gemini-2.0-flash-lite", "Gemini 2.0 Flash-Lite")
+    ]
+
+    var body: some View {
+        VStack(spacing: 16) {
+            // SECTION 1: Dictation Modes
             GlassSection(title: appState.l("Dictation Mode"), icon: "text.quote") {
                 VStack(alignment: .leading, spacing: 14) {
                     HStack {
@@ -7150,79 +7263,7 @@ struct RecognitionSettingsView: View {
                 }
             }
 
-            // SECTION: AI Text Refinement Quick-Access
-            GlassSection(title: appState.l("AI Refinement"), icon: "wand.and.stars") {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(appState.l("AI Post-Processing"))
-                                .font(.system(size: 14, weight: .medium, design: .rounded))
-                                .foregroundStyle(.primary)
-                            Text(appState.enableCloudAI ?
-                                 "\(appState.cloudAIProvider.displayName) • \(appState.selectedAIRefinementMode.displayName)" :
-                                 appState.l("Disabled • Raw speech output"))
-                                .font(.system(size: 11))
-                                .foregroundStyle(appState.enableCloudAI ? .green : .secondary)
-                        }
-                        Spacer()
-                        Toggle("", isOn: $appState.enableCloudAI)
-                            .toggleStyle(.switch)
-                            .labelsHidden()
-                    }
-
-                    HStack {
-                        Text(appState.l("Clean false starts, phonetic mishearings (e.g. 'чад gpt.com' -> 'chatgpt.com'), and apply custom LLM keys."))
-                            .font(.system(size: 11.5))
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Button(action: {
-                            appState.requestedSettingsTab = .ai
-                        }) {
-                            HStack(spacing: 4) {
-                                Text(appState.l("Configure AI"))
-                                Image(systemName: "chevron.right")
-                            }
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(.blue)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-
-        }
-    }
-}
-
-// MARK: - AI Settings View
-struct AISettingsView: View {
-    @EnvironmentObject var appState: AppState
-    @State private var isKeyVisible: Bool = false
-    @State private var testInputText: String = "я зашел на чад gpt.com чтобы пофиксить код в экскоде"
-    @State private var testOutputText: String = ""
-    @State private var isTestingRefinement: Bool = false
-    @State private var testErrorMessage: String? = nil
-    @State private var testDurationMs: Int? = nil
-
-    private let groqModels: [(id: String, name: String)] = [
-        ("llama-3.3-70b-versatile", "Llama 3.3 70B Versatile (Recommended)"),
-        ("llama-3.1-8b-instant", "Llama 3.1 8B Instant (Ultra-Fast)")
-    ]
-
-    private let cerebrasModels: [(id: String, name: String)] = [
-        ("llama3.3-70b", "Llama 3.3 70B (Recommended)"),
-        ("llama3.1-8b", "Llama 3.1 8B (Ultra-Fast)")
-    ]
-
-    private let geminiModels: [(id: String, name: String)] = [
-        ("gemini-2.0-flash", "Gemini 2.0 Flash (Recommended)"),
-        ("gemini-1.5-flash", "Gemini 1.5 Flash"),
-        ("gemini-2.0-flash-lite", "Gemini 2.0 Flash-Lite")
-    ]
-
-    var body: some View {
-        VStack(spacing: 16) {
-            // SECTION 1: Master Enable & Refinement Mode
+            // SECTION 2: Master Enable & Refinement Mode
             GlassSection(title: appState.l("AI Text Refinement"), icon: "wand.and.stars") {
                 VStack(alignment: .leading, spacing: 14) {
                     HStack {
@@ -7238,6 +7279,29 @@ struct AISettingsView: View {
                         Toggle("", isOn: $appState.enableCloudAI)
                             .toggleStyle(.switch)
                             .labelsHidden()
+                    }
+
+                    if let err = appState.lastAIErrorMessage {
+                        HStack(spacing: 6) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.orange)
+                            Text(appState.l("Recent dictation warning: ") + err)
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(.red)
+                            Spacer()
+                            Button(action: {
+                                appState.lastAIErrorMessage = nil
+                            }) {
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(8)
+                        .background(Color.red.opacity(0.08))
+                        .cornerRadius(8)
                     }
 
                     if appState.enableCloudAI {
@@ -7278,6 +7342,7 @@ struct AISettingsView: View {
                     }
                 }
             }
+
 
             // SECTION 2: AI Provider & Credentials
             GlassSection(title: appState.l("AI Provider & API Keys"), icon: "key.fill") {
@@ -7463,6 +7528,15 @@ struct AISettingsView: View {
                         displayTitle: { id in groqModels.first(where: { $0.id == id })?.name ?? id }
                     )
                 }
+
+                HStack(spacing: 6) {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.green)
+                    Text(appState.l("Free tier includes Llama 3.3 70B with high rate limits (no credit card required)."))
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
             }
 
         case .cerebras:
@@ -7485,6 +7559,15 @@ struct AISettingsView: View {
                         title: { id in cerebrasModels.first(where: { $0.id == id })?.name ?? id },
                         displayTitle: { id in cerebrasModels.first(where: { $0.id == id })?.name ?? id }
                     )
+                }
+
+                HStack(spacing: 6) {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.orange)
+                    Text(appState.l("Cerebras requires billing setup on cloud.cerebras.ai. If you see 'payment required' or 'model not found', check billing or use Groq/Gemini."))
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -7694,8 +7777,6 @@ struct AISettingsView: View {
             return appState.l("Extracts concrete tasks and action items into a checklist.")
         case .translation:
             return appState.l("Translates your spoken text directly into fluent English.")
-        case .raw:
-            return appState.l("Passes raw transcription directly without LLM modification.")
         }
     }
 }

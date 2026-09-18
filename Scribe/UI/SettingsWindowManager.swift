@@ -22,7 +22,7 @@ final class SettingsWindowManager {
         }
 
         let newWindow = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 750, height: 620),
+            contentRect: NSRect(x: 0, y: 0, width: 660, height: 620),
             styleMask: [.titled, .fullSizeContentView, .closable, .resizable],
             backing: .buffered,
             defer: false
@@ -33,7 +33,7 @@ final class SettingsWindowManager {
         newWindow.standardWindowButton(.closeButton)?.isHidden = true
         newWindow.standardWindowButton(.miniaturizeButton)?.isHidden = true
         newWindow.standardWindowButton(.zoomButton)?.isHidden = true
-        newWindow.minSize = NSSize(width: 750, height: 500)
+        newWindow.minSize = NSSize(width: 620, height: 500)
 
         newWindow.isMovableByWindowBackground = false
         newWindow.isOpaque = false

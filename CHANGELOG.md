@@ -10,15 +10,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Added
 - Custom LLM text refinement and post-processing with support for Groq, Cerebras, Google Gemini, and custom OpenAI-compatible endpoints.
 - Dedicated AI Refinement tab in Settings with model selection, API key configuration, quick links, and a live testing playground.
-- Automatic vocabulary injection into LLM refinement instructions for phonetic speech correction (e.g., fixing "чад gpt.com" to "chatgpt.com", "вайб кодинг" to "vibe coding").
+- Configurable ignored applications manager in Vocabulary settings to exclude terminal emulators (Ghostty, Terminal, Termius, iTerm2, Kitty, Alacritty, Warp, WezTerm) and password managers from vocabulary harvesting.
+- Direct error reporting banner in Settings and menu notifications for cloud AI refinement failures.
 
 ## Changed
-- Upgraded Groq model configuration to Llama 3.3 70B Versatile with low-latency streaming fallback.
-- Added direct integration for Google AI Studio API keys utilizing personal free tier and paid Gemini quotas.
+- Restructured Settings window layout with a compact 660px width and moved dictation mode controls into the AI tab.
+- Upgraded Groq model configuration to Llama 3.3 70B Versatile and Cerebras model configuration to Llama 3.3 70B.
+- Simplified refinement mode labels and streamlined vocabulary and speech engine options.
 
 ## Fixed
-- Fixed an issue where technical terminology and foreign product names were phonetically distorted by local speech models.
-- Resolved invalid model identifier fallback in cloud AI text refinement.
+- Fixed an issue where Russian words were wrongly classified as standard English dictionary words, preventing rare vocabulary learning.
+- Excluded terminal CLI fragments and lowercase partial commands from being captured as idiosyncratic vocabulary terms.
+- Fixed silent swallowing of cloud AI HTTP errors that caused dictation to fall back to unrefined text without notification.
 
 ## [2.8.3] - 2026-09-17
 

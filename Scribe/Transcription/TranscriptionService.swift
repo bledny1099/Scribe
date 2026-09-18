@@ -1931,18 +1931,16 @@ public enum AIRefinementMode: String, CaseIterable, Identifiable, Sendable {
     case executive = "executive"
     case actionItems = "action_items"
     case translation = "translation"
-    case raw = "raw"
 
     public var id: String { rawValue }
 
     public var displayName: String {
         switch self {
-        case .polish:      return "Smart Polish (Recommended)"
-        case .summary:     return "Key Summary"
-        case .executive:   return "Executive Tone"
+        case .polish:      return "Smart Polish"
+        case .summary:     return "Summary"
+        case .executive:   return "Executive"
         case .actionItems: return "Action Items"
-        case .translation: return "English Translation"
-        case .raw:         return "Raw Text"
+        case .translation: return "Translation"
         }
     }
 
@@ -1953,7 +1951,6 @@ public enum AIRefinementMode: String, CaseIterable, Identifiable, Sendable {
         case .executive:   return "briefcase.fill"
         case .actionItems: return "checkmark.square.fill"
         case .translation: return "globe"
-        case .raw:         return "text.quote"
         }
     }
 
@@ -1970,8 +1967,6 @@ public enum AIRefinementMode: String, CaseIterable, Identifiable, Sendable {
             return "Extract clear, actionable tasks and TODOs from the following speech into a structured list of action items with checkboxes." + strictRule
         case .translation:
             return "Translate the following speech into fluent, accurate English while maintaining its original meaning and context." + strictRule
-        case .raw:
-            return nil
         }
     }
 }
@@ -1979,6 +1974,25 @@ public enum AIRefinementMode: String, CaseIterable, Identifiable, Sendable {
 public final class CloudAIService: @unchecked Sendable {
     public static let shared = CloudAIService()
     private init() {}
+
+    private func parseErrorMessage(from data: Data, statusCode: Int, providerName: String) -> String {
+        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            if let errObj = json["error"] as? [String: Any], let msg = errObj["message"] as? String, !msg.isEmpty {
+                return "\(providerName) (\(statusCode)): \(msg)"
+            }
+            if let msg = json["message"] as? String, !msg.isEmpty {
+                return "\(providerName) (\(statusCode)): \(msg)"
+            }
+            if let detail = json["detail"] as? String, !detail.isEmpty {
+                return "\(providerName) (\(statusCode)): \(detail)"
+            }
+        }
+        if let str = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines), !str.isEmpty {
+            let truncated = str.count > 160 ? String(str.prefix(160)) + "..." : str
+            return "\(providerName) (\(statusCode)): \(truncated)"
+        }
+        return "\(providerName) returned HTTP error \(statusCode)"
+    }
 
     /// Performs Cloud Transcription using Groq API or OpenAI API
     public func transcribeAudio(
@@ -2034,8 +2048,8 @@ public final class CloudAIService: @unchecked Sendable {
 
         let (responseData, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-            let errorMsg = String(data: responseData, encoding: .utf8) ?? "HTTP Error"
-            throw NSError(domain: "CloudAIService", code: 500, userInfo: [NSLocalizedDescriptionKey: "Cloud API Error: \(errorMsg)"])
+            let errorMsg = parseErrorMessage(from: responseData, statusCode: (response as? HTTPURLResponse)?.statusCode ?? 500, providerName: provider.displayName)
+            throw NSError(domain: "CloudAIService", code: 500, userInfo: [NSLocalizedDescriptionKey: errorMsg])
         }
 
         if let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
@@ -2056,13 +2070,15 @@ public final class CloudAIService: @unchecked Sendable {
         customModel: String = "gpt-4o-mini",
         geminiModel: String = "gemini-2.0-flash",
         groqModel: String = "llama-3.3-70b-versatile",
-        cerebrasModel: String = "llama3.3-70b",
+        cerebrasModel: String = "llama-3.3-70b",
         ollamaEndpoint: String = "http://localhost:11434",
         ollamaModel: String = "qwen2.5:7b"
     ) async throws -> String {
         guard let baseInstruction = mode.promptInstruction else { return text }
         let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        if provider != .ollama && trimmedKey.isEmpty { return text }
+        if provider != .ollama && trimmedKey.isEmpty {
+            throw NSError(domain: "CloudAIService", code: 401, userInfo: [NSLocalizedDescriptionKey: "API key is required for \(provider.displayName)"])
+        }
 
         var instruction = baseInstruction
         let trimmedVocab = vocabulary.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -2087,7 +2103,7 @@ Use the following dictionary of canonical words to detect such phonetic mistakes
             request.httpMethod = "POST"
             request.setValue("Bearer \(trimmedKey)", forHTTPHeaderField: "Authorization")
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.timeoutInterval = 10.0
+            request.timeoutInterval = 12.0
 
             let body: [String: Any] = [
                 "model": effectiveModel,
@@ -2101,9 +2117,8 @@ Use the following dictionary of canonical words to detect such phonetic mistakes
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
             let (responseData, response) = try await URLSession.shared.data(for: request)
             guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-                let errText = String(data: responseData, encoding: .utf8) ?? "Groq Error"
-                print("Groq refinement error: \(errText)")
-                return text
+                let err = parseErrorMessage(from: responseData, statusCode: (response as? HTTPURLResponse)?.statusCode ?? 500, providerName: "Groq")
+                throw NSError(domain: "CloudAIService", code: (response as? HTTPURLResponse)?.statusCode ?? 500, userInfo: [NSLocalizedDescriptionKey: err])
             }
             if let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
                let choices = json["choices"] as? [[String: Any]],
@@ -2116,13 +2131,13 @@ Use the following dictionary of canonical words to detect such phonetic mistakes
             return text
 
         case .cerebras:
-            let effectiveModel = cerebrasModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "llama3.3-70b" : cerebrasModel
+            let effectiveModel = cerebrasModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "llama-3.3-70b" : cerebrasModel
             let endpoint = URL(string: "https://api.cerebras.ai/v1/chat/completions")!
             var request = URLRequest(url: endpoint)
             request.httpMethod = "POST"
             request.setValue("Bearer \(trimmedKey)", forHTTPHeaderField: "Authorization")
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.timeoutInterval = 8.0
+            request.timeoutInterval = 15.0
 
             let body: [String: Any] = [
                 "model": effectiveModel,
@@ -2136,9 +2151,8 @@ Use the following dictionary of canonical words to detect such phonetic mistakes
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
             let (responseData, response) = try await URLSession.shared.data(for: request)
             guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-                let errText = String(data: responseData, encoding: .utf8) ?? "Cerebras Error"
-                print("Cerebras refinement error: \(errText)")
-                return text
+                let err = parseErrorMessage(from: responseData, statusCode: (response as? HTTPURLResponse)?.statusCode ?? 500, providerName: "Cerebras")
+                throw NSError(domain: "CloudAIService", code: (response as? HTTPURLResponse)?.statusCode ?? 500, userInfo: [NSLocalizedDescriptionKey: err])
             }
             if let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
                let choices = json["choices"] as? [[String: Any]],
@@ -2158,7 +2172,7 @@ Use the following dictionary of canonical words to detect such phonetic mistakes
             var request = URLRequest(url: endpoint)
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.timeoutInterval = 12.0
+            request.timeoutInterval = 15.0
 
             let body: [String: Any] = [
                 "system_instruction": [
@@ -2182,9 +2196,8 @@ Use the following dictionary of canonical words to detect such phonetic mistakes
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
             let (responseData, response) = try await URLSession.shared.data(for: request)
             guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-                let errText = String(data: responseData, encoding: .utf8) ?? "Gemini Error"
-                print("Gemini refinement error: \(errText)")
-                return text
+                let err = parseErrorMessage(from: responseData, statusCode: (response as? HTTPURLResponse)?.statusCode ?? 500, providerName: "Gemini")
+                throw NSError(domain: "CloudAIService", code: (response as? HTTPURLResponse)?.statusCode ?? 500, userInfo: [NSLocalizedDescriptionKey: err])
             }
             if let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
                let candidates = json["candidates"] as? [[String: Any]],
@@ -2211,7 +2224,7 @@ Use the following dictionary of canonical words to detect such phonetic mistakes
                 request.setValue("Bearer \(trimmedKey)", forHTTPHeaderField: "Authorization")
             }
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.timeoutInterval = 12.0
+            request.timeoutInterval = 15.0
 
             let effectiveModel = customModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "gpt-4o-mini" : customModel
             let body: [String: Any] = [
@@ -2226,9 +2239,8 @@ Use the following dictionary of canonical words to detect such phonetic mistakes
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
             let (responseData, response) = try await URLSession.shared.data(for: request)
             guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-                let errText = String(data: responseData, encoding: .utf8) ?? "Custom API Error"
-                print("Custom API refinement error: \(errText)")
-                return text
+                let err = parseErrorMessage(from: responseData, statusCode: (response as? HTTPURLResponse)?.statusCode ?? 500, providerName: "Custom OpenAI")
+                throw NSError(domain: "CloudAIService", code: (response as? HTTPURLResponse)?.statusCode ?? 500, userInfo: [NSLocalizedDescriptionKey: err])
             }
             if let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
                let choices = json["choices"] as? [[String: Any]],
@@ -2247,7 +2259,7 @@ Use the following dictionary of canonical words to detect such phonetic mistakes
             request.setValue(trimmedKey, forHTTPHeaderField: "x-api-key")
             request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.timeoutInterval = 10.0
+            request.timeoutInterval = 15.0
 
             let body: [String: Any] = [
                 "model": "claude-3-5-haiku-latest",
@@ -2261,9 +2273,8 @@ Use the following dictionary of canonical words to detect such phonetic mistakes
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
             let (responseData, response) = try await URLSession.shared.data(for: request)
             guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-                let errText = String(data: responseData, encoding: .utf8) ?? "Anthropic Error"
-                print("Anthropic refinement error: \(errText)")
-                return text
+                let err = parseErrorMessage(from: responseData, statusCode: (response as? HTTPURLResponse)?.statusCode ?? 500, providerName: "Anthropic")
+                throw NSError(domain: "CloudAIService", code: (response as? HTTPURLResponse)?.statusCode ?? 500, userInfo: [NSLocalizedDescriptionKey: err])
             }
             if let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
                let content = json["content"] as? [[String: Any]],
@@ -2294,7 +2305,8 @@ Use the following dictionary of canonical words to detect such phonetic mistakes
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
             let (responseData, response) = try await URLSession.shared.data(for: request)
             guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-                return text
+                let err = parseErrorMessage(from: responseData, statusCode: (response as? HTTPURLResponse)?.statusCode ?? 500, providerName: "OpenAI")
+                throw NSError(domain: "CloudAIService", code: (response as? HTTPURLResponse)?.statusCode ?? 500, userInfo: [NSLocalizedDescriptionKey: err])
             }
             if let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
                let choices = json["choices"] as? [[String: Any]],
@@ -2312,7 +2324,7 @@ Use the following dictionary of canonical words to detect such phonetic mistakes
             var request = URLRequest(url: endpoint)
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.timeoutInterval = 12.0
+            request.timeoutInterval = 15.0
 
             let body: [String: Any] = [
                 "model": ollamaModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "qwen2.5:7b" : ollamaModel,
@@ -2325,7 +2337,8 @@ Use the following dictionary of canonical words to detect such phonetic mistakes
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
             let (responseData, response) = try await URLSession.shared.data(for: request)
             guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-                return text
+                let err = parseErrorMessage(from: responseData, statusCode: (response as? HTTPURLResponse)?.statusCode ?? 500, providerName: "Ollama")
+                throw NSError(domain: "CloudAIService", code: (response as? HTTPURLResponse)?.statusCode ?? 500, userInfo: [NSLocalizedDescriptionKey: err])
             }
             if let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
                let choices = json["choices"] as? [[String: Any]],

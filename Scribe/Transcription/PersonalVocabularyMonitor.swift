@@ -5,6 +5,17 @@ import os.log
 
 private let logger = Logger(subsystem: "com.aleksei.scribe", category: "PersonalVocabularyMonitor")
 
+public struct IgnoredApplication: Codable, Identifiable, Hashable, Sendable {
+    public var id: String { bundleId }
+    public let bundleId: String
+    public let name: String
+
+    public init(bundleId: String, name: String) {
+        self.bundleId = bundleId
+        self.name = name
+    }
+}
+
 /// Non-intrusive, privacy-first background monitor that observes user-written text across macOS apps
 /// (Telegram, Browser, Messengers, Notes, IDE) for a specified duration (1 week, 2 weeks, or 1 month).
 /// Automatically extracts personal rare terms and syntactic directives ("сделай", "давай", "пофикси")
@@ -20,6 +31,24 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
     @Published public private(set) var rareWordsLearnedCount: Int = 0
     @Published public private(set) var constructionsLearnedCount: Int = 0
     @Published public private(set) var recentlyLearnedWords: [String] = []
+    @Published public private(set) var ignoredApplications: [IgnoredApplication] = []
+
+    public static let defaultIgnoredApplications: [IgnoredApplication] = [
+        IgnoredApplication(bundleId: "com.apple.Terminal", name: "Terminal"),
+        IgnoredApplication(bundleId: "com.mitchellh.ghostty", name: "Ghostty"),
+        IgnoredApplication(bundleId: "com.termius.mac", name: "Termius"),
+        IgnoredApplication(bundleId: "com.googlecode.iterm2", name: "iTerm2"),
+        IgnoredApplication(bundleId: "net.kovidgoyal.kitty", name: "Kitty"),
+        IgnoredApplication(bundleId: "org.alacritty", name: "Alacritty"),
+        IgnoredApplication(bundleId: "dev.warp.Warp-GKE", name: "Warp"),
+        IgnoredApplication(bundleId: "com.github.wez.wezterm", name: "WezTerm"),
+        IgnoredApplication(bundleId: "co.zeit.hyper", name: "Hyper"),
+        IgnoredApplication(bundleId: "com.1password.1password", name: "1Password"),
+        IgnoredApplication(bundleId: "com.bitwarden.desktop", name: "Bitwarden"),
+        IgnoredApplication(bundleId: "org.keepassxc.keepassxc", name: "KeePassXC"),
+        IgnoredApplication(bundleId: "com.apple.keychainaccess", name: "Keychain Access"),
+        IgnoredApplication(bundleId: "com.apple.systempreferences", name: "System Settings")
+    ]
 
     private let lock = NSLock()
     private var globalEventMonitor: Any? = nil
@@ -236,20 +265,83 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
         }
     }
 
+    // MARK: - Ignored Applications API
+
+    public func addIgnoredApp(bundleId: String, name: String) {
+        let trimmedId = bundleId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedId.isEmpty else { return }
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let effectiveName = trimmedName.isEmpty ? trimmedId : trimmedName
+        lock.lock()
+        if !ignoredApplications.contains(where: { $0.bundleId.caseInsensitiveCompare(trimmedId) == .orderedSame }) {
+            ignoredApplications.append(IgnoredApplication(bundleId: trimmedId, name: effectiveName))
+            saveIgnoredAppsUnderLock()
+        }
+        lock.unlock()
+        notifyUI()
+    }
+
+    public func removeIgnoredApp(bundleId: String) {
+        lock.lock()
+        ignoredApplications.removeAll { $0.bundleId.caseInsensitiveCompare(bundleId) == .orderedSame }
+        saveIgnoredAppsUnderLock()
+        lock.unlock()
+        notifyUI()
+    }
+
+    public func resetIgnoredAppsToDefault() {
+        lock.lock()
+        ignoredApplications = Self.defaultIgnoredApplications
+        saveIgnoredAppsUnderLock()
+        lock.unlock()
+        notifyUI()
+    }
+
+    public func isAppIgnored(bundleId: String?, name: String?) -> Bool {
+        let bId = bundleId?.lowercased() ?? ""
+        let n = name?.lowercased() ?? ""
+
+        // Check configured user list
+        for item in ignoredApplications {
+            let itemId = item.bundleId.lowercased()
+            let itemName = item.name.lowercased()
+            if !bId.isEmpty && (bId == itemId || bId.contains(itemId)) { return true }
+            if !n.isEmpty && (n == itemName || n.contains(itemName)) { return true }
+        }
+
+        // Automatic security & terminal keyword heuristic
+        let terminalKeywords = ["terminal", "ghostty", "termius", "iterm", "alacritty", "kitty", "wezterm", "warp", "hyper", "console", "prompt", "securecrt", "bash", "zsh", "sh"]
+        for kw in terminalKeywords {
+            if bId.contains(kw) || n.contains(kw) { return true }
+        }
+
+        let securityKeywords = ["password", "keychain", "1password", "bitwarden", "keepass", "lastpass", "authenticator", "auth"]
+        for kw in securityKeywords {
+            if bId.contains(kw) || n.contains(kw) { return true }
+        }
+
+        return false
+    }
+
+    private func notifyUI() {
+        if Thread.isMainThread {
+            self.objectWillChange.send()
+        } else {
+            DispatchQueue.main.async {
+                self.objectWillChange.send()
+            }
+        }
+    }
+
     // MARK: - Safe Focused Element Inspection
 
     private func inspectFocusedElement() {
         guard AXIsProcessTrusted() else { return }
 
-        // Check frontmost app to exclude password managers, settings, and terminal emulators
+        // 0. Check frontmost application
         if let frontApp = NSWorkspace.shared.frontmostApplication {
-            if let bundleId = frontApp.bundleIdentifier?.lowercased() {
-                for excluded in excludedBundleIdentifiers {
-                    if bundleId.contains(excluded) { return }
-                }
-                if bundleId.contains("password") || bundleId.contains("keychain") || bundleId.contains("auth") || bundleId.contains("terminal") {
-                    return
-                }
+            if isAppIgnored(bundleId: frontApp.bundleIdentifier, name: frontApp.localizedName) {
+                return
             }
         }
 
@@ -260,7 +352,16 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
             return
         }
 
-        // 1. STRICT PRIVACY: Verify element is NOT a password/secure field or terminal console
+        // 1. STRICT PRIVACY: Verify element's owning application process is not an ignored/terminal app
+        var pid: pid_t = 0
+        if AXUIElementGetPid(element, &pid) == .success,
+           let app = NSRunningApplication(processIdentifier: pid) {
+            if isAppIgnored(bundleId: app.bundleIdentifier, name: app.localizedName) {
+                return
+            }
+        }
+
+        // 2. STRICT PRIVACY: Verify element is NOT a password/secure field or terminal console
         var roleObj: AnyObject?
         if AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &roleObj) == .success,
            let role = roleObj as? String {
@@ -283,7 +384,7 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
             return // NEVER TOUCH PASSWORD FIELDS
         }
 
-        // 2. Read text value (ignoring gigantic buffer dumps > 1500 chars)
+        // 3. Read text value (ignoring gigantic buffer dumps > 1500 chars)
         var valueObj: AnyObject?
         guard AXUIElementCopyAttributeValue(element, kAXValueAttribute as CFString, &valueObj) == .success,
               let rawString = valueObj as? String, !rawString.isEmpty, rawString.count <= 1500 else {
@@ -295,7 +396,7 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
         if hash == lastProcessedHash { return }
         lastProcessedHash = hash
 
-        // 3. Process sanitized text
+        // 4. Process sanitized text
         processExtractedText(rawString)
     }
 
@@ -326,7 +427,7 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
 
         // 2. Extract Words & Detect Idiosyncratic / Rare Terms
         let wordTokens = clean.components(separatedBy: CharacterSet.alphanumerics.inverted)
-            .filter { $0.count >= 3 }
+            .filter { $0.count >= 2 }
 
         guard !wordTokens.isEmpty else { return }
 
@@ -339,61 +440,76 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
             let lower = token.lowercased().normalizedPlainVocabularyWord()
 
             // Skip short tokens, numbers, or stop-words
-            if lower.count < 3 { continue }
+            if lower.count < 2 { continue }
             if stopWords.contains(lower) { continue }
             if CharacterSet.decimalDigits.isSuperset(of: CharacterSet(charactersIn: lower)) { continue }
+
+            // Strict quality check: tokens of 2-3 characters MUST be uppercase acronyms or recognized dev tools
+            let isAcronym = token.count >= 2 && token.count <= 6 && token.allSatisfy { $0.isUppercase || $0.isNumber }
+            let isShortDevTool = ["git", "vim", "npm", "pip", "zsh", "aws", "sql", "ssh", "api", "sdk", "mcp"].contains(lower)
+            if token.count < 4 && !isAcronym && !isShortDevTool {
+                continue // Rejects random typing stubs like "gho", "abc", "xyz"
+            }
 
             // Candidate frequency tracking
             let count = (candidateFrequencies[lower] ?? 0) + 1
             candidateFrequencies[lower] = count
 
-            if count >= 2 {
-                // Bilingual validation: standard in English OR Russian is NOT rare
-                var enWordCount: Int = 0
-                let enRange = spellChecker.checkSpelling(
-                    of: token,
-                    startingAt: 0,
-                    language: "en",
-                    wrap: false,
-                    inSpellDocumentWithTag: 0,
-                    wordCount: &enWordCount
-                )
-                var ruWordCount: Int = 0
+            // CamelCase / internal capitalization (e.g. MacBook, WhisperKit, ChatGPT, AntiGravity)
+            let hasInnerCapital = token.dropFirst().contains { $0.isUppercase }
+            // Technical compound identifier (e.g. dev_mode, lang-code)
+            let isTechnicalCompound = token.contains("-") || token.contains("_")
+
+            // Language-aware bilingual validation:
+            // Cyrillic words must be validated ONLY against the Russian dictionary.
+            // Latin words must be validated ONLY against the English dictionary.
+            let hasCyrillic = token.unicodeScalars.contains { CharacterSet(charactersIn: "\u{0400}"..."\u{04FF}").contains($0) }
+            let hasLatin = token.unicodeScalars.contains { (CharacterSet(charactersIn: "a"..."z").union(CharacterSet(charactersIn: "A"..."Z"))).contains($0) }
+
+            var isStandardWord = false
+            if hasCyrillic && !hasLatin {
+                var ruCount = 0
                 let ruRange = spellChecker.checkSpelling(
                     of: token,
                     startingAt: 0,
                     language: "ru",
                     wrap: false,
                     inSpellDocumentWithTag: 0,
-                    wordCount: &ruWordCount
+                    wordCount: &ruCount
                 )
-                let isStandardWord = (enRange.length == 0 || enRange.location == NSNotFound) || (ruRange.length == 0 || ruRange.location == NSNotFound)
+                isStandardWord = (ruRange.location == NSNotFound || ruRange.length == 0)
+            } else if hasLatin && !hasCyrillic {
+                var enCount = 0
+                let enRange = spellChecker.checkSpelling(
+                    of: token,
+                    startingAt: 0,
+                    language: "en",
+                    wrap: false,
+                    inSpellDocumentWithTag: 0,
+                    wordCount: &enCount
+                )
+                isStandardWord = (enRange.location == NSNotFound || enRange.length == 0)
+            } else {
+                // Mixed characters (e.g. tech slang mixing scripts) -> non-standard
+                isStandardWord = false
+            }
 
-                // CamelCase / internal capitalization (e.g. MacBook, WhisperKit)
-                let hasInnerCapital = token.dropFirst().contains { $0.isUppercase }
-                // Acronym (e.g. API, GPU, CLI, 2-6 uppercase letters/digits)
-                let isAcronym = token.count >= 2 && token.count <= 6 && token.allSatisfy { $0.isUppercase || $0.isNumber }
-                // Technical compound identifier (e.g. dev_mode, lang-code)
-                let isTechnicalCompound = token.contains("-") || token.contains("_")
+            let isNonStandardOrRare = (!isStandardWord) || hasInnerCapital || isAcronym || isTechnicalCompound
 
-                // A word is rare/idiosyncratic ONLY if it is non-standard in both dictionaries
-                // OR has distinctive technical casing (CamelCase, acronym, compound).
-                // Initial sentence capitalization (e.g. "There", "What") will NEVER qualify.
-                let isNonStandardOrRare = (!isStandardWord) || hasInnerCapital || isAcronym || isTechnicalCompound
+            // Technical compounds, acronyms, or CamelCase qualify on 1st occurrence; non-standard words on 2nd
+            let frequencyThreshold = (hasInnerCapital || isAcronym || isTechnicalCompound) ? 1 : 2
+            if count >= frequencyThreshold && isNonStandardOrRare {
+                // Normalize to plain letters
+                let normalizedWord = token.normalizedPlainVocabularyWord()
+                UserGrammarProfile.shared.recordIdiosyncraticWord(normalizedWord)
+                UserFrequencyDictionary.shared.record(text: normalizedWord)
 
-                if isNonStandardOrRare {
-                    // Normalize to plain letters
-                    let normalizedWord = token.normalizedPlainVocabularyWord()
-                    UserGrammarProfile.shared.recordIdiosyncraticWord(normalizedWord)
-                    UserFrequencyDictionary.shared.record(text: normalizedWord)
+                let lowerNorm = normalizedWord.lowercased()
+                let alreadyInRecent = recentlyLearnedWords.contains { $0.lowercased() == lowerNorm }
+                let alreadyInNew = newlyLearned.contains { $0.lowercased() == lowerNorm }
 
-                    let lowerNorm = normalizedWord.lowercased()
-                    let alreadyInRecent = recentlyLearnedWords.contains { $0.lowercased() == lowerNorm }
-                    let alreadyInNew = newlyLearned.contains { $0.lowercased() == lowerNorm }
-
-                    if !alreadyInRecent && !alreadyInNew {
-                        newlyLearned.append(normalizedWord)
-                    }
+                if !alreadyInRecent && !alreadyInNew {
+                    newlyLearned.append(normalizedWord)
                 }
             }
         }
@@ -479,6 +595,12 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
 
     // MARK: - State Persistence
 
+    private func saveIgnoredAppsUnderLock() {
+        if let data = try? JSONEncoder().encode(ignoredApplications) {
+            UserDefaults.standard.set(data, forKey: "writingMonitorIgnoredApps")
+        }
+    }
+
     private func savePersistedStateUnderLock() {
         let defaults = UserDefaults.standard
         defaults.set(isRunning, forKey: "writingMonitorIsRunning")
@@ -489,6 +611,7 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
         defaults.set(rareWordsLearnedCount, forKey: "writingMonitorRareWordsCount")
         defaults.set(constructionsLearnedCount, forKey: "writingMonitorConstructionsCount")
         defaults.set(recentlyLearnedWords, forKey: "writingMonitorRecentWords")
+        saveIgnoredAppsUnderLock()
     }
 
     private func loadPersistedState() {
@@ -504,5 +627,24 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
         self.rareWordsLearnedCount = defaults.integer(forKey: "writingMonitorRareWordsCount")
         self.constructionsLearnedCount = defaults.integer(forKey: "writingMonitorConstructionsCount")
         self.recentlyLearnedWords = defaults.stringArray(forKey: "writingMonitorRecentWords") ?? []
+
+        // Sanitize: purge "gho" and random short stubs from stored recent words
+        self.recentlyLearnedWords.removeAll { w in
+            let low = w.lowercased()
+            if low == "gho" { return true }
+            if w.count < 4 && !w.allSatisfy({ $0.isUppercase }) && !["git", "vim", "npm", "pip", "zsh", "aws", "sql", "ssh"].contains(low) {
+                return true
+            }
+            return false
+        }
+        UserGrammarProfile.shared.removeIdiosyncraticWord("gho")
+
+        // Load ignored applications
+        if let data = defaults.data(forKey: "writingMonitorIgnoredApps"),
+           let apps = try? JSONDecoder().decode([IgnoredApplication].self, from: data), !apps.isEmpty {
+            self.ignoredApplications = apps
+        } else {
+            self.ignoredApplications = Self.defaultIgnoredApplications
+        }
     }
 }
