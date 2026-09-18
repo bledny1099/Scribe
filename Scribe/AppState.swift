@@ -1864,7 +1864,9 @@ final class AppState: ObservableObject {
 
             let oldFrame = existingPanel.frame
             let calculatedFrame: NSRect
-            if abs(oldFrame.origin.y - targetOrigin.y) > 50 || abs(oldFrame.origin.x - targetOrigin.x) > 50 {
+            if isDragging {
+                calculatedFrame = targetFrame
+            } else if abs(oldFrame.origin.y - targetOrigin.y) > 50 || abs(oldFrame.origin.x - targetOrigin.x) > 50 {
                 calculatedFrame = targetFrame
             } else {
                 let calculatedY = oldFrame.maxY - targetSize.height

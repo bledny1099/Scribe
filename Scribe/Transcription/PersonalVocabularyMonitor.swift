@@ -289,9 +289,13 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
         notifyUI()
     }
 
+    public static func isAppInstalled(bundleId: String) -> Bool {
+        return NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) != nil
+    }
+
     public func resetIgnoredAppsToDefault() {
         lock.lock()
-        ignoredApplications = Self.defaultIgnoredApplications
+        ignoredApplications = Self.defaultIgnoredApplications.filter { Self.isAppInstalled(bundleId: $0.bundleId) }
         saveIgnoredAppsUnderLock()
         lock.unlock()
         notifyUI()
@@ -639,12 +643,13 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
         }
         UserGrammarProfile.shared.removeIdiosyncraticWord("gho")
 
-        // Load ignored applications
+        // Load ignored applications (only keep apps present on this Mac)
         if let data = defaults.data(forKey: "writingMonitorIgnoredApps"),
            let apps = try? JSONDecoder().decode([IgnoredApplication].self, from: data), !apps.isEmpty {
-            self.ignoredApplications = apps
+            self.ignoredApplications = apps.filter { Self.isAppInstalled(bundleId: $0.bundleId) }
         } else {
-            self.ignoredApplications = Self.defaultIgnoredApplications
+            self.ignoredApplications = Self.defaultIgnoredApplications.filter { Self.isAppInstalled(bundleId: $0.bundleId) }
         }
+        saveIgnoredAppsUnderLock()
     }
 }

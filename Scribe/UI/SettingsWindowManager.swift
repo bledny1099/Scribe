@@ -151,6 +151,10 @@ final class SettingsWindowManager {
         currentAppState?.updateSettingsPreviewPanel(isDragging: true)
     }
 
+    func windowDidResize() {
+        currentAppState?.updateSettingsPreviewPanel(isDragging: true)
+    }
+
     func closeWindow() {
         currentAppState?.hideSettingsPreviewPanel()
         window?.close()
@@ -176,5 +180,9 @@ private class WindowDelegate: NSObject, NSWindowDelegate, @unchecked Sendable {
     
     func windowDidMove(_ notification: Notification) {
         SettingsWindowManager.shared.windowDidMove()
+    }
+
+    func windowDidResize(_ notification: Notification) {
+        SettingsWindowManager.shared.windowDidResize()
     }
 }

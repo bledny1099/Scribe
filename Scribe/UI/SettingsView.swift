@@ -55,7 +55,7 @@ struct SettingsView: View {
 
 
     var body: some View {
-        ZStack(alignment: .top) {
+        ZStack(alignment: .topLeading) {
             // Background & Ambient Glow
             SettingsBackgroundView(
                 panelAppearance: appState.selectedPanelAppearance,
@@ -65,6 +65,7 @@ struct SettingsView: View {
                 isLevelUpSweepActive: isLevelUpSweepActive,
                 sweepProgress: sweepProgress
             )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             
             HStack(alignment: .top, spacing: 0) {
                 SettingsSidebarView(
@@ -79,12 +80,16 @@ struct SettingsView: View {
                 Rectangle()
                     .fill(Color.primary.opacity(0.06))
                     .frame(width: 1)
+                    .frame(maxHeight: .infinity)
 
                 SettingsContentView(selectedTab: selectedTab)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             
             // Header — Draggable Console Header (transparent background, no dividing line)
             SettingsHeaderView()
+                .frame(maxWidth: .infinity, alignment: .topLeading)
 
             // Supporter Celebration Full-Window Overlay
             if let celebration = appState.supporterCelebrationData {
@@ -104,7 +109,7 @@ struct SettingsView: View {
             }
         }
         .ignoresSafeArea(.container, edges: .top)
-        .frame(minWidth: 660, maxWidth: .infinity, minHeight: 600, maxHeight: .infinity)
+        .frame(minWidth: 660, maxWidth: .infinity, minHeight: 600, maxHeight: .infinity, alignment: .topLeading)
         .onAppear(perform: handleAppear)
         .onChange(of: appState.requestedSettingsTab, perform: handleRequestedTabChange)
         .onChange(of: selectedTab, perform: handleSelectedTabChange)
@@ -308,6 +313,7 @@ struct SettingsSidebarView: View {
             )
         }
         .frame(width: 200)
+        .frame(maxHeight: .infinity, alignment: .topLeading)
         .padding(.top, 88)
         .padding(.bottom, 16)
         .padding(.horizontal, 10)
@@ -379,10 +385,12 @@ struct SettingsContentView: View {
                     StatisticsSectionView()
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 24)
             .padding(.top, 88)
             .padding(.bottom, 24)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .mask(
             LinearGradient(
                 stops: [
@@ -636,7 +644,8 @@ struct SettingsHeaderView: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(.leading, 14)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .padding(.leading, 18)
         .padding(.trailing, 16)
         .padding(.top, 14)
         .padding(.bottom, 12)
@@ -1623,6 +1632,7 @@ struct GlassSection<Content: View>: View {
             .padding(.horizontal, 4)
 
             content
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(16)
                 .background(
                     ZStack {
@@ -1637,6 +1647,7 @@ struct GlassSection<Content: View>: View {
                         .strokeBorder(appState.selectedPanelAppearance == .liquidGlass ? Color.white.opacity(0.18) : Color.primary.opacity(0.12), lineWidth: 1)
                 )
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -7221,50 +7232,8 @@ struct AISettingsView: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            // SECTION 1: Dictation Modes
-            GlassSection(title: appState.l("Dictation Mode"), icon: "text.quote") {
-                VStack(alignment: .leading, spacing: 14) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(appState.l("Active Transcription Mode"))
-                                .font(.system(size: 14, weight: .medium, design: .rounded))
-                                .foregroundStyle(.primary)
-                            Text(appState.l("Adapts filler cleaning, formatting, code syntax, and structure"))
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                    }
-
-                    LiquidGlassSegmentedPicker(
-                        items: ScribeMode.allCases,
-                        selection: Binding(
-                            get: { appState.transcriptionMode },
-                            set: { appState.transcriptionMode = $0 }
-                        ),
-                        label: { (appState.l($0.displayName), $0.icon) }
-                    )
-
-                    HStack(spacing: 8) {
-                        Image(systemName: "info.circle.fill")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.blue)
-                        Text(appState.l(appState.transcriptionMode.description))
-                            .font(.system(size: 11.5, weight: .medium, design: .rounded))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.primary.opacity(0.04))
-                    )
-                }
-            }
-
-            // SECTION 2: Master Enable & Refinement Mode
-            GlassSection(title: appState.l("AI Text Refinement"), icon: "wand.and.stars") {
+            // SECTION: Dictation Mode
+            GlassSection(title: appState.l("Dictation Mode"), icon: "wand.and.stars") {
                 VStack(alignment: .leading, spacing: 14) {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
@@ -7309,7 +7278,7 @@ struct AISettingsView: View {
 
                         VStack(alignment: .leading, spacing: 8) {
                             HStack {
-                                Text(appState.l("Refinement Mode"))
+                                Text(appState.l("Dictation Mode"))
                                     .font(.system(size: 13, weight: .medium, design: .rounded))
                                     .foregroundStyle(.primary)
                                 Spacer()
@@ -7331,6 +7300,7 @@ struct AISettingsView: View {
                                 Text(modeDescription(appState.selectedAIRefinementMode))
                                     .font(.system(size: 11.5, weight: .medium, design: .rounded))
                                     .foregroundStyle(.secondary)
+                                    .lineLimit(2)
                             }
                             .padding(.horizontal, 10)
                             .padding(.vertical, 6)
