@@ -104,7 +104,7 @@ struct SettingsView: View {
             }
         }
         .ignoresSafeArea(.container, edges: .top)
-        .frame(minWidth: 620, maxWidth: .infinity, minHeight: 620, maxHeight: .infinity)
+        .frame(minWidth: 660, maxWidth: .infinity, minHeight: 600, maxHeight: .infinity)
         .onAppear(perform: handleAppear)
         .onChange(of: appState.requestedSettingsTab, perform: handleRequestedTabChange)
         .onChange(of: selectedTab, perform: handleSelectedTabChange)

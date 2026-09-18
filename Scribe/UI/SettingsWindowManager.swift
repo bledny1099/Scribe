@@ -21,7 +21,7 @@ final class SettingsWindowManager {
             return
         }
 
-        let initialWidth: CGFloat = 660
+        let initialWidth: CGFloat = 800
         let initialHeight: CGFloat = 620
 
         let newWindow = NSWindow(
@@ -36,7 +36,7 @@ final class SettingsWindowManager {
         newWindow.standardWindowButton(.closeButton)?.isHidden = true
         newWindow.standardWindowButton(.miniaturizeButton)?.isHidden = true
         newWindow.standardWindowButton(.zoomButton)?.isHidden = true
-        newWindow.minSize = NSSize(width: 620, height: 620)
+        newWindow.minSize = NSSize(width: 660, height: 600)
         newWindow.showsResizeIndicator = true
 
         newWindow.isMovableByWindowBackground = false
