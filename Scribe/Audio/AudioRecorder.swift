@@ -109,7 +109,10 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
             }
         }
  
-        var recordingFormat = inputNode.outputFormat(forBus: 0)
+        var recordingFormat = inputNode.inputFormat(forBus: 0)
+        if recordingFormat.sampleRate <= 0 || recordingFormat.channelCount == 0 {
+            recordingFormat = inputNode.outputFormat(forBus: 0)
+        }
         if recordingFormat.sampleRate <= 0 || recordingFormat.channelCount == 0 {
             if let fallback = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 44100, channels: 1, interleaved: false) {
                 recordingFormat = fallback
@@ -215,10 +218,15 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
         }
         copy.frameLength = buffer.frameLength
         if let srcData = buffer.floatChannelData, let dstData = copy.floatChannelData {
-            let channelCount = Int(buffer.format.channelCount)
-            let frameLength = Int(buffer.frameLength)
-            for ch in 0..<channelCount {
-                dstData[ch].update(from: srcData[ch], count: frameLength)
+            if buffer.format.isInterleaved {
+                let totalFrames = Int(buffer.frameLength) * Int(buffer.format.channelCount)
+                dstData[0].update(from: srcData[0], count: totalFrames)
+            } else {
+                let channelCount = Int(buffer.format.channelCount)
+                let frameLength = Int(buffer.frameLength)
+                for ch in 0..<channelCount {
+                    dstData[ch].update(from: srcData[ch], count: frameLength)
+                }
             }
         }
         return copy
