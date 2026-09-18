@@ -16,17 +16,15 @@ struct MenuBarLabelView: View {
 
     var body: some View {
         if appState.isLectureRecording {
-            HStack(spacing: 4) {
-                Image(systemName: "record.circle.fill")
-                Text(appState.formattedDuration.isEmpty ? "00:00" : appState.formattedDuration)
-            }
+            Image(systemName: "record.circle.fill")
+                .symbolRenderingMode(.multicolor)
         } else if appState.isImportTranscribing {
-            HStack(spacing: 4) {
-                Image(systemName: "waveform.badge.magnifyingglass")
-                Text("Обработка…")
-            }
+            Image(systemName: "waveform.badge.magnifyingglass")
+        } else if appState.isRecording {
+            Image(systemName: "waveform")
+                .foregroundStyle(.red)
         } else {
-            Label("Scribe", systemImage: appState.isRecording ? "waveform" : "mic")
+            Label("Scribe", systemImage: "mic")
         }
     }
 }
@@ -138,52 +136,59 @@ struct LiquidGlassMenuBarView: View {
                 VStack(spacing: 8) {
                     HStack(spacing: 8) {
                         Circle()
-                            .fill(Color.red)
+                            .fill(appState.isTranscribing ? Color.orange : Color.red)
                             .frame(width: 8, height: 8)
-                        Text(appState.l("Запись лекции (без оверлея)"))
+                        Text(appState.isTranscribing ? appState.l("Сохранение в Заметки…") : appState.l("Запись лекции (без оверлея)"))
                             .font(.system(size: 12, weight: .semibold, design: .rounded))
                             .foregroundStyle(.primary)
                         Spacer()
-                        Text(appState.formattedDuration.isEmpty ? "00:00" : appState.formattedDuration)
-                            .font(.system(size: 13, weight: .bold, design: .monospaced))
-                            .foregroundStyle(.red)
+                        if appState.isTranscribing {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else {
+                            Text(appState.formattedDuration.isEmpty ? "00:00" : appState.formattedDuration)
+                                .font(.system(size: 13, weight: .bold, design: .monospaced))
+                                .foregroundStyle(.red)
+                        }
                     }
 
-                    HStack(spacing: 8) {
-                        Button {
-                            appState.stopLectureRecording()
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: "stop.fill")
-                                    .font(.system(size: 11))
-                                Text(appState.l("Остановить и в Заметки"))
-                                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 8)
-                            .background(Color.red.opacity(0.15))
-                            .foregroundStyle(Color.red)
-                            .cornerRadius(8)
-                        }
-                        .buttonStyle(.plain)
-
-                        Button {
-                            appState.cancelRecording()
-                        } label: {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 11, weight: .bold))
-                                .padding(8)
-                                .background(Color.primary.opacity(0.06))
-                                .foregroundStyle(.secondary)
+                    if !appState.isTranscribing {
+                        HStack(spacing: 8) {
+                            Button {
+                                appState.stopLectureRecording()
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "stop.fill")
+                                        .font(.system(size: 11))
+                                    Text(appState.l("Остановить и в Заметки"))
+                                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                                .background(Color.red.opacity(0.15))
+                                .foregroundStyle(Color.red)
                                 .cornerRadius(8)
+                            }
+                            .buttonStyle(.plain)
+
+                            Button {
+                                appState.cancelRecording()
+                            } label: {
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .padding(8)
+                                    .background(Color.primary.opacity(0.06))
+                                    .foregroundStyle(.secondary)
+                                    .cornerRadius(8)
+                            }
+                            .buttonStyle(.plain)
+                            .help(appState.l("Отменить запись"))
                         }
-                        .buttonStyle(.plain)
-                        .help(appState.l("Отменить запись"))
                     }
                 }
                 .padding(10)
-                .background(RoundedRectangle(cornerRadius: 12).fill(Color.red.opacity(0.06)))
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.red.opacity(0.25), lineWidth: 1))
+                .background(RoundedRectangle(cornerRadius: 12).fill(appState.isTranscribing ? Color.orange.opacity(0.06) : Color.red.opacity(0.06)))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(appState.isTranscribing ? Color.orange.opacity(0.25) : Color.red.opacity(0.25), lineWidth: 1))
             } else if appState.isImportTranscribing {
                 // MARK: - File Import Progress Card
                 HStack(spacing: 10) {
@@ -333,6 +338,8 @@ struct LiquidGlassMenuBarView: View {
             .padding(.horizontal, 4)
             .padding(.top, 2)
         }
+        .animation(.easeInOut(duration: 0.15), value: appState.isLectureRecording)
+        .animation(.easeInOut(duration: 0.15), value: appState.isImportTranscribing)
         .padding(12)
         .frame(width: 290)
         .background(

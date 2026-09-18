@@ -1080,6 +1080,10 @@ final class AppState: ObservableObject {
         hideSettingsPreviewPanel()
         captureTargetApplication()
         do {
+            audioRecorder.enableLiveBuffer = (!isLectureRecording && livePreviewEnabled && !isInstantEngine)
+            if !audioRecorder.enableLiveBuffer {
+                audioRecorder.purgeMemory()
+            }
             try audioRecorder.startRecording()
             isRecording     = true
             recordingStatus = .recording
@@ -1109,6 +1113,7 @@ final class AppState: ObservableObject {
             
             logger.info("Recording started")
         } catch {
+            isLectureRecording = false
             recordingStatus = .error("Mic error")
             if soundFeedbackEnabled { SoundFeedback.play(.error) }
             logger.error("Failed to start recording: \(error.localizedDescription)")
@@ -1139,6 +1144,7 @@ final class AppState: ObservableObject {
 
             guard let audioURL else {
                 logger.warning("No audio URL returned")
+                self.isLectureRecording = false
                 self.isTranscribing = false
                 self.recordingStatus = .idle
                 self.hidePanel()
@@ -1185,6 +1191,7 @@ final class AppState: ObservableObject {
                         recordingStatus = .error("No speech")
                         try? await Task.sleep(for: .milliseconds(750))
                         hidePanel()
+                        self.isLectureRecording = false
                         isTranscribing = false
                         self.audioRecorder.purgeMemory()
                         try? FileManager.default.removeItem(at: audioURL)
@@ -1224,11 +1231,13 @@ final class AppState: ObservableObject {
                 if text.isEmpty {
                     logger.warning("Transcription returned empty text")
                     recordingStatus = .error("No speech")
+                    self.isLectureRecording = false
                     try? await Task.sleep(for: .milliseconds(750))
                     hidePanel()
                 } else if TranscriptionService.isVoiceCancelCommand(text) {
                     logger.info("Voice cancel command detected: '\(text)'")
                     recordingStatus = .error("Cancelled")
+                    self.isLectureRecording = false
                     if self.soundFeedbackEnabled { SoundFeedback.play(.error) }
                     try? await Task.sleep(for: .seconds(1.2))
                     hidePanel()

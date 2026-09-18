@@ -33,6 +33,10 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
     private var recordedSamples: [Float] = []
     private let samplesLock = NSLock()
 
+    /// Whether in-memory sample accumulation for live Whisper snapshot preview is enabled.
+    /// Kept false during lecture recording and instant engine to prevent memory growth.
+    var enableLiveBuffer: Bool = false
+
     /// Current recording file URL (nil if not recording).
     var currentRecordingURL: URL? { recordingURL }
 
@@ -58,9 +62,9 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
         setupThrottling()
     }
     
-    /// Throttles standard @Published audioLevel updates to 60 Hz for legacy scaleEffect views, keeping main thread free
+    /// Throttles standard @Published audioLevel updates to 30 Hz for UI scaleEffect meters, keeping main thread free
     func setupThrottling() {
-        let interval = 1.0 / 60.0
+        let interval = 1.0 / 30.0
         
         levelCancellable = audioLevelSubject
             .throttle(for: .seconds(interval), scheduler: DispatchQueue.main, latest: true)
@@ -75,7 +79,7 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
     @discardableResult
     func startRecording() throws -> URL {
         samplesLock.lock()
-        recordedSamples.removeAll()
+        recordedSamples.removeAll(keepingCapacity: false)
         samplesLock.unlock()
  
         let url = FileManager.default.temporaryDirectory
@@ -149,12 +153,18 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
                     logger.error("Failed to write audio buffer: \(error.localizedDescription)")
                 }
 
-                // Save samples in memory for live preview
-                if let floatData = copy.floatChannelData?[0] {
+                // Save samples in memory for live preview only when enabled (disabled for lectures and direct notes)
+                if self.enableLiveBuffer, let floatData = copy.floatChannelData?[0] {
                     let frameLength = Int(copy.frameLength)
                     let samples = Array(UnsafeBufferPointer(start: floatData, count: frameLength))
                     self.samplesLock.lock()
                     self.recordedSamples.append(contentsOf: samples)
+                    // Whisper snapshot preview only requires the last ~30 seconds of speech; enforce rolling cap
+                    let maxSamples = Int(recordingFormat.sampleRate * 30)
+                    if self.recordedSamples.count > maxSamples {
+                        let excess = self.recordedSamples.count - maxSamples
+                        self.recordedSamples.removeFirst(excess)
+                    }
                     self.samplesLock.unlock()
                 }
 
