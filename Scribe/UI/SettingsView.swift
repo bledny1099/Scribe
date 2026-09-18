@@ -7,6 +7,7 @@ enum SettingsTab: String, CaseIterable {
     case general = "General"
     case appearance = "Appearance"
     case recognition = "Recognition"
+    case ai = "AI Refinement"
     case vocabulary = "Vocabulary"
     case lectures = "Lectures"
     case integrations = "Integrations"
@@ -20,6 +21,7 @@ enum SettingsTab: String, CaseIterable {
         case .general:      return "slider.horizontal.3"
         case .appearance:   return "paintbrush.fill"
         case .recognition:  return "waveform.and.mic"
+        case .ai:           return "wand.and.stars"
         case .vocabulary:   return "book.fill"
         case .lectures:     return "graduationcap.fill"
         case .integrations: return "puzzlepiece.fill"
@@ -214,6 +216,7 @@ struct SettingsSidebarView: View {
         .general,
         .appearance,
         .recognition,
+        .ai,
         .vocabulary,
         .lectures,
         .integrations,
@@ -356,6 +359,8 @@ struct SettingsContentView: View {
                     AppearanceSettingsView()
                 case .recognition:
                     RecognitionSettingsView()
+                case .ai:
+                    AISettingsView()
                 case .vocabulary:
                     VocabularySettingsView()
                 case .lectures:
@@ -7145,6 +7150,552 @@ struct RecognitionSettingsView: View {
                 }
             }
 
+            // SECTION: AI Text Refinement Quick-Access
+            GlassSection(title: appState.l("AI Refinement"), icon: "wand.and.stars") {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(appState.l("AI Post-Processing"))
+                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                .foregroundStyle(.primary)
+                            Text(appState.enableCloudAI ?
+                                 "\(appState.cloudAIProvider.displayName) • \(appState.selectedAIRefinementMode.displayName)" :
+                                 appState.l("Disabled • Raw speech output"))
+                                .font(.system(size: 11))
+                                .foregroundStyle(appState.enableCloudAI ? .green : .secondary)
+                        }
+                        Spacer()
+                        Toggle("", isOn: $appState.enableCloudAI)
+                            .toggleStyle(.switch)
+                            .labelsHidden()
+                    }
+
+                    HStack {
+                        Text(appState.l("Clean false starts, phonetic mishearings (e.g. 'чад gpt.com' -> 'chatgpt.com'), and apply custom LLM keys."))
+                            .font(.system(size: 11.5))
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button(action: {
+                            appState.requestedSettingsTab = .ai
+                        }) {
+                            HStack(spacing: 4) {
+                                Text(appState.l("Configure AI"))
+                                Image(systemName: "chevron.right")
+                            }
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.blue)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
+        }
+    }
+}
+
+// MARK: - AI Settings View
+struct AISettingsView: View {
+    @EnvironmentObject var appState: AppState
+    @State private var isKeyVisible: Bool = false
+    @State private var testInputText: String = "я зашел на чад gpt.com чтобы пофиксить код в экскоде"
+    @State private var testOutputText: String = ""
+    @State private var isTestingRefinement: Bool = false
+    @State private var testErrorMessage: String? = nil
+    @State private var testDurationMs: Int? = nil
+
+    private let groqModels: [(id: String, name: String)] = [
+        ("llama-3.3-70b-versatile", "Llama 3.3 70B Versatile (Recommended)"),
+        ("llama-3.1-8b-instant", "Llama 3.1 8B Instant (Ultra-Fast)")
+    ]
+
+    private let cerebrasModels: [(id: String, name: String)] = [
+        ("llama3.3-70b", "Llama 3.3 70B (Recommended)"),
+        ("llama3.1-8b", "Llama 3.1 8B (Ultra-Fast)")
+    ]
+
+    private let geminiModels: [(id: String, name: String)] = [
+        ("gemini-2.0-flash", "Gemini 2.0 Flash (Recommended)"),
+        ("gemini-1.5-flash", "Gemini 1.5 Flash"),
+        ("gemini-2.0-flash-lite", "Gemini 2.0 Flash-Lite")
+    ]
+
+    var body: some View {
+        VStack(spacing: 16) {
+            // SECTION 1: Master Enable & Refinement Mode
+            GlassSection(title: appState.l("AI Text Refinement"), icon: "wand.and.stars") {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(appState.l("Enable AI Post-Processing"))
+                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                .foregroundStyle(.primary)
+                            Text(appState.l("Refines speech, removes hesitation, and corrects phonetic errors via LLM"))
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Toggle("", isOn: $appState.enableCloudAI)
+                            .toggleStyle(.switch)
+                            .labelsHidden()
+                    }
+
+                    if appState.enableCloudAI {
+                        Divider().opacity(0.3)
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text(appState.l("Refinement Mode"))
+                                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                            }
+
+                            LiquidGlassSegmentedPicker(
+                                items: AIRefinementMode.allCases,
+                                selection: Binding(
+                                    get: { appState.selectedAIRefinementMode },
+                                    set: { appState.selectedAIRefinementMode = $0 }
+                                ),
+                                label: { (appState.l($0.displayName), $0.icon) }
+                            )
+
+                            HStack(spacing: 8) {
+                                Image(systemName: "info.circle.fill")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(.blue)
+                                Text(modeDescription(appState.selectedAIRefinementMode))
+                                    .font(.system(size: 11.5, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color.primary.opacity(0.04))
+                            )
+                        }
+                    }
+                }
+            }
+
+            // SECTION 2: AI Provider & Credentials
+            GlassSection(title: appState.l("AI Provider & API Keys"), icon: "key.fill") {
+                VStack(alignment: .leading, spacing: 16) {
+                    // Provider Selector
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(appState.l("Active LLM Provider"))
+                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                .foregroundStyle(.primary)
+                            Text(appState.l("Select your cloud LLM or custom endpoint"))
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        LiquidGlassMenu(
+                            items: CloudAIProvider.allCases.map { $0.rawValue },
+                            selection: Binding(
+                                get: { appState.cloudAIProvider.rawValue },
+                                set: { appState.cloudAIProviderRaw = $0 }
+                            ),
+                            title: { raw in
+                                (CloudAIProvider(rawValue: raw) ?? .groq).displayName
+                            },
+                            displayTitle: { raw in
+                                (CloudAIProvider(rawValue: raw) ?? .groq).displayName
+                            }
+                        )
+                    }
+
+                    Divider().opacity(0.3)
+
+                    // Provider Specific Configuration
+                    providerConfigView
+                }
+            }
+
+            // SECTION 3: Phonetic Vocabulary Correction
+            GlassSection(title: appState.l("Vocabulary & Phonetic Correction"), icon: "text.book.closed.fill") {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "sparkle.magnifyingglass")
+                            .font(.system(size: 22))
+                            .foregroundStyle(.purple)
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(appState.l("Acoustic Slip & Slang Correction"))
+                                .font(.system(size: 13.5, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.primary)
+                            Text(appState.l("Speech-to-text models often mishear technical terms (e.g., 'чад gpt.com' instead of 'chatgpt.com', 'вайб кодинг' instead of 'vibe coding', 'экскод' instead of 'Xcode'). Scribe feeds your active vocabulary to the LLM to automatically fix them."))
+                                .font(.system(size: 11.5))
+                                .foregroundStyle(.secondary)
+                                .lineSpacing(2)
+                        }
+                    }
+
+                    HStack {
+                        let vocabCount = AetherContextEngine.shared.activeEffectiveVocabulary(
+                            targetApp: appState.targetRunningApplication,
+                            userVocabulary: appState.vocabulary,
+                            userLocation: appState.effectiveUserLocation
+                        ).components(separatedBy: ",").count
+
+                        Text("\(vocabCount) \(appState.l("active terms in dictionary context"))")
+                            .font(.system(size: 11.5, weight: .medium))
+                            .foregroundStyle(.secondary)
+
+                        Spacer()
+
+                        Button(action: {
+                            appState.requestedSettingsTab = .vocabulary
+                        }) {
+                            HStack(spacing: 4) {
+                                Text(appState.l("Edit Vocabulary"))
+                                Image(systemName: "arrow.right")
+                            }
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.blue)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.top, 4)
+                }
+            }
+
+            // SECTION 4: Live Playground / Test Refinement
+            GlassSection(title: appState.l("Test AI Refinement"), icon: "play.circle.fill") {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(appState.l("Test your API key and vocabulary correction with a quick sample:"))
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+
+                    TextField(appState.l("Test speech input..."), text: $testInputText)
+                        .textFieldStyle(.roundedBorder)
+
+                    HStack {
+                        Button(action: runTestRefinement) {
+                            HStack(spacing: 6) {
+                                if isTestingRefinement {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                } else {
+                                    Image(systemName: "sparkles")
+                                }
+                                Text(appState.l("Test Refinement"))
+                            }
+                            .font(.system(size: 12, weight: .semibold))
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 7)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color.blue.opacity(0.85))
+                            )
+                            .foregroundStyle(.white)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(isTestingRefinement || testInputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                        if let ms = testDurationMs {
+                            Text("\(ms) ms")
+                                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Spacer()
+                    }
+
+                    if let err = testErrorMessage {
+                        HStack(spacing: 6) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.orange)
+                            Text(err)
+                                .font(.system(size: 11.5))
+                                .foregroundStyle(.red)
+                        }
+                        .padding(.vertical, 4)
+                    }
+
+                    if !testOutputText.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(appState.l("Refined Output:"))
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(.secondary)
+
+                            Text(testOutputText)
+                                .font(.system(size: 13, weight: .regular))
+                                .foregroundStyle(.primary)
+                                .textSelection(.enabled)
+                                .padding(10)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(Color.primary.opacity(0.04))
+                                )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var providerConfigView: some View {
+        switch appState.cloudAIProvider {
+        case .groq:
+            VStack(alignment: .leading, spacing: 12) {
+                apiKeyRow(
+                    title: "Groq API Key",
+                    key: $appState.groqAPIKey,
+                    placeholder: "gsk_...",
+                    helpURL: "https://console.groq.com/keys",
+                    helpLabel: "Get Groq API Key"
+                )
+
+                HStack {
+                    Text(appState.l("Model:"))
+                        .font(.system(size: 12, weight: .medium))
+                    Spacer()
+                    LiquidGlassMenu(
+                        items: groqModels.map { $0.id },
+                        selection: $appState.groqModel,
+                        title: { id in groqModels.first(where: { $0.id == id })?.name ?? id },
+                        displayTitle: { id in groqModels.first(where: { $0.id == id })?.name ?? id }
+                    )
+                }
+            }
+
+        case .cerebras:
+            VStack(alignment: .leading, spacing: 12) {
+                apiKeyRow(
+                    title: "Cerebras API Key",
+                    key: $appState.cerebrasAPIKey,
+                    placeholder: "csk-...",
+                    helpURL: "https://cloud.cerebras.ai",
+                    helpLabel: "Get Cerebras API Key"
+                )
+
+                HStack {
+                    Text(appState.l("Model:"))
+                        .font(.system(size: 12, weight: .medium))
+                    Spacer()
+                    LiquidGlassMenu(
+                        items: cerebrasModels.map { $0.id },
+                        selection: $appState.cerebrasModel,
+                        title: { id in cerebrasModels.first(where: { $0.id == id })?.name ?? id },
+                        displayTitle: { id in cerebrasModels.first(where: { $0.id == id })?.name ?? id }
+                    )
+                }
+            }
+
+        case .gemini:
+            VStack(alignment: .leading, spacing: 12) {
+                apiKeyRow(
+                    title: "Google Gemini API Key",
+                    key: $appState.geminiAPIKey,
+                    placeholder: "AIzaSy...",
+                    helpURL: "https://aistudio.google.com/app/apikey",
+                    helpLabel: "Get Gemini API Key"
+                )
+
+                HStack {
+                    Text(appState.l("Model:"))
+                        .font(.system(size: 12, weight: .medium))
+                    Spacer()
+                    LiquidGlassMenu(
+                        items: geminiModels.map { $0.id },
+                        selection: $appState.geminiModel,
+                        title: { id in geminiModels.first(where: { $0.id == id })?.name ?? id },
+                        displayTitle: { id in geminiModels.first(where: { $0.id == id })?.name ?? id }
+                    )
+                }
+
+                HStack(spacing: 6) {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.purple)
+                    Text(appState.l("Uses your personal free tier & paid quotas tied to your Google account."))
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+        case .customOpenAI:
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text(appState.l("Base URL:"))
+                        .font(.system(size: 12, weight: .medium))
+                        .frame(width: 85, alignment: .leading)
+                    TextField("https://api.openai.com/v1", text: $appState.customOpenAIBaseURL)
+                        .textFieldStyle(.roundedBorder)
+                }
+
+                HStack {
+                    Text(appState.l("Model:"))
+                        .font(.system(size: 12, weight: .medium))
+                        .frame(width: 85, alignment: .leading)
+                    TextField("gpt-4o-mini", text: $appState.customOpenAIModel)
+                        .textFieldStyle(.roundedBorder)
+                }
+
+                HStack {
+                    Text(appState.l("API Key:"))
+                        .font(.system(size: 12, weight: .medium))
+                        .frame(width: 85, alignment: .leading)
+                    if isKeyVisible {
+                        TextField("sk-...", text: $appState.customOpenAIKey)
+                            .textFieldStyle(.roundedBorder)
+                    } else {
+                        SecureField("sk-...", text: $appState.customOpenAIKey)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                    Button(action: { isKeyVisible.toggle() }) {
+                        Image(systemName: isKeyVisible ? "eye.slash" : "eye")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Text(appState.l("Compatible with OpenRouter, DeepSeek, LocalAI, vLLM, LM Studio, etc."))
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+
+        case .openAI, .scribeCloud:
+            VStack(alignment: .leading, spacing: 12) {
+                apiKeyRow(
+                    title: "OpenAI API Key",
+                    key: $appState.openAIAPIKey,
+                    placeholder: "sk-...",
+                    helpURL: "https://platform.openai.com/api-keys",
+                    helpLabel: "Get OpenAI API Key"
+                )
+            }
+
+        case .anthropic:
+            VStack(alignment: .leading, spacing: 12) {
+                apiKeyRow(
+                    title: "Anthropic Claude API Key",
+                    key: $appState.anthropicAPIKey,
+                    placeholder: "sk-ant-...",
+                    helpURL: "https://console.anthropic.com/settings/keys",
+                    helpLabel: "Get Anthropic API Key"
+                )
+            }
+
+        case .ollama:
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Text(appState.l("Endpoint:"))
+                        .font(.system(size: 12, weight: .medium))
+                        .frame(width: 85, alignment: .leading)
+                    TextField("http://localhost:11434", text: $appState.ollamaEndpoint)
+                        .textFieldStyle(.roundedBorder)
+                }
+                HStack {
+                    Text(appState.l("Model:"))
+                        .font(.system(size: 12, weight: .medium))
+                        .frame(width: 85, alignment: .leading)
+                    TextField("qwen2.5:7b", text: $appState.ollamaModel)
+                        .textFieldStyle(.roundedBorder)
+                }
+            }
+        }
+    }
+
+    private func apiKeyRow(title: String, key: Binding<String>, placeholder: String, helpURL: String, helpLabel: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(appState.l(title) + ":")
+                    .font(.system(size: 12, weight: .medium))
+                Spacer()
+                if let url = URL(string: helpURL) {
+                    Link(destination: url) {
+                        HStack(spacing: 4) {
+                            Text(appState.l(helpLabel))
+                            Image(systemName: "arrow.up.right.square")
+                        }
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.blue)
+                    }
+                }
+            }
+
+            HStack {
+                if isKeyVisible {
+                    TextField(placeholder, text: key)
+                        .textFieldStyle(.roundedBorder)
+                } else {
+                    SecureField(placeholder, text: key)
+                        .textFieldStyle(.roundedBorder)
+                }
+                Button(action: { isKeyVisible.toggle() }) {
+                    Image(systemName: isKeyVisible ? "eye.slash" : "eye")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func runTestRefinement() {
+        guard !testInputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        isTestingRefinement = true
+        testErrorMessage = nil
+        testOutputText = ""
+        let startTime = CFAbsoluteTimeGetCurrent()
+
+        let effectiveVocab = AetherContextEngine.shared.activeEffectiveVocabulary(
+            targetApp: appState.targetRunningApplication,
+            userVocabulary: appState.vocabulary,
+            userLocation: appState.effectiveUserLocation
+        )
+
+        Task {
+            do {
+                let result = try await CloudAIService.shared.refineText(
+                    text: testInputText,
+                    mode: appState.selectedAIRefinementMode,
+                    provider: appState.cloudAIProvider,
+                    apiKey: appState.activeCloudAPIKey,
+                    vocabulary: effectiveVocab,
+                    customBaseURL: appState.customOpenAIBaseURL,
+                    customModel: appState.customOpenAIModel,
+                    geminiModel: appState.geminiModel,
+                    groqModel: appState.groqModel,
+                    cerebrasModel: appState.cerebrasModel,
+                    ollamaEndpoint: appState.ollamaEndpoint,
+                    ollamaModel: appState.ollamaModel
+                )
+                let elapsedMs = Int((CFAbsoluteTimeGetCurrent() - startTime) * 1000)
+                await MainActor.run {
+                    self.testDurationMs = elapsedMs
+                    self.testOutputText = result
+                    self.isTestingRefinement = false
+                }
+            } catch {
+                await MainActor.run {
+                    self.testErrorMessage = error.localizedDescription
+                    self.isTestingRefinement = false
+                }
+            }
+        }
+    }
+
+    private func modeDescription(_ mode: AIRefinementMode) -> String {
+        switch mode {
+        case .polish:
+            return appState.l("Fixes speech hesitations, false starts, grammar, and acoustic slips using your vocabulary.")
+        case .summary:
+            return appState.l("Condenses the speech into clear, high-signal bullet points.")
+        case .executive:
+            return appState.l("Transforms dictation into concise, professional business communication.")
+        case .actionItems:
+            return appState.l("Extracts concrete tasks and action items into a checklist.")
+        case .translation:
+            return appState.l("Translates your spoken text directly into fluent English.")
+        case .raw:
+            return appState.l("Passes raw transcription directly without LLM modification.")
         }
     }
 }

@@ -5,6 +5,21 @@ All notable changes to Scribe will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9] - 2026-09-18
+
+## Added
+- Custom LLM text refinement and post-processing with support for Groq, Cerebras, Google Gemini, and custom OpenAI-compatible endpoints.
+- Dedicated AI Refinement tab in Settings with model selection, API key configuration, quick links, and a live testing playground.
+- Automatic vocabulary injection into LLM refinement instructions for phonetic speech correction (e.g., fixing "чад gpt.com" to "chatgpt.com", "вайб кодинг" to "vibe coding").
+
+## Changed
+- Upgraded Groq model configuration to Llama 3.3 70B Versatile with low-latency streaming fallback.
+- Added direct integration for Google AI Studio API keys utilizing personal free tier and paid Gemini quotas.
+
+## Fixed
+- Fixed an issue where technical terminology and foreign product names were phonetically distorted by local speech models.
+- Resolved invalid model identifier fallback in cloud AI text refinement.
+
 ## [2.8.3] - 2026-09-17
 
 ## Added

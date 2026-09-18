@@ -1901,8 +1901,11 @@ final class TextReplacer {
 
 public enum CloudAIProvider: String, CaseIterable, Identifiable, Sendable {
     case groq = "groq"
-    case anthropic = "anthropic"
+    case cerebras = "cerebras"
+    case gemini = "gemini"
+    case customOpenAI = "custom_openai"
     case openAI = "openai"
+    case anthropic = "anthropic"
     case ollama = "ollama"
     case scribeCloud = "scribe_cloud"
 
@@ -1910,11 +1913,14 @@ public enum CloudAIProvider: String, CaseIterable, Identifiable, Sendable {
 
     public var displayName: String {
         switch self {
-        case .groq:        return "Groq (Ultra-Fast)"
-        case .anthropic:   return "Anthropic Claude"
-        case .openAI:      return "OpenAI"
-        case .ollama:      return "Ollama (Local)"
-        case .scribeCloud: return "Scribe Pro Cloud"
+        case .groq:         return "Groq (Llama 3.3 70B)"
+        case .cerebras:     return "Cerebras (Fastest Llama)"
+        case .gemini:       return "Google Gemini (Personal Quota)"
+        case .customOpenAI: return "Custom API (OpenAI-Compatible)"
+        case .openAI:       return "OpenAI (GPT-4o Mini)"
+        case .anthropic:    return "Anthropic Claude (Haiku)"
+        case .ollama:       return "Ollama (Local Offline)"
+        case .scribeCloud:  return "Scribe Pro Cloud"
         }
     }
 }
@@ -1931,7 +1937,7 @@ public enum AIRefinementMode: String, CaseIterable, Identifiable, Sendable {
 
     public var displayName: String {
         switch self {
-        case .polish:      return "Smart Polish (Claude)"
+        case .polish:      return "Smart Polish (Recommended)"
         case .summary:     return "Key Summary"
         case .executive:   return "Executive Tone"
         case .actionItems: return "Action Items"
@@ -1990,7 +1996,7 @@ public final class CloudAIService: @unchecked Sendable {
         switch provider {
         case .groq:
             endpoint = URL(string: "https://api.groq.com/openai/v1/audio/transcriptions")!
-        case .openAI, .scribeCloud, .anthropic, .ollama:
+        case .openAI, .scribeCloud, .anthropic, .ollama, .cerebras, .gemini, .customOpenAI:
             endpoint = URL(string: "https://api.openai.com/v1/audio/transcriptions")!
         }
 
@@ -2039,30 +2045,52 @@ public final class CloudAIService: @unchecked Sendable {
         throw NSError(domain: "CloudAIService", code: 500, userInfo: [NSLocalizedDescriptionKey: "Failed to parse response"])
     }
 
-    /// Performs LLM Voice Refinement (Auto-Summary, Executive Tone, Action Items, Claude Polish)
+    /// Performs LLM Voice Refinement (Auto-Summary, Executive Tone, Action Items, Smart Polish)
     public func refineText(
         text: String,
         mode: AIRefinementMode,
         provider: CloudAIProvider,
         apiKey: String,
+        vocabulary: String = "",
+        customBaseURL: String = "https://api.openai.com/v1",
+        customModel: String = "gpt-4o-mini",
+        geminiModel: String = "gemini-2.0-flash",
+        groqModel: String = "llama-3.3-70b-versatile",
+        cerebrasModel: String = "llama3.3-70b",
         ollamaEndpoint: String = "http://localhost:11434",
         ollamaModel: String = "qwen2.5:7b"
     ) async throws -> String {
-        guard let instruction = mode.promptInstruction else { return text }
+        guard let baseInstruction = mode.promptInstruction else { return text }
         let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         if provider != .ollama && trimmedKey.isEmpty { return text }
 
+        var instruction = baseInstruction
+        let trimmedVocab = vocabulary.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedVocab.isEmpty {
+            instruction += """
+
+
+PHONETIC CORRECTION & CANONICAL VOCABULARY:
+Speech recognition models frequently mishear technical terms, product names, domain terms, abbreviations, and websites phonetically (for example: hearing "чад gpt" or "чад gpt.com" instead of "chatgpt.com", "вайб кодинг" instead of "vibe coding", "экскод" instead of "Xcode").
+Use the following dictionary of canonical words to detect such phonetic mistakes in speech and replace them with their exact correct spelling:
+<vocabulary>
+\(trimmedVocab)
+</vocabulary>
+"""
+        }
+
         switch provider {
         case .groq:
+            let effectiveModel = groqModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "llama-3.3-70b-versatile" : groqModel
             let endpoint = URL(string: "https://api.groq.com/openai/v1/chat/completions")!
             var request = URLRequest(url: endpoint)
             request.httpMethod = "POST"
             request.setValue("Bearer \(trimmedKey)", forHTTPHeaderField: "Authorization")
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.timeoutInterval = 8.0
+            request.timeoutInterval = 10.0
 
             let body: [String: Any] = [
-                "model": "qwen/qwen3.8-27b",
+                "model": effectiveModel,
                 "messages": [
                     ["role": "system", "content": instruction],
                     ["role": "user", "content": text]
@@ -2075,6 +2103,131 @@ public final class CloudAIService: @unchecked Sendable {
             guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
                 let errText = String(data: responseData, encoding: .utf8) ?? "Groq Error"
                 print("Groq refinement error: \(errText)")
+                return text
+            }
+            if let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
+               let choices = json["choices"] as? [[String: Any]],
+               let firstChoice = choices.first,
+               let message = firstChoice["message"] as? [String: Any],
+               let content = message["content"] as? String {
+                let cleaned = content.trimmingCharacters(in: .whitespacesAndNewlines)
+                return cleaned.isEmpty ? text : cleaned
+            }
+            return text
+
+        case .cerebras:
+            let effectiveModel = cerebrasModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "llama3.3-70b" : cerebrasModel
+            let endpoint = URL(string: "https://api.cerebras.ai/v1/chat/completions")!
+            var request = URLRequest(url: endpoint)
+            request.httpMethod = "POST"
+            request.setValue("Bearer \(trimmedKey)", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.timeoutInterval = 8.0
+
+            let body: [String: Any] = [
+                "model": effectiveModel,
+                "messages": [
+                    ["role": "system", "content": instruction],
+                    ["role": "user", "content": text]
+                ],
+                "temperature": 0.2,
+                "max_tokens": 1024
+            ]
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let (responseData, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+                let errText = String(data: responseData, encoding: .utf8) ?? "Cerebras Error"
+                print("Cerebras refinement error: \(errText)")
+                return text
+            }
+            if let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
+               let choices = json["choices"] as? [[String: Any]],
+               let firstChoice = choices.first,
+               let message = firstChoice["message"] as? [String: Any],
+               let content = message["content"] as? String {
+                let cleaned = content.trimmingCharacters(in: .whitespacesAndNewlines)
+                return cleaned.isEmpty ? text : cleaned
+            }
+            return text
+
+        case .gemini:
+            let effectiveModel = geminiModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "gemini-2.0-flash" : geminiModel
+            guard let endpoint = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(effectiveModel):generateContent?key=\(trimmedKey)") else {
+                return text
+            }
+            var request = URLRequest(url: endpoint)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.timeoutInterval = 12.0
+
+            let body: [String: Any] = [
+                "system_instruction": [
+                    "parts": [
+                        ["text": instruction]
+                    ]
+                ],
+                "contents": [
+                    [
+                        "role": "user",
+                        "parts": [
+                            ["text": text]
+                        ]
+                    ]
+                ],
+                "generationConfig": [
+                    "temperature": 0.2,
+                    "maxOutputTokens": 2048
+                ]
+            ]
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let (responseData, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+                let errText = String(data: responseData, encoding: .utf8) ?? "Gemini Error"
+                print("Gemini refinement error: \(errText)")
+                return text
+            }
+            if let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],
+               let candidates = json["candidates"] as? [[String: Any]],
+               let firstCandidate = candidates.first,
+               let content = firstCandidate["content"] as? [String: Any],
+               let parts = content["parts"] as? [[String: Any]],
+               let firstPart = parts.first,
+               let refined = firstPart["text"] as? String {
+                let cleaned = refined.trimmingCharacters(in: .whitespacesAndNewlines)
+                return cleaned.isEmpty ? text : cleaned
+            }
+            return text
+
+        case .customOpenAI:
+            var base = customBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+            if base.isEmpty { base = "https://api.openai.com/v1" }
+            if base.hasSuffix("/") { base.removeLast() }
+            let urlString = base.hasSuffix("/chat/completions") ? base : "\(base)/chat/completions"
+            guard let endpoint = URL(string: urlString) else { return text }
+
+            var request = URLRequest(url: endpoint)
+            request.httpMethod = "POST"
+            if !trimmedKey.isEmpty {
+                request.setValue("Bearer \(trimmedKey)", forHTTPHeaderField: "Authorization")
+            }
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.timeoutInterval = 12.0
+
+            let effectiveModel = customModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "gpt-4o-mini" : customModel
+            let body: [String: Any] = [
+                "model": effectiveModel,
+                "messages": [
+                    ["role": "system", "content": instruction],
+                    ["role": "user", "content": text]
+                ],
+                "temperature": 0.2,
+                "max_tokens": 1024
+            ]
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let (responseData, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+                let errText = String(data: responseData, encoding: .utf8) ?? "Custom API Error"
+                print("Custom API refinement error: \(errText)")
                 return text
             }
             if let json = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any],

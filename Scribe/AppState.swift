@@ -597,6 +597,14 @@ final class AppState: ObservableObject {
     @AppStorage("cloudAIProvider") public var cloudAIProviderRaw: String = CloudAIProvider.groq.rawValue
     @AppStorage("selectedAIRefinementMode") public var selectedAIRefinementModeRaw: String = AIRefinementMode.polish.rawValue
     @AppStorage("groqAPIKey") public var groqAPIKey: String = ""
+    @AppStorage("cerebrasAPIKey") public var cerebrasAPIKey: String = ""
+    @AppStorage("geminiAPIKey") public var geminiAPIKey: String = ""
+    @AppStorage("customOpenAIBaseURL") public var customOpenAIBaseURL: String = "https://api.openai.com/v1"
+    @AppStorage("customOpenAIKey") public var customOpenAIKey: String = ""
+    @AppStorage("customOpenAIModel") public var customOpenAIModel: String = "gpt-4o-mini"
+    @AppStorage("geminiModel") public var geminiModel: String = "gemini-2.0-flash"
+    @AppStorage("cerebrasModel") public var cerebrasModel: String = "llama3.3-70b"
+    @AppStorage("groqModel") public var groqModel: String = "llama-3.3-70b-versatile"
     @AppStorage("anthropicAPIKey") public var anthropicAPIKey: String = ""
     @AppStorage("openAIAPIKey") public var openAIAPIKey: String = ""
     @AppStorage("ollamaEndpoint") public var ollamaEndpoint: String = "http://localhost:11434"
@@ -616,17 +624,25 @@ final class AppState: ObservableObject {
         switch cloudAIProvider {
         case .groq:
             return groqAPIKey
-        case .anthropic:
-            return anthropicAPIKey
+        case .cerebras:
+            return cerebrasAPIKey
+        case .gemini:
+            return geminiAPIKey
+        case .customOpenAI:
+            return customOpenAIKey
         case .openAI, .scribeCloud:
             return openAIAPIKey
+        case .anthropic:
+            return anthropicAPIKey
         case .ollama:
             return ""
         }
     }
 
     public var isAIPostProcessingActive: Bool {
-        return false
+        guard enableCloudAI && selectedAIRefinementMode != .raw else { return false }
+        if cloudAIProvider == .ollama { return true }
+        return !activeCloudAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     public static let defaultVocabularyPresets: [VocabularyPreset] = [
@@ -648,11 +664,11 @@ final class AppState: ObservableObject {
         ),
         VocabularyPreset(
             name: "AI Assistants & LLMs",
-            description: "Gemini, Claude, Kimi, ChatGPT, LM Studio, Ollama & local AI models",
+            description: "ChatGPT, chatgpt.com, Gemini, Groq, Cerebras, Claude, Ollama & models",
             words: [
-                "Gemini", "Claude", "Kimi", "ChatGPT", "LM Studio", "LM Studio Bionic", "Ollama", "Perplexity",
+                "chatgpt.com", "ChatGPT", "Gemini", "Groq", "Cerebras", "Claude", "Kimi", "LM Studio", "LM Studio Bionic", "Ollama", "Perplexity",
                 "DeepSeek", "Poe", "Jan", "LocalAI", "Bionic GPT", "GGUF", "LoRA", "Hugging Face", "vLLM",
-                "Llama", "Mistral", "Qwen", "DeepSeek-R1", "Claude 3.5 Sonnet", "Gemini 1.5 Pro", "GPT-4o", "o1", "o3-mini",
+                "Llama", "Mistral", "Qwen", "DeepSeek-R1", "Claude 3.5 Sonnet", "Gemini 1.5 Pro", "Gemini 2.0 Flash", "GPT-4o", "o1", "o3-mini",
                 "промпт", "системный промпт", "токены", "контекст", "температура", "инференс", "квантование", "эмбеддинги",
                 "веса модели", "нейросеть", "чат-бот", "рассуждения", "промптинг",
                 "system prompt", "reasoning", "chain of thought", "tokens", "inference", "context window", "temperature", "prompt engineering"
@@ -1210,6 +1226,36 @@ final class AppState: ObservableObject {
                     userLocation: self.effectiveUserLocation
                 )
 
+                // AI Refinement with Cloud / LLM Provider & Vocabulary Phonetic Correction
+                if self.enableCloudAI && self.selectedAIRefinementMode != .raw {
+                    let key = self.activeCloudAPIKey
+                    let provider = self.cloudAIProvider
+                    if provider == .ollama || !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        do {
+                            let refined = try await CloudAIService.shared.refineText(
+                                text: text,
+                                mode: self.selectedAIRefinementMode,
+                                provider: provider,
+                                apiKey: key,
+                                vocabulary: effectiveVocab,
+                                customBaseURL: self.customOpenAIBaseURL,
+                                customModel: self.customOpenAIModel,
+                                geminiModel: self.geminiModel,
+                                groqModel: self.groqModel,
+                                cerebrasModel: self.cerebrasModel,
+                                ollamaEndpoint: self.ollamaEndpoint,
+                                ollamaModel: self.ollamaModel
+                            )
+                            let cleanedRefined = refined.trimmingCharacters(in: .whitespacesAndNewlines)
+                            if !cleanedRefined.isEmpty {
+                                text = cleanedRefined
+                            }
+                        } catch {
+                            logger.error("AI refinement failed: \(error.localizedDescription)")
+                        }
+                    }
+                }
+
                 // 1. Scribe Dictation Mode Transformation (Clean, Code, Raw, Chat, Formal)
                 text = ScribeModeProcessor.shared.process(text: text, mode: self.transcriptionMode)
 
@@ -1402,15 +1448,46 @@ final class AppState: ObservableObject {
                     return
                 }
 
-                // 1. Scribe Mode formatting
-                text = ScribeModeProcessor.shared.process(text: text, mode: self.transcriptionMode)
-
-                // 2. Replacements and vocabulary
                 let effectiveVocab = AetherContextEngine.shared.activeEffectiveVocabulary(
                     targetApp: nil,
                     userVocabulary: self.vocabulary,
                     userLocation: self.effectiveUserLocation
                 )
+
+                // AI Refinement with Cloud / LLM Provider & Vocabulary Phonetic Correction
+                if self.enableCloudAI && self.selectedAIRefinementMode != .raw {
+                    let key = self.activeCloudAPIKey
+                    let provider = self.cloudAIProvider
+                    if provider == .ollama || !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        do {
+                            let refined = try await CloudAIService.shared.refineText(
+                                text: text,
+                                mode: self.selectedAIRefinementMode,
+                                provider: provider,
+                                apiKey: key,
+                                vocabulary: effectiveVocab,
+                                customBaseURL: self.customOpenAIBaseURL,
+                                customModel: self.customOpenAIModel,
+                                geminiModel: self.geminiModel,
+                                groqModel: self.groqModel,
+                                cerebrasModel: self.cerebrasModel,
+                                ollamaEndpoint: self.ollamaEndpoint,
+                                ollamaModel: self.ollamaModel
+                            )
+                            let cleanedRefined = refined.trimmingCharacters(in: .whitespacesAndNewlines)
+                            if !cleanedRefined.isEmpty {
+                                text = cleanedRefined
+                            }
+                        } catch {
+                            logger.error("AI refinement failed for imported file: \(error.localizedDescription)")
+                        }
+                    }
+                }
+
+                // 1. Scribe Mode formatting
+                text = ScribeModeProcessor.shared.process(text: text, mode: self.transcriptionMode)
+
+                // 2. Replacements and vocabulary
                 text = TextReplacer.apply(
                     replacements: self.textReplacements,
                     vocabulary: effectiveVocab,
