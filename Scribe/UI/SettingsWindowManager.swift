@@ -21,8 +21,11 @@ final class SettingsWindowManager {
             return
         }
 
+        let initialWidth: CGFloat = 660
+        let initialHeight: CGFloat = 512
+
         let newWindow = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 660, height: 620),
+            contentRect: NSRect(x: 0, y: 0, width: initialWidth, height: initialHeight),
             styleMask: [.titled, .fullSizeContentView, .closable, .resizable],
             backing: .buffered,
             defer: false
@@ -33,7 +36,8 @@ final class SettingsWindowManager {
         newWindow.standardWindowButton(.closeButton)?.isHidden = true
         newWindow.standardWindowButton(.miniaturizeButton)?.isHidden = true
         newWindow.standardWindowButton(.zoomButton)?.isHidden = true
-        newWindow.minSize = NSSize(width: 620, height: 500)
+        newWindow.minSize = NSSize(width: 620, height: 490)
+        newWindow.showsResizeIndicator = true
 
         newWindow.isMovableByWindowBackground = false
         newWindow.isOpaque = false
@@ -63,6 +67,10 @@ final class SettingsWindowManager {
         hostingView.translatesAutoresizingMaskIntoConstraints = false
         hostingView.wantsLayer = true
         hostingView.layer?.backgroundColor = NSColor.clear.cgColor
+        hostingView.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        hostingView.setContentHuggingPriority(.defaultLow, for: .vertical)
+        hostingView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        hostingView.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
 
         blurView.addSubview(hostingView)
         NSLayoutConstraint.activate([
