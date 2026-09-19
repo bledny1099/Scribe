@@ -138,7 +138,7 @@ struct LiquidGlassMenuBarView: View {
                         Circle()
                             .fill(appState.isTranscribing ? Color.orange : Color.red)
                             .frame(width: 8, height: 8)
-                        Text(appState.isTranscribing ? appState.l("Сохранение в Заметки…") : appState.l("Запись лекции (без оверлея)"))
+                        Text(appState.isTranscribing ? appState.l("Saving to Notes…") : appState.l("Lecture Recording (no overlay)"))
                             .font(.system(size: 12, weight: .semibold, design: .rounded))
                             .foregroundStyle(.primary)
                         Spacer()
@@ -160,7 +160,7 @@ struct LiquidGlassMenuBarView: View {
                                 HStack(spacing: 6) {
                                     Image(systemName: "stop.fill")
                                         .font(.system(size: 11))
-                                    Text(appState.l("Остановить и в Заметки"))
+                                    Text(appState.l("Stop and Save to Notes"))
                                         .font(.system(size: 12, weight: .bold, design: .rounded))
                                 }
                                 .frame(maxWidth: .infinity)
@@ -182,7 +182,7 @@ struct LiquidGlassMenuBarView: View {
                                     .cornerRadius(8)
                             }
                             .buttonStyle(.plain)
-                            .help(appState.l("Отменить запись"))
+                            .help(appState.l("Cancel Recording"))
                         }
                     }
                 }
@@ -195,7 +195,7 @@ struct LiquidGlassMenuBarView: View {
                     ProgressView()
                         .controlSize(.small)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(appState.l("Транскрибация файла"))
+                        Text(appState.l("Transcribing File"))
                             .font(.system(size: 12, weight: .semibold, design: .rounded))
                             .foregroundStyle(.primary)
                         Text(appState.importProgressMessage)

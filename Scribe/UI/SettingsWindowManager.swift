@@ -107,6 +107,9 @@ final class SettingsWindowManager {
         window?.frame
     }
 
+    var userExpandedWidth: CGFloat? = nil
+    private var isProgrammaticResize: Bool = false
+
     func resizeWindow(to width: CGFloat, animate: Bool = true) {
         guard let window = window else { return }
         var frame = window.frame
@@ -126,50 +129,39 @@ final class SettingsWindowManager {
             }
         }
 
+        isProgrammaticResize = true
         if animate {
             NSAnimationContext.runAnimationGroup { context in
                 context.duration = 0.28
                 context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
                 window.animator().setFrame(frame, display: true)
+            } completionHandler: { [weak self] in
+                self?.isProgrammaticResize = false
             }
         } else {
             window.setFrame(frame, display: true)
+            isProgrammaticResize = false
         }
     }
 
     func setTabConstraints(for tab: SettingsTab, animate: Bool = true) {
         guard let window = window else { return }
-        if tab == .statistics {
-            if !window.styleMask.contains(.resizable) {
-                window.styleMask.insert(.resizable)
-            }
-            window.minSize = NSSize(width: min(window.frame.width, tab.preferredWidth), height: 600)
-            window.maxSize = NSSize(width: max(window.frame.width, tab.preferredWidth), height: 1400)
-            
-            resizeWindow(to: tab.preferredWidth, animate: animate)
-            
-            let lockAction = { [weak window] in
-                guard let window = window else { return }
-                window.styleMask.remove(.resizable)
-                window.showsResizeIndicator = false
-                window.minSize = NSSize(width: tab.preferredWidth, height: 600)
-                window.maxSize = NSSize(width: tab.preferredWidth, height: 1400)
-            }
-            
-            if animate {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.32, execute: lockAction)
-            } else {
-                lockAction()
-            }
-        } else {
-            if !window.styleMask.contains(.resizable) {
-                window.styleMask.insert(.resizable)
-            }
-            window.showsResizeIndicator = true
-            window.minSize = NSSize(width: 660, height: 500)
-            window.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
-            resizeWindow(to: tab.preferredWidth, animate: animate)
+        
+        if !window.styleMask.contains(.resizable) {
+            window.styleMask.insert(.resizable)
         }
+        window.showsResizeIndicator = true
+        window.minSize = NSSize(width: 660, height: 500)
+        window.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        
+        let targetWidth: CGFloat
+        if let expandedWidth = userExpandedWidth {
+            targetWidth = max(expandedWidth, tab.preferredWidth)
+        } else {
+            targetWidth = tab.preferredWidth
+        }
+        
+        resizeWindow(to: targetWidth, animate: animate)
     }
 
     func ensureMinimumY(_ minY: CGFloat) {
@@ -210,10 +202,19 @@ final class SettingsWindowManager {
 
     func windowDidResize() {
         currentAppState?.updateSettingsPreviewPanel(isDragging: true)
+        guard !isProgrammaticResize, let window = window else { return }
+        let currentW = window.frame.width
+        if currentW > 715 {
+            userExpandedWidth = currentW
+        } else {
+            userExpandedWidth = nil
+        }
     }
 
     func closeWindow() {
         currentAppState?.hideSettingsPreviewPanel()
+        userExpandedWidth = nil
+        isProgrammaticResize = false
         window?.close()
         window = nil
         blurView = nil
@@ -221,6 +222,8 @@ final class SettingsWindowManager {
 
     func windowClosed() {
         currentAppState?.hideSettingsPreviewPanel()
+        userExpandedWidth = nil
+        isProgrammaticResize = false
         window = nil
         blurView = nil
         currentAppState = nil

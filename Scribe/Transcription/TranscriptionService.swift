@@ -2068,7 +2068,7 @@ public final class CloudAIService: @unchecked Sendable {
         customModel: String = "gpt-4o-mini",
         geminiModel: String = "gemini-2.0-flash",
         groqModel: String = "llama-3.3-70b-versatile",
-        cerebrasModel: String = "llama-3.3-70b",
+        cerebrasModel: String = "llama-3.1-8b",
         ollamaEndpoint: String = "http://localhost:11434",
         ollamaModel: String = "qwen2.5:7b"
     ) async throws -> String {
@@ -2085,7 +2085,7 @@ public final class CloudAIService: @unchecked Sendable {
 
 
 PHONETIC CORRECTION & CANONICAL VOCABULARY:
-Speech recognition models frequently mishear technical terms, product names, domain terms, abbreviations, and websites phonetically (for example: hearing "чад gpt" or "чад gpt.com" instead of "chatgpt.com", "вайб кодинг" instead of "vibe coding", "экскод" instead of "Xcode").
+Speech recognition models frequently mishear technical terms, product names, domain terms, abbreviations, and websites phonetically (for example: hearing "chat gpt" or "chat gpt.com" instead of "chatgpt.com", "vibe coding" instead of "vibecoding", "ex code" instead of "Xcode").
 Use the following dictionary of canonical words to detect such phonetic mistakes in speech and replace them with their exact correct spelling:
 <vocabulary>
 \(trimmedVocab)
@@ -2129,7 +2129,8 @@ Use the following dictionary of canonical words to detect such phonetic mistakes
             return text
 
         case .cerebras:
-            let effectiveModel = cerebrasModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "llama-3.3-70b" : cerebrasModel
+            let rawModel = cerebrasModel.trimmingCharacters(in: .whitespacesAndNewlines)
+            let effectiveModel = (rawModel.isEmpty || rawModel.contains("llama-3.3")) ? "llama-3.1-8b" : rawModel
             let endpoint = URL(string: "https://api.cerebras.ai/v1/chat/completions")!
             var request = URLRequest(url: endpoint)
             request.httpMethod = "POST"

@@ -259,7 +259,7 @@ struct PermissionWelcomeView: View {
                                 Image(systemName: "checkmark.circle.fill")
                                     .font(.system(size: 11, weight: .semibold))
                                     .foregroundStyle(.green)
-                                Text(appState.l("Мы автоматически уже отправили информацию о том, что вы скачали приложение."))
+                                Text(appState.l("Download confirmation recorded."))
                                     .font(.system(size: 11, weight: .medium, design: .rounded))
                                     .foregroundStyle(.secondary)
                                     .multilineTextAlignment(.center)

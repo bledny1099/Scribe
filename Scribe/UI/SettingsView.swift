@@ -292,10 +292,9 @@ struct SettingsSidebarView: View {
                     }
 
                     Text(appState.l("Support Scribe"))
-                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.8)
 
                     Spacer(minLength: 4)
 
@@ -685,7 +684,6 @@ struct SidebarTabButton: View {
                 Text(title)
                     .font(.system(size: 13, weight: isSelected ? .bold : .medium, design: .rounded))
                     .lineLimit(1)
-                    .minimumScaleFactor(0.8)
                 Spacer()
             }
             .padding(.horizontal, 10)
@@ -894,9 +892,15 @@ struct StatisticsSectionView: View {
                 isShimmering: isShimmering,
                 showTopWords: $showTopWords
             )
-            .frame(maxWidth: 540)
+            .frame(width: 540)
             .scaleEffect(appearAnimation ? 1 : 0.96)
             .opacity(appearAnimation ? 1 : 0)
+
+            // Prominent Share Certificate Button (Full Certificate Width)
+            ShareCertificateButton()
+                .frame(width: 540)
+                .scaleEffect(appearAnimation ? 1 : 0.96)
+                .opacity(appearAnimation ? 1 : 0)
             
             // Top Spoken Words Expansion Drawer
             if showTopWords {
@@ -1196,7 +1200,6 @@ struct GoldCertificateCardView: View {
     var isPulsing: Bool
     var isShimmering: Bool
     @Binding var showTopWords: Bool
-    @State private var isCopied: Bool = false
 
     private var supporterTier: SupporterTier {
         SupporterTier.tier(for: supporterDonationAmount > 0 ? supporterDonationAmount : 10.0)
@@ -1274,26 +1277,6 @@ struct GoldCertificateCardView: View {
                         .buttonStyle(.plain)
                         .help(appState.l("Preview Animation"))
                     }
-
-                    Button {
-                        shareCertificate()
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: isCopied ? "checkmark" : "square.and.arrow.up")
-                                .font(.system(size: 8, weight: .bold))
-                            Text(appState.l(isCopied ? "Link Copied!" : "Share Certificate"))
-                                .font(.system(size: 8, weight: .bold, design: .serif))
-                                .tracking(0.3)
-                        }
-                        .foregroundStyle(themeColor)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 2.5)
-                        .background(themeColor.opacity(0.14))
-                        .cornerRadius(5)
-                        .overlay(RoundedRectangle(cornerRadius: 5).stroke(themeColor.opacity(0.35), lineWidth: 0.8))
-                    }
-                    .buttonStyle(.plain)
-                    .help(appState.l("Share Certificate"))
 
                     Text("EST. 2026")
                         .font(.system(size: 8.5, weight: .bold, design: .serif))
@@ -1486,7 +1469,7 @@ struct GoldCertificateCardView: View {
             }
         }
         .padding(20)
-        .frame(maxWidth: 540)
+        .frame(width: 540)
         .background(
             ZStack {
                 RoundedRectangle(cornerRadius: 22)
@@ -1499,6 +1482,63 @@ struct GoldCertificateCardView: View {
             }
         )
         .shadow(color: secondaryThemeColor.opacity(0.12), radius: 18, x: 0, y: 8)
+    }
+}
+
+// MARK: - Full-Width Share Certificate Button
+struct ShareCertificateButton: View {
+    @EnvironmentObject var appState: AppState
+    @ObservedObject var history = TranscriptionHistory.shared
+    @AppStorage("isScribeSupporter") private var isScribeSupporter: Bool = false
+    @AppStorage("supporterDonationAmount") private var supporterDonationAmount: Double = 0
+    @State private var isCopied: Bool = false
+    @State private var isHovered: Bool = false
+
+    private var supporterTier: SupporterTier {
+        SupporterTier.tier(for: supporterDonationAmount > 0 ? supporterDonationAmount : 10.0)
+    }
+
+    private var themeColor: Color {
+        history.currentLevelColor
+    }
+
+    var body: some View {
+        Button(action: shareCertificate) {
+            HStack(spacing: 8) {
+                Image(systemName: isCopied ? "checkmark.circle.fill" : "square.and.arrow.up")
+                    .font(.system(size: 13, weight: .bold))
+                Text(appState.l(isCopied ? "Link Copied!" : "Share Certificate"))
+                    .font(.system(size: 12.5, weight: .bold, design: .serif))
+                    .tracking(0.6)
+            }
+            .foregroundStyle(isCopied ? Color.green : (isHovered ? .white : themeColor))
+            .frame(maxWidth: .infinity)
+            .frame(height: 42)
+            .background(
+                ZStack {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(isHovered ? themeColor.opacity(0.18) : Color(nsColor: .windowBackgroundColor).opacity(0.7))
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(
+                            LinearGradient(
+                                colors: [
+                                    themeColor.opacity(isCopied ? 0.8 : (isHovered ? 0.6 : 0.35)),
+                                    themeColor.opacity(isCopied ? 0.4 : (isHovered ? 0.3 : 0.15))
+                                ],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            ),
+                            lineWidth: 1.2
+                        )
+                }
+            )
+            .shadow(color: themeColor.opacity(isHovered ? 0.25 : 0.1), radius: 10, x: 0, y: 4)
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .help(appState.l("Share Certificate"))
     }
 
     private func shareCertificate() {
@@ -2686,7 +2726,7 @@ struct SupportDeveloperModal: View {
                                     .font(.system(size: 10, weight: .bold, design: .rounded))
                                     .foregroundStyle(tierColor)
                             } else {
-                                Text("Аккаунт подключен")
+                                Text(appState.l("Account connected"))
                                     .font(.system(size: 10, weight: .semibold, design: .rounded))
                                     .foregroundStyle(.secondary)
                             }
@@ -7287,7 +7327,7 @@ struct RecognitionSettingsView: View {
 struct AISettingsView: View {
     @EnvironmentObject var appState: AppState
     @State private var isKeyVisible: Bool = false
-    @State private var testInputText: String = "я зашел на чад gpt.com чтобы пофиксить код в экскоде"
+    @State private var testInputText: String = ""
     @State private var testOutputText: String = ""
     @State private var isTestingRefinement: Bool = false
     @State private var testErrorMessage: String? = nil
@@ -7299,11 +7339,9 @@ struct AISettingsView: View {
     ]
 
     private let cerebrasModels: [(id: String, name: String)] = [
-        ("llama-3.3-70b", "Llama 3.3 70B (Recommended)"),
-        ("llama3.3-70b", "Llama 3.3 70B (Legacy ID)"),
-        ("llama-3.1-8b", "Llama 3.1 8B (Ultra-Fast)"),
-        ("qwen-3.8-27b", "Qwen 3.8 27B"),
-        ("gpt-oss-120b", "GPT-OSS 120B")
+        ("llama-3.1-8b", "Llama 3.1 8B (Recommended, Ultra-Fast)"),
+        ("gpt-oss-120b", "GPT-OSS 120B (High Intelligence)"),
+        ("qwen-3.8-27b", "Qwen 3.8 27B")
     ]
 
     private let geminiModels: [(id: String, name: String)] = [
@@ -7444,7 +7482,7 @@ struct AISettingsView: View {
                             Text(appState.l("Acoustic Slip & Slang Correction"))
                                 .font(.system(size: 13.5, weight: .semibold, design: .rounded))
                                 .foregroundStyle(.primary)
-                            Text(appState.l("Speech-to-text models often mishear technical terms (e.g., 'чад gpt.com' instead of 'chatgpt.com', 'вайб кодинг' instead of 'vibe coding', 'экскод' instead of 'Xcode'). Scribe feeds your active vocabulary to the LLM to automatically fix them."))
+                            Text(appState.l("Speech-to-text models often mishear technical terms (e.g., 'chat gpt.com' instead of 'chatgpt.com', 'vibe coding' instead of 'vibecoding', 'ex code' instead of 'Xcode'). Scribe feeds your active vocabulary to the LLM to automatically fix them."))
                                 .font(.system(size: 11.5))
                                 .foregroundStyle(.secondary)
                                 .lineSpacing(2)
@@ -7552,6 +7590,16 @@ struct AISettingsView: View {
                         }
                     }
                 }
+            }
+        }
+        .onAppear {
+            if testInputText.isEmpty || testInputText == "я зашел на чад gpt.com чтобы пофиксить код в экскоде" || testInputText == "i went to chat gpt to fix the bug in ex code" {
+                testInputText = (appState.selectedUILanguage == "ru")
+                    ? "я зашел на чад gpt.com чтобы пофиксить код в экскоде"
+                    : "i went to chat gpt to fix the bug in ex code"
+            }
+            if appState.cerebrasModel.contains("llama-3.3") || appState.cerebrasModel.contains("llama3.3") || appState.cerebrasModel.isEmpty {
+                appState.cerebrasModel = "llama-3.1-8b"
             }
         }
     }
@@ -8717,7 +8765,7 @@ struct AuthModalView: View {
                                         errorMessage = nil
                                     }
                                 } label: {
-                                    Text(appState.l("Зарегистрировать этот email →"))
+                                    Text(appState.l("Register this email →"))
                                         .font(.system(size: 11, weight: .semibold, design: .rounded))
                                         .foregroundStyle(.blue)
                                 }
@@ -8729,7 +8777,7 @@ struct AuthModalView: View {
                                         errorMessage = nil
                                     }
                                 } label: {
-                                    Text(appState.l("Войти в этот аккаунт →"))
+                                    Text(appState.l("Sign in to this account →"))
                                         .font(.system(size: 11, weight: .semibold, design: .rounded))
                                         .foregroundStyle(.blue)
                                 }
@@ -8743,19 +8791,19 @@ struct AuthModalView: View {
                         let cleanPass = password.trimmingCharacters(in: .whitespacesAndNewlines)
 
                         guard !cleanEmail.isEmpty else {
-                            errorMessage = appState.l("Пожалуйста, введите адрес электронной почты.")
+                            errorMessage = appState.l("Please enter your email address.")
                             return
                         }
                         guard AuthService.isValidEmailFormat(cleanEmail) else {
-                            errorMessage = appState.l("Некорректный формат адреса электронной почты.")
+                            errorMessage = appState.l("Invalid email address format.")
                             return
                         }
                         guard !cleanPass.isEmpty else {
-                            errorMessage = appState.l("Пожалуйста, введите пароль.")
+                            errorMessage = appState.l("Please enter your password.")
                             return
                         }
                         if isSignUp && cleanPass.count < 6 {
-                            errorMessage = appState.l("Пароль должен содержать не менее 6 символов.")
+                            errorMessage = appState.l("Password must be at least 6 characters.")
                             return
                         }
 
