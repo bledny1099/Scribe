@@ -2068,7 +2068,7 @@ public final class CloudAIService: @unchecked Sendable {
         customModel: String = "gpt-4o-mini",
         geminiModel: String = "gemini-2.0-flash",
         groqModel: String = "llama-3.3-70b-versatile",
-        cerebrasModel: String = "llama-3.1-8b",
+        cerebrasModel: String = "gpt-oss-120b",
         ollamaEndpoint: String = "http://localhost:11434",
         ollamaModel: String = "qwen2.5:7b"
     ) async throws -> String {
@@ -2130,7 +2130,7 @@ Use the following dictionary of canonical words to detect such phonetic mistakes
 
         case .cerebras:
             let rawModel = cerebrasModel.trimmingCharacters(in: .whitespacesAndNewlines)
-            let effectiveModel = (rawModel.isEmpty || rawModel.contains("llama-3.3")) ? "llama-3.1-8b" : rawModel
+            let effectiveModel = (rawModel.isEmpty || rawModel.contains("llama")) ? "gpt-oss-120b" : rawModel
             let endpoint = URL(string: "https://api.cerebras.ai/v1/chat/completions")!
             var request = URLRequest(url: endpoint)
             request.httpMethod = "POST"

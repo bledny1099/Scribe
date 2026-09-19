@@ -7339,9 +7339,8 @@ struct AISettingsView: View {
     ]
 
     private let cerebrasModels: [(id: String, name: String)] = [
-        ("llama-3.1-8b", "Llama 3.1 8B (Recommended, Ultra-Fast)"),
-        ("gpt-oss-120b", "GPT-OSS 120B (High Intelligence)"),
-        ("qwen-3.8-27b", "Qwen 3.8 27B")
+        ("gpt-oss-120b", "GPT-OSS 120B (Recommended, High Intelligence)"),
+        ("qwen-3.8-27b", "Qwen 3.8 27B (Ultra-Fast)")
     ]
 
     private let geminiModels: [(id: String, name: String)] = [
@@ -7598,8 +7597,8 @@ struct AISettingsView: View {
                     ? "я зашел на чад gpt.com чтобы пофиксить код в экскоде"
                     : "i went to chat gpt to fix the bug in ex code"
             }
-            if appState.cerebrasModel.contains("llama-3.3") || appState.cerebrasModel.contains("llama3.3") || appState.cerebrasModel.isEmpty {
-                appState.cerebrasModel = "llama-3.1-8b"
+            if appState.cerebrasModel.contains("llama") || appState.cerebrasModel.isEmpty {
+                appState.cerebrasModel = "gpt-oss-120b"
             }
         }
     }
