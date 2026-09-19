@@ -137,6 +137,41 @@ final class SettingsWindowManager {
         }
     }
 
+    func setTabConstraints(for tab: SettingsTab, animate: Bool = true) {
+        guard let window = window else { return }
+        if tab == .statistics {
+            if !window.styleMask.contains(.resizable) {
+                window.styleMask.insert(.resizable)
+            }
+            window.minSize = NSSize(width: min(window.frame.width, tab.preferredWidth), height: 600)
+            window.maxSize = NSSize(width: max(window.frame.width, tab.preferredWidth), height: 1400)
+            
+            resizeWindow(to: tab.preferredWidth, animate: animate)
+            
+            let lockAction = { [weak window] in
+                guard let window = window else { return }
+                window.styleMask.remove(.resizable)
+                window.showsResizeIndicator = false
+                window.minSize = NSSize(width: tab.preferredWidth, height: 600)
+                window.maxSize = NSSize(width: tab.preferredWidth, height: 1400)
+            }
+            
+            if animate {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.32, execute: lockAction)
+            } else {
+                lockAction()
+            }
+        } else {
+            if !window.styleMask.contains(.resizable) {
+                window.styleMask.insert(.resizable)
+            }
+            window.showsResizeIndicator = true
+            window.minSize = NSSize(width: 660, height: 500)
+            window.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+            resizeWindow(to: tab.preferredWidth, animate: animate)
+        }
+    }
+
     func ensureMinimumY(_ minY: CGFloat) {
         guard let window = window else { return }
         let currentFrame = window.frame

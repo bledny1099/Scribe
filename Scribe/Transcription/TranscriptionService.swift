@@ -1907,7 +1907,6 @@ public enum CloudAIProvider: String, CaseIterable, Identifiable, Sendable {
     case openAI = "openai"
     case anthropic = "anthropic"
     case ollama = "ollama"
-    case scribeCloud = "scribe_cloud"
 
     public var id: String { rawValue }
 
@@ -1920,7 +1919,6 @@ public enum CloudAIProvider: String, CaseIterable, Identifiable, Sendable {
         case .openAI:       return "OpenAI (GPT-4o Mini)"
         case .anthropic:    return "Anthropic Claude (Haiku)"
         case .ollama:       return "Ollama (Local Offline)"
-        case .scribeCloud:  return "Scribe Pro Cloud"
         }
     }
 }
@@ -2010,7 +2008,7 @@ public final class CloudAIService: @unchecked Sendable {
         switch provider {
         case .groq:
             endpoint = URL(string: "https://api.groq.com/openai/v1/audio/transcriptions")!
-        case .openAI, .scribeCloud, .anthropic, .ollama, .cerebras, .gemini, .customOpenAI:
+        case .openAI, .anthropic, .ollama, .cerebras, .gemini, .customOpenAI:
             endpoint = URL(string: "https://api.openai.com/v1/audio/transcriptions")!
         }
 
@@ -2285,7 +2283,7 @@ Use the following dictionary of canonical words to detect such phonetic mistakes
             }
             return text
 
-        case .openAI, .scribeCloud:
+        case .openAI:
             let endpoint = URL(string: "https://api.openai.com/v1/chat/completions")!
             var request = URLRequest(url: endpoint)
             request.httpMethod = "POST"

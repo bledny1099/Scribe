@@ -631,7 +631,7 @@ final class AppState: ObservableObject {
             return geminiAPIKey
         case .customOpenAI:
             return customOpenAIKey
-        case .openAI, .scribeCloud:
+        case .openAI:
             return openAIAPIKey
         case .anthropic:
             return anthropicAPIKey

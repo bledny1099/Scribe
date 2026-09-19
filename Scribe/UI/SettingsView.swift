@@ -36,10 +36,6 @@ enum SettingsTab: String, CaseIterable {
         switch self {
         case .ai:
             return 880
-        case .vocabulary, .replacements, .history:
-            return 740
-        case .statistics:
-            return 720
         default:
             return 700
         }
@@ -141,7 +137,7 @@ struct SettingsView: View {
             selectedTab = tab
             appState.requestedSettingsTab = nil
         }
-        SettingsWindowManager.shared.resizeWindow(to: selectedTab.preferredWidth, animate: false)
+        SettingsWindowManager.shared.setTabConstraints(for: selectedTab, animate: false)
         if selectedTab == .statistics {
             triggerLevelUpSweepIfNeeded()
         }
@@ -151,14 +147,14 @@ struct SettingsView: View {
         guard let tab = newTab else { return }
         selectedTab = tab
         appState.requestedSettingsTab = nil
-        SettingsWindowManager.shared.resizeWindow(to: tab.preferredWidth, animate: true)
+        SettingsWindowManager.shared.setTabConstraints(for: tab, animate: true)
         if tab == .statistics {
             triggerLevelUpSweepIfNeeded()
         }
     }
 
     private func handleSelectedTabChange(_ newTab: SettingsTab) {
-        SettingsWindowManager.shared.resizeWindow(to: newTab.preferredWidth, animate: true)
+        SettingsWindowManager.shared.setTabConstraints(for: newTab, animate: true)
         if newTab == .statistics {
             triggerLevelUpSweepIfNeeded()
         }
@@ -898,6 +894,7 @@ struct StatisticsSectionView: View {
                 isShimmering: isShimmering,
                 showTopWords: $showTopWords
             )
+            .frame(maxWidth: 540)
             .scaleEffect(appearAnimation ? 1 : 0.96)
             .opacity(appearAnimation ? 1 : 0)
             
@@ -1199,6 +1196,7 @@ struct GoldCertificateCardView: View {
     var isPulsing: Bool
     var isShimmering: Bool
     @Binding var showTopWords: Bool
+    @State private var isCopied: Bool = false
 
     private var supporterTier: SupporterTier {
         SupporterTier.tier(for: supporterDonationAmount > 0 ? supporterDonationAmount : 10.0)
@@ -1276,6 +1274,26 @@ struct GoldCertificateCardView: View {
                         .buttonStyle(.plain)
                         .help(appState.l("Preview Animation"))
                     }
+
+                    Button {
+                        shareCertificate()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: isCopied ? "checkmark" : "square.and.arrow.up")
+                                .font(.system(size: 8, weight: .bold))
+                            Text(appState.l(isCopied ? "Link Copied!" : "Share Certificate"))
+                                .font(.system(size: 8, weight: .bold, design: .serif))
+                                .tracking(0.3)
+                        }
+                        .foregroundStyle(themeColor)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 2.5)
+                        .background(themeColor.opacity(0.14))
+                        .cornerRadius(5)
+                        .overlay(RoundedRectangle(cornerRadius: 5).stroke(themeColor.opacity(0.35), lineWidth: 0.8))
+                    }
+                    .buttonStyle(.plain)
+                    .help(appState.l("Share Certificate"))
 
                     Text("EST. 2026")
                         .font(.system(size: 8.5, weight: .bold, design: .serif))
@@ -1468,6 +1486,7 @@ struct GoldCertificateCardView: View {
             }
         }
         .padding(20)
+        .frame(maxWidth: 540)
         .background(
             ZStack {
                 RoundedRectangle(cornerRadius: 22)
@@ -1480,6 +1499,53 @@ struct GoldCertificateCardView: View {
             }
         )
         .shadow(color: secondaryThemeColor.opacity(0.12), radius: 18, x: 0, y: 8)
+    }
+
+    private func shareCertificate() {
+        var components = URLComponents(string: "https://scribe.dosimple.app/certificate.html")
+        let rawName = appState.userName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let name = rawName.isEmpty ? appState.l("Voice Pioneer") : rawName
+        let level = history.currentLevel
+        let levelName = appState.l(history.currentLevelName)
+        let words = history.totalWords
+        let streak = history.dayStreak
+        let progress = Int(history.currentLevelProgress * 100)
+        let wordsRemaining = history.wordsToNextLevel
+        
+        var queryItems: [URLQueryItem] = [
+            URLQueryItem(name: "name", value: name),
+            URLQueryItem(name: "level", value: "\(level)"),
+            URLQueryItem(name: "title", value: levelName),
+            URLQueryItem(name: "words", value: "\(words)"),
+            URLQueryItem(name: "streak", value: "\(streak)"),
+            URLQueryItem(name: "progress", value: "\(progress)"),
+            URLQueryItem(name: "rem", value: "\(wordsRemaining)"),
+            URLQueryItem(name: "lang", value: appState.selectedUILanguage)
+        ]
+        if isScribeSupporter {
+            queryItems.append(URLQueryItem(name: "tier", value: supporterTier.badgeText))
+        }
+        if history.syncedDevicesCount > 1 {
+            queryItems.append(URLQueryItem(name: "devices", value: "\(history.syncedDevicesCount)"))
+        }
+        components?.queryItems = queryItems
+        
+        guard let url = components?.url else { return }
+        
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(url.absoluteString, forType: .string)
+        
+        NSWorkspace.shared.open(url)
+        
+        withAnimation(.easeInOut(duration: 0.2)) {
+            isCopied = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isCopied = false
+            }
+        }
     }
 }
 
@@ -7630,7 +7696,7 @@ struct AISettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-        case .openAI, .scribeCloud:
+        case .openAI:
             VStack(alignment: .leading, spacing: 12) {
                 apiKeyRow(
                     title: "OpenAI API Key",
