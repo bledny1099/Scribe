@@ -5,6 +5,19 @@ All notable changes to Scribe will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.1] - 2026-09-20
+
+## Added
+- Explicit strict language preservation instructions across all cloud AI refinement modes (Polish, Summary, Executive, Action Items).
+
+## Changed
+- Upgraded default Groq model catalog to `openai/gpt-oss-120b` with seamless auto-migration from deprecated Llama 3 models.
+- Enhanced vocabulary phonetic correction prompts to prevent multilingual language switching during text refinement.
+
+## Fixed
+- Fixed an issue where cloud AI refinement models inadvertently translated non-English speech to English instead of refining in the original language.
+- Fixed 404 model errors on Groq caused by deprecation of legacy Llama 3 endpoints.
+
 ## [2.9] - 2026-09-18
 
 ## Added

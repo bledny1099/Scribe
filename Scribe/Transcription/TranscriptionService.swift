@@ -1980,15 +1980,16 @@ public enum AIRefinementMode: String, CaseIterable, Identifiable, Sendable {
 
     public var promptInstruction: String? {
         let strictRule = " CRITICAL REQUIREMENT: Output ONLY the final result text directly. Never include preambles, intros (e.g. 'Here is...'), conversational filler, explanations, greetings, or multiple options. Output exactly ONE single final refined text."
+        let languageRule = " CRITICAL LANGUAGE INSTRUCTION: You MUST preserve the EXACT language of the user's speech. If the speech is in Russian, the output MUST be strictly in Russian. If the speech is in English, the output MUST be in English. NEVER translate to English or any other language unless explicitly requested. If Russian speech contains English technical names or loanwords, preserve the Russian grammatical structure while spelling technical terms accurately."
         switch self {
         case .polish:
-            return "You are an expert speech-to-text refinement assistant (like in Claude voice mode). Clean up the transcribed speech into natural, perfectly punctuated, grammatically flawless text. Fix misheard words, speech hesitations, false starts, and grammatical agreements, while preserving the exact language (Russian, English, etc.), tone, style, and complete meaning. Do not summarize, do not shorten, and do not translate. Output ONLY the final polished text directly without any preambles, explanations, or quotes." + strictRule
+            return "You are an expert speech-to-text refinement assistant (like in Claude voice mode). Clean up the transcribed speech into natural, perfectly punctuated, grammatically flawless text. Fix misheard words, speech hesitations, false starts, and grammatical agreements, while preserving tone, style, and complete meaning. Do not summarize, do not shorten, and do not translate." + languageRule + strictRule
         case .summary:
-            return "Summarize the following speech into a clean, well-formatted bullet list of key takeaways. Retain important names, facts, and numbers." + strictRule
+            return "Summarize the following speech into a clean, well-formatted bullet list of key takeaways. Retain important names, facts, and numbers." + languageRule + strictRule
         case .executive:
-            return "Rephrase the following speech into a single professional, polished executive business text. Fix grammatical errors and remove filler expressions." + strictRule
+            return "Rephrase the following speech into a single professional, polished executive business text. Fix grammatical errors and remove filler expressions." + languageRule + strictRule
         case .actionItems:
-            return "Extract clear, actionable tasks and TODOs from the following speech into a structured list of action items with checkboxes." + strictRule
+            return "Extract clear, actionable tasks and TODOs from the following speech into a structured list of action items with checkboxes." + languageRule + strictRule
         case .translation:
             return "Translate the following speech into fluent, accurate English while maintaining its original meaning and context." + strictRule
         }
@@ -2112,7 +2113,7 @@ public final class CloudAIService: @unchecked Sendable {
 
 PHONETIC CORRECTION & CANONICAL VOCABULARY:
 Speech recognition models frequently mishear technical terms, product names, domain terms, abbreviations, and websites phonetically (for example: hearing "chat gpt" or "chat gpt.com" instead of "chatgpt.com", "vibe coding" instead of "vibecoding", "ex code" instead of "Xcode").
-Use the following dictionary of canonical words to detect such phonetic mistakes in speech and replace them with their exact correct spelling:
+Use the following dictionary of canonical words to detect such phonetic mistakes in speech and replace them with their exact correct spelling, while strictly preserving the surrounding language:
 <vocabulary>
 \(trimmedVocab)
 </vocabulary>
