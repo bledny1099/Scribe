@@ -37,7 +37,7 @@ enum SettingsTab: String, CaseIterable {
         case .ai:
             return 880
         default:
-            return 700
+            return 820
         }
     }
 }
@@ -820,7 +820,7 @@ struct StatisticsSectionView: View {
     @State private var appearAnimation = false
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(alignment: .leading, spacing: 20) {
             // Level Up Celebration Banner
             if isLevelUpSweepActive {
                 HStack(spacing: 12) {
@@ -867,6 +867,7 @@ struct StatisticsSectionView: View {
                     )
                 }
                 .padding(12)
+                .frame(width: 460)
                 .background(
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
                         .fill(.ultraThinMaterial)
@@ -892,13 +893,13 @@ struct StatisticsSectionView: View {
                 isShimmering: isShimmering,
                 showTopWords: $showTopWords
             )
-            .frame(width: 480)
+            .frame(width: 460)
             .scaleEffect(appearAnimation ? 1 : 0.96)
             .opacity(appearAnimation ? 1 : 0)
 
             // Prominent Share Certificate Button (Full Certificate Width)
             ShareCertificateButton()
-                .frame(width: 480)
+                .frame(width: 460)
                 .scaleEffect(appearAnimation ? 1 : 0.96)
                 .opacity(appearAnimation ? 1 : 0)
             
@@ -938,6 +939,7 @@ struct StatisticsSectionView: View {
                         }
                     }
                 }
+                .frame(width: 460)
                 .transition(.move(edge: .top).combined(with: .opacity))
             }
             
@@ -960,6 +962,7 @@ struct StatisticsSectionView: View {
                     }
                 }
             }
+            .frame(width: 460)
         }
         .onAppear {
             isPulsing = true
@@ -1469,7 +1472,7 @@ struct GoldCertificateCardView: View {
             }
         }
         .padding(20)
-        .frame(width: 480)
+        .frame(width: 460)
         .background(
             ZStack {
                 RoundedRectangle(cornerRadius: 22)
