@@ -1938,7 +1938,7 @@ public enum CloudAIProvider: String, CaseIterable, Identifiable, Sendable {
 
     public var displayName: String {
         switch self {
-        case .groq:         return "Groq (Llama 3.3 70B)"
+        case .groq:         return "Groq (GPT-OSS 120B)"
         case .cerebras:     return "Cerebras (Ultra-Fast)"
         case .gemini:       return "Google Gemini (Personal Quota)"
         case .customOpenAI: return "Custom API (OpenAI-Compatible)"
@@ -2093,7 +2093,7 @@ public final class CloudAIService: @unchecked Sendable {
         customBaseURL: String = "https://api.openai.com/v1",
         customModel: String = "gpt-4o-mini",
         geminiModel: String = "gemini-2.0-flash",
-        groqModel: String = "llama-3.3-70b-versatile",
+        groqModel: String = "openai/gpt-oss-120b",
         cerebrasModel: String = "gpt-oss-120b",
         ollamaEndpoint: String = "http://localhost:11434",
         ollamaModel: String = "qwen2.5:7b"
@@ -2121,7 +2121,8 @@ Use the following dictionary of canonical words to detect such phonetic mistakes
 
         switch provider {
         case .groq:
-            let effectiveModel = groqModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "llama-3.3-70b-versatile" : groqModel
+            let rawGroq = groqModel.trimmingCharacters(in: .whitespacesAndNewlines)
+            let effectiveModel = (rawGroq.isEmpty || rawGroq.contains("llama") || rawGroq.contains("qwen-2.5")) ? "openai/gpt-oss-120b" : rawGroq
             let endpoint = URL(string: "https://api.groq.com/openai/v1/chat/completions")!
             var request = URLRequest(url: endpoint)
             request.httpMethod = "POST"

@@ -7337,8 +7337,10 @@ struct AISettingsView: View {
     @State private var testDurationMs: Int? = nil
 
     private let groqModels: [(id: String, name: String)] = [
-        ("llama-3.3-70b-versatile", "Llama 3.3 70B Versatile (Recommended)"),
-        ("llama-3.1-8b-instant", "Llama 3.1 8B Instant (Ultra-Fast)")
+        ("openai/gpt-oss-120b", "GPT-OSS 120B (Recommended)"),
+        ("openai/gpt-oss-20b", "GPT-OSS 20B (Ultra-Fast)"),
+        ("groq/compound-mini", "Compound Mini"),
+        ("qwen/qwen3.8-27b", "Qwen 3.8 27B")
     ]
 
     private let cerebrasModels: [(id: String, name: String)] = [
@@ -7629,6 +7631,9 @@ struct AISettingsView: View {
             if appState.cerebrasModel.contains("llama") || appState.cerebrasModel.isEmpty {
                 appState.cerebrasModel = "gpt-oss-120b"
             }
+            if appState.groqModel.contains("llama") || appState.groqModel.contains("qwen-2.5") || appState.groqModel.isEmpty {
+                appState.groqModel = "openai/gpt-oss-120b"
+            }
         }
     }
 
@@ -7661,7 +7666,7 @@ struct AISettingsView: View {
                     Image(systemName: "sparkles")
                         .font(.system(size: 11))
                         .foregroundStyle(.green)
-                    Text(appState.l("Free tier includes Llama 3.3 70B with high rate limits (no credit card required)."))
+                    Text(appState.l("Free tier includes GPT-OSS 120B with high rate limits (no credit card required)."))
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }

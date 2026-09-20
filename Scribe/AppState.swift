@@ -604,7 +604,7 @@ final class AppState: ObservableObject {
     @AppStorage("customOpenAIModel") public var customOpenAIModel: String = "gpt-4o-mini"
     @AppStorage("geminiModel") public var geminiModel: String = "gemini-2.0-flash"
     @AppStorage("cerebrasModel") public var cerebrasModel: String = "gpt-oss-120b"
-    @AppStorage("groqModel") public var groqModel: String = "llama-3.3-70b-versatile"
+    @AppStorage("groqModel") public var groqModel: String = "openai/gpt-oss-120b"
     @AppStorage("anthropicAPIKey") public var anthropicAPIKey: String = ""
     @AppStorage("openAIAPIKey") public var openAIAPIKey: String = ""
     @AppStorage("ollamaEndpoint") public var ollamaEndpoint: String = "http://localhost:11434"
@@ -911,9 +911,12 @@ final class AppState: ObservableObject {
         // Record anonymous installation & active user telemetry
         TelemetryService.shared.recordAppLaunch()
         
-        // Auto-migrate deprecated Cerebras models
+        // Auto-migrate deprecated Cerebras & Groq models
         if cerebrasModel.contains("llama") || cerebrasModel.isEmpty {
             cerebrasModel = "gpt-oss-120b"
+        }
+        if groqModel.contains("llama") || groqModel.contains("qwen-2.5") || groqModel.isEmpty {
+            groqModel = "openai/gpt-oss-120b"
         }
         
         // Remove old pre-seeded location presets if present
