@@ -7624,7 +7624,8 @@ struct AISettingsView: View {
         }
         .onAppear {
             if testInputText.isEmpty || testInputText == "я зашел на чад gpt.com чтобы пофиксить код в экскоде" || testInputText == "i went to chat gpt to fix the bug in ex code" {
-                testInputText = (appState.selectedUILanguage == "ru")
+                let prefersRussian = appState.selectedUILanguage == "ru" || appState.multilingualLanguages.contains("ru")
+                testInputText = prefersRussian
                     ? "я зашел на чад gpt.com чтобы пофиксить код в экскоде"
                     : "i went to chat gpt to fix the bug in ex code"
             }
@@ -7869,12 +7870,14 @@ struct AISettingsView: View {
 
         Task {
             do {
+                let activeLangs: [String] = appState.multilingualLanguages.filter { $0 != "auto" }
                 let result = try await CloudAIService.shared.refineText(
                     text: testInputText,
                     mode: appState.selectedAIRefinementMode,
                     provider: appState.cloudAIProvider,
                     apiKey: appState.activeCloudAPIKey,
                     vocabulary: effectiveVocab,
+                    allowedLanguages: activeLangs.isEmpty ? ["ru", "en"] : activeLangs,
                     customBaseURL: appState.customOpenAIBaseURL,
                     customModel: appState.customOpenAIModel,
                     geminiModel: appState.geminiModel,

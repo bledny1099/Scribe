@@ -459,6 +459,86 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
 
     // MARK: - Interim Live Snapshot Transcription (Whisper / Neural Engine during speech)
 
+    /// Safely converts WhisperKit's log-probability to linear probability [0.0...1.0].
+    /// WhisperKit `langProbs` values are log-probabilities (<= 0.0).
+    /// If the language key is missing, returns 0.0 (not 0.0 in log scale!).
+    static func linearProbability(for lang: String, in logProbs: [String: Float]) -> Double {
+        guard let logProb = logProbs[lang] else { return 0.0 }
+        if logProb <= 0.0 {
+            let clamped = max(Double(logProb), -50.0)
+            return exp(clamped)
+        } else if logProb <= 1.0 {
+            return Double(logProb)
+        } else {
+            return 1.0
+        }
+    }
+
+    /// Determines the optimal language from user-allowed candidate languages based on WhisperKit's detection.
+    /// Strictly respects user language configuration: never picks any language outside allowedBases.
+    /// When Russian is one of the allowed languages, decoding in 'ru' mode natively supports both Russian Cyrillic
+    /// and English technical loanwords/brand names without translating, whereas decoding in 'en' mode forces
+    /// Whisper to translate Russian speech into English or produce garbled text.
+    static func resolveDetectedLanguage(
+        rawDetected: String,
+        probs: [String: Float],
+        allowedBases: [String]
+    ) -> String {
+        guard !allowedBases.isEmpty else { return "ru" }
+        if allowedBases.count == 1 {
+            return allowedBases[0]
+        }
+
+        let cleanDetected = rawDetected.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if allowedBases.contains("ru") {
+            let ruProb = linearProbability(for: "ru", in: probs)
+            let nonRussian = allowedBases.filter { $0 != "ru" }
+
+            var bestOther = nonRussian[0]
+            var bestOtherProb = linearProbability(for: bestOther, in: probs)
+            for other in nonRussian.dropFirst() {
+                let p = linearProbability(for: other, in: probs)
+                if p > bestOtherProb {
+                    bestOther = other
+                    bestOtherProb = p
+                }
+            }
+
+            // If detected language is Russian, or Russian probability is higher than the other,
+            // or Russian has meaningful presence (>= 0.10), lock firmly to Russian.
+            if cleanDetected == "ru" || ruProb >= bestOtherProb || ruProb >= 0.10 {
+                // Only switch to non-Russian if it was explicitly detected AND its probability is overwhelmingly dominant (> 0.70)
+                if cleanDetected == bestOther && bestOtherProb >= 0.70 && bestOtherProb >= (ruProb * 3.0) {
+                    return bestOther
+                }
+                return "ru"
+            } else {
+                // cleanDetected != "ru" and ruProb < 0.10
+                if bestOtherProb >= 0.50 || cleanDetected == bestOther {
+                    return bestOther
+                }
+                return "ru"
+            }
+        }
+
+        // For non-Russian multilingual pairs (e.g. en + de)
+        if allowedBases.contains(cleanDetected) {
+            return cleanDetected
+        }
+
+        var bestLang = allowedBases[0]
+        var maxProb = linearProbability(for: bestLang, in: probs)
+        for lang in allowedBases.dropFirst() {
+            let p = linearProbability(for: lang, in: probs)
+            if p > maxProb {
+                bestLang = lang
+                maxProb = p
+            }
+        }
+        return bestLang
+    }
+
     /// Fast greedy transcription of an in-flight audio snapshot for live preview updates while user is speaking.
     /// Runs on background cooperative pool without secondary passes or heavy post-processing.
     func transcribeSnapshot(
@@ -501,45 +581,14 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             resolvedLang = first
         } else {
             // Strict language block for Live Preview:
-            // Query quick language pre-detection with Slavic acoustic reinforcement.
-            // When Russian is enabled, decode in 'ru' mode unless speech is unambiguously pure English (> 0.65).
-            // Decoding in 'ru' mode allows Russian Cyrillic and English loanwords/brand names,
-            // whereas decoding in 'en' mode forces Whisper to translate Russian speech into English!
-            if let (_, probs) = try? await kit.detectLanguage(audioPath: audioURL.path) {
-                if effectiveAllowed.contains("ru") {
-                    let ruScore = probs["ru"] ?? 0
-                    let nonRussian = effectiveAllowed.filter { $0 != "ru" }
-                    if let bestOther = nonRussian.max(by: { (probs[$0] ?? 0) < (probs[$1] ?? 0) }) {
-                        let otherScore = probs[bestOther] ?? 0
-                        let appDomain = AetherContextEngine.shared.detectActiveAppDomain(targetApp: targetApp).domain
-                        let isDevOrWeb = (appDomain == .ideAndCoding || appDomain == .browsersAndResearch)
-
-                        // Fair detection: if otherScore beats Russian, or is within 80% of Russian in general/web/dev apps,
-                        // or exceeds 0.12 in dev/browser, select bestOther.
-                        if otherScore >= ruScore || (isDevOrWeb && otherScore >= 0.12 && otherScore >= ruScore * 0.70) || (otherScore >= 0.18 && otherScore >= ruScore * 0.80) {
-                            options.language = bestOther
-                            options.detectLanguage = false
-                            resolvedLang = bestOther
-                        } else {
-                            options.language = "ru"
-                            options.detectLanguage = false
-                            resolvedLang = "ru"
-                        }
-                    } else {
-                        options.language = "ru"
-                        options.detectLanguage = false
-                        resolvedLang = "ru"
-                    }
-                } else {
-                    let best = effectiveAllowed.max(by: { (probs[$0] ?? 0) < (probs[$1] ?? 0) }) ?? effectiveAllowed[0]
-                    options.language = best
-                    options.detectLanguage = false
-                    resolvedLang = best
-                }
+            // Query quick language pre-detection resolved strictly against user-configured allowed languages.
+            if let (detected, probs) = try? await kit.detectLanguage(audioPath: audioURL.path) {
+                let chosen = Self.resolveDetectedLanguage(rawDetected: detected, probs: probs, allowedBases: effectiveAllowed)
+                options.language = chosen
+                options.detectLanguage = false
+                resolvedLang = chosen
             } else {
-                let appDomain = AetherContextEngine.shared.detectActiveAppDomain(targetApp: targetApp).domain
-                let isDevOrWeb = (appDomain == .ideAndCoding || appDomain == .browsersAndResearch)
-                let fallback = (isDevOrWeb && effectiveAllowed.contains("en")) ? "en" : (effectiveAllowed.contains("ru") ? "ru" : effectiveAllowed[0])
+                let fallback = effectiveAllowed.contains("ru") ? "ru" : effectiveAllowed[0]
                 options.language = fallback
                 options.detectLanguage = false
                 resolvedLang = fallback
@@ -789,53 +838,22 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             } else if let kit = whisperKit {
                 do {
                     let detectStart = Date()
-                    let (_, langProbs) = try await kit.detectLanguage(audioPath: path)
-
-                    if allowedBases.contains("ru") {
-                        let ruScore = langProbs["ru"] ?? 0
-                        let nonRussian = allowedBases.filter { $0 != "ru" }
-                        if let bestOther = nonRussian.max(by: { (langProbs[$0] ?? 0) < (langProbs[$1] ?? 0) }) {
-                            let otherScore = langProbs[bestOther] ?? 0
-                            let appDomain = AetherContextEngine.shared.detectActiveAppDomain(targetApp: targetApp).domain
-                            let isDevOrWeb = (appDomain == .ideAndCoding || appDomain == .browsersAndResearch)
-
-                            if otherScore >= ruScore || (isDevOrWeb && otherScore >= 0.12 && otherScore >= ruScore * 0.70) || (otherScore >= 0.18 && otherScore >= ruScore * 0.80) {
-                                resolvedLang = bestOther
-                                options.language = bestOther
-                                options.detectLanguage = false
-                                logger.info("Aether language detection: locked to '\(bestOther)' (dominant speech: score=\(otherScore) vs ruScore=\(ruScore), duration: \(String(format: "%.3f", Date().timeIntervalSince(detectStart)))s)")
-                            } else {
-                                resolvedLang = "ru"
-                                options.language = "ru"
-                                options.detectLanguage = false
-                                logger.info("Aether language detection: locked to 'ru' (ruScore=\(ruScore) vs otherScore=\(otherScore), duration: \(String(format: "%.3f", Date().timeIntervalSince(detectStart)))s)")
-                            }
-                        } else {
-                            resolvedLang = "ru"
-                            options.language = "ru"
-                            options.detectLanguage = false
-                            logger.info("Aether language detection: locked to 'ru' from allowed \(allowedBases)")
-                        }
-                    } else {
-                        let best = allowedBases.max(by: { (langProbs[$0] ?? 0) < (langProbs[$1] ?? 0) }) ?? allowedBases[0]
-                        resolvedLang = best
-                        options.language = best
-                        options.detectLanguage = false
-                        logger.info("Aether language detection: locked to '\(best)' from allowed \(allowedBases)")
-                    }
+                    let (detected, langProbs) = try await kit.detectLanguage(audioPath: path)
+                    let chosen = Self.resolveDetectedLanguage(rawDetected: detected, probs: langProbs, allowedBases: allowedBases)
+                    resolvedLang = chosen
+                    options.language = chosen
+                    options.detectLanguage = false
+                    let chosenProb = Self.linearProbability(for: chosen, in: langProbs)
+                    logger.info("Aether language detection: locked to '\(chosen)' (probability: \(String(format: "%.4f", chosenProb)), duration: \(String(format: "%.3f", Date().timeIntervalSince(detectStart)))s) from allowed \(allowedBases)")
                 } catch {
                     logger.warning("WhisperKit.detectLanguage failed: \(error.localizedDescription); locking to fallback from allowed \(allowedBases)")
-                    let appDomain = AetherContextEngine.shared.detectActiveAppDomain(targetApp: targetApp).domain
-                    let isDevOrWeb = (appDomain == .ideAndCoding || appDomain == .browsersAndResearch)
-                    let fallback = (isDevOrWeb && allowedBases.contains("en")) ? "en" : (allowedBases.contains("ru") ? "ru" : allowedBases[0])
+                    let fallback = allowedBases.contains("ru") ? "ru" : allowedBases[0]
                     options.language = fallback
                     options.detectLanguage = false
                     resolvedLang = fallback
                 }
             } else {
-                let appDomain = AetherContextEngine.shared.detectActiveAppDomain(targetApp: targetApp).domain
-                let isDevOrWeb = (appDomain == .ideAndCoding || appDomain == .browsersAndResearch)
-                let fallback = (isDevOrWeb && allowedBases.contains("en")) ? "en" : (allowedBases.contains("ru") ? "ru" : allowedBases[0])
+                let fallback = allowedBases.contains("ru") ? "ru" : allowedBases[0]
                 options.language = fallback
                 options.detectLanguage = false
                 resolvedLang = fallback
@@ -966,7 +984,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         let postLatinCount = preliminaryText.unicodeScalars.filter { ($0.value >= 0x0041 && $0.value <= 0x005A) || ($0.value >= 0x0061 && $0.value <= 0x007A) }.count
         let postCyrillicCount = preliminaryText.unicodeScalars.filter { ($0.value >= 0x0400 && $0.value <= 0x04FF) || ($0.value >= 0x0500 && $0.value <= 0x052F) }.count
 
-        if resolvedLang == "ru" && allowedLanguages.contains("en") && postLatinCount >= 6 && postLatinCount >= postCyrillicCount {
+        if resolvedLang == "ru" && allowedLanguages.contains("en") && postLatinCount >= 16 && postLatinCount >= (postCyrillicCount * 2) {
             logger.warning("Decoded text has dominant Latin characters (\(postLatinCount) Latin vs \(postCyrillicCount) Cyrillic) despite 'ru' mode. Re-decoding in 'en' mode…")
             var scriptRedecodeOpts = options
             scriptRedecodeOpts.language = "en"
@@ -1978,9 +1996,56 @@ public enum AIRefinementMode: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    private static func languageDisplayName(for code: String) -> String {
+        switch code.lowercased() {
+        case "ru": return "Russian"
+        case "en": return "English"
+        case "es": return "Spanish"
+        case "fr": return "French"
+        case "de": return "German"
+        case "it": return "Italian"
+        case "pt": return "Portuguese"
+        case "zh": return "Chinese"
+        case "ja": return "Japanese"
+        case "ko": return "Korean"
+        case "uk": return "Ukrainian"
+        case "pl": return "Polish"
+        case "tr": return "Turkish"
+        case "ar": return "Arabic"
+        default:
+            let locale = Locale(identifier: "en_US")
+            return locale.localizedString(forLanguageCode: code) ?? code.uppercased()
+        }
+    }
+
     public var promptInstruction: String? {
+        promptInstruction(allowedLanguages: ["ru", "en"])
+    }
+
+    public func promptInstruction(allowedLanguages: [String] = ["ru", "en"]) -> String? {
+        let cleanAllowed = allowedLanguages.map { $0.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty && $0 != "auto" }
+        let effectiveCodes = cleanAllowed.isEmpty ? ["ru", "en"] : Array(cleanAllowed.prefix(3))
+        let allowedNames = effectiveCodes.map { Self.languageDisplayName(for: $0) }
+        let langsList = allowedNames.joined(separator: ", ")
+
         let strictRule = " CRITICAL REQUIREMENT: Output ONLY the final result text directly. Never include preambles, intros (e.g. 'Here is...'), conversational filler, explanations, greetings, or multiple options. Output exactly ONE single final refined text."
-        let languageRule = " CRITICAL LANGUAGE INSTRUCTION: You MUST preserve the EXACT language of the user's speech. If the speech is in Russian, the output MUST be strictly in Russian. If the speech is in English, the output MUST be in English. NEVER translate to English or any other language unless explicitly requested. If Russian speech contains English technical names or loanwords, preserve the Russian grammatical structure while spelling technical terms accurately."
+
+        let languageRule: String
+        if self == .translation {
+            languageRule = " TRANSLATION REQUIREMENT: Translate the speech strictly into fluent, natural English. Under NO circumstances output any language other than English."
+        } else {
+            languageRule = """
+             CRITICAL LANGUAGE INTEGRITY & STRICT RESTRICTION:
+            The user configured their environment to speak ONLY in the following permitted language(s): [\(langsList)].
+            Under NO circumstances may any other language be used in your response.
+            You MUST output strictly in the exact same language as the spoken input (selected strictly from: \(langsList)).
+            - If the speech is in Russian, your output MUST be 100% in Russian. Do NOT translate Russian sentences or thoughts to English!
+            - If Russian speech mentions English software names, technical terms, APIs, or URLs (e.g. 'GitHub', 'Xcode', 'ChatGPT'), keep those specific technical nouns as loanwords while strictly maintaining Russian grammatical flow and sentence structure.
+            - If the speech is in English, your output MUST be in English.
+            - NEVER switch to or output any language not explicitly listed above.
+            """
+        }
+
         switch self {
         case .polish:
             return "You are an expert speech-to-text refinement assistant (like in Claude voice mode). Clean up the transcribed speech into natural, perfectly punctuated, grammatically flawless text. Fix misheard words, speech hesitations, false starts, and grammatical agreements, while preserving tone, style, and complete meaning. Do not summarize, do not shorten, and do not translate." + languageRule + strictRule
@@ -1991,7 +2056,7 @@ public enum AIRefinementMode: String, CaseIterable, Identifiable, Sendable {
         case .actionItems:
             return "Extract clear, actionable tasks and TODOs from the following speech into a structured list of action items with checkboxes." + languageRule + strictRule
         case .translation:
-            return "Translate the following speech into fluent, accurate English while maintaining its original meaning and context." + strictRule
+            return "Translate the following speech into fluent, accurate English while maintaining its original meaning and context." + languageRule + strictRule
         }
     }
 }
@@ -2091,6 +2156,7 @@ public final class CloudAIService: @unchecked Sendable {
         provider: CloudAIProvider,
         apiKey: String,
         vocabulary: String = "",
+        allowedLanguages: [String] = ["ru", "en"],
         customBaseURL: String = "https://api.openai.com/v1",
         customModel: String = "gpt-4o-mini",
         geminiModel: String = "gemini-2.0-flash",
@@ -2099,7 +2165,7 @@ public final class CloudAIService: @unchecked Sendable {
         ollamaEndpoint: String = "http://localhost:11434",
         ollamaModel: String = "qwen2.5:7b"
     ) async throws -> String {
-        guard let baseInstruction = mode.promptInstruction else { return text }
+        guard let baseInstruction = mode.promptInstruction(allowedLanguages: allowedLanguages) else { return text }
         let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         if provider != .ollama && trimmedKey.isEmpty {
             throw NSError(domain: "CloudAIService", code: 401, userInfo: [NSLocalizedDescriptionKey: "API key is required for \(provider.displayName)"])

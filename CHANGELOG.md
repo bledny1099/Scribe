@@ -5,6 +5,20 @@ All notable changes to Scribe will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.2] - 2026-09-20
+
+## Added
+- Dynamic allowed languages restriction parameter passed directly into AI refinement prompts, strictly confining model output to user-configured languages (up to 3).
+
+## Changed
+- Refactored WhisperKit language detection probability evaluation from raw log scale to true linear probability space, preventing missing language keys from falsely evaluating as 100% probability.
+- Increased Latin script mismatch re-decoding threshold to 16 characters and 2x Cyrillic character count, preventing Russian sentences with technical loanwords (e.g. GitHub, Xcode) from triggering English re-decoding.
+
+## Fixed
+- Fixed an issue where WhisperKit language detection falsely locked to English during Russian dictation due to log-probability zero-default evaluation.
+- Fixed an issue where developer application context biased language selection toward English despite active Russian speech.
+- Fixed language selection in AI refinement testing playground to default to Russian test sample when Russian is an active language.
+
 ## [2.9.1] - 2026-09-20
 
 ## Added

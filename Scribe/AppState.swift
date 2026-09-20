@@ -1241,12 +1241,14 @@ final class AppState: ObservableObject {
                     let provider = self.cloudAIProvider
                     if provider == .ollama || !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         do {
+                            let activeRefinementLangs = preferredLangs.filter { $0 != "auto" }
                             let refined = try await CloudAIService.shared.refineText(
                                 text: text,
                                 mode: self.selectedAIRefinementMode,
                                 provider: provider,
                                 apiKey: key,
                                 vocabulary: effectiveVocab,
+                                allowedLanguages: activeRefinementLangs.isEmpty ? ["ru", "en"] : activeRefinementLangs,
                                 customBaseURL: self.customOpenAIBaseURL,
                                 customModel: self.customOpenAIModel,
                                 geminiModel: self.geminiModel,
@@ -1481,12 +1483,14 @@ final class AppState: ObservableObject {
                     let provider = self.cloudAIProvider
                     if provider == .ollama || !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         do {
+                            let activeRefinementLangs = preferredLangs.filter { $0 != "auto" }
                             let refined = try await CloudAIService.shared.refineText(
                                 text: text,
                                 mode: self.selectedAIRefinementMode,
                                 provider: provider,
                                 apiKey: key,
                                 vocabulary: effectiveVocab,
+                                allowedLanguages: activeRefinementLangs.isEmpty ? ["ru", "en"] : activeRefinementLangs,
                                 customBaseURL: self.customOpenAIBaseURL,
                                 customModel: self.customOpenAIModel,
                                 geminiModel: self.geminiModel,
