@@ -892,13 +892,13 @@ struct StatisticsSectionView: View {
                 isShimmering: isShimmering,
                 showTopWords: $showTopWords
             )
-            .frame(width: 540)
+            .frame(width: 480)
             .scaleEffect(appearAnimation ? 1 : 0.96)
             .opacity(appearAnimation ? 1 : 0)
 
             // Prominent Share Certificate Button (Full Certificate Width)
             ShareCertificateButton()
-                .frame(width: 540)
+                .frame(width: 480)
                 .scaleEffect(appearAnimation ? 1 : 0.96)
                 .opacity(appearAnimation ? 1 : 0)
             
@@ -1469,7 +1469,7 @@ struct GoldCertificateCardView: View {
             }
         }
         .padding(20)
-        .frame(width: 540)
+        .frame(width: 480)
         .background(
             ZStack {
                 RoundedRectangle(cornerRadius: 22)
@@ -7560,12 +7560,38 @@ struct AISettingsView: View {
                     }
 
                     if let err = testErrorMessage {
-                        HStack(spacing: 6) {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundStyle(.orange)
-                            Text(err)
-                                .font(.system(size: 11.5))
-                                .foregroundStyle(.red)
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundStyle(.orange)
+                                Text(err)
+                                    .font(.system(size: 11.5))
+                                    .foregroundStyle(.red)
+                            }
+
+                            if err.contains("402") || err.contains("Payment required") {
+                                HStack(spacing: 12) {
+                                    if let url = URL(string: "https://cloud.cerebras.ai") {
+                                        Link(destination: url) {
+                                            HStack(spacing: 4) {
+                                                Text(appState.l("Add Cerebras Billing →"))
+                                                Image(systemName: "arrow.up.right.square")
+                                            }
+                                            .font(.system(size: 11, weight: .semibold))
+                                            .foregroundStyle(.blue)
+                                        }
+                                    }
+                                    Button {
+                                        appState.cloudAIProviderRaw = CloudAIProvider.groq.rawValue
+                                        testErrorMessage = nil
+                                    } label: {
+                                        Text(appState.l("Switch to Groq (Free) →"))
+                                            .font(.system(size: 11, weight: .semibold))
+                                            .foregroundStyle(.green)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
                         }
                         .padding(.vertical, 4)
                     }

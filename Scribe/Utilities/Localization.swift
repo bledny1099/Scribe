@@ -304,6 +304,9 @@ enum Localization {
             "Быстрое включение и выключение AI-обработки текста после записи": "Quick toggle for AI speech refinement after recording"
         ],
         "ru": [
+            "Add Cerebras Billing →": "Настроить биллинг Cerebras →",
+            "Switch to Groq (Free) →": "Переключить на Groq (бесплатно) →",
+            "Cerebras (Ultra-Fast)": "Cerebras (сверхбыстрый)",
             "Account connected": "Аккаунт подключен",
             "Speech-to-text models often mishear technical terms (e.g., 'chat gpt.com' instead of 'chatgpt.com', 'vibe coding' instead of 'vibecoding', 'ex code' instead of 'Xcode'). Scribe feeds your active vocabulary to the LLM to automatically fix them.": "Модели распознавания речи часто искажают технические термины (например, «чад gpt.com» вместо «chatgpt.com», «вайб кодинг» вместо «vibe coding», «экскод» вместо «Xcode»). Scribe передает ваш словарь в LLM для автоматического исправления.",
             "Register this email →": "Зарегистрировать этот email →",

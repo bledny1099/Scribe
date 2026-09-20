@@ -42,8 +42,9 @@ public final class AetherAudioConditioner: @unchecked Sendable {
             let samplesPerChannel = Int(buffer.frameLength)
 
             if samplesPerChannel < Int(sampleRate * 0.1) {
-                // Audio is too short to condition (<100ms), return as is
-                return audioURL
+                // Audio is too short to contain speech (<100ms)
+                logger.info("AetherAudioConditioner: Audio is too short (<100ms). Returning nil.")
+                return nil
             }
 
             // 1. High-Pass Filter (>80 Hz) to eliminate desk rumble & keyboard thumps
@@ -55,8 +56,8 @@ public final class AetherAudioConditioner: @unchecked Sendable {
                 count: samplesPerChannel,
                 sampleRate: sampleRate
             ) else {
-                logger.info("AetherAudioConditioner: Soft or ambient speech boundaries not definitive. Passing unconditioned audio directly to Whisper.")
-                return audioURL
+                logger.info("AetherAudioConditioner: No speech detected in audio (silence/ambient noise). Returning nil.")
+                return nil
             }
 
             let trimmedLength = max(1, endFrame - startFrame)
