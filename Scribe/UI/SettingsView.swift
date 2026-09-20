@@ -37,7 +37,7 @@ enum SettingsTab: String, CaseIterable {
         case .ai:
             return 880
         default:
-            return 820
+            return 760
         }
     }
 }

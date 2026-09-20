@@ -22,7 +22,7 @@ final class SettingsWindowManager {
             return
         }
 
-        let initialWidth: CGFloat = max(820, tab.preferredWidth)
+        let initialWidth: CGFloat = tab.preferredWidth
         let initialHeight: CGFloat = 620
 
         let newWindow = NSWindow(
@@ -37,7 +37,7 @@ final class SettingsWindowManager {
         newWindow.standardWindowButton(.closeButton)?.isHidden = true
         newWindow.standardWindowButton(.miniaturizeButton)?.isHidden = true
         newWindow.standardWindowButton(.zoomButton)?.isHidden = true
-        newWindow.minSize = NSSize(width: 780, height: 600)
+        newWindow.minSize = NSSize(width: 720, height: 600)
         newWindow.showsResizeIndicator = true
 
         newWindow.isMovableByWindowBackground = false
@@ -151,7 +151,7 @@ final class SettingsWindowManager {
             window.styleMask.insert(.resizable)
         }
         window.showsResizeIndicator = true
-        window.minSize = NSSize(width: 780, height: 500)
+        window.minSize = NSSize(width: 720, height: 500)
         window.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         
         let targetWidth: CGFloat
