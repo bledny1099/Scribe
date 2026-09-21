@@ -75,14 +75,15 @@ class NoteExporter {
         guard !transcript.isEmpty else { return }
         
         let dateString = DateFormatter.localizedString(from: Date(), dateStyle: .long, timeStyle: .short)
+        let isRussian = Localization.effectiveLanguageCode("auto") == "ru"
         let durationString: String
         if let d = duration, d > 0 {
             let mins = Int(d) / 60
             let secs = Int(d) % 60
             if mins > 0 {
-                durationString = "\(mins) мин \(secs) сек"
+                durationString = isRussian ? "\(mins) мин \(secs) сек" : "\(mins) min \(secs) sec"
             } else {
-                durationString = "\(secs) сек"
+                durationString = isRussian ? "\(secs) сек" : "\(secs) sec"
             }
         } else {
             durationString = ""

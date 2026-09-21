@@ -16,7 +16,7 @@ enum Localization {
         return key
     }
     
-    private static func effectiveLanguageCode(_ lang: String) -> String {
+    public static func effectiveLanguageCode(_ lang: String) -> String {
         if lang != "auto" { return lang }
         // Detect system language
         let preferred = Locale.preferredLanguages.first?.lowercased() ?? "en"
@@ -2013,5 +2013,18 @@ extension String {
             .replacingOccurrences(of: "ø", with: "o")
             .replacingOccurrences(of: "Ø", with: "O")
             .replacingOccurrences(of: "ß", with: "ss")
+    }
+
+    /// Strips accent/stress marks (combining acute accent U+0301, combining grave U+0300) from text while preserving standard letters.
+    public func strippingStressMarks() -> String {
+        var result = ""
+        for scalar in self.unicodeScalars {
+            // 0x0301 is Combining Acute Accent (Russian stress mark), 0x0300 is Combining Grave
+            if scalar.value == 0x0301 || scalar.value == 0x0300 {
+                continue
+            }
+            result.append(String(scalar))
+        }
+        return result
     }
 }

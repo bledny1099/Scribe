@@ -13,8 +13,9 @@ public enum AudioFileImporter {
     @MainActor
     public static func pickFile() -> URL? {
         let openPanel = NSOpenPanel()
-        openPanel.title = "Выберите аудио- или видеофайл лекции"
-        openPanel.prompt = "Транскрибировать"
+        let isRussian = Localization.effectiveLanguageCode("auto") == "ru"
+        openPanel.title = isRussian ? "Выберите аудио- или видеофайл лекции" : "Select Audio or Video File"
+        openPanel.prompt = isRussian ? "Транскрибировать" : "Transcribe"
         openPanel.allowsMultipleSelection = false
         openPanel.canChooseDirectories = false
         openPanel.canCreateDirectories = false
@@ -56,8 +57,9 @@ public enum AudioFileImporter {
     @MainActor
     public static func pickVoiceMemoFile() -> URL? {
         let openPanel = NSOpenPanel()
-        openPanel.title = "Выберите запись из Диктофона"
-        openPanel.prompt = "Импортировать"
+        let isRussian = Localization.effectiveLanguageCode("auto") == "ru"
+        openPanel.title = isRussian ? "Выберите запись из Диктофона" : "Select Voice Memo Recording"
+        openPanel.prompt = isRussian ? "Импортировать" : "Import"
         openPanel.allowsMultipleSelection = false
         openPanel.canChooseDirectories = false
         openPanel.canCreateDirectories = false

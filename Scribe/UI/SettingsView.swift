@@ -558,7 +558,7 @@ struct SettingsHeaderView: View {
     var body: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 5) {
-                HStack(alignment: .firstTextBaseline, spacing: 7) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text("Scribe")
                         .font(.system(size: 19, weight: .bold, design: .rounded))
                         .tracking(0.3)
@@ -566,12 +566,8 @@ struct SettingsHeaderView: View {
 
                     let appVer = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.9.2"
                     Text("v\(appVer)")
-                        .font(.system(size: 11.5, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.secondary.opacity(0.8))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.primary.opacity(0.06))
-                        .clipShape(Capsule())
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .foregroundStyle(.secondary)
                 }
 
                 if updateService.updateAvailable {
@@ -7634,17 +7630,27 @@ struct AISettingsView: View {
             }
         }
         .onAppear {
+            let isRussianUI = Localization.effectiveLanguageCode(appState.selectedUILanguage) == "ru"
             if testInputText.isEmpty || testInputText == "я зашел на чад gpt.com чтобы пофиксить код в экскоде" || testInputText == "i went to chat gpt to fix the bug in ex code" {
-                let prefersRussian = appState.selectedUILanguage == "ru" || appState.multilingualLanguages.contains("ru")
-                testInputText = prefersRussian
+                testInputText = isRussianUI
                     ? "я зашел на чад gpt.com чтобы пофиксить код в экскоде"
                     : "i went to chat gpt to fix the bug in ex code"
+            } else if !isRussianUI && testInputText == "я зашел на чад gpt.com чтобы пофиксить код в экскоде" {
+                testInputText = "i went to chat gpt to fix the bug in ex code"
             }
             if appState.cerebrasModel.contains("llama") || appState.cerebrasModel.isEmpty {
                 appState.cerebrasModel = "gpt-oss-120b"
             }
             if appState.groqModel.contains("llama") || appState.groqModel.contains("qwen-2.5") || appState.groqModel.isEmpty {
                 appState.groqModel = "openai/gpt-oss-120b"
+            }
+        }
+        .onChange(of: appState.selectedUILanguage) { newLang in
+            let isRussianUI = Localization.effectiveLanguageCode(newLang) == "ru"
+            if isRussianUI && testInputText == "i went to chat gpt to fix the bug in ex code" {
+                testInputText = "я зашел на чад gpt.com чтобы пофиксить код в экскоде"
+            } else if !isRussianUI && testInputText == "я зашел на чад gpt.com чтобы пофиксить код в экскоде" {
+                testInputText = "i went to chat gpt to fix the bug in ex code"
             }
         }
     }
@@ -7900,7 +7906,7 @@ struct AISettingsView: View {
                 let elapsedMs = Int((CFAbsoluteTimeGetCurrent() - startTime) * 1000)
                 await MainActor.run {
                     self.testDurationMs = elapsedMs
-                    self.testOutputText = result
+                    self.testOutputText = result.strippingStressMarks()
                     self.isTestingRefinement = false
                 }
             } catch {

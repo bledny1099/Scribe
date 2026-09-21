@@ -2028,7 +2028,7 @@ public enum AIRefinementMode: String, CaseIterable, Identifiable, Sendable {
         let allowedNames = effectiveCodes.map { Self.languageDisplayName(for: $0) }
         let langsList = allowedNames.joined(separator: ", ")
 
-        let strictRule = " CRITICAL REQUIREMENT: Output ONLY the final result text directly. Never include preambles, intros (e.g. 'Here is...'), conversational filler, explanations, greetings, or multiple options. Output exactly ONE single final refined text."
+        let strictRule = " CRITICAL REQUIREMENT: Output ONLY the final result text directly. Never include preambles, intros (e.g. 'Here is...'), conversational filler, explanations, greetings, or multiple options. Output exactly ONE single final refined text. ABSOLUTELY NO STRESS MARKS OR DIACRITICS: NEVER add stress marks (ударения), acute accents (such as \\u{0301}), grave accents, or pronunciation diacritics to Russian or any words (for example: write 'пофиксить', NEVER 'пофикси́ть'). Output standard natural spelling only."
 
         let languageRule: String
         if self == .translation {
@@ -2082,6 +2082,19 @@ public final class CloudAIService: @unchecked Sendable {
             return "\(providerName) (\(statusCode)): \(truncated)"
         }
         return "\(providerName) returned HTTP error \(statusCode)"
+    }
+
+    public func sanitizeRefinedText(_ raw: String, fallback: String) -> String {
+        var cleaned = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleaned.hasPrefix("```") && cleaned.hasSuffix("```") {
+            let lines = cleaned.components(separatedBy: "\n")
+            if lines.count >= 2 {
+                let inner = lines.dropFirst().dropLast().joined(separator: "\n")
+                cleaned = inner.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        }
+        cleaned = cleaned.strippingStressMarks()
+        return cleaned.isEmpty ? fallback.strippingStressMarks() : cleaned
     }
 
     /// Performs Cloud Transcription using Groq API or OpenAI API
@@ -2217,10 +2230,9 @@ Use the following dictionary of canonical words to detect such phonetic mistakes
                let firstChoice = choices.first,
                let message = firstChoice["message"] as? [String: Any],
                let content = message["content"] as? String {
-                let cleaned = content.trimmingCharacters(in: .whitespacesAndNewlines)
-                return cleaned.isEmpty ? text : cleaned
+                return sanitizeRefinedText(content, fallback: text)
             }
-            return text
+            return sanitizeRefinedText(text, fallback: text)
 
         case .cerebras:
             let rawModel = cerebrasModel.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -2252,15 +2264,14 @@ Use the following dictionary of canonical words to detect such phonetic mistakes
                let firstChoice = choices.first,
                let message = firstChoice["message"] as? [String: Any],
                let content = message["content"] as? String {
-                let cleaned = content.trimmingCharacters(in: .whitespacesAndNewlines)
-                return cleaned.isEmpty ? text : cleaned
+                return sanitizeRefinedText(content, fallback: text)
             }
-            return text
+            return sanitizeRefinedText(text, fallback: text)
 
         case .gemini:
             let effectiveModel = geminiModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "gemini-2.0-flash" : geminiModel
             guard let endpoint = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(effectiveModel):generateContent?key=\(trimmedKey)") else {
-                return text
+                return sanitizeRefinedText(text, fallback: text)
             }
             var request = URLRequest(url: endpoint)
             request.httpMethod = "POST"
@@ -2299,17 +2310,16 @@ Use the following dictionary of canonical words to detect such phonetic mistakes
                let parts = content["parts"] as? [[String: Any]],
                let firstPart = parts.first,
                let refined = firstPart["text"] as? String {
-                let cleaned = refined.trimmingCharacters(in: .whitespacesAndNewlines)
-                return cleaned.isEmpty ? text : cleaned
+                return sanitizeRefinedText(refined, fallback: text)
             }
-            return text
+            return sanitizeRefinedText(text, fallback: text)
 
         case .customOpenAI:
             var base = customBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
             if base.isEmpty { base = "https://api.openai.com/v1" }
             if base.hasSuffix("/") { base.removeLast() }
             let urlString = base.hasSuffix("/chat/completions") ? base : "\(base)/chat/completions"
-            guard let endpoint = URL(string: urlString) else { return text }
+            guard let endpoint = URL(string: urlString) else { return sanitizeRefinedText(text, fallback: text) }
 
             var request = URLRequest(url: endpoint)
             request.httpMethod = "POST"
@@ -2340,10 +2350,9 @@ Use the following dictionary of canonical words to detect such phonetic mistakes
                let firstChoice = choices.first,
                let message = firstChoice["message"] as? [String: Any],
                let content = message["content"] as? String {
-                let cleaned = content.trimmingCharacters(in: .whitespacesAndNewlines)
-                return cleaned.isEmpty ? text : cleaned
+                return sanitizeRefinedText(content, fallback: text)
             }
-            return text
+            return sanitizeRefinedText(text, fallback: text)
 
         case .anthropic:
             let endpoint = URL(string: "https://api.anthropic.com/v1/messages")!
@@ -2373,10 +2382,9 @@ Use the following dictionary of canonical words to detect such phonetic mistakes
                let content = json["content"] as? [[String: Any]],
                let firstBlock = content.first,
                let textBlock = firstBlock["text"] as? String {
-                let cleaned = textBlock.trimmingCharacters(in: .whitespacesAndNewlines)
-                return cleaned.isEmpty ? text : cleaned
+                return sanitizeRefinedText(textBlock, fallback: text)
             }
-            return text
+            return sanitizeRefinedText(text, fallback: text)
 
         case .openAI:
             let endpoint = URL(string: "https://api.openai.com/v1/chat/completions")!
@@ -2406,14 +2414,13 @@ Use the following dictionary of canonical words to detect such phonetic mistakes
                let firstChoice = choices.first,
                let message = firstChoice["message"] as? [String: Any],
                let content = message["content"] as? String {
-                let cleaned = content.trimmingCharacters(in: .whitespacesAndNewlines)
-                return cleaned.isEmpty ? text : cleaned
+                return sanitizeRefinedText(content, fallback: text)
             }
-            return text
+            return sanitizeRefinedText(text, fallback: text)
 
         case .ollama:
             let cleanBase = ollamaEndpoint.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-            guard let endpoint = URL(string: "\(cleanBase)/v1/chat/completions") else { return text }
+            guard let endpoint = URL(string: "\(cleanBase)/v1/chat/completions") else { return sanitizeRefinedText(text, fallback: text) }
             var request = URLRequest(url: endpoint)
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -2438,10 +2445,9 @@ Use the following dictionary of canonical words to detect such phonetic mistakes
                let firstChoice = choices.first,
                let message = firstChoice["message"] as? [String: Any],
                let content = message["content"] as? String {
-                let cleaned = content.trimmingCharacters(in: .whitespacesAndNewlines)
-                return cleaned.isEmpty ? text : cleaned
+                return sanitizeRefinedText(content, fallback: text)
             }
-            return text
+            return sanitizeRefinedText(text, fallback: text)
         }
     }
 }
