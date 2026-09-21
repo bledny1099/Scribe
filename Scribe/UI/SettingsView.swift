@@ -118,7 +118,7 @@ struct SettingsView: View {
             }
         }
         .ignoresSafeArea(.container, edges: .top)
-        .frame(minWidth: 660, maxWidth: .infinity, minHeight: 600, maxHeight: .infinity, alignment: .topLeading)
+        .frame(minWidth: 660, maxWidth: .infinity, minHeight: 420, maxHeight: .infinity, alignment: .topLeading)
         .onAppear(perform: handleAppear)
         .onChange(of: appState.requestedSettingsTab, perform: handleRequestedTabChange)
         .onChange(of: selectedTab, perform: handleSelectedTabChange)
@@ -8497,7 +8497,7 @@ struct AccountSettingsModalView: View {
                 Spacer()
             }
         }
-        .frame(width: 390, height: 530)
+        .frame(width: 520, height: 430)
         .background(.ultraThinMaterial)
     }
 }
@@ -9124,7 +9124,7 @@ struct AuthModalView: View {
 
             Spacer(minLength: 0)
         }
-        .frame(width: 380, height: 380)
+        .frame(width: 440, height: 390)
         .background(.ultraThinMaterial)
     }
 
