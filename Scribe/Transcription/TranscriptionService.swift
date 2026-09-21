@@ -492,34 +492,12 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         let cleanDetected = rawDetected.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
 
         if allowedBases.contains("ru") {
-            let ruProb = linearProbability(for: "ru", in: probs)
-            let nonRussian = allowedBases.filter { $0 != "ru" }
-
-            var bestOther = nonRussian[0]
-            var bestOtherProb = linearProbability(for: bestOther, in: probs)
-            for other in nonRussian.dropFirst() {
-                let p = linearProbability(for: other, in: probs)
-                if p > bestOtherProb {
-                    bestOther = other
-                    bestOtherProb = p
-                }
-            }
-
-            // If detected language is Russian, or Russian probability is higher than the other,
-            // or Russian has meaningful presence (>= 0.10), lock firmly to Russian.
-            if cleanDetected == "ru" || ruProb >= bestOtherProb || ruProb >= 0.10 {
-                // Only switch to non-Russian if it was explicitly detected AND its probability is overwhelmingly dominant (> 0.70)
-                if cleanDetected == bestOther && bestOtherProb >= 0.70 && bestOtherProb >= (ruProb * 3.0) {
-                    return bestOther
-                }
-                return "ru"
-            } else {
-                // cleanDetected != "ru" and ruProb < 0.10
-                if bestOtherProb >= 0.50 || cleanDetected == bestOther {
-                    return bestOther
-                }
-                return "ru"
-            }
+            // When Russian is in allowed languages (e.g. Russian + English), decoding initially in 'ru'
+            // mode is the only mode that reliably captures BOTH Russian Cyrillic and English Latin text
+            // without forced translation. In contrast, decoding in 'en' mode forces Whisper to translate
+            // any Russian speech into English. If the speech is later detected to be 100% English (zero Cyrillic),
+            // the automatic script mismatch handler will re-decode in 'en' mode safely.
+            return "ru"
         }
 
         // For non-Russian multilingual pairs (e.g. en + de)
@@ -609,7 +587,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             if resolvedLang == "ru" && effectiveAllowed.contains("en") {
                 let latCount = text.unicodeScalars.filter { ($0.value >= 0x0041 && $0.value <= 0x005A) || ($0.value >= 0x0061 && $0.value <= 0x007A) }.count
                 let cyrCount = text.unicodeScalars.filter { ($0.value >= 0x0400 && $0.value <= 0x04FF) || ($0.value >= 0x0500 && $0.value <= 0x052F) }.count
-                if latCount >= 10 && latCount >= (cyrCount * 2) {
+                if latCount >= 10 && cyrCount < 6 {
                     var retryOpts = options
                     retryOpts.language = "en"
                     retryOpts.detectLanguage = false
@@ -984,8 +962,8 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         let postLatinCount = preliminaryText.unicodeScalars.filter { ($0.value >= 0x0041 && $0.value <= 0x005A) || ($0.value >= 0x0061 && $0.value <= 0x007A) }.count
         let postCyrillicCount = preliminaryText.unicodeScalars.filter { ($0.value >= 0x0400 && $0.value <= 0x04FF) || ($0.value >= 0x0500 && $0.value <= 0x052F) }.count
 
-        if resolvedLang == "ru" && allowedLanguages.contains("en") && postLatinCount >= 16 && postLatinCount >= (postCyrillicCount * 2) {
-            logger.warning("Decoded text has dominant Latin characters (\(postLatinCount) Latin vs \(postCyrillicCount) Cyrillic) despite 'ru' mode. Re-decoding in 'en' mode…")
+        if resolvedLang == "ru" && allowedLanguages.contains("en") && postLatinCount >= 16 && postCyrillicCount < 6 {
+            logger.warning("Decoded text is purely Latin (\(postLatinCount) Latin vs \(postCyrillicCount) Cyrillic) in 'ru' mode. Re-decoding in 'en' mode…")
             var scriptRedecodeOpts = options
             scriptRedecodeOpts.language = "en"
             scriptRedecodeOpts.detectLanguage = false
@@ -1003,8 +981,8 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
                     logger.info("Successfully re-decoded audio in 'en' mode: '\(retryText.prefix(50))'")
                 }
             }
-        } else if resolvedLang == "en" && allowedLanguages.contains("ru") && postCyrillicCount >= 10 && postCyrillicCount >= (postLatinCount * 2) {
-            logger.warning("Decoded text is overwhelmingly Cyrillic (\(postCyrillicCount) Cyrillic vs \(postLatinCount) Latin) despite 'en' mode. Re-decoding in 'ru' mode…")
+        } else if resolvedLang == "en" && allowedLanguages.contains("ru") && postCyrillicCount >= 6 {
+            logger.warning("Decoded text contains Cyrillic (\(postCyrillicCount) Cyrillic vs \(postLatinCount) Latin) in 'en' mode. Re-decoding in 'ru' mode to avoid forced translation…")
             var scriptRedecodeOpts = options
             scriptRedecodeOpts.language = "ru"
             scriptRedecodeOpts.detectLanguage = false
@@ -2045,14 +2023,28 @@ public enum AIRefinementMode: String, CaseIterable, Identifiable, Sendable {
             languageRule = " TRANSLATION REQUIREMENT: Translate the speech strictly into fluent, natural English. Under NO circumstances output any language other than English."
         } else {
             languageRule = """
-             CRITICAL LANGUAGE INTEGRITY & STRICT RESTRICTION:
+             CRITICAL LANGUAGE INTEGRITY & BILINGUAL CODE-SWITCHING RULES:
             The user configured their environment to speak ONLY in the following permitted language(s): [\(langsList)].
-            Under NO circumstances may any other language be used in your response.
-            You MUST output strictly in the exact same language as the spoken input (selected strictly from: \(langsList)).
-            - If the speech is in Russian, your output MUST be 100% in Russian. Do NOT translate Russian sentences or thoughts to English!
-            - If Russian speech mentions English software names, technical terms, APIs, or URLs (e.g. 'GitHub', 'Xcode', 'ChatGPT'), keep those specific technical nouns as loanwords while strictly maintaining Russian grammatical flow and sentence structure.
-            - If the speech is in English, your output MUST be in English.
-            - NEVER switch to or output any language not explicitly listed above.
+            You MUST output in the exact same language(s) as the spoken input.
+
+            1. BILINGUAL / CODE-SWITCHED SPEECH (MIXED RUSSIAN & ENGLISH):
+               - The user frequently speaks a mixture of languages: part in English, part in Russian (code-switching, asking an English question with a Russian instruction, or mixing Russian thoughts with English technical phrases).
+               - YOU MUST PRESERVE BOTH LANGUAGES EXACTLY AS SPOKEN!
+               - NEVER translate the Russian parts into English!
+               - NEVER translate the English parts into Russian!
+               - NEVER unify or homogenize the text into a single language. Keep each clause, phrase, and word in its original spoken language!
+               - Example: If the speech is "How are carbohydrates stored in plants, animals, and fungi? Дай мне подсказку на русском", your output MUST be "How are carbohydrates stored in plants, animals, and fungi? Дай мне подсказку на русском" (NOT translated to English!).
+
+            2. PURE RUSSIAN SPEECH:
+               - If the speech is entirely in Russian, output strictly in Russian. Do NOT translate Russian sentences to English!
+               - If Russian speech mentions English software names, technical terms, libraries, APIs, or URLs (e.g. 'GitHub', 'Xcode', 'ChatGPT', 'PyTorch'), keep those specific technical terms in English Latin while keeping Russian grammatical flow.
+
+            3. PURE ENGLISH SPEECH:
+               - If the speech is entirely in English, output strictly in English. Do NOT translate to Russian.
+
+            4. ABSOLUTE RESTRICTION:
+               - NEVER translate between allowed languages unless the user explicitly selected Translation mode.
+               - NEVER switch to or introduce any language not in [\(langsList)].
             """
         }
 
@@ -2128,6 +2120,25 @@ public final class CloudAIService: @unchecked Sendable {
                     print("[CloudAIService] Rejected hallucinated summary: input (\(originalCount) chars) -> output (\(cleanedCount) chars). Falling back to original.")
                     return fallback.strippingStressMarks()
                 }
+            }
+        }
+
+        // Anti-translation guardrail:
+        // If the user did not choose .translation, but the input contained Russian Cyrillic (>= 6 chars)
+        // and the output stripped almost all Cyrillic (< 3 chars), the LLM translated Russian to English! Reject it!
+        if mode != .translation {
+            let inputCyrillic = fallback.unicodeScalars.filter { ($0.value >= 0x0400 && $0.value <= 0x04FF) || ($0.value >= 0x0500 && $0.value <= 0x052F) }.count
+            let outputCyrillic = cleaned.unicodeScalars.filter { ($0.value >= 0x0400 && $0.value <= 0x04FF) || ($0.value >= 0x0500 && $0.value <= 0x052F) }.count
+            if inputCyrillic >= 6 && outputCyrillic < 3 {
+                print("[CloudAIService] Rejected unwanted translation of Russian speech: input had \(inputCyrillic) Cyrillic chars, output has only \(outputCyrillic). Falling back to original.")
+                return fallback.strippingStressMarks()
+            }
+
+            let inputLatin = fallback.unicodeScalars.filter { ($0.value >= 0x0041 && $0.value <= 0x005A) || ($0.value >= 0x0061 && $0.value <= 0x007A) }.count
+            let outputLatin = cleaned.unicodeScalars.filter { ($0.value >= 0x0041 && $0.value <= 0x005A) || ($0.value >= 0x0061 && $0.value <= 0x007A) }.count
+            if inputLatin >= 16 && outputLatin < 3 {
+                print("[CloudAIService] Rejected unwanted translation of English speech: input had \(inputLatin) Latin chars, output has only \(outputLatin). Falling back to original.")
+                return fallback.strippingStressMarks()
             }
         }
 
