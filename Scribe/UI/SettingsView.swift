@@ -37,7 +37,7 @@ enum SettingsTab: String, CaseIterable {
         case .ai:
             return 880
         default:
-            return 720
+            return 840
         }
     }
 }
@@ -558,10 +558,21 @@ struct SettingsHeaderView: View {
     var body: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 5) {
-                Text("Scribe")
-                    .font(.system(size: 19, weight: .bold, design: .rounded))
-                    .tracking(0.3)
-                    .foregroundStyle(.primary)
+                HStack(alignment: .firstTextBaseline, spacing: 7) {
+                    Text("Scribe")
+                        .font(.system(size: 19, weight: .bold, design: .rounded))
+                        .tracking(0.3)
+                        .foregroundStyle(.primary)
+
+                    let appVer = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.9.2"
+                    Text("v\(appVer)")
+                        .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.secondary.opacity(0.8))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.primary.opacity(0.06))
+                        .clipShape(Capsule())
+                }
 
                 if updateService.updateAvailable {
                     Button(action: {

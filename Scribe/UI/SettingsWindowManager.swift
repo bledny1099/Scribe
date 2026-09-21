@@ -23,7 +23,7 @@ final class SettingsWindowManager {
         }
 
         let initialWidth: CGFloat = tab.preferredWidth
-        let initialHeight: CGFloat = 620
+        let initialHeight: CGFloat = 530
 
         let newWindow = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: initialWidth, height: initialHeight),
@@ -37,7 +37,7 @@ final class SettingsWindowManager {
         newWindow.standardWindowButton(.closeButton)?.isHidden = true
         newWindow.standardWindowButton(.miniaturizeButton)?.isHidden = true
         newWindow.standardWindowButton(.zoomButton)?.isHidden = true
-        newWindow.minSize = NSSize(width: 720, height: 600)
+        newWindow.minSize = NSSize(width: 780, height: 490)
         newWindow.showsResizeIndicator = true
 
         newWindow.isMovableByWindowBackground = false
@@ -151,7 +151,7 @@ final class SettingsWindowManager {
             window.styleMask.insert(.resizable)
         }
         window.showsResizeIndicator = true
-        window.minSize = NSSize(width: 720, height: 500)
+        window.minSize = NSSize(width: 780, height: 490)
         window.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         
         let targetWidth: CGFloat
@@ -204,7 +204,7 @@ final class SettingsWindowManager {
         currentAppState?.updateSettingsPreviewPanel(isDragging: true)
         guard !isProgrammaticResize, let window = window else { return }
         let currentW = window.frame.width
-        if currentW > 715 {
+        if currentW > 835 {
             userExpandedWidth = currentW
         } else {
             userExpandedWidth = nil
