@@ -492,12 +492,34 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         let cleanDetected = rawDetected.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
 
         if allowedBases.contains("ru") {
-            // When Russian is in allowed languages (e.g. Russian + English), decoding initially in 'ru'
-            // mode is the only mode that reliably captures BOTH Russian Cyrillic and English Latin text
-            // without forced translation. In contrast, decoding in 'en' mode forces Whisper to translate
-            // any Russian speech into English. If the speech is later detected to be 100% English (zero Cyrillic),
-            // the automatic script mismatch handler will re-decode in 'en' mode safely.
-            return "ru"
+            let ruProb = linearProbability(for: "ru", in: probs)
+            let nonRussian = allowedBases.filter { $0 != "ru" }
+
+            var bestOther = nonRussian[0]
+            var bestOtherProb = linearProbability(for: bestOther, in: probs)
+            for other in nonRussian.dropFirst() {
+                let p = linearProbability(for: other, in: probs)
+                if p > bestOtherProb {
+                    bestOther = other
+                    bestOtherProb = p
+                }
+            }
+
+            // If detected language is Russian, or Russian probability is higher than the other,
+            // or Russian has meaningful presence (>= 0.10), lock firmly to Russian.
+            if cleanDetected == "ru" || ruProb >= bestOtherProb || ruProb >= 0.10 {
+                // Only switch to non-Russian if it was explicitly detected AND its probability is overwhelmingly dominant (> 0.70)
+                if cleanDetected == bestOther && bestOtherProb >= 0.70 && bestOtherProb >= (ruProb * 3.0) {
+                    return bestOther
+                }
+                return "ru"
+            } else {
+                // cleanDetected != "ru" and ruProb < 0.10
+                if bestOtherProb >= 0.50 || cleanDetected == bestOther {
+                    return bestOther
+                }
+                return "ru"
+            }
         }
 
         // For non-Russian multilingual pairs (e.g. en + de)

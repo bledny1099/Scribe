@@ -564,7 +564,7 @@ struct SettingsHeaderView: View {
                         .tracking(0.3)
                         .foregroundStyle(.primary)
 
-                    let appVer = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.9.2"
+                    let appVer = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.9.3"
                     Text("v\(appVer)")
                         .font(.system(size: 13, weight: .medium, design: .rounded))
                         .foregroundStyle(.secondary)

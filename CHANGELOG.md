@@ -5,6 +5,21 @@ All notable changes to Scribe will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.3] - 2026-09-21
+
+## Added
+- Anti-hallucination length guardrails in Cloud AI refinement that automatically reject expanded essay outputs and fall back to pristine transcription text.
+- Anti-translation guardrails in Cloud AI refinement protecting against unwanted language switching when translation mode is not selected.
+
+## Changed
+- Rewrote transcribing spinner animation using timeline-driven physics for continuous, seamless rotation without loop resets or boundary hitches.
+- Updated language integrity rules in AI refinement to explicitly support code-switching and bilingual speech (e.g. mixed Russian and English).
+
+## Fixed
+- Fixed an issue where questions or directives dictated for external models (e.g. ChatGPT, search) were executed or answered directly by AI refinement.
+- Fixed an issue where bilingual speech was forced into a single language or translated to English by WhisperKit and LLM refinement models.
+- Fixed Latin script mismatch threshold in WhisperKit to preserve Russian speech when English and Russian are dictated in the same sentence.
+
 ## [2.9.2] - 2026-09-20
 
 ## Added

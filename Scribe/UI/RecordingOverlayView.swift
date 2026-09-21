@@ -196,68 +196,59 @@ struct TranscribingAnimationView: View {
     let theme: AppTheme
     var fontSize: CGFloat = 13
 
-    @State private var spinAngle: Double = 0
-    @State private var sparkScale: CGFloat = 0.85
-    @State private var pulseGlow: Bool = false
-
     var body: some View {
-        HStack(spacing: 10) {
-            // Neural Dual-Ring Glowing Spinner
-            ZStack {
-                Circle()
-                    .fill(theme.glowColor.opacity(pulseGlow ? 0.35 : 0.12))
-                    .frame(width: 24, height: 24)
-                    .blur(radius: 5)
+        TimelineView(.animation) { timeline in
+            let time = timeline.date.timeIntervalSinceReferenceDate
+            let outerAngle = time * 240.0
+            let innerAngle = -time * 330.0
+            let pulse = (sin(time * 3.5) + 1.0) * 0.5
+            let glowOpacity = 0.12 + (pulse * 0.23)
+            let coreScale = 0.85 + (pulse * 0.45)
 
-                // Outer clockwise orbit
-                Circle()
-                    .trim(from: 0.06, to: 0.82)
-                    .stroke(
-                        theme.accentGradient,
-                        style: StrokeStyle(lineWidth: 2.2, lineCap: .round)
-                    )
-                    .frame(width: 20, height: 20)
-                    .rotationEffect(.degrees(spinAngle))
+            HStack(spacing: 10) {
+                // Neural Dual-Ring Glowing Spinner (Continuous Timeline-driven)
+                ZStack {
+                    Circle()
+                        .fill(theme.glowColor.opacity(glowOpacity))
+                        .frame(width: 24, height: 24)
+                        .blur(radius: 5)
 
-                // Inner counter-clockwise orbit
-                Circle()
-                    .trim(from: 0.15, to: 0.68)
-                    .stroke(
-                        theme.gradientColors.last ?? .accentColor,
-                        style: StrokeStyle(lineWidth: 1.6, lineCap: .round)
-                    )
-                    .frame(width: 12, height: 12)
-                    .rotationEffect(.degrees(-spinAngle * 1.35))
+                    // Outer clockwise orbit - continuous seamless rotation without reset
+                    Circle()
+                        .trim(from: 0.06, to: 0.82)
+                        .stroke(
+                            theme.accentGradient,
+                            style: StrokeStyle(lineWidth: 2.2, lineCap: .round)
+                        )
+                        .frame(width: 20, height: 20)
+                        .rotationEffect(.degrees(outerAngle))
 
-                // Central pulsating energy core
-                Circle()
-                    .fill(theme.gradientColors.first ?? .accentColor)
-                    .frame(width: 4, height: 4)
-                    .scaleEffect(sparkScale)
-            }
-            .onAppear {
-                withAnimation(.linear(duration: 1.3).repeatForever(autoreverses: false)) {
-                    spinAngle = 360
+                    // Inner counter-clockwise orbit - continuous seamless counter-rotation
+                    Circle()
+                        .trim(from: 0.15, to: 0.68)
+                        .stroke(
+                            theme.gradientColors.last ?? .accentColor,
+                            style: StrokeStyle(lineWidth: 1.6, lineCap: .round)
+                        )
+                        .frame(width: 12, height: 12)
+                        .rotationEffect(.degrees(innerAngle))
+
+                    // Central pulsating energy core
+                    Circle()
+                        .fill(theme.gradientColors.first ?? .accentColor)
+                        .frame(width: 4, height: 4)
+                        .scaleEffect(coreScale)
                 }
-                withAnimation(.easeInOut(duration: 0.75).repeatForever(autoreverses: true)) {
-                    sparkScale = 1.3
-                    pulseGlow = true
-                }
-            }
-            .onDisappear {
-                spinAngle = 0
-                sparkScale = 0.85
-                pulseGlow = false
-            }
 
-            let titleText = (appState.recordingStatus == .loadingModel)
-                ? appState.l("Loading model")
-                : appState.l("Transcribing")
+                let titleText = (appState.recordingStatus == .loadingModel)
+                    ? appState.l("Loading model")
+                    : appState.l("Transcribing")
 
-            Text(titleText)
-                .font(.system(size: fontSize, weight: .semibold, design: .rounded))
-                .foregroundStyle(.primary.opacity(0.85))
-                .lineLimit(1)
+                Text(titleText)
+                    .font(.system(size: fontSize, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.primary.opacity(0.85))
+                    .lineLimit(1)
+            }
         }
     }
 }
