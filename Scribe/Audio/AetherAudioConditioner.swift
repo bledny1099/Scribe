@@ -23,11 +23,10 @@ public final class AetherAudioConditioner: @unchecked Sendable {
 
             guard frameCount > 0 else { return nil }
 
-            // If audio is longer than 3 minutes (e.g. lecture or long meeting), pass directly to WhisperKit
-            // which streams and chunks 30-second windows without memory exhaustion.
+            // If audio is longer than 3 minutes (e.g. lecture or long meeting), stabilize volume in streaming chunks
             if frameCount > AVAudioFrameCount(format.sampleRate * 180) {
-                logger.info("AetherAudioConditioner: Long audio file (\(Int(Double(frameCount) / format.sampleRate))s). Passing directly to WhisperKit.")
-                return audioURL
+                logger.info("AetherAudioConditioner: Long audio file (\(Int(Double(frameCount) / format.sampleRate))s). Running streaming AGC microphone volume stabilization.")
+                return conditionLongAudio(audioURL: audioURL, file: file, format: format, frameCount: frameCount)
             }
 
             guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount) else {
@@ -216,8 +215,8 @@ public final class AetherAudioConditioner: @unchecked Sendable {
 
         if speechWindowCount > 0 {
             let avgSpeechRms = speechRmsSum / Float(speechWindowCount)
-            if avgSpeechRms > 0.005 {
-                gain = min(targetRms / avgSpeechRms, 12.0) // Cap gain boost at +21 dB
+            if avgSpeechRms > 0.0015 {
+                gain = min(targetRms / avgSpeechRms, 14.0) // Boost quiet speech up to +23 dB
             }
         }
 
@@ -240,6 +239,47 @@ public final class AetherAudioConditioner: @unchecked Sendable {
                     ptr[i] = -0.88 + 0.10 * tanh((s + 0.88) / 0.10)
                 }
             }
+        }
+    }
+
+    // MARK: - Streaming Long Audio Conditioning (Lectures / Long Meetings)
+
+    private func conditionLongAudio(audioURL: URL, file: AVAudioFile, format: AVAudioFormat, frameCount: AVAudioFrameCount) -> URL {
+        do {
+            let sampleRate = Float(format.sampleRate)
+            let channelCount = Int(format.channelCount)
+            let chunkSize = AVAudioFrameCount(sampleRate * 15.0) // 15-second chunks
+            guard let chunkBuffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: chunkSize) else {
+                return audioURL
+            }
+
+            let outputURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("aether_conditioned_\(UUID().uuidString).wav")
+            let outputFile = try AVAudioFile(forWriting: outputURL, settings: format.settings)
+
+            var remainingFrames = frameCount
+            file.framePosition = 0
+
+            while remainingFrames > 0 {
+                let framesToRead = min(remainingFrames, chunkSize)
+                chunkBuffer.frameLength = framesToRead
+                try file.read(into: chunkBuffer, frameCount: framesToRead)
+
+                if let channelData = chunkBuffer.floatChannelData {
+                    let count = Int(chunkBuffer.frameLength)
+                    applyHighPassFilter(channelData: channelData, channelCount: channelCount, count: count, sampleRate: sampleRate)
+                    normalizeLoudness(buffer: chunkBuffer)
+                }
+
+                try outputFile.write(from: chunkBuffer)
+                remainingFrames -= framesToRead
+            }
+
+            logger.info("AetherAudioConditioner: Successfully stabilized microphone volume for long audio file.")
+            return outputURL
+        } catch {
+            logger.warning("Long audio conditioning failed: \(error.localizedDescription). Using original audio.")
+            return audioURL
         }
     }
 }

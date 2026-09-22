@@ -35,7 +35,7 @@ enum SettingsTab: String, CaseIterable {
     var preferredWidth: CGFloat {
         switch self {
         case .ai:
-            return 780
+            return 860
         default:
             return 730
         }
@@ -550,6 +550,31 @@ struct DeviceLimitWarningBanner: View {
     }
 }
 
+private struct VersionBadgeView: View {
+    let isLight: Bool
+
+    var body: some View {
+        let appVer = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.9.3"
+        let fgColor = isLight ? Color.black.opacity(0.70) : Color.white.opacity(0.85)
+        let bgColor = isLight ? Color.black.opacity(0.06) : Color.white.opacity(0.12)
+        let borderColor = isLight ? Color.black.opacity(0.14) : Color.white.opacity(0.22)
+
+        Text("v\(appVer)")
+            .font(.system(size: 11, weight: .semibold, design: .rounded))
+            .foregroundStyle(fgColor)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 2.5)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(bgColor)
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .strokeBorder(borderColor, lineWidth: 1)
+            )
+    }
+}
+
 // MARK: - Settings Header View Component
 struct SettingsHeaderView: View {
     @ObservedObject var updateService = AppUpdateService.shared
@@ -564,20 +589,7 @@ struct SettingsHeaderView: View {
                         .tracking(0.3)
                         .foregroundStyle(.primary)
 
-                    let appVer = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.9.3"
-                    Text("v\(appVer)")
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.secondary.opacity(0.85))
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 2.5)
-                        .background(
-                            Capsule(style: .continuous)
-                                .fill(Color.primary.opacity(0.06))
-                        )
-                        .overlay(
-                            Capsule(style: .continuous)
-                                .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
-                        )
+                    VersionBadgeView(isLight: appState.selectedPanelAppearance == .light)
                 }
 
                 if updateService.updateAvailable {

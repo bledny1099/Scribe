@@ -1249,6 +1249,7 @@ final class AppState: ObservableObject {
                                 apiKey: key,
                                 vocabulary: effectiveVocab,
                                 allowedLanguages: activeRefinementLangs.isEmpty ? ["ru", "en"] : activeRefinementLangs,
+                                isLecture: self.isLectureRecording,
                                 customBaseURL: self.customOpenAIBaseURL,
                                 customModel: self.customOpenAIModel,
                                 geminiModel: self.geminiModel,
@@ -1329,7 +1330,7 @@ final class AppState: ObservableObject {
                         logger.info("Lecture recording completed. Exporting directly to new note…")
 
                         // Export to notes as a fresh lecture note
-                        NoteExporter.exportLectureNote(
+                        await NoteExporter.exportLectureNote(
                             duration: duration,
                             transcript: text,
                             state: self
@@ -1544,7 +1545,7 @@ final class AppState: ObservableObject {
                 TranscriptionHistory.shared.add(record)
 
                 // 4. Export to Apple Notes
-                NoteExporter.exportLectureNote(
+                await NoteExporter.exportLectureNote(
                     title: filename,
                     duration: nil,
                     transcript: text,
@@ -1784,43 +1785,15 @@ final class AppState: ObservableObject {
     }
 
     private func targetPreviewOrigin(for style: OverlayStyle, size: NSSize, isDragging: Bool = false) -> NSPoint {
-        guard let screen = NSScreen.main else { return .zero }
+        let screen = SettingsWindowManager.shared.window?.screen ?? NSScreen.main ?? NSScreen.screens.first
+        guard let screen = screen else { return .zero }
         let screenFrame = screen.visibleFrame
 
-        var activeFrame: NSRect? = nil
-        if let permFrame = PermissionWindowManager.shared.windowFrame, NSApp.keyWindow == PermissionWindowManager.shared.window {
-            activeFrame = permFrame
-        } else if let setFrame = SettingsWindowManager.shared.windowFrame, NSApp.keyWindow == SettingsWindowManager.shared.window {
-            activeFrame = setFrame
-        } else {
-            activeFrame = SettingsWindowManager.shared.windowFrame ?? PermissionWindowManager.shared.windowFrame
-        }
-
-        guard let settingsFrame = activeFrame else {
-            let x = screenFrame.midX - size.width / 2
-            let y = screenFrame.minY + 40
-            return NSPoint(x: x, y: y)
-        }
-
-        let padding: CGFloat = 16
-        // Ensure there is room below the settings window
-        let neededSpaceBelow = size.height + padding + 12
-        let minRequiredSettingsY = screenFrame.minY + neededSpaceBelow
-        if settingsFrame.minY < minRequiredSettingsY {
-            SettingsWindowManager.shared.ensureMinimumY(minRequiredSettingsY)
-        }
-
-        let currentSettingsFrame = SettingsWindowManager.shared.windowFrame ?? settingsFrame
-
-        // Center horizontally with the settings window
-        let centeredX = currentSettingsFrame.midX - size.width / 2
-        let clampedX = max(screenFrame.minX + padding, min(centeredX, screenFrame.maxX - size.width - padding))
-
-        // Position directly below the settings window
-        let targetY = currentSettingsFrame.minY - size.height - 12
-        let clampedY = max(screenFrame.minY + 8, min(targetY, currentSettingsFrame.minY - size.height - 4))
-
-        return NSPoint(x: clampedX, y: clampedY)
+        // Keep preview panel stably centered at bottom of screen (above dock)
+        // so it looks calm, elegant, and never shifts or jumps when moving the settings window
+        let x = screenFrame.midX - size.width / 2
+        let y = screenFrame.minY + 28
+        return NSPoint(x: x, y: y)
     }
 
     func updateSettingsPreviewPanel(isDragging: Bool = false, includeSubtitle: Bool = false) {
@@ -1849,7 +1822,7 @@ final class AppState: ObservableObject {
         let targetRadius = RecordingPanel.radius(
             for: selectedOverlayStyle, 
             overlaySize: selectedOverlaySize, 
-            isEmbeddedPreviewActive: isEmbeddedActive,
+            isEmbeddedPreviewActive: isEmbeddedActive, 
             previewTextLength: livePreviewText.count,
             targetAppName: previewAppName,
             isTimerVisible: isTimerVis,
@@ -1875,15 +1848,7 @@ final class AppState: ObservableObject {
             existingPanel.updateCornerRadius(targetRadius, targetSize: targetSize)
 
             let oldFrame = existingPanel.frame
-            let calculatedFrame: NSRect
-            if isDragging {
-                calculatedFrame = targetFrame
-            } else if abs(oldFrame.origin.y - targetOrigin.y) > 50 || abs(oldFrame.origin.x - targetOrigin.x) > 50 {
-                calculatedFrame = targetFrame
-            } else {
-                let calculatedY = oldFrame.maxY - targetSize.height
-                calculatedFrame = NSRect(x: targetOrigin.x, y: calculatedY, width: targetSize.width, height: targetSize.height)
-            }
+            let calculatedFrame = targetFrame
 
             if oldFrame != calculatedFrame {
                 existingPanel.setFrame(calculatedFrame, display: true)

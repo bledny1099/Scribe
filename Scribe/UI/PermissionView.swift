@@ -963,13 +963,7 @@ final class PermissionWindowManager {
     var windowFrame: NSRect? { window?.frame }
 
     func ensureMinimumY(_ minY: CGFloat) {
-        guard let win = window else { return }
-        let currentFrame = win.frame
-        if currentFrame.minY < minY {
-            var newFrame = currentFrame
-            newFrame.origin.y = minY
-            win.setFrame(newFrame, display: true, animate: true)
-        }
+        // Intentionally no-op: do not push or constrain window during drag
     }
 
     func animateToSize(_ size: CGSize) {
@@ -1075,7 +1069,7 @@ final class PermissionWindowManager {
     }
     
     func windowDidMove() {
-        currentAppState?.updateSettingsPreviewPanel(isDragging: true)
+        // Preview stays stably anchored at screen bottom
     }
 }
 

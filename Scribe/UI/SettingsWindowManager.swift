@@ -139,12 +139,10 @@ final class SettingsWindowManager {
 
         isProgrammaticResize = true
         if animate {
-            NSAnimationContext.runAnimationGroup { context in
-                context.duration = 0.28
-                context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-                window.animator().setFrame(frame, display: true)
-            } completionHandler: { [weak self] in
+            window.setFrame(frame, display: true, animate: true)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) { [weak self] in
                 self?.isProgrammaticResize = false
+                self?.currentAppState?.updateSettingsPreviewPanel(isDragging: false)
             }
         } else {
             window.setFrame(frame, display: true)
@@ -170,28 +168,11 @@ final class SettingsWindowManager {
             window.setFrame(f, display: true)
         }
         
-        let targetWidth: CGFloat
-        if let expandedWidth = userExpandedWidth {
-            targetWidth = max(expandedWidth, tab.preferredWidth)
-        } else {
-            targetWidth = tab.preferredWidth
-        }
-        
-        resizeWindow(to: targetWidth, animate: animate)
+        resizeWindow(to: tab.preferredWidth, animate: animate)
     }
 
     func ensureMinimumY(_ minY: CGFloat) {
-        guard let window = window else { return }
-        let currentFrame = window.frame
-        if currentFrame.minY < minY {
-            guard let screen = window.screen ?? NSScreen.main else { return }
-            let maxY = screen.visibleFrame.maxY - currentFrame.height - 20
-            let newY = min(minY, maxY)
-            if abs(currentFrame.minY - newY) > 2 {
-                let newFrame = NSRect(x: currentFrame.origin.x, y: newY, width: currentFrame.width, height: currentFrame.height)
-                window.setFrame(newFrame, display: true)
-            }
-        }
+        // Intentionally no-op: do not push or constrain the window during drag
     }
     
     func animateToSize(_ size: CGSize) {
@@ -217,21 +198,21 @@ final class SettingsWindowManager {
     }
 
     func windowDidMove() {
-        currentAppState?.updateSettingsPreviewPanel(isDragging: true)
+        // Preview panel stays stably anchored at screen bottom — no movement during drag
     }
 
     func windowWillStartLiveResize() {
-        currentAppState?.updateSettingsPreviewPanel(isDragging: true)
     }
 
     func windowDidResize() {
-        currentAppState?.updateSettingsPreviewPanel(isDragging: true)
         guard !isProgrammaticResize, let window = window else { return }
-        let currentW = window.frame.width
-        if currentW > 730 {
-            userExpandedWidth = currentW
-        } else {
-            userExpandedWidth = nil
+        if window.inLiveResize {
+            let currentW = window.frame.width
+            if currentW > 860 {
+                userExpandedWidth = currentW
+            } else {
+                userExpandedWidth = nil
+            }
         }
     }
 

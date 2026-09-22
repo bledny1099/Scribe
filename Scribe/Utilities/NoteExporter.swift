@@ -71,7 +71,7 @@ class NoteExporter {
         transcript: String,
         sourceFilename: String? = nil,
         state: AppState
-    ) {
+    ) async {
         guard !transcript.isEmpty else { return }
         
         let dateString = DateFormatter.localizedString(from: Date(), dateStyle: .long, timeStyle: .short)
@@ -95,9 +95,12 @@ class NoteExporter {
         } else if let fn = sourceFilename, !fn.isEmpty {
             noteTitle = fn
         } else {
-            let prefix = state.lectureTitlePrefix.trimmingCharacters(in: .whitespacesAndNewlines)
-            let effectivePrefix = prefix.isEmpty ? state.l("Lecture") : prefix
-            noteTitle = "\(effectivePrefix) — \(dateString)"
+            let briefTopic = await generateBriefLectureTopic(transcript: transcript, state: state)
+            if !briefTopic.isEmpty {
+                noteTitle = "\(dateString) — \(briefTopic)"
+            } else {
+                noteTitle = dateString
+            }
         }
         
         state.lastImportedNoteTitle = noteTitle
@@ -109,7 +112,8 @@ class NoteExporter {
         
         // 2. Export to Obsidian if enabled
         if state.lectureTargetObsidian || state.enableObsidian {
-            let obsText = "# \(noteTitle)\n*\(dateString)\(durationString.isEmpty ? "" : " • " + durationString)*\n\n\(transcript)"
+            let metaLine = durationString.isEmpty ? "" : "*\(state.l("Duration")): \(durationString)*\n\n"
+            let obsText = "# \(noteTitle)\n\(metaLine)\(transcript)"
             exportToObsidian(text: obsText, mode: .newNote, vaultURLString: state.obsidianVaultURL, targetNote: noteTitle, state: state)
         }
         
@@ -118,6 +122,61 @@ class NoteExporter {
             let token = KeychainHelper.shared.getNotionToken()
             exportToNotion(text: "### \(noteTitle)\n\(transcript)", mode: .newNote, integrationToken: token, pageId: state.notionPageId, state: state)
         }
+    }
+
+    @MainActor
+    public static func generateBriefLectureTopic(transcript: String, state: AppState) async -> String {
+        let trimmed = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "" }
+
+        if state.enableCloudAI {
+            let key = state.activeCloudAPIKey
+            let provider = state.cloudAIProvider
+            if provider == .ollama || !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                do {
+                    let topic = try await CloudAIService.shared.generateFastLectureTopic(
+                        transcript: trimmed,
+                        provider: provider,
+                        apiKey: key,
+                        groqModel: state.groqModel,
+                        geminiModel: state.geminiModel,
+                        cerebrasModel: state.cerebrasModel,
+                        customBaseURL: state.customOpenAIBaseURL,
+                        customModel: state.customOpenAIModel,
+                        ollamaEndpoint: state.ollamaEndpoint,
+                        ollamaModel: state.ollamaModel
+                    )
+                    let cleaned = topic
+                        .replacingOccurrences(of: "\n", with: " ")
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                        .trimmingCharacters(in: CharacterSet(charactersIn: "\".'«»"))
+                    if !cleaned.isEmpty {
+                        return cleaned
+                    }
+                } catch {
+                    logger.warning("Failed to generate AI lecture topic: \(error.localizedDescription)")
+                }
+            }
+        }
+
+        return extractFirstSentence(from: trimmed, maxLength: 80)
+    }
+
+    private static func extractFirstSentence(from text: String, maxLength: Int = 80) -> String {
+        let firstLine = text.components(separatedBy: .newlines).first(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty }) ?? text
+        var sentence = firstLine
+        if let dotIndex = sentence.firstIndex(of: ".") {
+            sentence = String(sentence[..<dotIndex])
+        } else if let qIndex = sentence.firstIndex(of: "?") {
+            sentence = String(sentence[..<qIndex])
+        } else if let eIndex = sentence.firstIndex(of: "!") {
+            sentence = String(sentence[..<eIndex])
+        }
+        let cleaned = sentence.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleaned.count > maxLength {
+            return String(cleaned.prefix(maxLength)) + "..."
+        }
+        return cleaned
     }
     
     @MainActor
@@ -142,10 +201,11 @@ class NoteExporter {
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "\"", with: "\\\"")
             
-        let metaLine = durationString.isEmpty ? dateString : "\(dateString) • \(state.l("Duration")): \(durationString)"
+        let metaLine = durationString.isEmpty ? "" : "\(state.l("Duration")): \(durationString)"
+        let metaHTML = metaLine.isEmpty ? "" : "<p><i>\(metaLine)</i></p>"
         let tagsText = state.defaultNoteTags.isEmpty ? "" : "<br><br>\(state.defaultNoteTags.replacingOccurrences(of: "\"", with: "\\\""))"
         
-        let htmlContent = "<h1>\(sanitizedTitle)</h1><p><i>\(metaLine)</i></p><br><p>\(sanitizedBody)\(tagsText)</p>"
+        let htmlContent = "<h1>\(sanitizedTitle)</h1>\(metaHTML)<br><p>\(sanitizedBody)\(tagsText)</p>"
         
         var scriptSource = """
         tell application "Notes"
