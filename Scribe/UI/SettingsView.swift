@@ -35,9 +35,9 @@ enum SettingsTab: String, CaseIterable {
     var preferredWidth: CGFloat {
         switch self {
         case .ai:
-            return 880
+            return 780
         default:
-            return 840
+            return 730
         }
     }
 }
@@ -118,7 +118,7 @@ struct SettingsView: View {
             }
         }
         .ignoresSafeArea(.container, edges: .top)
-        .frame(minWidth: 660, maxWidth: .infinity, minHeight: 420, maxHeight: .infinity, alignment: .topLeading)
+        .frame(minWidth: 700, maxWidth: .infinity, minHeight: 700, maxHeight: .infinity, alignment: .topLeading)
         .onAppear(perform: handleAppear)
         .onChange(of: appState.requestedSettingsTab, perform: handleRequestedTabChange)
         .onChange(of: selectedTab, perform: handleSelectedTabChange)
@@ -397,7 +397,7 @@ struct SettingsContentView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 24)
+            .padding(.horizontal, 22)
             .padding(.top, 88)
             .padding(.bottom, 24)
         }
@@ -558,7 +558,7 @@ struct SettingsHeaderView: View {
     var body: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 5) {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                HStack(alignment: .center, spacing: 7) {
                     Text("Scribe")
                         .font(.system(size: 19, weight: .bold, design: .rounded))
                         .tracking(0.3)
@@ -566,8 +566,18 @@ struct SettingsHeaderView: View {
 
                     let appVer = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.9.3"
                     Text("v\(appVer)")
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.secondary.opacity(0.85))
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 2.5)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(Color.primary.opacity(0.06))
+                        )
+                        .overlay(
+                            Capsule(style: .continuous)
+                                .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
+                        )
                 }
 
                 if updateService.updateAvailable {
@@ -1585,6 +1595,26 @@ struct ShareCertificateButton: View {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(url.absoluteString, forType: .string)
+        
+        // Render actual certificate snapshot directly to clipboard
+        let cardSnapshot = GoldCertificateCardView(
+            isPulsing: false,
+            isShimmering: false,
+            showTopWords: .constant(false)
+        )
+        .environmentObject(appState)
+        .frame(width: 460)
+        .padding(16)
+        .background(Color(red: 0.05, green: 0.05, blue: 0.07))
+
+        let renderer = ImageRenderer(content: cardSnapshot)
+        renderer.scale = 2.0
+        if let nsImage = renderer.nsImage,
+           let tiff = nsImage.tiffRepresentation,
+           let bitmap = NSBitmapImageRep(data: tiff),
+           let pngData = bitmap.representation(using: .png, properties: [:]) {
+            pasteboard.setData(pngData, forType: .png)
+        }
         
         NSWorkspace.shared.open(url)
         
@@ -8094,7 +8124,6 @@ struct SidebarAccountFooterView: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 10)
         .padding(.vertical, 8)
     }
 }
@@ -8497,7 +8526,7 @@ struct AccountSettingsModalView: View {
                 Spacer()
             }
         }
-        .frame(width: 520, height: 430)
+        .frame(width: 400, height: 530)
         .background(.ultraThinMaterial)
     }
 }
@@ -9124,7 +9153,7 @@ struct AuthModalView: View {
 
             Spacer(minLength: 0)
         }
-        .frame(width: 440, height: 390)
+        .frame(width: 380, height: 380)
         .background(.ultraThinMaterial)
     }
 

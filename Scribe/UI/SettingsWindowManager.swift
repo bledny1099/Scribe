@@ -16,6 +16,13 @@ final class SettingsWindowManager {
         self.currentAppState = appState
         appState.requestedSettingsTab = tab
         if let existingWindow = window {
+            if existingWindow.frame.height < 740 {
+                var f = existingWindow.frame
+                let diff = 740 - f.height
+                f.origin.y -= diff
+                f.size.height = 740
+                existingWindow.setFrame(f, display: true)
+            }
             existingWindow.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
             resizeWindow(to: tab.preferredWidth, animate: true)
@@ -23,7 +30,7 @@ final class SettingsWindowManager {
         }
 
         let initialWidth: CGFloat = tab.preferredWidth
-        let initialHeight: CGFloat = 460
+        let initialHeight: CGFloat = 740
 
         let newWindow = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: initialWidth, height: initialHeight),
@@ -32,12 +39,13 @@ final class SettingsWindowManager {
             defer: false
         )
         
+        newWindow.isRestorable = false
         newWindow.titlebarAppearsTransparent = true
         newWindow.titleVisibility = .hidden
         newWindow.standardWindowButton(.closeButton)?.isHidden = true
         newWindow.standardWindowButton(.miniaturizeButton)?.isHidden = true
         newWindow.standardWindowButton(.zoomButton)?.isHidden = true
-        newWindow.minSize = NSSize(width: 780, height: 420)
+        newWindow.minSize = NSSize(width: 700, height: 700)
         newWindow.showsResizeIndicator = true
 
         newWindow.isMovableByWindowBackground = false
@@ -151,8 +159,16 @@ final class SettingsWindowManager {
             window.styleMask.insert(.resizable)
         }
         window.showsResizeIndicator = true
-        window.minSize = NSSize(width: 780, height: 420)
+        window.minSize = NSSize(width: 700, height: 700)
         window.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        
+        if window.frame.height < 740 {
+            var f = window.frame
+            let diff = 740 - f.height
+            f.origin.y -= diff
+            f.size.height = 740
+            window.setFrame(f, display: true)
+        }
         
         let targetWidth: CGFloat
         if let expandedWidth = userExpandedWidth {
@@ -185,11 +201,15 @@ final class SettingsWindowManager {
         let newY = currentFrame.maxY - size.height // Anchor top edge
         let newFrame = NSRect(x: newX, y: newY, width: size.width, height: size.height)
         
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.35
+        isProgrammaticResize = true
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = 0.25
             context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
             window.animator().setFrame(newFrame, display: true)
-        }
+        }, completionHandler: { [weak self] in
+            self?.isProgrammaticResize = false
+            self?.currentAppState?.updateSettingsPreviewPanel(isDragging: false)
+        })
     }
 
     func makeKeyIfNeeded() {
@@ -200,11 +220,15 @@ final class SettingsWindowManager {
         currentAppState?.updateSettingsPreviewPanel(isDragging: true)
     }
 
+    func windowWillStartLiveResize() {
+        currentAppState?.updateSettingsPreviewPanel(isDragging: true)
+    }
+
     func windowDidResize() {
         currentAppState?.updateSettingsPreviewPanel(isDragging: true)
         guard !isProgrammaticResize, let window = window else { return }
         let currentW = window.frame.width
-        if currentW > 835 {
+        if currentW > 730 {
             userExpandedWidth = currentW
         } else {
             userExpandedWidth = nil
