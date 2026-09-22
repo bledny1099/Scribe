@@ -1514,7 +1514,7 @@ final class AppState: ObservableObject {
                             }
                         }
                     } else {
-                        let errMsg = "\(provider.displayName): API key is not configured"
+          а              let errMsg = "\(provider.displayName): API key is not configured"
                         logger.warning("\(errMsg)")
                         await MainActor.run {
                             self.lastAIErrorMessage = errMsg
@@ -1785,15 +1785,57 @@ final class AppState: ObservableObject {
     }
 
     private func targetPreviewOrigin(for style: OverlayStyle, size: NSSize, isDragging: Bool = false) -> NSPoint {
-        let screen = SettingsWindowManager.shared.window?.screen ?? NSScreen.main ?? NSScreen.screens.first
+        let mode = overlayPositionMode
+        let targetWin = SettingsWindowManager.shared.window ?? NSApp.keyWindow
+        let screen = targetWin?.screen ?? NSScreen.main ?? NSScreen.screens.first
         guard let screen = screen else { return .zero }
         let screenFrame = screen.visibleFrame
 
-        // Keep preview panel stably centered at bottom of screen (above dock)
-        // so it looks calm, elegant, and never shifts or jumps when moving the settings window
-        let x = screenFrame.midX - size.width / 2
-        let y = screenFrame.minY + 28
-        return NSPoint(x: x, y: y)
+        switch mode {
+        case .screenBottom:
+            let x = screenFrame.midX - size.width / 2
+            let y = screenFrame.minY + 24
+            return NSPoint(x: x, y: y)
+
+        case .activeWindow:
+            if let windowFrame = targetWin?.frame {
+                let isNearlyFullScreen = windowFrame.width >= (screenFrame.width - 60) && windowFrame.height >= (screenFrame.height - 60)
+                let isValidWindowFrame = windowFrame.intersects(screenFrame) && windowFrame.width >= 200
+
+                if isNearlyFullScreen || !isValidWindowFrame {
+                    let x = screenFrame.midX - size.width / 2
+                    let y = screenFrame.minY + 24
+                    return NSPoint(x: x, y: y)
+                } else {
+                    var x = windowFrame.midX - size.width / 2
+                    var y = windowFrame.minY + 20
+
+                    let minAllowedY = screenFrame.minY + 16
+                    let maxAllowedY = screenFrame.maxY - size.height - 16
+                    let minAllowedX = screenFrame.minX + 16
+                    let maxAllowedX = screenFrame.maxX - size.width - 16
+
+                    x = max(minAllowedX, min(x, maxAllowedX))
+                    y = max(minAllowedY, min(y, maxAllowedY))
+                    return NSPoint(x: x, y: y)
+                }
+            } else {
+                let x = screenFrame.midX - size.width / 2
+                let y = screenFrame.minY + 24
+                return NSPoint(x: x, y: y)
+            }
+        }
+    }
+
+    func moveSettingsPreviewPanelWithWindow() {
+        guard let panel = settingsPreviewPanel, panel.isVisible else { return }
+        if overlayPositionMode == .activeWindow {
+            let targetOrigin = targetPreviewOrigin(for: selectedOverlayStyle, size: panel.frame.size, isDragging: true)
+            panel.setFrameOrigin(targetOrigin)
+            if let subPanel = settingsSubtitlePanel {
+                updateSubtitlePanelFrame(for: panel, subPanel: subPanel)
+            }
+        }
     }
 
     func updateSettingsPreviewPanel(isDragging: Bool = false, includeSubtitle: Bool = false) {
@@ -1851,7 +1893,15 @@ final class AppState: ObservableObject {
             let calculatedFrame = targetFrame
 
             if oldFrame != calculatedFrame {
-                existingPanel.setFrame(calculatedFrame, display: true)
+                if !isDragging && (abs(oldFrame.origin.x - targetOrigin.x) > 4 || abs(oldFrame.origin.y - targetOrigin.y) > 4) {
+                    NSAnimationContext.runAnimationGroup { ctx in
+                        ctx.duration = 0.22
+                        ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                        existingPanel.animator().setFrame(calculatedFrame, display: true)
+                    }
+                } else {
+                    existingPanel.setFrame(calculatedFrame, display: true)
+                }
             }
 
             existingPanel.orderFrontRegardless()

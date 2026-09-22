@@ -1069,7 +1069,7 @@ final class PermissionWindowManager {
     }
     
     func windowDidMove() {
-        // Preview stays stably anchored at screen bottom
+        currentAppState?.moveSettingsPreviewPanelWithWindow()
     }
 }
 
