@@ -1807,17 +1807,14 @@ final class AppState: ObservableObject {
                     let y = screenFrame.minY + 24
                     return NSPoint(x: x, y: y)
                 } else {
-                    var x = windowFrame.midX - size.width / 2
-                    var y = windowFrame.minY + 20
+                    let centeredX = windowFrame.midX - size.width / 2
+                    let clampedX = max(screenFrame.minX + 16, min(centeredX, screenFrame.maxX - size.width - 16))
 
-                    let minAllowedY = screenFrame.minY + 16
-                    let maxAllowedY = screenFrame.maxY - size.height - 16
-                    let minAllowedX = screenFrame.minX + 16
-                    let maxAllowedX = screenFrame.maxX - size.width - 16
+                    // Position cleanly below the window with comfortable 14pt gap, keeping safely above the dock
+                    let targetY = windowFrame.minY - size.height - 14
+                    let clampedY = max(screenFrame.minY + 12, min(targetY, windowFrame.minY - size.height - 4))
 
-                    x = max(minAllowedX, min(x, maxAllowedX))
-                    y = max(minAllowedY, min(y, maxAllowedY))
-                    return NSPoint(x: x, y: y)
+                    return NSPoint(x: clampedX, y: clampedY)
                 }
             } else {
                 let x = screenFrame.midX - size.width / 2

@@ -37,7 +37,7 @@ enum SettingsTab: String, CaseIterable {
         case .ai:
             return 860
         default:
-            return 730
+            return 736
         }
     }
 }
@@ -118,7 +118,7 @@ struct SettingsView: View {
             }
         }
         .ignoresSafeArea(.container, edges: .top)
-        .frame(minWidth: 700, maxWidth: .infinity, minHeight: 580, maxHeight: .infinity, alignment: .topLeading)
+        .frame(minWidth: 700, maxWidth: .infinity, minHeight: 600, maxHeight: .infinity, alignment: .topLeading)
         .onAppear(perform: handleAppear)
         .onChange(of: appState.requestedSettingsTab, perform: handleRequestedTabChange)
         .onChange(of: selectedTab, perform: handleSelectedTabChange)
@@ -323,10 +323,10 @@ struct SettingsSidebarView: View {
                 showingAccountSettingsModal: $showingAccountSettingsModal
             )
         }
-        .frame(width: 200)
+        .frame(width: 206)
         .frame(maxHeight: .infinity, alignment: .topLeading)
         .padding(.top, 88)
-        .padding(.bottom, 16)
+        .padding(.bottom, 6)
         .padding(.horizontal, 10)
         .background(Color.primary.opacity(0.015))
         .sheet(isPresented: $showingSupportModal) {
@@ -554,7 +554,7 @@ private struct VersionBadgeView: View {
     let isLight: Bool
 
     var body: some View {
-        let appVer = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.9.3"
+        let appVer = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.9.4"
         let fgColor = isLight ? Color.black.opacity(0.70) : Color.white.opacity(0.85)
         let bgColor = isLight ? Color.black.opacity(0.06) : Color.white.opacity(0.12)
         let borderColor = isLight ? Color.black.opacity(0.14) : Color.white.opacity(0.22)

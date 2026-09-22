@@ -16,11 +16,11 @@ final class SettingsWindowManager {
         self.currentAppState = appState
         appState.requestedSettingsTab = tab
         if let existingWindow = window {
-            if existingWindow.frame.height < 620 {
+            if existingWindow.frame.height < 645 {
                 var f = existingWindow.frame
-                let diff = 620 - f.height
+                let diff = 645 - f.height
                 f.origin.y -= diff
-                f.size.height = 620
+                f.size.height = 645
                 existingWindow.setFrame(f, display: true)
             }
             existingWindow.makeKeyAndOrderFront(nil)
@@ -30,7 +30,7 @@ final class SettingsWindowManager {
         }
 
         let initialWidth: CGFloat = tab.preferredWidth
-        let initialHeight: CGFloat = 620
+        let initialHeight: CGFloat = 645
 
         let newWindow = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: initialWidth, height: initialHeight),
@@ -45,7 +45,7 @@ final class SettingsWindowManager {
         newWindow.standardWindowButton(.closeButton)?.isHidden = true
         newWindow.standardWindowButton(.miniaturizeButton)?.isHidden = true
         newWindow.standardWindowButton(.zoomButton)?.isHidden = true
-        newWindow.minSize = NSSize(width: 700, height: 580)
+        newWindow.minSize = NSSize(width: 700, height: 600)
         newWindow.showsResizeIndicator = true
 
         newWindow.isMovableByWindowBackground = false
@@ -157,14 +157,14 @@ final class SettingsWindowManager {
             window.styleMask.insert(.resizable)
         }
         window.showsResizeIndicator = true
-        window.minSize = NSSize(width: 700, height: 580)
+        window.minSize = NSSize(width: 700, height: 600)
         window.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         
-        if window.frame.height < 620 {
+        if window.frame.height < 645 {
             var f = window.frame
-            let diff = 620 - f.height
+            let diff = 645 - f.height
             f.origin.y -= diff
-            f.size.height = 620
+            f.size.height = 645
             window.setFrame(f, display: true)
         }
         

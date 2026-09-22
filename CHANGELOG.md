@@ -5,6 +5,22 @@ All notable changes to Scribe will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.4] - 2026-09-22
+
+## Added
+- Fast AI lecture topic generation summarizing lecture notes into clean single-sentence titles with date prefixes.
+- Automatic Gain Control and chunked loudness normalization in Aether audio conditioning to stabilize faint speech across long lectures.
+
+## Changed
+- Refactored settings preview positioning into two distinct modes: Screen Bottom anchors stably above the Dock, while Active Window floats cleanly below the window.
+- Adjusted Settings window proportions and sidebar padding to ensure comfortable account card alignment and eliminate excess bottom whitespace.
+- Expanded AI Refinement tab layout to accommodate segmented mode pickers without horizontal clipping.
+
+## Fixed
+- Fixed an issue where the settings preview overlay was pasted over the bottom edge of the window and shifted awkwardly during window drag.
+- Fixed version badge contrast in settings header on light panel appearances.
+- Fixed lecture transcription refinement to strictly preserve verbatim phrases and punctuation around direct addresses.
+
 ## [2.9.3] - 2026-09-21
 
 ## Added
