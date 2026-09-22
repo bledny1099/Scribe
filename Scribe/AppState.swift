@@ -1514,7 +1514,7 @@ final class AppState: ObservableObject {
                             }
                         }
                     } else {
-          а              let errMsg = "\(provider.displayName): API key is not configured"
+                        let errMsg = "\(provider.displayName): API key is not configured"
                         logger.warning("\(errMsg)")
                         await MainActor.run {
                             self.lastAIErrorMessage = errMsg
