@@ -147,6 +147,9 @@ struct SettingsView: View {
         guard let tab = newTab else { return }
         selectedTab = tab
         appState.requestedSettingsTab = nil
+        if tab != .appearance {
+            appState.hideSettingsPreviewPanel()
+        }
         SettingsWindowManager.shared.setTabConstraints(for: tab, animate: true)
         if tab == .statistics {
             triggerLevelUpSweepIfNeeded()
@@ -154,6 +157,9 @@ struct SettingsView: View {
     }
 
     private func handleSelectedTabChange(_ newTab: SettingsTab) {
+        if newTab != .appearance {
+            appState.hideSettingsPreviewPanel()
+        }
         SettingsWindowManager.shared.setTabConstraints(for: newTab, animate: true)
         if newTab == .statistics {
             triggerLevelUpSweepIfNeeded()

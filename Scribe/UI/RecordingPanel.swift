@@ -228,38 +228,20 @@ final class RecordingPanel: NSPanel {
         }
     }
 
-    // MARK: - Corner Masking (Prevents Grey Square Artifacts)
+    // MARK: - Corner Masking
 
-    private var cachedMaskSize: NSSize?
-    private var cachedMaskRadius: CGFloat?
-    private var cachedMaskImage: NSImage?
-
-    /// Masks blurView and all layers with a pixel-perfect rounded mask image.
+    /// Sets the corner radius for blurView, containerView, and contentView using CALayer.
     func updateCornerRadius(_ radius: CGFloat, targetSize: NSSize? = nil) {
         self.cornerRadiusValue = radius
-        let size = targetSize ?? frame.size
-        guard size.width > 0 && size.height > 0 else { return }
         guard blurView.superview != nil else { return }
-
-        if cachedMaskSize == size && cachedMaskRadius == radius, let img = cachedMaskImage {
-            blurView.maskImage = img
-        } else {
-            let maskImage = NSImage(size: size)
-            maskImage.lockFocus()
-            let path = NSBezierPath(roundedRect: NSRect(origin: .zero, size: size), xRadius: radius, yRadius: radius)
-            NSColor.black.set()
-            path.fill()
-            maskImage.unlockFocus()
-            
-            cachedMaskSize = size
-            cachedMaskRadius = radius
-            cachedMaskImage = maskImage
-            blurView.maskImage = maskImage
-        }
 
         blurView.wantsLayer = true
         blurView.layer?.cornerRadius = radius
         blurView.layer?.masksToBounds = true
+
+        containerView.wantsLayer = true
+        containerView.layer?.cornerRadius = radius
+        containerView.layer?.masksToBounds = true
 
         if let content = contentView {
             content.wantsLayer = true
@@ -269,14 +251,16 @@ final class RecordingPanel: NSPanel {
     }
 
     override func setFrame(_ frameRect: NSRect, display displayFlag: Bool) {
+        let sizeChanged = abs(frameRect.width - frame.width) > 0.5 || abs(frameRect.height - frame.height) > 0.5
         super.setFrame(frameRect, display: displayFlag)
-        guard contentView != nil else { return }
+        guard sizeChanged, contentView != nil else { return }
         updateCornerRadius(cornerRadiusValue, targetSize: frameRect.size)
     }
 
     override func setFrame(_ frameRect: NSRect, display displayFlag: Bool, animate animateFlag: Bool) {
+        let sizeChanged = abs(frameRect.width - frame.width) > 0.5 || abs(frameRect.height - frame.height) > 0.5
         super.setFrame(frameRect, display: displayFlag, animate: animateFlag)
-        guard contentView != nil else { return }
+        guard sizeChanged, contentView != nil else { return }
         updateCornerRadius(cornerRadiusValue, targetSize: frameRect.size)
     }
 
@@ -293,8 +277,6 @@ final class RecordingPanel: NSPanel {
         isTimerVisible: Bool = true,
         hasAIMode: Bool = false
     ) {
-        containerView.subviews.filter { $0 != blurView }.forEach { $0.removeFromSuperview() }
-
         let baseSize: NSSize = Self.size(
             for: style,
             overlaySize: .s100,

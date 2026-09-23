@@ -1835,9 +1835,9 @@ final class AppState: ObservableObject {
         }
     }
 
-    func updateSettingsPreviewPanel(isDragging: Bool = false, includeSubtitle: Bool = false) {
+    func updateSettingsPreviewPanel(isDragging: Bool = false, includeSubtitle: Bool = false, createIfNeeded: Bool = true) {
         guard !isRecording && !isTranscribing else { return }
-        if isDragging && (settingsPreviewPanel == nil || settingsPreviewPanel?.isVisible == false) {
+        if settingsPreviewPanel == nil && (!createIfNeeded || isDragging) {
             return
         }
 
@@ -1871,6 +1871,7 @@ final class AppState: ObservableObject {
         let targetFrame = NSRect(origin: targetOrigin, size: targetSize)
 
         if let existingPanel = settingsPreviewPanel {
+            guard existingPanel.isVisible else { return }
             // Update existing panel in-place without recreation or flashing
             existingPanel.ignoresMouseEvents = true
             existingPanel.updateAppearance(selectedOverlayAppearance)
@@ -1888,8 +1889,14 @@ final class AppState: ObservableObject {
 
             let oldFrame = existingPanel.frame
             let calculatedFrame = targetFrame
+            let frameDiff = max(
+                abs(oldFrame.origin.x - calculatedFrame.origin.x),
+                abs(oldFrame.origin.y - calculatedFrame.origin.y),
+                abs(oldFrame.size.width - calculatedFrame.size.width),
+                abs(oldFrame.size.height - calculatedFrame.size.height)
+            )
 
-            if oldFrame != calculatedFrame {
+            if frameDiff > 1.0 {
                 if !isDragging && (abs(oldFrame.origin.x - targetOrigin.x) > 4 || abs(oldFrame.origin.y - targetOrigin.y) > 4) {
                     NSAnimationContext.runAnimationGroup { ctx in
                         ctx.duration = 0.22
@@ -1902,7 +1909,7 @@ final class AppState: ObservableObject {
             }
 
             existingPanel.orderFrontRegardless()
-        } else {
+        } else if createIfNeeded {
             // Create new panel with smooth slide-up entrance animation
             let panel = RecordingPanel.make(
                 style: selectedOverlayStyle,

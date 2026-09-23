@@ -117,6 +117,7 @@ final class SettingsWindowManager {
 
     var userExpandedWidth: CGFloat? = nil
     private var isProgrammaticResize: Bool = false
+    private var previewUpdateWorkItem: DispatchWorkItem? = nil
 
     func resizeWindow(to width: CGFloat, animate: Bool = true) {
         guard let window = window else { return }
@@ -138,12 +139,17 @@ final class SettingsWindowManager {
         }
 
         isProgrammaticResize = true
+        previewUpdateWorkItem?.cancel()
         if animate {
             window.setFrame(frame, display: true, animate: true)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) { [weak self] in
+            let item = DispatchWorkItem { [weak self] in
                 self?.isProgrammaticResize = false
-                self?.currentAppState?.updateSettingsPreviewPanel(isDragging: false)
+                if self?.currentAppState?.isFloatingPreviewActive == true {
+                    self?.currentAppState?.updateSettingsPreviewPanel(isDragging: false, createIfNeeded: false)
+                }
             }
+            previewUpdateWorkItem = item
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.28, execute: item)
         } else {
             window.setFrame(frame, display: true)
             isProgrammaticResize = false
@@ -183,13 +189,16 @@ final class SettingsWindowManager {
         let newFrame = NSRect(x: newX, y: newY, width: size.width, height: size.height)
         
         isProgrammaticResize = true
+        previewUpdateWorkItem?.cancel()
         NSAnimationContext.runAnimationGroup({ context in
             context.duration = 0.25
             context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
             window.animator().setFrame(newFrame, display: true)
         }, completionHandler: { [weak self] in
             self?.isProgrammaticResize = false
-            self?.currentAppState?.updateSettingsPreviewPanel(isDragging: false)
+            if self?.currentAppState?.isFloatingPreviewActive == true {
+                self?.currentAppState?.updateSettingsPreviewPanel(isDragging: false, createIfNeeded: false)
+            }
         })
     }
 
@@ -217,6 +226,8 @@ final class SettingsWindowManager {
     }
 
     func closeWindow() {
+        previewUpdateWorkItem?.cancel()
+        previewUpdateWorkItem = nil
         currentAppState?.hideSettingsPreviewPanel()
         userExpandedWidth = nil
         isProgrammaticResize = false
@@ -226,6 +237,8 @@ final class SettingsWindowManager {
     }
 
     func windowClosed() {
+        previewUpdateWorkItem?.cancel()
+        previewUpdateWorkItem = nil
         currentAppState?.hideSettingsPreviewPanel()
         userExpandedWidth = nil
         isProgrammaticResize = false
