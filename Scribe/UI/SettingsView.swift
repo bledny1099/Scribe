@@ -925,12 +925,6 @@ struct StatisticsSectionView: View {
             .frame(width: 460)
             .scaleEffect(appearAnimation ? 1 : 0.96)
             .opacity(appearAnimation ? 1 : 0)
-
-            // Prominent Share Certificate Button (Full Certificate Width)
-            ShareCertificateButton()
-                .frame(width: 460)
-                .scaleEffect(appearAnimation ? 1 : 0.96)
-                .opacity(appearAnimation ? 1 : 0)
             
             // Top Spoken Words Expansion Drawer
             if showTopWords {
