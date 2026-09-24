@@ -1802,12 +1802,19 @@ struct GlassButtonStyle: ButtonStyle {
 struct LiquidGlassSegmentedPicker<T: Hashable>: View {
     let items: [T]
     @Binding var selection: T
+    var itemSpacing: CGFloat = 3
+    var horizontalPadding: CGFloat = 10
+    var verticalPadding: CGFloat = 7
+    var fontSize: CGFloat = 12
+    var iconSize: CGFloat = 11
+    var iconTextSpacing: CGFloat = 6
+    var trackPadding: CGFloat = 4
     let label: (T) -> (name: String, icon: String)
 
     @Namespace private var segmentAnimation
 
     var body: some View {
-        HStack(spacing: 3) {
+        HStack(spacing: itemSpacing) {
             ForEach(items, id: \.self) { item in
                 let isSelected = (item as AnyHashable) == (selection as AnyHashable)
                 Button {
@@ -1816,22 +1823,22 @@ struct LiquidGlassSegmentedPicker<T: Hashable>: View {
                     }
                 } label: {
                     let info = label(item)
-                    HStack(spacing: (!info.icon.isEmpty && !info.name.isEmpty) ? 6 : 0) {
+                    HStack(spacing: (!info.icon.isEmpty && !info.name.isEmpty) ? iconTextSpacing : 0) {
                         if !info.icon.isEmpty {
                             Image(systemName: info.icon)
-                                .font(.system(size: 11, weight: isSelected ? .bold : .semibold))
+                                .font(.system(size: iconSize, weight: isSelected ? .bold : .semibold))
                                 .foregroundStyle(isSelected ? .white : .primary.opacity(0.7))
                         }
                         if !info.name.isEmpty {
                             Text(info.name)
-                                .font(.system(size: 12, weight: isSelected ? .bold : .medium, design: .rounded))
+                                .font(.system(size: fontSize, weight: isSelected ? .bold : .medium, design: .rounded))
                                 .foregroundStyle(isSelected ? .white : .primary.opacity(0.75))
                                 .lineLimit(1)
                                 .fixedSize(horizontal: true, vertical: false)
                         }
                     }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 7)
+                    .padding(.horizontal, horizontalPadding)
+                    .padding(.vertical, verticalPadding)
                     .background(
                         ZStack {
                             if isSelected {
@@ -1899,7 +1906,7 @@ struct LiquidGlassSegmentedPicker<T: Hashable>: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(4)
+        .padding(trackPadding)
         .background(
             ZStack {
                 Capsule()
@@ -7325,25 +7332,21 @@ struct AISettingsView: View {
                                 Spacer()
                             }
 
-                            VStack(alignment: .leading, spacing: 6) {
-                                LiquidGlassSegmentedPicker(
-                                    items: [AIRefinementMode.polish, .summary, .executive],
-                                    selection: Binding(
-                                        get: { appState.selectedAIRefinementMode },
-                                        set: { appState.selectedAIRefinementMode = $0 }
-                                    ),
-                                    label: { (appState.l($0.displayName), $0.icon) }
-                                )
-
-                                LiquidGlassSegmentedPicker(
-                                    items: [AIRefinementMode.actionItems, .translation],
-                                    selection: Binding(
-                                        get: { appState.selectedAIRefinementMode },
-                                        set: { appState.selectedAIRefinementMode = $0 }
-                                    ),
-                                    label: { (appState.l($0.displayName), $0.icon) }
-                                )
-                            }
+                            LiquidGlassSegmentedPicker(
+                                items: AIRefinementMode.allCases,
+                                selection: Binding(
+                                    get: { appState.selectedAIRefinementMode },
+                                    set: { appState.selectedAIRefinementMode = $0 }
+                                ),
+                                itemSpacing: 2,
+                                horizontalPadding: 5,
+                                verticalPadding: 6,
+                                fontSize: 10.5,
+                                iconSize: 10,
+                                iconTextSpacing: 3,
+                                trackPadding: 2.5,
+                                label: { (appState.l($0.displayName), $0.icon) }
+                            )
 
                             HStack(spacing: 8) {
                                 Image(systemName: "info.circle.fill")
