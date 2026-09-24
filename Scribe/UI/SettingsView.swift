@@ -7024,9 +7024,6 @@ struct AppearanceSettingsView: View {
                 }
             }
         }
-        .onAppear {
-            appState.showSettingsPreviewFor5Seconds()
-        }
     }
 }
 
