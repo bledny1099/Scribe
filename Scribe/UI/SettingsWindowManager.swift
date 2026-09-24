@@ -174,8 +174,7 @@ final class SettingsWindowManager {
             window.setFrame(f, display: true)
         }
         
-        let targetWidth = max(tab.preferredWidth, userExpandedWidth ?? 0)
-        resizeWindow(to: targetWidth, animate: animate)
+        resizeWindow(to: tab.preferredWidth, animate: animate)
     }
 
     func ensureMinimumY(_ minY: CGFloat) {
