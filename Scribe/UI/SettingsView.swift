@@ -33,12 +33,7 @@ enum SettingsTab: String, CaseIterable {
     }
 
     var preferredWidth: CGFloat {
-        switch self {
-        case .ai:
-            return 860
-        default:
-            return 736
-        }
+        736
     }
 }
 
@@ -7330,14 +7325,25 @@ struct AISettingsView: View {
                                 Spacer()
                             }
 
-                            LiquidGlassSegmentedPicker(
-                                items: AIRefinementMode.allCases,
-                                selection: Binding(
-                                    get: { appState.selectedAIRefinementMode },
-                                    set: { appState.selectedAIRefinementMode = $0 }
-                                ),
-                                label: { (appState.l($0.displayName), $0.icon) }
-                            )
+                            VStack(alignment: .leading, spacing: 6) {
+                                LiquidGlassSegmentedPicker(
+                                    items: [AIRefinementMode.polish, .summary, .executive],
+                                    selection: Binding(
+                                        get: { appState.selectedAIRefinementMode },
+                                        set: { appState.selectedAIRefinementMode = $0 }
+                                    ),
+                                    label: { (appState.l($0.displayName), $0.icon) }
+                                )
+
+                                LiquidGlassSegmentedPicker(
+                                    items: [AIRefinementMode.actionItems, .translation],
+                                    selection: Binding(
+                                        get: { appState.selectedAIRefinementMode },
+                                        set: { appState.selectedAIRefinementMode = $0 }
+                                    ),
+                                    label: { (appState.l($0.displayName), $0.icon) }
+                                )
+                            }
 
                             HStack(spacing: 8) {
                                 Image(systemName: "info.circle.fill")
