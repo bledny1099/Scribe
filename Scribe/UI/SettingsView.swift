@@ -34,7 +34,7 @@ enum SettingsTab: String, CaseIterable {
 
     var preferredWidth: CGFloat {
         switch self {
-        case .ai:
+        case .ai, .recognition:
             return 860
         default:
             return 736
