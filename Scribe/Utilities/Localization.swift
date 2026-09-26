@@ -782,6 +782,8 @@ enum Localization {
             "Recognition Mode": "Режим распознавания",
             "Dictation Languages": "Языки диктовки",
             "Select up to 3 languages for auto-switching": "Выберите до 3 языков для мгновенного переключения",
+            "Single language mode (exact, zero hallucination)": "Режим одного языка (максимальная точность)",
+            "Select 1-3 Languages": "Выберите 1-3 языка",
             "Single Language": "Единственный язык",
             "Insertion & Export Mode": "Режим вставки и заметок",
             "Active Window + Notes": "В активное окно + Заметки",

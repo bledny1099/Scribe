@@ -2194,7 +2194,7 @@ struct LiquidGlassMultiLanguageMenu: View {
             return clean
         }
         if names.isEmpty {
-            return "Select 2-3 Languages"
+            return "Select 1-3 Languages"
         }
         return names.joined(separator: ", ")
     }
@@ -7062,9 +7062,6 @@ struct RecognitionSettingsView: View {
         ("openai_whisper-small", "Eco (Lightweight)", "Fast everyday dictation with minimal memory & battery usage (~460MB)")
     ]
 
-    private var singleLanguages: [LanguageOption] {
-        supportedLanguages.filter { $0.id != "auto" }
-    }
 
     var body: some View {
         VStack(spacing: 16) {
@@ -7157,50 +7154,22 @@ struct RecognitionSettingsView: View {
                         // Aether Neural (WhisperKit) Controls
                         VStack(spacing: 16) {
                             HStack {
-                                Text(appState.l("Recognition Mode"))
-                                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.primary)
-                                Spacer()
-                                LiquidGlassMenu(
-                                    items: ["multilingual", "singleLanguage"],
-                                    selection: $appState.recognitionMode,
-                                    title: { id in
-                                        id == "multilingual" ? appState.l("Multilingual Mode (2-3 Languages)") : appState.l("Single Language Mode")
-                                    },
-                                    displayTitle: { id in
-                                        id == "multilingual" ? appState.l("Multilingual Mode") : appState.l("Single Language Mode")
-                                    }
-                                )
-                            }
-                            
-                            if appState.recognitionMode == "singleLanguage" {
-                                HStack {
-                                    Text(appState.l("Single Language"))
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(appState.l("Dictation Languages"))
                                         .font(.system(size: 14, weight: .medium, design: .rounded))
                                         .foregroundStyle(.primary)
-                                    Spacer()
-                                    LiquidGlassLanguageMenu(
-                                        items: singleLanguages,
-                                        selection: $appState.singleDictationLanguage
-                                    )
+                                    Text(appState.multilingualLanguages.count == 1 ?
+                                         appState.l("Single language mode (exact, zero hallucination)") :
+                                         appState.l("Select up to 3 languages for auto-switching"))
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(.secondary)
                                 }
-                            } else {
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(appState.l("Dictation Languages"))
-                                            .font(.system(size: 14, weight: .medium, design: .rounded))
-                                            .foregroundStyle(.primary)
-                                        Text(appState.l("Select up to 3 languages for auto-switching"))
-                                            .font(.system(size: 11))
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    Spacer()
-                                    LiquidGlassMultiLanguageMenu(
-                                        items: supportedLanguages,
-                                        selectedLanguages: appState.multilingualLanguages,
-                                        onToggle: { appState.toggleMultilingualLanguage($0) }
-                                    )
-                                }
+                                Spacer()
+                                LiquidGlassMultiLanguageMenu(
+                                    items: supportedLanguages,
+                                    selectedLanguages: appState.multilingualLanguages,
+                                    onToggle: { appState.toggleMultilingualLanguage($0) }
+                                )
                             }
 
                             HStack {

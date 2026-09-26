@@ -720,9 +720,30 @@ final class AppState: ObservableObject {
             return l("Aether Neural runs high-accuracy WhisperKit on Apple Neural Engine (ANE) & GPU with context conditioning, dynamic vocabulary, and rich grammatical language modeling.")
         }
     }
-    @AppStorage("recognitionMode") public var recognitionMode: String = "multilingual"
-    @AppStorage("singleDictationLanguage") public var singleDictationLanguage: String = "en"
+    @AppStorage("recognitionMode") private var savedRecognitionMode: String = "multilingual"
+    @AppStorage("singleDictationLanguage") private var savedSingleDictationLanguage: String = "en"
     @AppStorage("multilingualLanguages") public var multilingualLanguages: [String] = ["ru", "en"]
+
+    public var recognitionMode: String {
+        get {
+            multilingualLanguages.count == 1 ? "singleLanguage" : "multilingual"
+        }
+        set {
+            savedRecognitionMode = newValue
+        }
+    }
+
+    public var singleDictationLanguage: String {
+        get {
+            if multilingualLanguages.count == 1, let first = multilingualLanguages.first {
+                return first
+            }
+            return savedSingleDictationLanguage
+        }
+        set {
+            savedSingleDictationLanguage = newValue
+        }
+    }
 
     public func toggleMultilingualLanguage(_ langId: String) {
         var list = multilingualLanguages
@@ -739,6 +760,12 @@ final class AppState: ObservableObject {
             }
         }
         multilingualLanguages = list
+        if list.count == 1 {
+            savedSingleDictationLanguage = list[0]
+            savedRecognitionMode = "singleLanguage"
+        } else {
+            savedRecognitionMode = "multilingual"
+        }
     }
 
     @AppStorage("pushToTalk") public var pushToTalk: Bool = false
