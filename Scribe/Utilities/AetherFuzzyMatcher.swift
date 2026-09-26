@@ -149,13 +149,18 @@ public final class AetherFuzzyMatcher: @unchecked Sendable {
         }
 
         for (phonetic, canonical) in fullTransliterationMap {
+            // Guardrail: Never transliterate Latin words into Cyrillic
+            if !isCyrillic(phonetic) && isCyrillic(canonical) {
+                continue
+            }
+
             let pattern = "\\b\(NSRegularExpression.escapedPattern(for: phonetic))\\b"
             if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) {
                 result = regex.stringByReplacingMatches(
                     in: result,
                     options: [],
                     range: NSRange(location: 0, length: result.utf16.count),
-                    withTemplate: canonical
+                    withTemplate: NSRegularExpression.escapedTemplate(for: canonical)
                 )
             }
         }
@@ -173,7 +178,7 @@ public final class AetherFuzzyMatcher: @unchecked Sendable {
                     in: result,
                     options: [],
                     range: NSRange(location: 0, length: result.utf16.count),
-                    withTemplate: term
+                    withTemplate: NSRegularExpression.escapedTemplate(for: term)
                 )
             }
         }
@@ -208,6 +213,11 @@ public final class AetherFuzzyMatcher: @unchecked Sendable {
 
             var matchedTarget: String? = nil
             for target in targets {
+                // SCRIPT GUARD: Never cross scripts between Latin and Cyrillic
+                if isCyrillic(cleanWord) != isCyrillic(target) {
+                    continue
+                }
+
                 // If the word has Cyrillic characters, verify it is not a valid grammatical case inflection
                 if isCyrillic(cleanWord) && isCyrillic(target) {
                     if isRussianCaseInflection(word: cleanWord, target: target) {

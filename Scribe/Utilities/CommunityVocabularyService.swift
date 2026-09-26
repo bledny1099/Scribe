@@ -464,7 +464,7 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
 
         switch lower {
         case "хоккей":
-            aliases = ["hockey", "хакей"]
+            aliases = ["хакей"]
         case "миха":
             aliases = ["мих", "михаил"]
         case "мам":
@@ -474,11 +474,11 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
         case "батя":
             aliases = ["батяня", "бать"]
         case "пуш":
-            aliases = ["push", "пушить", "пушнуть"]
+            aliases = ["пушить", "пушнуть"]
         case "пофикси":
             aliases = ["фикси", "пофиксить", "зафикси"]
         case "транскрибатор":
-            aliases = ["транскриптор", "транскрибация", "transcriber"]
+            aliases = ["транскриптор", "транскрибация"]
         case "aether":
             aliases = ["эфир", "эйтер", "аэтер"]
         case "readme":
@@ -584,8 +584,13 @@ public final class CommunityVocabularyService: ObservableObject, @unchecked Send
 
                     // Generate automatic aliases if not already mapped
                     let autoAliases = generatePhoneticAliases(for: trimmed)
+                    let isTermCyrillic = trimmed.unicodeScalars.contains { ($0.value >= 0x0400 && $0.value <= 0x04FF) || ($0.value >= 0x0500 && $0.value <= 0x052F) }
                     for a in autoAliases {
                         let aLower = a.lowercased()
+                        let isAliasLatin = aLower.unicodeScalars.allSatisfy { ($0.value >= 0x0041 && $0.value <= 0x005A) || ($0.value >= 0x0061 && $0.value <= 0x007A) }
+                        if isAliasLatin && isTermCyrillic {
+                            continue
+                        }
                         if map[aLower] == nil {
                             map[aLower] = trimmed
                         }

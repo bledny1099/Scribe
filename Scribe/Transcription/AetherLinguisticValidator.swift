@@ -710,22 +710,46 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
                 continue
             }
 
+            // Identify word script: Latin vs Cyrillic
+            let isWordLatin = word.unicodeScalars.allSatisfy {
+                ($0.value >= 0x0041 && $0.value <= 0x005A) ||
+                ($0.value >= 0x0061 && $0.value <= 0x007A) ||
+                $0.value == 0x27 || $0.value == 0x2D // apostrophe or hyphen
+            }
+            let isWordCyrillic = word.unicodeScalars.contains {
+                ($0.value >= 0x0400 && $0.value <= 0x04FF) ||
+                ($0.value >= 0x0500 && $0.value <= 0x052F)
+            }
+
             // If already in user's top words or community dictionary, it's definitively valid
             if userTop100Set.contains(lowerWord) || CommunityVocabularyService.shared.getCachedTermsSetLower().contains(lowerWord) {
                 continue
             }
 
-            // Check if there is a strong User Top 100 match (fuzzy candidate)
+            // Check if there is a strong User Top 100 match (fuzzy candidate) within the same script
             if let userCandidate = userFreqDict.findBestFuzzyCandidate(for: word, maxDistance: 2, limit: 100) {
-                let userWordFreq = userCandidate.count
-                let currentWordFreq = userFreqDict.frequency(of: lowerWord)
+                let candidateIsCyrillic = userCandidate.word.unicodeScalars.contains { ($0.value >= 0x0400 && $0.value <= 0x04FF) || ($0.value >= 0x0500 && $0.value <= 0x052F) }
+                if (isWordCyrillic && candidateIsCyrillic) || (isWordLatin && !candidateIsCyrillic) {
+                    let userWordFreq = userCandidate.count
+                    let currentWordFreq = userFreqDict.frequency(of: lowerWord)
 
-                // If current word is non-existent in user history, but close to a frequent user top word
-                if userCandidate.distance == 1 && userWordFreq >= 2 && currentWordFreq == 0 {
-                    let matchedCase = matchCapitalization(original: word, target: userCandidate.word)
-                    replacements.append((range: wordRange, replacement: matchedCase))
-                    continue
+                    // If current word is non-existent in user history, but close to a frequent user top word
+                    if userCandidate.distance == 1 && userWordFreq >= 2 && currentWordFreq == 0 {
+                        let matchedCase = matchCapitalization(original: word, target: userCandidate.word)
+                        replacements.append((range: wordRange, replacement: matchedCase))
+                        continue
+                    }
                 }
+            }
+
+            // Determine checking language: Latin words MUST be checked against English, never Russian!
+            let tokenCheckLang: String
+            if isWordLatin {
+                tokenCheckLang = "en_US"
+            } else if isWordCyrillic {
+                tokenCheckLang = "ru_RU"
+            } else {
+                tokenCheckLang = langCode
             }
 
             // Check spelling with NSSpellChecker
@@ -733,7 +757,7 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
             let misspellingRange = spellChecker.checkSpelling(
                 of: word,
                 startingAt: 0,
-                language: langCode,
+                language: tokenCheckLang,
                 wrap: false,
                 inSpellDocumentWithTag: 0,
                 wordCount: &wordCount
@@ -741,23 +765,43 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
 
             // If word is unrecognized by dictionary (length > 0)
             if misspellingRange.length > 0 {
-                // Check if we have a direct acoustic fix
+                // For hyphenated Latin words (e.g. push-notifications, vibe-coding), check individual components
+                if isWordLatin && word.contains("-") {
+                    let parts = word.components(separatedBy: "-")
+                    let allPartsValid = parts.allSatisfy { part in
+                        guard part.count > 1 else { return true }
+                        var subCount = 0
+                        let r = spellChecker.checkSpelling(of: part, startingAt: 0, language: "en_US", wrap: false, inSpellDocumentWithTag: 0, wordCount: &subCount)
+                        return r.length == 0
+                    }
+                    if allPartsValid {
+                        continue
+                    }
+                }
+
+                // Check if we have a direct acoustic fix (same script only)
                 if let directFix = acousticCorrections[lowerWord] {
-                    let matchedCase = matchCapitalization(original: word, target: directFix)
-                    replacements.append((range: wordRange, replacement: matchedCase))
-                    continue
+                    let fixIsCyrillic = directFix.unicodeScalars.contains { ($0.value >= 0x0400 && $0.value <= 0x04FF) }
+                    if (isWordCyrillic && fixIsCyrillic) || (isWordLatin && !fixIsCyrillic) {
+                        let matchedCase = matchCapitalization(original: word, target: directFix)
+                        replacements.append((range: wordRange, replacement: matchedCase))
+                        continue
+                    }
                 }
 
                 // Check Top 100 User Words first before generic spellchecker
                 if let userMatch = userFreqDict.findBestFuzzyCandidate(for: word, maxDistance: 2, limit: 100) {
-                    let matchedCase = matchCapitalization(original: word, target: userMatch.word)
-                    replacements.append((range: wordRange, replacement: matchedCase))
-                    continue
+                    let matchIsCyrillic = userMatch.word.unicodeScalars.contains { ($0.value >= 0x0400 && $0.value <= 0x04FF) }
+                    if (isWordCyrillic && matchIsCyrillic) || (isWordLatin && !matchIsCyrillic) {
+                        let matchedCase = matchCapitalization(original: word, target: userMatch.word)
+                        replacements.append((range: wordRange, replacement: matchedCase))
+                        continue
+                    }
                 }
 
                 // In Russian, do NOT let spell checker overwrite valid case endings (e.g. -ом, -ам, -ях, -е)
                 // with dictionary base forms unless it is clearly an acoustic mishearing.
-                if isRussian {
+                if isRussian && isWordCyrillic {
                     let commonRussianInflections = ["ом", "ем", "ём", "ами", "ями", "ях", "ах", "ам", "ям", "ого", "его", "ому", "ему", "ым", "им", "ую", "юю", "ой", "ей", "ою", "ею", "ых", "их", "ыми", "ими"]
                     if commonRussianInflections.contains(where: { lowerWord.hasSuffix($0) }) {
                         continue
@@ -768,13 +812,21 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
                 let guesses = spellChecker.guesses(
                     forWordRange: NSRange(location: 0, length: (word as NSString).length),
                     in: word,
-                    language: langCode,
+                    language: tokenCheckLang,
                     inSpellDocumentWithTag: 0
                 ) ?? []
 
-                if !guesses.isEmpty {
+                // Filter guesses to strictly preserve script (never cross Latin <-> Cyrillic)
+                let validGuesses = guesses.filter { guess in
+                    let guessCyrillic = guess.unicodeScalars.contains { ($0.value >= 0x0400 && $0.value <= 0x04FF) }
+                    if isWordLatin { return !guessCyrillic }
+                    if isWordCyrillic { return guessCyrillic }
+                    return true
+                }
+
+                if !validGuesses.isEmpty {
                     // Re-rank guesses by User Top 100 frequency + Community dictionary + phonetic closeness
-                    let sortedGuesses = guesses.sorted { g1, g2 in
+                    let sortedGuesses = validGuesses.sorted { g1, g2 in
                         let score1 = scoreGuess(g1, original: lowerWord, userFreqDict: userFreqDict)
                         let score2 = scoreGuess(g2, original: lowerWord, userFreqDict: userFreqDict)
                         return score1 > score2

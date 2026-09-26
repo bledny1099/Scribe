@@ -90,8 +90,8 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
     /// Initial prompt that conditions Whisper to produce punctuation and recognise common brand names.
     /// Whisper uses this as "previous context" so it learns the expected output style.
     private let initialPrompt: [String: String] = [
-        "en": "Use proper punctuation, capitalization, commas, and natural sentence structures. Do not use ellipses (...) or trailing dots; end sentences with a single period. English pronoun I: I like, I think, I know, I want, I have, I am. Terms: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
-        "ru": "Распознавай русскую речь связно и грамотно, сохраняя правильные падежи, окончания слов, предлоги и пунктуацию (запятые, точки, тире). Никогда не используй троеточие (... или …), завершай предложения точкой или запятой. Чётко различай английское местоимение «I» ([aɪ] — I like, I think, I know, I want, I have) и русскую букву «я» ([ja]). В английских фразах используй «I». Смешанная русско-английская речь: коммит, пулл реквест, PR, мердж, пуш, деплой, бэкенд, фронтенд, багфикс, релиз, прод, стейджинг, API, токен, промпт, контекст, репозиторий. Bybit, Binance, Telegram, ChatGPT, Gemini, Claude, OpenAI, Swift, SwiftUI, Xcode, Docker, Kubernetes, Next.js, Rust, WhisperKit, PostgreSQL, TypeScript, Python, LLM, Google, Antigravity, IDE, Scribe, транскрибатор, Хабр.",
+        "en": "Hello, this is a clean transcription with proper punctuation, commas, and natural sentence structures. Terms: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
+        "ru": "Привет, это аккуратная транскрипция с правильной пунктуацией, падежами и терминами. Термины: Bybit, Binance, Telegram, ChatGPT, Gemini, Claude, OpenAI, Swift, SwiftUI, Xcode, Docker, Kubernetes, Next.js, Rust, WhisperKit, PostgreSQL, TypeScript, Python, LLM, commit, pull request, merge, push, deploy, API, Google, Antigravity, IDE, Scribe, транскрибатор, Хабр.",
         "es": "Términos: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
         "de": "Begriffe: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
         "fr": "Termes: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
@@ -101,7 +101,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         "pt": "Termos: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
         "tr": "Terimler: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
         "uk": "Терміни: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
-        "auto": "Fluent Russian and English speech transcription. Punctuation, capitalization, code-switching. Do not use ellipses (...) or trailing dots; end sentences cleanly with a period. Никогда не используй троеточие. Distinctly differentiate the English pronoun 'I' (I like, I think, I know, I have) from the Russian pronoun 'я'. Terms: Bybit, Binance, Telegram, ChatGPT, Gemini, Claude, OpenAI, Swift, SwiftUI, Xcode, Docker, Kubernetes, Next.js, Rust, WhisperKit, PostgreSQL, TypeScript, Python, LLM, commit, pull request, merge, push, deploy, bugfix, backend, frontend, Google, Antigravity, Scribe."
+        "auto": "Привет, это грамотная речь с пунктуацией и терминами. English words and technical terms are preserved: I like, I think, I want. Terms: Bybit, Binance, Telegram, ChatGPT, Gemini, Claude, OpenAI, Swift, SwiftUI, Xcode, Docker, Kubernetes, Next.js, Rust, WhisperKit, PostgreSQL, TypeScript, Python, LLM, commit, pull request, merge, push, deploy, Google, Antigravity, Scribe."
     ]
 
     /// Resolves on-disk path for pre-downloaded WhisperKit CoreML model folders
@@ -1803,10 +1803,7 @@ final class TextReplacer {
         Replacement(phrase: "вайп кодить", replacement: "вайбкодить"),
 
         // Slang & Music & Community terms
-        Replacement(phrase: "top chick", replacement: "топчик"),
-        Replacement(phrase: "top chic", replacement: "топчик"),
         Replacement(phrase: "топ чик", replacement: "топчик"),
-        Replacement(phrase: "topchik", replacement: "топчик"),
         Replacement(phrase: "топчик", replacement: "топчик"),
         Replacement(phrase: "свэг", replacement: "swag"),
         Replacement(phrase: "свэгг", replacement: "swag"),
@@ -1814,7 +1811,6 @@ final class TextReplacer {
         Replacement(phrase: "ан скилл", replacement: "анскилл"),
         Replacement(phrase: "ан скил", replacement: "анскилл"),
         Replacement(phrase: "анскил", replacement: "анскилл"),
-        Replacement(phrase: "unskill", replacement: "анскилл"),
         Replacement(phrase: "эм си пи", replacement: "MCP"),
         Replacement(phrase: "эмсипи", replacement: "MCP"),
         Replacement(phrase: "вайпер", replacement: "viperr"),
@@ -1991,10 +1987,37 @@ final class TextReplacer {
         let allReplacements = defaultPhoneticReplacements + replacements
         var result = text
 
-        // 1. Phonetic & Custom replacements
+        // 1. Phonetic & Custom replacements (whole-word matching only, with script guard)
         for r in allReplacements {
-            guard !r.phrase.isEmpty else { continue }
-            result = result.replacingOccurrences(of: r.phrase, with: r.replacement, options: .caseInsensitive)
+            let phrase = r.phrase.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !phrase.isEmpty else { continue }
+
+            // Guard: Never allow an automatic replacement of a pure Latin phrase into Cyrillic
+            let isPhraseLatin = phrase.unicodeScalars.allSatisfy {
+                ($0.value >= 0x0041 && $0.value <= 0x005A) ||
+                ($0.value >= 0x0061 && $0.value <= 0x007A) ||
+                $0.value == 0x20 || $0.value == 0x2D
+            }
+            let isReplacementCyrillic = r.replacement.unicodeScalars.contains {
+                ($0.value >= 0x0400 && $0.value <= 0x04FF) || ($0.value >= 0x0500 && $0.value <= 0x052F)
+            }
+            if isPhraseLatin && isReplacementCyrillic {
+                continue
+            }
+
+            let escapedPhrase = NSRegularExpression.escapedPattern(for: phrase)
+            let startsWithWordChar = phrase.first?.isLetter == true || phrase.first?.isNumber == true
+            let endsWithWordChar = phrase.last?.isLetter == true || phrase.last?.isNumber == true
+            let pattern = "(?i)\(startsWithWordChar ? "\\b" : "")\(escapedPhrase)\(endsWithWordChar ? "\\b" : "")"
+
+            if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
+                result = regex.stringByReplacingMatches(
+                    in: result,
+                    options: [],
+                    range: NSRange(location: 0, length: (result as NSString).length),
+                    withTemplate: NSRegularExpression.escapedTemplate(for: r.replacement)
+                )
+            }
         }
 
         // 2. Vocabulary Auto-Casing & Aether Fuzzy Alignment (Stage C)
