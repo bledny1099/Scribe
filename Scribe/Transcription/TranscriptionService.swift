@@ -90,8 +90,8 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
     /// Initial prompt that conditions Whisper to produce punctuation and recognise common brand names.
     /// Whisper uses this as "previous context" so it learns the expected output style.
     private let initialPrompt: [String: String] = [
-        "en": "Use proper punctuation, capitalization, commas, and natural sentence structures. English pronoun I: I like, I think, I know, I want, I have, I am. Terms: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
-        "ru": "Распознавай русскую речь связно и грамотно, сохраняя правильные падежи, окончания слов, предлоги и пунктуацию (запятые, точки, тире). Чётко различай английское местоимение «I» ([aɪ] — I like, I think, I know, I want, I have) и русскую букву «я» ([ja]). В английских фразах используй «I». Смешанная русско-английская речь: коммит, пулл реквест, PR, мердж, пуш, деплой, бэкенд, фронтенд, багфикс, релиз, прод, стейджинг, API, токен, промпт, контекст, репозиторий. Bybit, Binance, Telegram, ChatGPT, Gemini, Claude, OpenAI, Swift, SwiftUI, Xcode, Docker, Kubernetes, Next.js, Rust, WhisperKit, PostgreSQL, TypeScript, Python, LLM, Google, Antigravity, IDE, Scribe, транскрибатор, Хабр.",
+        "en": "Use proper punctuation, capitalization, commas, and natural sentence structures. Do not use ellipses (...) or trailing dots; end sentences with a single period. English pronoun I: I like, I think, I know, I want, I have, I am. Terms: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
+        "ru": "Распознавай русскую речь связно и грамотно, сохраняя правильные падежи, окончания слов, предлоги и пунктуацию (запятые, точки, тире). Никогда не используй троеточие (... или …), завершай предложения точкой или запятой. Чётко различай английское местоимение «I» ([aɪ] — I like, I think, I know, I want, I have) и русскую букву «я» ([ja]). В английских фразах используй «I». Смешанная русско-английская речь: коммит, пулл реквест, PR, мердж, пуш, деплой, бэкенд, фронтенд, багфикс, релиз, прод, стейджинг, API, токен, промпт, контекст, репозиторий. Bybit, Binance, Telegram, ChatGPT, Gemini, Claude, OpenAI, Swift, SwiftUI, Xcode, Docker, Kubernetes, Next.js, Rust, WhisperKit, PostgreSQL, TypeScript, Python, LLM, Google, Antigravity, IDE, Scribe, транскрибатор, Хабр.",
         "es": "Términos: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
         "de": "Begriffe: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
         "fr": "Termes: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
@@ -101,7 +101,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         "pt": "Termos: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
         "tr": "Terimler: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
         "uk": "Терміни: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
-        "auto": "Fluent Russian and English speech transcription. Punctuation, capitalization, code-switching. Distinctly differentiate the English pronoun 'I' (I like, I think, I know, I have) from the Russian pronoun 'я'. Terms: Bybit, Binance, Telegram, ChatGPT, Gemini, Claude, OpenAI, Swift, SwiftUI, Xcode, Docker, Kubernetes, Next.js, Rust, WhisperKit, PostgreSQL, TypeScript, Python, LLM, commit, pull request, merge, push, deploy, bugfix, backend, frontend, Google, Antigravity, Scribe."
+        "auto": "Fluent Russian and English speech transcription. Punctuation, capitalization, code-switching. Do not use ellipses (...) or trailing dots; end sentences cleanly with a period. Никогда не используй троеточие. Distinctly differentiate the English pronoun 'I' (I like, I think, I know, I have) from the Russian pronoun 'я'. Terms: Bybit, Binance, Telegram, ChatGPT, Gemini, Claude, OpenAI, Swift, SwiftUI, Xcode, Docker, Kubernetes, Next.js, Rust, WhisperKit, PostgreSQL, TypeScript, Python, LLM, commit, pull request, merge, push, deploy, bugfix, backend, frontend, Google, Antigravity, Scribe."
     ]
 
     /// Resolves on-disk path for pre-downloaded WhisperKit CoreML model folders
@@ -1260,6 +1260,13 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         // 5. Remove hallucinated speaker labels (e.g. "Speaker 1:", "Narrator:")
         cleaned = stripLeadingSpeakerLabels(cleaned)
 
+        // 5.5 Fix Whisper acoustic loops/confusions before repetition stripping
+        cleaned = cleaned.replacingOccurrences(
+            of: "(?i)\\bмало[\\s,]+и\\s+мало\\b",
+            with: "мало места",
+            options: .regularExpression
+        )
+
         // 6. Strip trailing repetitive phrases at end of speech
         cleaned = stripTrailingRepetitions(cleaned)
 
@@ -1355,6 +1362,9 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             )
         })
 
+        // 10. Universal unwanted ellipsis eliminator: never leave ... or … unless preceded by "и так далее", "и т.д.", "etc."
+        cleaned = eliminateUnwantedEllipses(cleaned)
+
         // Collapse multiple spaces into one and trim
         cleaned = cleaned.replacingOccurrences(
             of: "\\s{2,}",
@@ -1383,7 +1393,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
     /// Removes consecutive duplicate phrases/words at the end of speech caused by Whisper decoding loops.
     private static func stripTrailingRepetitions(_ text: String) -> String {
         var current = text
-        let pattern = #"(?i)(?:\b([A-Za-zА-Яа-я0-9\s]{3,30}?)[.,!?;:\s]+)\1[.,!?;:\s]*$"#
+        let pattern = #"(?i)(?:\b([A-Za-zА-Яа-я0-9\s]{2,30}?)[.,!?;:\s]+(?:(?:и|да|или|and|or)\s+)?)\1[.,!?;:\s…\.]*$"#
         if let regex = try? NSRegularExpression(pattern: pattern) {
             for _ in 0..<2 {
                 let range = NSRange(current.startIndex..<current.endIndex, in: current)
@@ -1406,6 +1416,90 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             }
         }
         return current
+    }
+
+    /// Eliminates unwanted ellipses (..., …, .., . . .) unless explicitly preceded by an allowed phrase (e.g. "и так далее", "и т.д.", "etc.").
+    public static func eliminateUnwantedEllipses(_ text: String) -> String {
+        guard !text.isEmpty else { return text }
+
+        // Allowed preceding phrases regex (Russian and English equivalents of "and so on", "etc.")
+        let allowedPattern = #"(?i)\b(?:и\s+так\s+далее|и\s+т\.?\s*д\.?|и\s+т\.?\s*п\.?|и\s+тому\s+подобно[ег][о]?|и\s+проче[ег][о]?|и\s+пр\.?|и\s+др\.?|etc\.?|et\s+cetera|and\s+so\s+on|and\s+so\s+forth)\s*$"#
+        guard let allowedRegex = try? NSRegularExpression(pattern: allowedPattern) else {
+            return text
+        }
+
+        // Match any ellipsis variant:
+        // - Optional preceding comma / whitespace
+        // - 2 or more dots, or Unicode ellipsis (…), or spaced dots (. . .)
+        // - Negative lookahead so we don't match file path prefixes like ../ or ..\
+        let ellipsisPattern = #"(?:\s*,\s*|\s+)?(?:(?:\.\s*){2,}\.|\.{2,}|…)(?![/\\])"#
+        guard let ellipsisRegex = try? NSRegularExpression(pattern: ellipsisPattern) else {
+            return text
+        }
+
+        var result = text
+        let matches = ellipsisRegex.matches(in: result, options: [], range: NSRange(result.startIndex..<result.endIndex, in: result))
+
+        for match in matches.reversed() {
+            guard let matchRange = Range(match.range, in: result) else { continue }
+
+            let prefix = String(result[..<matchRange.lowerBound]).trimmingCharacters(in: .whitespaces)
+            let prefixNSRange = NSRange(prefix.startIndex..<prefix.endIndex, in: prefix)
+
+            let suffix = result[matchRange.upperBound...]
+            let suffixTrimmed = suffix.trimmingCharacters(in: .whitespaces)
+
+            // If ellipsis is at the very beginning of the string, eliminate it completely
+            if prefix.isEmpty {
+                result.replaceSubrange(matchRange, with: "")
+                continue
+            }
+
+            if allowedRegex.firstMatch(in: prefix, options: [], range: prefixNSRange) != nil {
+                // Allowed ellipsis!
+                result.replaceSubrange(matchRange, with: suffixTrimmed.isEmpty ? "..." : "... ")
+                continue
+            }
+
+            let lastNonSpaceInPrefix = prefix.last
+            let firstCharInSuffix = suffixTrimmed.first
+
+            if suffixTrimmed.isEmpty {
+                // Trailing ellipsis at the end of text
+                if lastNonSpaceInPrefix == "?" || lastNonSpaceInPrefix == "!" {
+                    result.replaceSubrange(matchRange, with: "")
+                } else if lastNonSpaceInPrefix == "." {
+                    result.replaceSubrange(matchRange, with: "")
+                } else {
+                    result.replaceSubrange(matchRange, with: ".")
+                }
+            } else {
+                // Mid-sentence ellipsis
+                if lastNonSpaceInPrefix == "?" || lastNonSpaceInPrefix == "!" {
+                    result.replaceSubrange(matchRange, with: " ")
+                } else if let nextChar = firstCharInSuffix {
+                    if nextChar == "\n" || nextChar == "\r" {
+                        result.replaceSubrange(matchRange, with: ".")
+                    } else if nextChar.isUppercase {
+                        result.replaceSubrange(matchRange, with: ". ")
+                    } else if nextChar.isLetter || nextChar.isNumber {
+                        result.replaceSubrange(matchRange, with: ", ")
+                    } else {
+                        result.replaceSubrange(matchRange, with: ".")
+                    }
+                } else {
+                    result.replaceSubrange(matchRange, with: ".")
+                }
+            }
+        }
+
+        // Collapse multiple spaces
+        if let multiSpace = try? NSRegularExpression(pattern: #"[ \t]{2,}"#) {
+            let range = NSRange(result.startIndex..<result.endIndex, in: result)
+            result = multiSpace.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: " ")
+        }
+
+        return result.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// Strips built-in boundary hallucination artifacts (subtitles, credits, YouTube noise loops).

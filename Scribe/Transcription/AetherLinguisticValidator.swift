@@ -49,7 +49,9 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         "ситаешь": "считаешь",
         "ситаю": "считаю",
         "ситает": "считает",
-        "ситаем": "считаем"
+        "ситаем": "считаем",
+        "мало и мало": "мало места",
+        "мало, и мало": "мало места"
     ]
 
     /// Context-dependent photographic terms. If none of these keywords exist in text, words like "проявка" are acoustic mishearings of "проверка".
@@ -60,6 +62,9 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
 
     /// Systematic grammatical agreement and declension corrections in Russian speech
     private let russianGrammarAgreementRules: [(pattern: String, replacement: String)] = [
+        // Acoustic mishearings
+        ("(?i)\\bмало[\\s,]+и\\s+мало\\b", "мало места"),
+
         // Subject-verb agreement (1st person singular "я")
         ("(?i)\\bя\\s+говорит\\b", "я говорю"),
         ("(?i)\\bя\\s+делает\\b", "я делаю"),

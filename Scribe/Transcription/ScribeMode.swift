@@ -122,14 +122,15 @@ public final class ScribeModeProcessor: @unchecked Sendable {
 
         switch mode {
         case .raw:
-            // Verbatim output: zero filtering, preserves everything as is
-            return text
+            // Verbatim output: eliminate unwanted ellipses as requested universally
+            return TranscriptionService.eliminateUnwantedEllipses(text)
 
         case .clean:
             // Standard cleanup: speech self-correction repair, remove fillers, normalize duplicate spaces, fix punctuation, capitalize sentences, format web links
             var result = AetherLinguisticValidator.shared.repairSpeechSelfCorrections(text: text)
             result = removeFillerWords(result)
             result = normalizePunctuation(result)
+            result = TranscriptionService.eliminateUnwantedEllipses(result)
             result = capitalizeSentences(result)
             result = AetherWebLinkNormalizer.shared.normalize(text: result)
             return result
