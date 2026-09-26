@@ -55,6 +55,8 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
     private var appSwitchObserver: NSObjectProtocol? = nil
     private var checkTimer: Timer? = nil
     private var candidateFrequencies: [String: Int] = [:]
+    private var candidatePhraseFrequencies: [String: Int] = [:]
+    private var candidatePhraseCasing: [String: String] = [:]
     private var lastProcessedHash: Int = 0
     private var processingQueue = DispatchQueue(label: "com.aleksei.scribe.vocabulary_monitor", qos: .utility)
 
@@ -224,13 +226,22 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
             }
         }
 
-        // 2. Listen for app switches (e.g. user finished typing in Telegram and switched to Chrome)
+        // 2. Listen for app switches (capture element from the deactivating application before switch completes)
         appSwitchObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didDeactivateApplicationNotification,
             object: nil,
             queue: .main
-        ) { [weak self] _ in
-            self?.scheduleElementInspection(delay: 0.2)
+        ) { [weak self] note in
+            var targetElement: AXUIElement? = nil
+            if let deactivatingApp = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication {
+                let appElement = AXUIElementCreateApplication(deactivatingApp.processIdentifier)
+                var focusedInDeactivated: AnyObject?
+                if AXUIElementCopyAttributeValue(appElement, kAXFocusedUIElementAttribute as CFString, &focusedInDeactivated) == .success,
+                   let el = focusedInDeactivated as! AXUIElement? {
+                    targetElement = el
+                }
+            }
+            self?.scheduleElementInspection(targetElement: targetElement, delay: 0.15)
         }
 
         // 3. Periodic timer to check expiration and update UI countdown (every 60s)
@@ -258,10 +269,10 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
         checkTimer = nil
     }
 
-    private func scheduleElementInspection(delay: TimeInterval) {
+    private func scheduleElementInspection(targetElement: AXUIElement? = nil, delay: TimeInterval) {
         guard isRunning && !isExpired else { return }
         processingQueue.asyncAfter(deadline: .now() + delay) { [weak self] in
-            self?.inspectFocusedElement()
+            self?.inspectFocusedElement(targetElement: targetElement)
         }
     }
 
@@ -339,21 +350,80 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
 
     // MARK: - Safe Focused Element Inspection
 
-    private func inspectFocusedElement() {
-        guard AXIsProcessTrusted() else { return }
+    /// Verifies that an accessibility element is a genuine, user-editable text input
+    /// (e.g. NSTextField, NSTextView, search field, or web contenteditable/input),
+    /// strictly rejecting read-only labels, static text, web page bodies, and incoming chat messages.
+    private func isEditableInputField(_ element: AXUIElement) -> Bool {
+        var roleObj: AnyObject?
+        guard AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &roleObj) == .success,
+              let role = roleObj as? String else {
+            return false
+        }
 
-        // 0. Check frontmost application
-        if let frontApp = NSWorkspace.shared.frontmostApplication {
-            if isAppIgnored(bundleId: frontApp.bundleIdentifier, name: frontApp.localizedName) {
-                return
+        let nonEditableRoles: Set<String> = [
+            "AXStaticText", "AXImage", "AXButton", "AXLink", "AXCell", "AXRow",
+            "AXTable", "AXList", "AXOutline", "AXScrollArea", "AXWindow",
+            "AXGroup", "AXWebArea", "AXHeading", "AXMenu", "AXMenuItem",
+            "AXPopUpButton", "AXRadioButton", "AXCheckBox", "AXSlider", "AXTabGroup"
+        ]
+        if nonEditableRoles.contains(role) {
+            return false
+        }
+
+        // 1. Check Settability of kAXValueAttribute
+        var isSettable: DarwinBoolean = false
+        let settableStatus = AXUIElementIsAttributeSettable(element, kAXValueAttribute as CFString, &isSettable)
+        if settableStatus == .success && isSettable.boolValue {
+            return true
+        }
+
+        // 2. Check recognized input roles with active cursor or insertion point
+        let recognizedInputRoles: Set<String> = [
+            kAXTextFieldRole as String,
+            kAXTextAreaRole as String,
+            "AXSearchField",
+            kAXComboBoxRole as String
+        ]
+
+        if recognizedInputRoles.contains(role) {
+            var insertionObj: AnyObject?
+            if AXUIElementCopyAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, &insertionObj) == .success ||
+               AXUIElementCopyAttributeValue(element, "AXInsertionPointLineNumber" as CFString, &insertionObj) == .success {
+                return true
             }
         }
 
-        let systemWide = AXUIElementCreateSystemWide()
-        var focusedElementObj: AnyObject?
-        guard AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focusedElementObj) == .success,
-              let element = focusedElementObj as! AXUIElement? else {
-            return
+        // 3. Check Web / Electron editable ancestor
+        var editableObj: AnyObject?
+        if AXUIElementCopyAttributeValue(element, "AXEditableAncestor" as CFString, &editableObj) == .success,
+           editableObj != nil {
+            return true
+        }
+
+        return false
+    }
+
+    private func inspectFocusedElement(targetElement: AXUIElement? = nil) {
+        guard AXIsProcessTrusted() else { return }
+
+        let element: AXUIElement
+        if let target = targetElement {
+            element = target
+        } else {
+            // 0. Check frontmost application
+            if let frontApp = NSWorkspace.shared.frontmostApplication {
+                if isAppIgnored(bundleId: frontApp.bundleIdentifier, name: frontApp.localizedName) {
+                    return
+                }
+            }
+
+            let systemWide = AXUIElementCreateSystemWide()
+            var focusedElementObj: AnyObject?
+            guard AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focusedElementObj) == .success,
+                  let el = focusedElementObj as! AXUIElement? else {
+                return
+            }
+            element = el
         }
 
         // 1. STRICT PRIVACY: Verify element's owning application process is not an ignored/terminal app
@@ -388,7 +458,12 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
             return // NEVER TOUCH PASSWORD FIELDS
         }
 
-        // 3. Read text value (ignoring gigantic buffer dumps > 1500 chars)
+        // 3. EDITABLE INPUT ONLY: Strictly require that this is a user input field, not static content
+        guard isEditableInputField(element) else {
+            return
+        }
+
+        // 4. Read text value (ignoring gigantic buffer dumps > 1500 chars)
         var valueObj: AnyObject?
         guard AXUIElementCopyAttributeValue(element, kAXValueAttribute as CFString, &valueObj) == .success,
               let rawString = valueObj as? String, !rawString.isEmpty, rawString.count <= 1500 else {
@@ -400,11 +475,57 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
         if hash == lastProcessedHash { return }
         lastProcessedHash = hash
 
-        // 4. Process sanitized text
+        // 5. Process sanitized text
         processExtractedText(rawString)
     }
 
     // MARK: - Privacy Sanitizer & Incremental Learning Engine
+
+    private func extractCompoundTokens(from text: String) -> [String] {
+        let pattern = #"(?<![\p{L}\p{N}])[\p{L}\p{N}]+(?:[-_.][\p{L}\p{N}]+)*(?![\p{L}\p{N}])"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
+            return text.components(separatedBy: CharacterSet.alphanumerics.inverted).filter { $0.count >= 2 }
+        }
+        let nsRange = NSRange(location: 0, length: text.utf16.count)
+        let matches = regex.matches(in: text, options: [], range: nsRange)
+        return matches.compactMap { match in
+            guard let range = Range(match.range, in: text) else { return nil }
+            let s = String(text[range]).trimmingCharacters(in: CharacterSet(charactersIn: "-_."))
+            return s.count >= 2 ? s : nil
+        }
+    }
+
+    private func isWordStandardInLanguage(_ token: String) -> Bool {
+        let hasCyrillic = token.unicodeScalars.contains { CharacterSet(charactersIn: "\u{0400}"..."\u{04FF}").contains($0) }
+        let hasLatin = token.unicodeScalars.contains { (CharacterSet(charactersIn: "a"..."z").union(CharacterSet(charactersIn: "A"..."Z"))).contains($0) }
+
+        if hasCyrillic && !hasLatin {
+            var ruCount = 0
+            let ruRange = spellChecker.checkSpelling(
+                of: token,
+                startingAt: 0,
+                language: "ru",
+                wrap: false,
+                inSpellDocumentWithTag: 0,
+                wordCount: &ruCount
+            )
+            return (ruRange.location == NSNotFound || ruRange.length == 0)
+        } else if hasLatin && !hasCyrillic {
+            var enCount = 0
+            let enRange = spellChecker.checkSpelling(
+                of: token,
+                startingAt: 0,
+                language: "en",
+                wrap: false,
+                inSpellDocumentWithTag: 0,
+                wordCount: &enCount
+            )
+            return (enRange.location == NSNotFound || enRange.length == 0)
+        } else {
+            // Mixed scripts or technical symbols -> non-standard
+            return false
+        }
+    }
 
     private func processExtractedText(_ text: String) {
         // Sanitize: strip URLs, emails, long hex/base64 tokens, and credit cards
@@ -421,27 +542,89 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
         guard clean.count >= 2 else { return }
 
         // 1. Record Sentences & Directives in UserGrammarProfile
-        let sentences = clean.components(separatedBy: CharacterSet(charactersIn: ".!?\n;"))
+        let rawSentences = clean.components(separatedBy: CharacterSet(charactersIn: ".!?\n;"))
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
 
-        for sentence in sentences {
+        for sentence in rawSentences {
             UserGrammarProfile.shared.recordSentence(sentence)
         }
 
-        // 2. Extract Words & Detect Idiosyncratic / Rare Terms
-        let wordTokens = clean.components(separatedBy: CharacterSet.alphanumerics.inverted)
-            .filter { $0.count >= 2 }
-
+        // 2. Extract Compound Tokens (preserving hyphens, dots, underscores: Next.js, AI-стартап, gpt-4o, вайб-кодинг)
+        let wordTokens = extractCompoundTokens(from: clean)
         guard !wordTokens.isEmpty else { return }
 
         var newlyLearned: [String] = []
+        var learnedPhraseComponentWords = Set<String>()
 
         lock.lock()
         wordsAnalyzedCount += wordTokens.count
 
+        // 3. Multi-Word Atomic Phrase Detection (e.g. "Pull Request", "пулл реквест", "код ревью", "баг фикс", "машинное обучение")
+        for sentence in rawSentences {
+            let sentenceTokens = extractCompoundTokens(from: sentence)
+            if sentenceTokens.count >= 2 {
+                for len in 2...min(3, sentenceTokens.count) {
+                    for i in 0...(sentenceTokens.count - len) {
+                        let slice = Array(sentenceTokens[i..<(i + len)])
+                        let firstLower = slice.first!.lowercased()
+                        let lastLower = slice.last!.lowercased()
+
+                        // Reject phrases starting or ending with stop-words or pure digits
+                        if stopWords.contains(firstLower) || stopWords.contains(lastLower) { continue }
+                        if CharacterSet.decimalDigits.isSuperset(of: CharacterSet(charactersIn: firstLower)) { continue }
+                        if CharacterSet.decimalDigits.isSuperset(of: CharacterSet(charactersIn: lastLower)) { continue }
+
+                        let phrase = slice.joined(separator: " ")
+                        let lowerPhrase = phrase.lowercased()
+
+                        // Check candidate criteria:
+                        // A. Capitalized Title / Entity (e.g. "Pull Request", "Claude Code", "Deep Learning")
+                        let isCapitalizedPhrase = slice.allSatisfy { $0.first?.isUppercase == true }
+                        // B. Non-standard slang/collocation (e.g. "пулл реквест", "код ревью", "баг фикс")
+                        let containsNonStandard = slice.contains { tok in
+                            let hasInnerCap = tok.dropFirst().contains { $0.isUppercase }
+                            let isCompound = tok.contains("-") || tok.contains(".") || tok.contains("_")
+                            return hasInnerCap || isCompound || !isWordStandardInLanguage(tok)
+                        }
+
+                        if isCapitalizedPhrase || containsNonStandard {
+                            candidatePhraseCasing[lowerPhrase] = phrase
+                            let pCount = (candidatePhraseFrequencies[lowerPhrase] ?? 0) + 1
+                            candidatePhraseFrequencies[lowerPhrase] = pCount
+
+                            // Learn phrase atomically when seen at least 2 times
+                            if pCount >= 2 {
+                                let canonicalPhrase = candidatePhraseCasing[lowerPhrase] ?? phrase
+                                UserGrammarProfile.shared.recordIdiosyncraticWord(canonicalPhrase)
+                                UserFrequencyDictionary.shared.record(text: canonicalPhrase)
+
+                                // Mark all component sub-words as absorbed so they are NOT learned as separate noisy fragments
+                                for tok in slice {
+                                    let subLower = tok.lowercased().normalizedPlainVocabularyWord()
+                                    learnedPhraseComponentWords.insert(subLower)
+                                    // Remove any pre-existing isolated sub-word from profile
+                                    UserGrammarProfile.shared.removeIdiosyncraticWord(subLower)
+                                }
+
+                                let alreadyInRecent = recentlyLearnedWords.contains { $0.lowercased() == lowerPhrase }
+                                let alreadyInNew = newlyLearned.contains { $0.lowercased() == lowerPhrase }
+                                if !alreadyInRecent && !alreadyInNew {
+                                    newlyLearned.append(canonicalPhrase)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. Single Token Extraction & Learning (Filtered against phrase components and typos)
         for token in wordTokens {
             let lower = token.lowercased().normalizedPlainVocabularyWord()
+
+            // If this token is a sub-component of a learned multi-word phrase, skip adding it as an isolated word
+            if learnedPhraseComponentWords.contains(lower) { continue }
 
             // Skip short tokens, numbers, or stop-words
             if lower.count < 2 { continue }
@@ -461,49 +644,18 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
 
             // CamelCase / internal capitalization (e.g. MacBook, WhisperKit, ChatGPT, AntiGravity)
             let hasInnerCapital = token.dropFirst().contains { $0.isUppercase }
-            // Technical compound identifier (e.g. dev_mode, lang-code)
-            let isTechnicalCompound = token.contains("-") || token.contains("_")
+            // Technical compound identifier (e.g. Next.js, AI-стартап, dev_mode, lang-code)
+            let isTechnicalCompound = token.contains("-") || token.contains("_") || token.contains(".")
 
-            // Language-aware bilingual validation:
-            // Cyrillic words must be validated ONLY against the Russian dictionary.
-            // Latin words must be validated ONLY against the English dictionary.
-            let hasCyrillic = token.unicodeScalars.contains { CharacterSet(charactersIn: "\u{0400}"..."\u{04FF}").contains($0) }
-            let hasLatin = token.unicodeScalars.contains { (CharacterSet(charactersIn: "a"..."z").union(CharacterSet(charactersIn: "A"..."Z"))).contains($0) }
-
-            var isStandardWord = false
-            if hasCyrillic && !hasLatin {
-                var ruCount = 0
-                let ruRange = spellChecker.checkSpelling(
-                    of: token,
-                    startingAt: 0,
-                    language: "ru",
-                    wrap: false,
-                    inSpellDocumentWithTag: 0,
-                    wordCount: &ruCount
-                )
-                isStandardWord = (ruRange.location == NSNotFound || ruRange.length == 0)
-            } else if hasLatin && !hasCyrillic {
-                var enCount = 0
-                let enRange = spellChecker.checkSpelling(
-                    of: token,
-                    startingAt: 0,
-                    language: "en",
-                    wrap: false,
-                    inSpellDocumentWithTag: 0,
-                    wordCount: &enCount
-                )
-                isStandardWord = (enRange.location == NSNotFound || enRange.length == 0)
-            } else {
-                // Mixed characters (e.g. tech slang mixing scripts) -> non-standard
-                isStandardWord = false
-            }
-
+            let isStandardWord = isWordStandardInLanguage(token)
             let isNonStandardOrRare = (!isStandardWord) || hasInnerCapital || isAcronym || isTechnicalCompound
 
-            // Technical compounds, acronyms, or CamelCase qualify on 1st occurrence; non-standard words on 2nd
-            let frequencyThreshold = (hasInnerCapital || isAcronym || isTechnicalCompound) ? 1 : 2
+            // STRICT FREQUENCY THRESHOLD:
+            // Technical compounds, acronyms, or CamelCase require at least 2 occurrences (NEVER 1!).
+            // Rare or non-standard words require at least 3 occurrences.
+            // Single-occurrence words/typos are strictly ignored.
+            let frequencyThreshold = (hasInnerCapital || isAcronym || isTechnicalCompound) ? 2 : 3
             if count >= frequencyThreshold && isNonStandardOrRare {
-                // Normalize to plain letters
                 let normalizedWord = token.normalizedPlainVocabularyWord()
                 UserGrammarProfile.shared.recordIdiosyncraticWord(normalizedWord)
                 UserFrequencyDictionary.shared.record(text: normalizedWord)
@@ -530,6 +682,24 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
                 seen.insert(low)
                 return true
             }
+
+            // Purge isolated sub-words if the multi-word phrase is present
+            let multiWordLearned = recentlyLearnedWords.filter { $0.contains(" ") }
+            if !multiWordLearned.isEmpty {
+                recentlyLearnedWords.removeAll { w in
+                    if !w.contains(" ") {
+                        let low = w.lowercased()
+                        for phrase in multiWordLearned {
+                            let parts = phrase.lowercased().components(separatedBy: " ")
+                            if parts.contains(low) {
+                                return true
+                            }
+                        }
+                    }
+                    return false
+                }
+            }
+
             if recentlyLearnedWords.count > 40 {
                 recentlyLearnedWords = Array(recentlyLearnedWords.prefix(40))
             }
@@ -547,12 +717,14 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
 
     // MARK: - Learned Vocabulary Deletion & Reset API
 
-    /// Removes an individual learned word from the monitor and profile
+    /// Removes an individual learned word or phrase from the monitor and profile
     public func removeLearnedWord(_ word: String) {
         let lower = word.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         lock.lock()
         recentlyLearnedWords.removeAll { $0.lowercased() == lower }
         candidateFrequencies.removeValue(forKey: lower)
+        candidatePhraseFrequencies.removeValue(forKey: lower)
+        candidatePhraseCasing.removeValue(forKey: lower)
         rareWordsLearnedCount = max(0, rareWordsLearnedCount - 1)
         savePersistedStateUnderLock()
         lock.unlock()
@@ -584,6 +756,8 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
         lock.lock()
         recentlyLearnedWords.removeAll()
         candidateFrequencies.removeAll()
+        candidatePhraseFrequencies.removeAll()
+        candidatePhraseCasing.removeAll()
         rareWordsLearnedCount = 0
         constructionsLearnedCount = 0
         savePersistedStateUnderLock()
@@ -632,16 +806,35 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
         self.constructionsLearnedCount = defaults.integer(forKey: "writingMonitorConstructionsCount")
         self.recentlyLearnedWords = defaults.stringArray(forKey: "writingMonitorRecentWords") ?? []
 
-        // Sanitize: purge "gho" and random short stubs from stored recent words
+        // Sanitize: purge "gho", stop words, and random short stubs from stored recent words
         self.recentlyLearnedWords.removeAll { w in
             let low = w.lowercased()
             if low == "gho" { return true }
-            if w.count < 4 && !w.allSatisfy({ $0.isUppercase }) && !["git", "vim", "npm", "pip", "zsh", "aws", "sql", "ssh"].contains(low) {
+            if stopWords.contains(low) { return true }
+            if w.count < 3 && !w.allSatisfy({ $0.isUppercase }) && !["git", "vim", "npm", "pip", "zsh", "aws", "sql", "ssh"].contains(low) {
                 return true
             }
             return false
         }
         UserGrammarProfile.shared.removeIdiosyncraticWord("gho")
+
+        // Clean up any split sub-words if the multi-word phrase is present
+        let multiWordLearned = self.recentlyLearnedWords.filter { $0.contains(" ") }
+        if !multiWordLearned.isEmpty {
+            self.recentlyLearnedWords.removeAll { w in
+                if !w.contains(" ") {
+                    let low = w.lowercased()
+                    for phrase in multiWordLearned {
+                        let parts = phrase.lowercased().components(separatedBy: " ")
+                        if parts.contains(low) {
+                            UserGrammarProfile.shared.removeIdiosyncraticWord(low)
+                            return true
+                        }
+                    }
+                }
+                return false
+            }
+        }
 
         // Load ignored applications (only keep apps present on this Mac)
         if let data = defaults.data(forKey: "writingMonitorIgnoredApps"),

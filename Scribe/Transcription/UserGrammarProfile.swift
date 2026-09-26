@@ -13,6 +13,7 @@ public final class UserGrammarProfile: @unchecked Sendable {
     private var directiveFrequencies: [String: Int] = [:]
     private var collocationFrequencies: [String: Int] = [:]
     private var idiosyncraticWordFrequencies: [String: Int] = [:]
+    private var canonicalIdiosyncraticWords: [String: String] = [:]
     private var totalProcessedSegments: Int = 0
     private var lastUpdated: Date = Date()
     private var isDirty = false
@@ -49,10 +50,25 @@ public final class UserGrammarProfile: @unchecked Sendable {
         let trimmed = sentence.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
-        // Split into words while keeping punctuation stripped
-        let tokens = trimmed.components(separatedBy: CharacterSet.alphanumerics.inverted)
-            .filter { !$0.isEmpty }
-            .map { $0.lowercased().normalizedPlainVocabularyWord() }
+        // Split into words while keeping compound terms (Next.js, AI-стартап) intact
+        let tokenRegex = try? NSRegularExpression(
+            pattern: #"(?<![\p{L}\p{N}])[\p{L}\p{N}]+(?:[-_.][\p{L}\p{N}]+)*(?![\p{L}\p{N}])"#,
+            options: []
+        )
+        let nsRange = NSRange(location: 0, length: trimmed.utf16.count)
+        let matches = tokenRegex?.matches(in: trimmed, options: [], range: nsRange) ?? []
+        let tokens: [String]
+        if !matches.isEmpty {
+            tokens = matches.compactMap { match in
+                guard let range = Range(match.range, in: trimmed) else { return nil }
+                let s = String(trimmed[range]).trimmingCharacters(in: CharacterSet(charactersIn: "-_."))
+                return s.isEmpty ? nil : s.lowercased().normalizedPlainVocabularyWord()
+            }
+        } else {
+            tokens = trimmed.components(separatedBy: CharacterSet.alphanumerics.inverted)
+                .filter { !$0.isEmpty }
+                .map { $0.lowercased().normalizedPlainVocabularyWord() }
+        }
 
         guard !tokens.isEmpty else { return }
 
@@ -86,7 +102,7 @@ public final class UserGrammarProfile: @unchecked Sendable {
         scheduleSave()
     }
 
-    /// Records an idiosyncratic (rare / personal) word found in the user's text.
+    /// Records an idiosyncratic (rare / personal) word or atomic phrase found in the user's text.
     public func recordIdiosyncraticWord(_ word: String) {
         let clean = word.trimmingCharacters(in: .whitespacesAndNewlines).normalizedPlainVocabularyWord()
         guard clean.count >= 2 else { return }
@@ -94,6 +110,10 @@ public final class UserGrammarProfile: @unchecked Sendable {
 
         lock.lock()
         idiosyncraticWordFrequencies[lower, default: 0] += 1
+        // Store canonical display casing if term has casing or compounds
+        if clean.contains(where: { $0.isUppercase }) || clean.contains(" ") || clean.contains("-") || clean.contains(".") {
+            canonicalIdiosyncraticWords[lower] = clean
+        }
         lastUpdated = Date()
         isDirty = true
         lock.unlock()
@@ -145,6 +165,7 @@ public final class UserGrammarProfile: @unchecked Sendable {
         let lower = word.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         lock.lock()
         idiosyncraticWordFrequencies.removeValue(forKey: lower)
+        canonicalIdiosyncraticWords.removeValue(forKey: lower)
         lastUpdated = Date()
         isDirty = true
         lock.unlock()
@@ -168,6 +189,7 @@ public final class UserGrammarProfile: @unchecked Sendable {
         directiveFrequencies.removeAll()
         collocationFrequencies.removeAll()
         idiosyncraticWordFrequencies.removeAll()
+        canonicalIdiosyncraticWords.removeAll()
         totalProcessedSegments = 0
         lastUpdated = Date()
         isDirty = true
@@ -185,7 +207,7 @@ public final class UserGrammarProfile: @unchecked Sendable {
             .map { $0.key }
     }
 
-    /// Returns top learned idiosyncratic/rare words
+    /// Returns top learned idiosyncratic/rare words (with preserved canonical casing)
     public func topIdiosyncraticWords(limit: Int = 30) -> [String] {
         lock.lock()
         defer { lock.unlock() }
@@ -193,7 +215,7 @@ public final class UserGrammarProfile: @unchecked Sendable {
             .filter { $0.value >= 2 }
             .sorted { $0.value > $1.value }
             .prefix(limit)
-            .map { $0.key }
+            .map { canonicalIdiosyncraticWords[$0.key] ?? $0.key }
     }
 
     /// Returns the frequency score for a candidate bigram to aid linguistic validation
@@ -227,6 +249,7 @@ public final class UserGrammarProfile: @unchecked Sendable {
         let directives: [String: Int]
         let collocations: [String: Int]
         let idiosyncraticWords: [String: Int]
+        var canonicalWords: [String: String]? = nil
     }
 
     private func scheduleSave() {
@@ -250,7 +273,8 @@ public final class UserGrammarProfile: @unchecked Sendable {
             totalProcessedSegments: self.totalProcessedSegments,
             directives: self.directiveFrequencies,
             collocations: self.collocationFrequencies,
-            idiosyncraticWords: self.idiosyncraticWordFrequencies
+            idiosyncraticWords: self.idiosyncraticWordFrequencies,
+            canonicalWords: self.canonicalIdiosyncraticWords
         )
         self.isDirty = false
         lock.unlock()
@@ -275,6 +299,7 @@ public final class UserGrammarProfile: @unchecked Sendable {
         self.directiveFrequencies = payload.directives
         self.collocationFrequencies = payload.collocations
         self.idiosyncraticWordFrequencies = payload.idiosyncraticWords
+        self.canonicalIdiosyncraticWords = payload.canonicalWords ?? [:]
         self.totalProcessedSegments = payload.totalProcessedSegments
         self.lastUpdated = payload.lastUpdated
         self.isDirty = false
