@@ -14,7 +14,7 @@ Press `⌥S`, talk, press it again. Your words land directly in whatever text fi
 
 <br><br>
 
-https://github.com/user-attachments/assets/dc0af391-e225-40a8-9955-3c8ee0bae50a
+https://github.com/user-attachments/assets/d8458ee9-aa86-40a8-bb7e-dd8b1ad3eb76
 
 </div>
 
