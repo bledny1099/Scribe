@@ -555,7 +555,7 @@ private struct VersionBadgeView: View {
     let isLight: Bool
 
     var body: some View {
-        let appVer = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.9.4"
+        let appVer = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.9.5"
         let fgColor = isLight ? Color.black.opacity(0.70) : Color.white.opacity(0.85)
         let bgColor = isLight ? Color.black.opacity(0.06) : Color.white.opacity(0.12)
         let borderColor = isLight ? Color.black.opacity(0.14) : Color.white.opacity(0.22)

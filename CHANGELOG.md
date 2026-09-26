@@ -5,6 +5,23 @@ All notable changes to Scribe will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.5] - 2026-09-26
+
+## Added
+- Automatic single-language vs multilingual mode detection with verbatim AI refinement enforcement.
+- Authentic macOS continuous squircle curvature for application icon, Dock tile, and web assets.
+- Atomic multi-word phrase learning restricted to user-typed inputs in vocabulary monitor.
+
+## Changed
+- Redesigned Dictation Mode segmented control into a compact single-row picker.
+- Preserved user-resized window dimensions and refined Appearance tab layout without automatic overlay preview popups.
+- Refreshed product demo recording and presentation assets across documentation.
+
+## Fixed
+- Fixed Latin word corruption in phonetic matchers by isolating script processing during mixed-language dictation.
+- Fixed stutter repetition loops and eliminated unwanted ellipses across all dictation modes.
+- Fixed settings tab switching crash, preview panel race conditions, and right-side clipping in AI Refinement tab.
+
 ## [2.9.4] - 2026-09-22
 
 ## Added
