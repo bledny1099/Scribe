@@ -2282,7 +2282,7 @@ struct ThemeSwatchButton: View {
                         .fill(theme.accentGradient)
                         .overlay(
                             Circle()
-                                .stroke(Color.white.opacity(isSelected ? 0.7 : 0.2), lineWidth: isSelected ? 2 : 1)
+                                .stroke(theme == .whiteGlow && isSelected ? Color.black.opacity(0.25) : Color.white.opacity(isSelected ? 0.7 : 0.2), lineWidth: isSelected ? 2 : 1)
                         )
                         .frame(width: 44, height: 44)
                         .shadow(color: theme.gradientColors[0].opacity(isSelected ? 0.4 : 0.1), radius: isSelected ? 8 : 3, x: 0, y: isSelected ? 4 : 2)
@@ -2290,7 +2290,7 @@ struct ThemeSwatchButton: View {
                     if isSelected {
                         Image(systemName: "checkmark")
                             .font(.system(size: 15, weight: .bold))
-                            .foregroundStyle(Color.white)
+                            .foregroundStyle(theme == .whiteGlow ? Color.black.opacity(0.85) : Color.white)
                             .transition(.scale.combined(with: .opacity))
                     }
                 }
@@ -6927,9 +6927,9 @@ struct AppearanceSettingsView: View {
                         .frame(maxWidth: .infinity)
                     }
 
-                    // Overlay Theme (Dark, Light, Liquid Glass)
+                    // Panel Theme (Dark, Light, Liquid Glass)
                     HStack {
-                        Text(appState.l("Overlay Theme"))
+                        Text(appState.l("Panel Theme"))
                             .font(.system(size: 14, weight: .medium, design: .rounded))
                             .foregroundStyle(.primary)
                         Spacer()
@@ -6990,7 +6990,12 @@ struct AppearanceSettingsView: View {
                             label: { (appState.l($0.displayName), $0.icon) }
                         )
                     }
+                }
+            }
 
+            // SECTION: Window & Controls
+            GlassSection(title: appState.l("Window & Controls"), icon: "slider.horizontal.3") {
+                VStack(spacing: 16) {
                     // Sound feedback
                     HStack {
                         Text(appState.l("Sound Feedback"))

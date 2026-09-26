@@ -16,7 +16,7 @@ final class SettingsWindowManager {
         self.currentAppState = appState
         appState.requestedSettingsTab = tab
         if let existingWindow = window {
-            if existingWindow.frame.height < 645 {
+            if existingWindow.frame.height < 645 && userCustomHeight == nil {
                 var f = existingWindow.frame
                 let diff = 645 - f.height
                 f.origin.y -= diff
@@ -25,12 +25,21 @@ final class SettingsWindowManager {
             }
             existingWindow.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
-            resizeWindow(to: tab.preferredWidth, animate: true)
+            let targetWidth = max(tab.preferredWidth, existingWindow.frame.width)
+            if targetWidth > existingWindow.frame.width + 2 {
+                resizeWindow(to: targetWidth, animate: true)
+            }
             return
         }
 
-        let initialWidth: CGFloat = tab.preferredWidth
-        let initialHeight: CGFloat = 645
+        let savedW = UserDefaults.standard.double(forKey: "settingsWindowWidth")
+        let savedH = UserDefaults.standard.double(forKey: "settingsWindowHeight")
+
+        let initialWidth: CGFloat = savedW >= 700 ? CGFloat(savedW) : tab.preferredWidth
+        let initialHeight: CGFloat = savedH >= 600 ? CGFloat(savedH) : 645
+
+        if savedW >= 700 { userCustomWidth = CGFloat(savedW) }
+        if savedH >= 600 { userCustomHeight = CGFloat(savedH) }
 
         let newWindow = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: initialWidth, height: initialHeight),
@@ -115,7 +124,8 @@ final class SettingsWindowManager {
         window?.frame
     }
 
-    var userExpandedWidth: CGFloat? = nil
+    var userCustomWidth: CGFloat? = nil
+    var userCustomHeight: CGFloat? = nil
     private var isProgrammaticResize: Bool = false
     private var previewUpdateWorkItem: DispatchWorkItem? = nil
 
@@ -166,7 +176,7 @@ final class SettingsWindowManager {
         window.minSize = NSSize(width: 700, height: 600)
         window.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         
-        if window.frame.height < 645 {
+        if window.frame.height < 645 && userCustomHeight == nil {
             var f = window.frame
             let diff = 645 - f.height
             f.origin.y -= diff
@@ -174,7 +184,19 @@ final class SettingsWindowManager {
             window.setFrame(f, display: true)
         }
         
-        resizeWindow(to: tab.preferredWidth, animate: animate)
+        // Never shrink the window when switching tabs if user manually expanded it or if it is already wider
+        let targetWidth: CGFloat
+        if let customW = userCustomWidth, customW > tab.preferredWidth {
+            targetWidth = customW
+        } else if window.frame.width > tab.preferredWidth {
+            targetWidth = window.frame.width
+        } else {
+            targetWidth = tab.preferredWidth
+        }
+
+        if targetWidth > window.frame.width + 2 {
+            resizeWindow(to: targetWidth, animate: animate)
+        }
     }
 
     func ensureMinimumY(_ minY: CGFloat) {
@@ -215,21 +237,18 @@ final class SettingsWindowManager {
 
     func windowDidResize() {
         guard !isProgrammaticResize, let window = window else { return }
-        if window.inLiveResize {
-            let currentW = window.frame.width
-            if currentW > 860 {
-                userExpandedWidth = currentW
-            } else {
-                userExpandedWidth = nil
-            }
-        }
+        let currentW = window.frame.width
+        let currentH = window.frame.height
+        userCustomWidth = currentW
+        userCustomHeight = currentH
+        UserDefaults.standard.set(Double(currentW), forKey: "settingsWindowWidth")
+        UserDefaults.standard.set(Double(currentH), forKey: "settingsWindowHeight")
     }
 
     func closeWindow() {
         previewUpdateWorkItem?.cancel()
         previewUpdateWorkItem = nil
         currentAppState?.hideSettingsPreviewPanel()
-        userExpandedWidth = nil
         isProgrammaticResize = false
         window?.close()
         window = nil
@@ -240,7 +259,6 @@ final class SettingsWindowManager {
         previewUpdateWorkItem?.cancel()
         previewUpdateWorkItem = nil
         currentAppState?.hideSettingsPreviewPanel()
-        userExpandedWidth = nil
         isProgrammaticResize = false
         window = nil
         blurView = nil
