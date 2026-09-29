@@ -14,6 +14,13 @@ cd "$ROOT_DIR"
 mkdir -p "$BUILD_DIR"
 mkdir -p "$DIST_DIR"
 
+DEFAULT_DERIVED_DATA="$HOME/Library/Developer/Xcode/DerivedData/Scribe-adcbtqdoqoitycbubnnzaubemqip"
+if [ -d "$DEFAULT_DERIVED_DATA" ]; then
+    DERIVED_DATA_PATH="$DEFAULT_DERIVED_DATA"
+else
+    DERIVED_DATA_PATH="/tmp/ScribeDerivedData"
+fi
+
 ARCH=$(uname -m)
 xcodebuild -project Scribe.xcodeproj \
     -scheme Scribe \
@@ -21,12 +28,12 @@ xcodebuild -project Scribe.xcodeproj \
     -destination "platform=macOS,arch=$ARCH" \
     ONLY_ACTIVE_ARCH=YES \
     -parallelizeTargets \
-    -derivedDataPath "$BUILD_DIR/DerivedData" \
+    -derivedDataPath "$DERIVED_DATA_PATH" \
     build
 
-APP_PATH=$(find "$BUILD_DIR/DerivedData" -type d -path "*/Products/Release/${APP_NAME}.app" | head -n 1)
+APP_PATH=$(find "$DERIVED_DATA_PATH" -type d -path "*/Products/Release/${APP_NAME}.app" | head -n 1)
 if [ -z "$APP_PATH" ]; then
-    APP_PATH=$(find "$BUILD_DIR/DerivedData" -type d -name "${APP_NAME}.app" | grep -v "Index.noindex" | head -n 1)
+    APP_PATH=$(find "$DERIVED_DATA_PATH" -type d -name "${APP_NAME}.app" | grep -v "Index.noindex" | head -n 1)
 fi
 
 if [ -z "$APP_PATH" ]; then

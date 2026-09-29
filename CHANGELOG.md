@@ -5,6 +5,21 @@ All notable changes to Scribe will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.10] - 2026-09-29
+
+## Added
+- Automatic AI API Key Gateway supporting up to 10 keys with priority ordering and automatic failover across rate limits (429) and errors.
+- Collapsible API Key Gateway settings view featuring quick key addition, masked key display, per-key active toggles, reordering, and deletion.
+- Intelligent multi-channel audio mixdown and channel energy detection in AudioRecorder for stereo audio interfaces and USB mixers.
+
+## Changed
+- Refactored text post-processing and live testing to route all requests sequentially through the configured gateway keys.
+- Reduced real-time Whisper snapshot polling interval to 1.2 seconds for lower live preview latency and higher responsiveness.
+
+## Fixed
+- Fixed an application crash (SIGSEGV / EXC_BAD_ACCESS) when toggling the recording timer in Appearance settings caused by layer corner radius updates during window animator ticks.
+- Fixed fragmented single-word output in live preview on multi-channel audio hardware by normalizing snapshot buffers to mono WAV.
+
 ## [2.9.5] - 2026-09-26
 
 ## Added

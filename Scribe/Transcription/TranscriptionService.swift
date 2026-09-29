@@ -550,20 +550,34 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         targetApp: NSRunningApplication? = nil
     ) async -> String? {
         guard let kit = whisperKit else { return nil }
-
         guard FileManager.default.fileExists(atPath: audioURL.path) else { return nil }
+
+        // Condition the audio: high-pass filter, silence trimming, loudness normalization
+        let pathToTranscribe: String
+        let tempConditionedURL: URL?
+        if let conditioned = AetherAudioConditioner.shared.condition(audioURL: audioURL) {
+            pathToTranscribe = conditioned.path
+            tempConditionedURL = (conditioned != audioURL) ? conditioned : nil
+        } else {
+            return nil
+        }
+        defer {
+            if let temp = tempConditionedURL {
+                try? FileManager.default.removeItem(at: temp)
+            }
+        }
 
         var options = DecodingOptions(task: .transcribe)
         options.temperature = 0.0
         options.temperatureFallbackCount = 0
-        options.withoutTimestamps = false
+        options.withoutTimestamps = true
         options.skipSpecialTokens = true
         options.sampleLength = 224
-        options.noSpeechThreshold = 0.6
+        options.noSpeechThreshold = 0.60
         options.logProbThreshold = -1.0
         options.compressionRatioThreshold = 2.4
 
-        var resolvedLang: String? = nil
+        var resolvedLang: String = "ru"
         let allowedBases = (!preferredLanguages.isEmpty ? preferredLanguages : (language.map { [$0] } ?? ["ru", "en"]))
             .map { baseLanguageCode(for: $0).lowercased() }
             .filter { !$0.isEmpty && $0 != "auto" }
@@ -580,44 +594,95 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             options.detectLanguage = false
             resolvedLang = first
         } else {
-            // Strict language block for Live Preview:
-            // Query quick language pre-detection resolved strictly against user-configured allowed languages.
-            if let (detected, probs) = try? await kit.detectLanguage(audioPath: audioURL.path) {
-                let chosen = Self.resolveDetectedLanguage(rawDetected: detected, probs: probs, allowedBases: effectiveAllowed)
-                options.language = chosen
-                options.detectLanguage = false
-                resolvedLang = chosen
+            // Multilingual live preview:
+            // When Russian is enabled, Russian mode naturally handles Russian speech and preserves technical English terms.
+            // Only switch initial decoding language to English if language detection strongly (> 0.70) detects English and ru is negligible (< 0.08).
+            if let (detected, probs) = try? await kit.detectLanguage(audioPath: pathToTranscribe) {
+                let cleanDetected = detected.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+                let enProb = Self.linearProbability(for: "en", in: probs)
+                let ruProb = Self.linearProbability(for: "ru", in: probs)
+
+                if effectiveAllowed.contains("ru") && effectiveAllowed.contains("en") {
+                    if cleanDetected == "en" && enProb >= 0.70 && ruProb < 0.08 {
+                        resolvedLang = "en"
+                    } else {
+                        resolvedLang = "ru"
+                    }
+                } else {
+                    resolvedLang = Self.resolveDetectedLanguage(rawDetected: detected, probs: probs, allowedBases: effectiveAllowed)
+                }
             } else {
-                let fallback = effectiveAllowed.contains("ru") ? "ru" : effectiveAllowed[0]
-                options.language = fallback
-                options.detectLanguage = false
-                resolvedLang = fallback
+                resolvedLang = effectiveAllowed.contains("ru") ? "ru" : effectiveAllowed[0]
             }
+            options.language = resolvedLang
+            options.detectLanguage = false
         }
 
-        // Clean decoding for snapshots using WhisperKit prefilled KV cache
-        options.usePrefillPrompt = true
-        options.usePrefillCache = true
-        options.promptTokens = nil
+        // Inject compact initial prompt conditioning for proper punctuation, capitalization, and vocabulary
+        if let tokenizer = kit.tokenizer {
+            let basePrompt = (resolvedLang == "ru")
+                ? "Привет, это аккуратная речь с пунктуацией и терминами: "
+                : "Hello, this is a clean transcription with proper punctuation: "
+            let promptText = AetherContextEngine.shared.buildConditioningPrompt(
+                basePrompt: basePrompt,
+                customVocabulary: customVocabulary,
+                userLocation: "",
+                targetApp: targetApp,
+                language: resolvedLang
+            )
+            let tokens = tokenizer.encode(text: promptText)
+            options.promptTokens = Array(tokens.prefix(min(tokens.count, 24)))
+            options.usePrefillCache = false
+        } else {
+            options.usePrefillPrompt = true
+            options.usePrefillCache = true
+            options.promptTokens = nil
+        }
 
         do {
-            let results = try await kit.transcribe(audioPath: audioURL.path, decodeOptions: options)
+            let results = try await kit.transcribe(audioPath: pathToTranscribe, decodeOptions: options)
             var text = results.map(\.text).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
             if text.isEmpty { return nil }
 
-            // Automatic script alignment for snapshot:
+            let latCount = text.unicodeScalars.filter { ($0.value >= 0x0041 && $0.value <= 0x005A) || ($0.value >= 0x0061 && $0.value <= 0x007A) }.count
+            let cyrCount = text.unicodeScalars.filter { ($0.value >= 0x0400 && $0.value <= 0x04FF) || ($0.value >= 0x0500 && $0.value <= 0x052F) }.count
+
+            // Bidirectional Script Mismatch Check for Live Preview:
             if resolvedLang == "ru" && effectiveAllowed.contains("en") {
-                let latCount = text.unicodeScalars.filter { ($0.value >= 0x0041 && $0.value <= 0x005A) || ($0.value >= 0x0061 && $0.value <= 0x007A) }.count
-                let cyrCount = text.unicodeScalars.filter { ($0.value >= 0x0400 && $0.value <= 0x04FF) || ($0.value >= 0x0500 && $0.value <= 0x052F) }.count
-                if latCount >= 10 && cyrCount < 6 {
+                // If speech was decoded as Russian but is overwhelmingly Latin (> 12 Latin, < 4 Cyrillic), re-decode in English
+                if latCount >= 12 && cyrCount < 4 {
                     var retryOpts = options
                     retryOpts.language = "en"
                     retryOpts.detectLanguage = false
-                    if let retryResults = try? await kit.transcribe(audioPath: audioURL.path, decodeOptions: retryOpts) {
+                    if let tokenizer = kit.tokenizer {
+                        let enTokens = tokenizer.encode(text: "Hello, this is a clean transcription with punctuation.")
+                        retryOpts.promptTokens = Array(enTokens.prefix(min(enTokens.count, 20)))
+                        retryOpts.usePrefillCache = false
+                    }
+                    if let retryResults = try? await kit.transcribe(audioPath: pathToTranscribe, decodeOptions: retryOpts) {
                         let retryText = retryResults.map(\.text).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
                         if !retryText.isEmpty {
                             text = retryText
                             resolvedLang = "en"
+                        }
+                    }
+                }
+            } else if resolvedLang == "en" && effectiveAllowed.contains("ru") {
+                // If speech was decoded as English but contains Cyrillic or was Russian speech forced into English phonetics, re-decode in Russian
+                if cyrCount >= 4 || (latCount < 8 && cyrCount > 0) {
+                    var retryOpts = options
+                    retryOpts.language = "ru"
+                    retryOpts.detectLanguage = false
+                    if let tokenizer = kit.tokenizer {
+                        let ruTokens = tokenizer.encode(text: "Привет, это аккуратная речь с пунктуацией.")
+                        retryOpts.promptTokens = Array(ruTokens.prefix(min(ruTokens.count, 20)))
+                        retryOpts.usePrefillCache = false
+                    }
+                    if let retryResults = try? await kit.transcribe(audioPath: pathToTranscribe, decodeOptions: retryOpts) {
+                        let retryText = retryResults.map(\.text).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !retryText.isEmpty {
+                            text = retryText
+                            resolvedLang = "ru"
                         }
                     }
                 }
@@ -2060,7 +2125,7 @@ final class TextReplacer {
 
 // MARK: - Cloud AI Service & Types
 
-public enum CloudAIProvider: String, CaseIterable, Identifiable, Sendable {
+public enum CloudAIProvider: String, CaseIterable, Identifiable, Codable, Sendable {
     case groq = "groq"
     case cerebras = "cerebras"
     case gemini = "gemini"
@@ -2080,6 +2145,53 @@ public enum CloudAIProvider: String, CaseIterable, Identifiable, Sendable {
         case .openAI:       return "OpenAI (GPT-4o Mini)"
         case .anthropic:    return "Anthropic Claude (Haiku)"
         case .ollama:       return "Ollama (Local Offline)"
+        }
+    }
+}
+
+public struct AIGatewayKey: Identifiable, Codable, Equatable, Sendable {
+    public var id: UUID
+    public var provider: CloudAIProvider
+    public var apiKey: String
+    public var isEnabled: Bool
+    public var customModel: String
+    public var customBaseURL: String
+
+    public init(
+        id: UUID = UUID(),
+        provider: CloudAIProvider,
+        apiKey: String,
+        isEnabled: Bool = true,
+        customModel: String = "",
+        customBaseURL: String = ""
+    ) {
+        self.id = id
+        self.provider = provider
+        self.apiKey = apiKey
+        self.isEnabled = isEnabled
+        self.customModel = customModel
+        self.customBaseURL = customBaseURL
+    }
+
+    /// Provider label and last 3 characters of key (e.g. "Groq (•••7Pbz)")
+    public var maskedDisplay: String {
+        let clean = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        if clean.isEmpty {
+            return "\(provider.displayName) (•••)"
+        }
+        let suffix = clean.count >= 3 ? String(clean.suffix(3)) : clean
+        return "\(provider.displayName) (•••\(suffix))"
+    }
+
+    public var providerIcon: String {
+        switch provider {
+        case .groq:         return "bolt.horizontal.fill"
+        case .cerebras:     return "cpu.fill"
+        case .gemini:       return "sparkles"
+        case .customOpenAI: return "server.rack"
+        case .openAI:       return "brain.head.profile"
+        case .anthropic:    return "character.bubble.fill"
+        case .ollama:       return "terminal.fill"
         }
     }
 }
@@ -2738,6 +2850,100 @@ Use the following dictionary of canonical words to detect such phonetic mistakes
             }
             return sanitizeRefinedText(text, fallback: text, mode: mode)
         }
+    }
+
+    /// Automatically executes text refinement through the configured gateway keys with failover.
+    /// Tries enabled keys in the user-specified order. If a key hits 429/quota/error, automatically
+    /// fails over to the next enabled key in the gateway.
+    public func refineWithGateway(
+        text: String,
+        mode: AIRefinementMode,
+        gatewayKeys: [AIGatewayKey],
+        fallbackProvider: CloudAIProvider,
+        fallbackKey: String,
+        vocabulary: String = "",
+        allowedLanguages: [String] = ["ru", "en"],
+        isLecture: Bool = false,
+        customBaseURL: String = "https://api.openai.com/v1",
+        customModel: String = "gpt-4o-mini",
+        geminiModel: String = "gemini-2.0-flash",
+        groqModel: String = "openai/gpt-oss-120b",
+        cerebrasModel: String = "gpt-oss-120b",
+        ollamaEndpoint: String = "http://localhost:11434",
+        ollamaModel: String = "qwen2.5:7b"
+    ) async throws -> String {
+        let activeKeys = gatewayKeys.filter { $0.isEnabled && !$0.apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
+        if activeKeys.isEmpty {
+            return try await refineText(
+                text: text,
+                mode: mode,
+                provider: fallbackProvider,
+                apiKey: fallbackKey,
+                vocabulary: vocabulary,
+                allowedLanguages: allowedLanguages,
+                isLecture: isLecture,
+                customBaseURL: customBaseURL,
+                customModel: customModel,
+                geminiModel: geminiModel,
+                groqModel: groqModel,
+                cerebrasModel: cerebrasModel,
+                ollamaEndpoint: ollamaEndpoint,
+                ollamaModel: ollamaModel
+            )
+        }
+
+        var lastError: Error?
+        for (index, item) in activeKeys.enumerated() {
+            do {
+                let effectiveModel: String
+                switch item.provider {
+                case .groq:
+                    effectiveModel = item.customModel.isEmpty ? groqModel : item.customModel
+                case .cerebras:
+                    effectiveModel = item.customModel.isEmpty ? cerebrasModel : item.customModel
+                case .gemini:
+                    effectiveModel = item.customModel.isEmpty ? geminiModel : item.customModel
+                case .customOpenAI:
+                    effectiveModel = item.customModel.isEmpty ? customModel : item.customModel
+                case .openAI:
+                    effectiveModel = item.customModel.isEmpty ? "gpt-4o-mini" : item.customModel
+                case .anthropic:
+                    effectiveModel = item.customModel.isEmpty ? "claude-3-5-haiku-20241022" : item.customModel
+                case .ollama:
+                    effectiveModel = item.customModel.isEmpty ? ollamaModel : item.customModel
+                }
+
+                logger.info("AI Gateway: Trying key #\(index + 1) of \(activeKeys.count) [\(item.provider.displayName)]...")
+                let result = try await refineText(
+                    text: text,
+                    mode: mode,
+                    provider: item.provider,
+                    apiKey: item.apiKey,
+                    vocabulary: vocabulary,
+                    allowedLanguages: allowedLanguages,
+                    isLecture: isLecture,
+                    customBaseURL: item.customBaseURL.isEmpty ? customBaseURL : item.customBaseURL,
+                    customModel: effectiveModel,
+                    geminiModel: effectiveModel,
+                    groqModel: effectiveModel,
+                    cerebrasModel: effectiveModel,
+                    ollamaEndpoint: ollamaEndpoint,
+                    ollamaModel: effectiveModel
+                )
+                logger.info("AI Gateway: Key #\(index + 1) [\(item.provider.displayName)] succeeded.")
+                return result
+            } catch {
+                lastError = error
+                logger.warning("AI Gateway: Key #\(index + 1) [\(item.provider.displayName)] failed: \(error.localizedDescription). Trying next key...")
+                continue
+            }
+        }
+
+        if let err = lastError {
+            throw err
+        }
+        return text
     }
 
     /// Generates a concise 1-sentence topic summary for lecture notes

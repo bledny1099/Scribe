@@ -157,9 +157,36 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
                 }
 
                 // Save samples in memory for live preview only when enabled (disabled for lectures and direct notes)
-                if self.enableLiveBuffer, let floatData = copy.floatChannelData?[0] {
+                if self.enableLiveBuffer, let channelData = copy.floatChannelData {
                     let frameLength = Int(copy.frameLength)
-                    let samples = Array(UnsafeBufferPointer(start: floatData, count: frameLength))
+                    let channelCount = Int(copy.format.channelCount)
+                    let samples: [Float]
+
+                    if channelCount <= 1 {
+                        samples = Array(UnsafeBufferPointer(start: channelData[0], count: frameLength))
+                    } else {
+                        // Multi-channel interface (e.g. Fifine SC3, Focusrite, etc.)
+                        var rms0: Float = 0
+                        var rms1: Float = 0
+                        vDSP_rmsqv(channelData[0], 1, &rms0, vDSP_Length(frameLength))
+                        vDSP_rmsqv(channelData[1], 1, &rms1, vDSP_Length(frameLength))
+
+                        if rms0 > rms1 * 3.0 {
+                            // Channel 0 has active mic signal, channel 1 is near-silent line
+                            samples = Array(UnsafeBufferPointer(start: channelData[0], count: frameLength))
+                        } else if rms1 > rms0 * 3.0 {
+                            // Channel 1 has active mic signal, channel 0 is near-silent line
+                            samples = Array(UnsafeBufferPointer(start: channelData[1], count: frameLength))
+                        } else {
+                            // Stereo or balanced pair: mix down evenly
+                            var mixed = [Float](repeating: 0, count: frameLength)
+                            for i in 0..<frameLength {
+                                mixed[i] = (channelData[0][i] + channelData[1][i]) * 0.5
+                            }
+                            samples = mixed
+                        }
+                    }
+
                     self.samplesLock.lock()
                     self.recordedSamples.append(contentsOf: samples)
                     // Whisper snapshot preview only requires the last ~30 seconds of speech; enforce rolling cap
@@ -250,15 +277,20 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
     func createSnapshot() -> URL? {
         samplesLock.lock()
         let samplesCopy = recordedSamples
-        let format = currentFormat
+        let sampleRate = currentFormat?.sampleRate ?? 16000.0
         samplesLock.unlock()
 
-        guard !samplesCopy.isEmpty, let format = format else { return nil }
+        guard !samplesCopy.isEmpty else { return nil }
+
+        // Always write a clean single-channel MONO WAV for WhisperKit decoding
+        guard let monoFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: sampleRate, channels: 1, interleaved: false) else {
+            return nil
+        }
 
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("scribe_snapshot_\(UUID().uuidString).wav")
             
-        guard let pcmBuffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(samplesCopy.count)) else {
+        guard let pcmBuffer = AVAudioPCMBuffer(pcmFormat: monoFormat, frameCapacity: AVAudioFrameCount(samplesCopy.count)) else {
             return nil
         }
         
@@ -270,7 +302,7 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
         }
         
         do {
-            let file = try AVAudioFile(forWriting: url, settings: format.settings)
+            let file = try AVAudioFile(forWriting: url, settings: monoFormat.settings)
             try file.write(from: pcmBuffer)
             return url
         } catch {

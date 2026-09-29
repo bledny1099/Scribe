@@ -611,6 +611,11 @@ final class AppState: ObservableObject {
     @AppStorage("ollamaModel") public var ollamaModel: String = "qwen2.5:7b"
     @Published public var lastAIErrorMessage: String? = nil
 
+    // MARK: - AI Gateway Keys (Auto-Failover)
+    @AppStorage("aiGatewayKeysJSON") public var aiGatewayKeysJSON: String = ""
+    @AppStorage("isAIGatewayExpanded") public var isAIGatewayExpanded: Bool = false
+    @Published public var gatewayKeys: [AIGatewayKey] = []
+
     public var cloudAIProvider: CloudAIProvider {
         get { CloudAIProvider(rawValue: cloudAIProviderRaw) ?? .groq }
         set { cloudAIProviderRaw = newValue.rawValue }
@@ -643,7 +648,92 @@ final class AppState: ObservableObject {
     public var isAIPostProcessingActive: Bool {
         guard enableCloudAI else { return false }
         if cloudAIProvider == .ollama { return true }
+        if !gatewayKeys.filter({ $0.isEnabled && !$0.apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }).isEmpty {
+            return true
+        }
         return !activeCloudAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    public func loadGatewayKeys() {
+        if !aiGatewayKeysJSON.isEmpty, let data = aiGatewayKeysJSON.data(using: .utf8) {
+            do {
+                let decoded = try JSONDecoder().decode([AIGatewayKey].self, from: data)
+                self.gatewayKeys = decoded
+                return
+            } catch {
+                logger.error("Failed to decode gatewayKeys: \(error.localizedDescription)")
+            }
+        }
+
+        // Migration from existing standalone keys if gateway is empty
+        var initialKeys: [AIGatewayKey] = []
+        if !groqAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            initialKeys.append(AIGatewayKey(provider: .groq, apiKey: groqAPIKey))
+        }
+        if !cerebrasAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            initialKeys.append(AIGatewayKey(provider: .cerebras, apiKey: cerebrasAPIKey))
+        }
+        if !geminiAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            initialKeys.append(AIGatewayKey(provider: .gemini, apiKey: geminiAPIKey))
+        }
+        if !openAIAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            initialKeys.append(AIGatewayKey(provider: .openAI, apiKey: openAIAPIKey))
+        }
+        if !anthropicAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            initialKeys.append(AIGatewayKey(provider: .anthropic, apiKey: anthropicAPIKey))
+        }
+        if !customOpenAIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            initialKeys.append(AIGatewayKey(provider: .customOpenAI, apiKey: customOpenAIKey, customModel: customOpenAIModel, customBaseURL: customOpenAIBaseURL))
+        }
+
+        self.gatewayKeys = Array(initialKeys.prefix(10))
+        if !initialKeys.isEmpty {
+            saveGatewayKeys()
+        }
+    }
+
+    public func saveGatewayKeys() {
+        do {
+            let data = try JSONEncoder().encode(gatewayKeys)
+            if let string = String(data: data, encoding: .utf8) {
+                aiGatewayKeysJSON = string
+            }
+        } catch {
+            logger.error("Failed to save gatewayKeys: \(error.localizedDescription)")
+        }
+    }
+
+    public func addGatewayKey(provider: CloudAIProvider, apiKey: String, customModel: String = "", customBaseURL: String = "") {
+        guard gatewayKeys.count < 10 else { return }
+        let cleanKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanKey.isEmpty else { return }
+        let newKey = AIGatewayKey(provider: provider, apiKey: cleanKey, isEnabled: true, customModel: customModel, customBaseURL: customBaseURL)
+        gatewayKeys.append(newKey)
+        saveGatewayKeys()
+    }
+
+    public func removeGatewayKey(id: UUID) {
+        gatewayKeys.removeAll { $0.id == id }
+        saveGatewayKeys()
+    }
+
+    public func toggleGatewayKey(id: UUID) {
+        if let idx = gatewayKeys.firstIndex(where: { $0.id == id }) {
+            gatewayKeys[idx].isEnabled.toggle()
+            saveGatewayKeys()
+        }
+    }
+
+    public func moveGatewayKeyUp(id: UUID) {
+        guard let idx = gatewayKeys.firstIndex(where: { $0.id == id }), idx > 0 else { return }
+        gatewayKeys.swapAt(idx, idx - 1)
+        saveGatewayKeys()
+    }
+
+    public func moveGatewayKeyDown(id: UUID) {
+        guard let idx = gatewayKeys.firstIndex(where: { $0.id == id }), idx < gatewayKeys.count - 1 else { return }
+        gatewayKeys.swapAt(idx, idx + 1)
+        saveGatewayKeys()
     }
 
     public static let defaultVocabularyPresets: [VocabularyPreset] = [
@@ -934,6 +1024,7 @@ final class AppState: ObservableObject {
         setupPeriodicAutoSync()
         preloadModel()
         checkFirstLaunchPermissions()
+        loadGatewayKeys()
         
         // Record anonymous installation & active user telemetry
         TelemetryService.shared.recordAppLaunch()
@@ -1262,18 +1353,20 @@ final class AppState: ObservableObject {
                     userLocation: self.effectiveUserLocation
                 )
 
-                // AI Refinement with Cloud / LLM Provider & Vocabulary Phonetic Correction
+                // AI Refinement with Cloud / LLM Provider & Gateway Failover
                 if self.enableCloudAI {
                     let key = self.activeCloudAPIKey
                     let provider = self.cloudAIProvider
-                    if provider == .ollama || !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    let hasGateway = !self.gatewayKeys.filter { $0.isEnabled && !$0.apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.isEmpty
+                    if hasGateway || provider == .ollama || !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         do {
                             let activeRefinementLangs = preferredLangs.filter { $0 != "auto" }
-                            let refined = try await CloudAIService.shared.refineText(
+                            let refined = try await CloudAIService.shared.refineWithGateway(
                                 text: text,
                                 mode: self.selectedAIRefinementMode,
-                                provider: provider,
-                                apiKey: key,
+                                gatewayKeys: self.gatewayKeys,
+                                fallbackProvider: provider,
+                                fallbackKey: key,
                                 vocabulary: effectiveVocab,
                                 allowedLanguages: activeRefinementLangs.isEmpty ? ["ru", "en"] : activeRefinementLangs,
                                 isLecture: self.isLectureRecording,
@@ -1299,7 +1392,7 @@ final class AppState: ObservableObject {
                             }
                         }
                     } else {
-                        let errMsg = "\(provider.displayName): API key is not configured"
+                        let errMsg = "AI Gateway: No active API keys configured"
                         logger.warning("\(errMsg)")
                         await MainActor.run {
                             self.lastAIErrorMessage = errMsg
@@ -1505,18 +1598,20 @@ final class AppState: ObservableObject {
                     userLocation: self.effectiveUserLocation
                 )
 
-                // AI Refinement with Cloud / LLM Provider & Vocabulary Phonetic Correction
+                // AI Refinement with Cloud / LLM Provider & Gateway Failover
                 if self.enableCloudAI {
                     let key = self.activeCloudAPIKey
                     let provider = self.cloudAIProvider
-                    if provider == .ollama || !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    let hasGateway = !self.gatewayKeys.filter { $0.isEnabled && !$0.apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.isEmpty
+                    if hasGateway || provider == .ollama || !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         do {
                             let activeRefinementLangs = preferredLangs.filter { $0 != "auto" }
-                            let refined = try await CloudAIService.shared.refineText(
+                            let refined = try await CloudAIService.shared.refineWithGateway(
                                 text: text,
                                 mode: self.selectedAIRefinementMode,
-                                provider: provider,
-                                apiKey: key,
+                                gatewayKeys: self.gatewayKeys,
+                                fallbackProvider: provider,
+                                fallbackKey: key,
                                 vocabulary: effectiveVocab,
                                 allowedLanguages: activeRefinementLangs.isEmpty ? ["ru", "en"] : activeRefinementLangs,
                                 customBaseURL: self.customOpenAIBaseURL,
@@ -1541,7 +1636,7 @@ final class AppState: ObservableObject {
                             }
                         }
                     } else {
-                        let errMsg = "\(provider.displayName): API key is not configured"
+                        let errMsg = "AI Gateway: No active API keys configured"
                         logger.warning("\(errMsg)")
                         await MainActor.run {
                             self.lastAIErrorMessage = errMsg
@@ -2287,10 +2382,10 @@ final class AppState: ObservableObject {
             userLocation: self.effectiveUserLocation
         )
 
-        // Poll every 1.8 seconds to track user speech in real-time without starving GPU/Neural Engine
-        interimWhisperTimer = Timer.scheduledTimer(withTimeInterval: 1.8, repeats: true) { [weak self] _ in
+        // Poll every 1.2 seconds to track user speech in real-time with responsive feedback
+        interimWhisperTimer = Timer.scheduledTimer(withTimeInterval: 1.2, repeats: true) { [weak self] _ in
             Task { @MainActor in
-                guard let self = self, self.isRecording, self.recordingDuration >= 0.8 else { return }
+                guard let self = self, self.isRecording, self.recordingDuration >= 0.6 else { return }
                 guard self.interimWhisperTask == nil else { return }
 
                 guard let snapshotURL = self.audioRecorder.createSnapshot() else { return }

@@ -555,7 +555,7 @@ private struct VersionBadgeView: View {
     let isLight: Bool
 
     var body: some View {
-        let appVer = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.9.5"
+        let appVer = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.10"
         let fgColor = isLight ? Color.black.opacity(0.70) : Color.white.opacity(0.85)
         let bgColor = isLight ? Color.black.opacity(0.06) : Color.white.opacity(0.12)
         let borderColor = isLight ? Color.black.opacity(0.14) : Color.white.opacity(0.22)
@@ -7234,6 +7234,13 @@ struct AISettingsView: View {
     @State private var testErrorMessage: String? = nil
     @State private var testDurationMs: Int? = nil
 
+    @State private var isAddingGatewayKey: Bool = false
+    @State private var newKeyProvider: CloudAIProvider = .groq
+    @State private var newKeyString: String = ""
+    @State private var newKeyModel: String = ""
+    @State private var newKeyBaseURL: String = ""
+    @State private var isNewKeyStringVisible: Bool = false
+
     private let groqModels: [(id: String, name: String)] = [
         ("openai/gpt-oss-120b", "GPT-OSS 120B (Recommended)"),
         ("openai/gpt-oss-20b", "GPT-OSS 20B (Ultra-Fast)"),
@@ -7337,6 +7344,297 @@ struct AISettingsView: View {
                                 RoundedRectangle(cornerRadius: 8)
                                     .fill(Color.primary.opacity(0.04))
                             )
+                        }
+                    }
+                }
+            }
+
+
+            // SECTION: API Key Gateway (Auto-Failover, up to 10 keys)
+            GlassCollapsibleSection(
+                title: appState.l("API Key Gateway (Auto-Failover)"),
+                icon: "network.badge.shield.half.filled",
+                isExpanded: $appState.isAIGatewayExpanded
+            ) {
+                VStack(alignment: .leading, spacing: 14) {
+                    // Gateway Overview & Description
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: "shield.righthalf.filled")
+                            .font(.system(size: 16))
+                            .foregroundStyle(.blue)
+                            .padding(.top, 1)
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(appState.l("Automatic failover gateway (up to 10 keys). Scribe routes requests in priority order and automatically switches to the next available key if rate limits (429) or errors occur."))
+                                .font(.system(size: 11.5))
+                                .foregroundStyle(.secondary)
+                                .lineSpacing(2)
+                        }
+
+                        Spacer()
+
+                        Text("\(appState.gatewayKeys.count)/10")
+                            .font(.system(size: 11, weight: .bold, design: .monospaced))
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 3)
+                            .background(Color.primary.opacity(0.06))
+                            .clipShape(Capsule())
+                    }
+
+                    // Add Key Button or Add Form
+                    if !isAddingGatewayKey {
+                        HStack {
+                            Button(action: {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                    isAddingGatewayKey = true
+                                }
+                            }) {
+                                HStack(spacing: 5) {
+                                    Image(systemName: "plus.circle.fill")
+                                        .font(.system(size: 11.5, weight: .semibold))
+                                    Text(appState.l("Add API Key"))
+                                        .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                                }
+                                .padding(.horizontal, 11)
+                                .padding(.vertical, 5)
+                                .background(
+                                    Capsule()
+                                        .fill(appState.gatewayKeys.count >= 10 ? Color.secondary.opacity(0.12) : Color.blue.opacity(0.85))
+                                )
+                                .foregroundStyle(appState.gatewayKeys.count >= 10 ? Color.secondary : Color.white)
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(appState.gatewayKeys.count >= 10)
+
+                            if appState.gatewayKeys.count >= 10 {
+                                Text(appState.l("Maximum 10 gateway keys reached"))
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Spacer()
+                        }
+                    } else {
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack {
+                                Text(appState.l("New Gateway Key"))
+                                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                            }
+
+                            HStack {
+                                Text(appState.l("Provider:"))
+                                    .font(.system(size: 12, weight: .medium))
+                                    .frame(width: 70, alignment: .leading)
+                                LiquidGlassMenu(
+                                    items: CloudAIProvider.allCases.filter { $0 != .ollama }.map { $0.rawValue },
+                                    selection: Binding(
+                                        get: { newKeyProvider.rawValue },
+                                        set: { newKeyProvider = CloudAIProvider(rawValue: $0) ?? .groq }
+                                    ),
+                                    title: { (CloudAIProvider(rawValue: $0) ?? .groq).displayName },
+                                    displayTitle: { (CloudAIProvider(rawValue: $0) ?? .groq).displayName }
+                                )
+                                Spacer()
+                            }
+
+                            HStack {
+                                Text(appState.l("API Key:"))
+                                    .font(.system(size: 12, weight: .medium))
+                                    .frame(width: 70, alignment: .leading)
+                                if isNewKeyStringVisible {
+                                    TextField(appState.l("Paste API key..."), text: $newKeyString)
+                                        .textFieldStyle(.roundedBorder)
+                                } else {
+                                    SecureField(appState.l("Paste API key..."), text: $newKeyString)
+                                        .textFieldStyle(.roundedBorder)
+                                }
+                                Button(action: { isNewKeyStringVisible.toggle() }) {
+                                    Image(systemName: isNewKeyStringVisible ? "eye.slash" : "eye")
+                                        .foregroundStyle(.secondary)
+                                }
+                                .buttonStyle(.plain)
+                            }
+
+                            if newKeyProvider == .customOpenAI {
+                                HStack {
+                                    Text(appState.l("Base URL:"))
+                                        .font(.system(size: 12, weight: .medium))
+                                        .frame(width: 70, alignment: .leading)
+                                    TextField("https://api.openai.com/v1", text: $newKeyBaseURL)
+                                        .textFieldStyle(.roundedBorder)
+                                }
+                                HStack {
+                                    Text(appState.l("Model:"))
+                                        .font(.system(size: 12, weight: .medium))
+                                        .frame(width: 70, alignment: .leading)
+                                    TextField("gpt-4o-mini", text: $newKeyModel)
+                                        .textFieldStyle(.roundedBorder)
+                                }
+                            }
+
+                            HStack(spacing: 8) {
+                                Spacer()
+                                Button(action: {
+                                    withAnimation {
+                                        isAddingGatewayKey = false
+                                        newKeyString = ""
+                                        newKeyModel = ""
+                                        newKeyBaseURL = ""
+                                    }
+                                }) {
+                                    Text(appState.l("Cancel"))
+                                        .font(.system(size: 11.5, weight: .medium))
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 5)
+                                        .background(Color.primary.opacity(0.06))
+                                        .cornerRadius(6)
+                                }
+                                .buttonStyle(.plain)
+
+                                Button(action: {
+                                    let trimmed = newKeyString.trimmingCharacters(in: .whitespacesAndNewlines)
+                                    guard !trimmed.isEmpty else { return }
+                                    appState.addGatewayKey(
+                                        provider: newKeyProvider,
+                                        apiKey: trimmed,
+                                        customModel: newKeyModel.trimmingCharacters(in: .whitespacesAndNewlines),
+                                        customBaseURL: newKeyBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+                                    )
+                                    withAnimation {
+                                        isAddingGatewayKey = false
+                                        newKeyString = ""
+                                        newKeyModel = ""
+                                        newKeyBaseURL = ""
+                                    }
+                                }) {
+                                    Text(appState.l("Save Key"))
+                                        .font(.system(size: 11.5, weight: .semibold))
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 5)
+                                        .background(Color.blue)
+                                        .foregroundStyle(.white)
+                                        .cornerRadius(6)
+                                }
+                                .buttonStyle(.plain)
+                                .disabled(newKeyString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                            }
+                        }
+                        .padding(10)
+                        .background(Color.primary.opacity(0.03))
+                        .cornerRadius(10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+                        )
+                    }
+
+                    // Key List
+                    if appState.gatewayKeys.isEmpty {
+                        HStack {
+                            Image(systemName: "key.slash")
+                                .foregroundStyle(.secondary)
+                            Text(appState.l("No gateway keys configured yet. Add keys to enable automatic failover."))
+                                .font(.system(size: 11.5))
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 4)
+                    } else {
+                        VStack(spacing: 6) {
+                            ForEach(Array(appState.gatewayKeys.enumerated()), id: \.element.id) { index, key in
+                                HStack(spacing: 8) {
+                                    // Move Up / Down
+                                    VStack(spacing: 1) {
+                                        Button(action: {
+                                            withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                                                appState.moveGatewayKeyUp(id: key.id)
+                                            }
+                                        }) {
+                                            Image(systemName: "chevron.up")
+                                                .font(.system(size: 8.5, weight: .bold))
+                                                .foregroundStyle(index == 0 ? Color.secondary.opacity(0.25) : Color.primary.opacity(0.7))
+                                        }
+                                        .buttonStyle(.plain)
+                                        .disabled(index == 0)
+
+                                        Button(action: {
+                                            withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                                                appState.moveGatewayKeyDown(id: key.id)
+                                            }
+                                        }) {
+                                            Image(systemName: "chevron.down")
+                                                .font(.system(size: 8.5, weight: .bold))
+                                                .foregroundStyle(index == appState.gatewayKeys.count - 1 ? Color.secondary.opacity(0.25) : Color.primary.opacity(0.7))
+                                        }
+                                        .buttonStyle(.plain)
+                                        .disabled(index == appState.gatewayKeys.count - 1)
+                                    }
+                                    .frame(width: 14)
+
+                                    // Priority badge
+                                    Text("#\(index + 1)")
+                                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                        .foregroundStyle(.secondary)
+                                        .frame(width: 20, alignment: .leading)
+
+                                    // Provider icon
+                                    Image(systemName: key.providerIcon)
+                                        .font(.system(size: 12))
+                                        .foregroundStyle(key.isEnabled ? Color.blue : Color.secondary)
+                                        .frame(width: 16)
+
+                                    // Provider label and masked key (last 3 symbols)
+                                    VStack(alignment: .leading, spacing: 1) {
+                                        Text(key.maskedDisplay)
+                                            .font(.system(size: 12, weight: .medium, design: .monospaced))
+                                            .foregroundStyle(key.isEnabled ? Color.primary : Color.secondary)
+
+                                        if !key.customModel.isEmpty {
+                                            Text(key.customModel)
+                                                .font(.system(size: 9.5))
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+
+                                    Spacer()
+
+                                    // Enable / Disable switch
+                                    Toggle("", isOn: Binding(
+                                        get: { key.isEnabled },
+                                        set: { _ in
+                                            appState.toggleGatewayKey(id: key.id)
+                                        }
+                                    ))
+                                    .toggleStyle(.switch)
+                                    .controlSize(.mini)
+                                    .labelsHidden()
+
+                                    // Delete key button
+                                    Button(action: {
+                                        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                                            appState.removeGatewayKey(id: key.id)
+                                        }
+                                    }) {
+                                        Image(systemName: "trash")
+                                            .font(.system(size: 10.5))
+                                            .foregroundStyle(.red.opacity(0.8))
+                                            .padding(3)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .help(appState.l("Delete Key"))
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(key.isEnabled ? Color.primary.opacity(0.04) : Color.primary.opacity(0.015))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .strokeBorder(key.isEnabled ? Color.primary.opacity(0.08) : Color.primary.opacity(0.04), lineWidth: 0.8)
+                                )
+                            }
                         }
                     }
                 }
@@ -7786,11 +8084,12 @@ struct AISettingsView: View {
         Task {
             do {
                 let activeLangs: [String] = appState.multilingualLanguages.filter { $0 != "auto" }
-                let result = try await CloudAIService.shared.refineText(
+                let result = try await CloudAIService.shared.refineWithGateway(
                     text: testInputText,
                     mode: appState.selectedAIRefinementMode,
-                    provider: appState.cloudAIProvider,
-                    apiKey: appState.activeCloudAPIKey,
+                    gatewayKeys: appState.gatewayKeys,
+                    fallbackProvider: appState.cloudAIProvider,
+                    fallbackKey: appState.activeCloudAPIKey,
                     vocabulary: effectiveVocab,
                     allowedLanguages: activeLangs.isEmpty ? ["ru", "en"] : activeLangs,
                     customBaseURL: appState.customOpenAIBaseURL,

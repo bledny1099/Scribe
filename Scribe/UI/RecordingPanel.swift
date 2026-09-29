@@ -242,26 +242,6 @@ final class RecordingPanel: NSPanel {
         containerView.wantsLayer = true
         containerView.layer?.cornerRadius = radius
         containerView.layer?.masksToBounds = true
-
-        if let content = contentView {
-            content.wantsLayer = true
-            content.layer?.cornerRadius = radius
-            content.layer?.masksToBounds = true
-        }
-    }
-
-    override func setFrame(_ frameRect: NSRect, display displayFlag: Bool) {
-        let sizeChanged = abs(frameRect.width - frame.width) > 0.5 || abs(frameRect.height - frame.height) > 0.5
-        super.setFrame(frameRect, display: displayFlag)
-        guard sizeChanged, contentView != nil else { return }
-        updateCornerRadius(cornerRadiusValue, targetSize: frameRect.size)
-    }
-
-    override func setFrame(_ frameRect: NSRect, display displayFlag: Bool, animate animateFlag: Bool) {
-        let sizeChanged = abs(frameRect.width - frame.width) > 0.5 || abs(frameRect.height - frame.height) > 0.5
-        super.setFrame(frameRect, display: displayFlag, animate: animateFlag)
-        guard sizeChanged, contentView != nil else { return }
-        updateCornerRadius(cornerRadiusValue, targetSize: frameRect.size)
     }
 
     // MARK: - Content
@@ -327,11 +307,12 @@ final class RecordingPanel: NSPanel {
         }
 
         let targetRadius = Self.radius(
-            for: style, 
-            overlaySize: overlaySize, 
+            for: style,
+            overlaySize: overlaySize,
             isEmbeddedPreviewActive: isEmbeddedPreviewActive,
             previewTextLength: previewTextLength,
             targetAppName: targetAppName,
+            isTimerVisible: isTimerVisible,
             hasAIMode: hasAIMode
         )
         updateCornerRadius(targetRadius, targetSize: targetSize)
