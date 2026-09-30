@@ -858,6 +858,117 @@ struct OrbOverlay: View {
     }
 }
 
+// MARK: - Smooth Live Preview Text View (Spring physics & smooth text streaming)
+struct SmoothLivePreviewTextView: View {
+    let targetText: String
+    let subtitleBackground: SubtitleBackground
+    let cornerRadius: CGFloat
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var displayedText: String = ""
+    @State private var typingTask: Task<Void, Never>?
+
+    // Physics parameters matching Framer Motion config:
+    // stiffness: 500, damping: 30, mass: 0.5
+    private var springAnimation: Animation {
+        .interpolatingSpring(mass: 0.5, stiffness: 500, damping: 30)
+    }
+
+    private var textColor: Color {
+        subtitleBackground == .glass ? Color.primary : Color.white
+    }
+
+    @ViewBuilder
+    private var bubbleBackground: some View {
+        switch subtitleBackground {
+        case .dark:
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .fill(Color.black.opacity(0.82))
+                .overlay(
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.18), lineWidth: 0.8)
+                )
+        case .glass:
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(Color.white.opacity(0.15))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.3), lineWidth: 0.8)
+                )
+        case .transparent:
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .fill(Color.clear)
+        }
+    }
+
+    var body: some View {
+        Text(displayedText)
+            .font(.system(size: 13.5, weight: .medium, design: .rounded))
+            .foregroundStyle(textColor)
+            .multilineTextAlignment(.center)
+            .lineLimit(4)
+            .lineSpacing(3)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 10)
+            .shadow(color: subtitleBackground == .transparent ? Color.black.opacity(0.85) : Color.clear, radius: 3, x: 0, y: 1)
+            .background(bubbleBackground)
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .frame(maxWidth: 680)
+            .animation(
+                reduceMotion ? .none : springAnimation,
+                value: displayedText.count
+            )
+            .task(id: targetText) {
+                await updateStreamingText(to: targetText)
+            }
+    }
+
+    @MainActor
+    private func updateStreamingText(to target: String) async {
+        typingTask?.cancel()
+
+        if reduceMotion {
+            displayedText = target
+            return
+        }
+
+        if target.isEmpty {
+            displayedText = ""
+            return
+        }
+
+        // Fast prefix reconciliation: roll back only non-matching suffix to avoid jarred resets
+        var common = ""
+        for (c1, c2) in zip(displayedText, target) {
+            if c1 == c2 { common.append(c1) } else { break }
+        }
+        if common.count < displayedText.count {
+            displayedText = common
+        }
+
+        if displayedText.isEmpty && !target.isEmpty {
+            displayedText = String(target.prefix(1))
+        }
+
+        while displayedText.count < target.count {
+            if Task.isCancelled { return }
+            let remaining = target.count - displayedText.count
+            let step = max(1, remaining / 14)
+            let nextIndex = target.index(target.startIndex, offsetBy: min(target.count, displayedText.count + step))
+            displayedText = String(target[..<nextIndex])
+
+            let sleepMs = remaining > 15 ? 12 : 18
+            try? await Task.sleep(nanoseconds: UInt64(sleepMs * 1_000_000))
+        }
+    }
+}
+
+// MARK: - Subtitle Overlay Container
 struct SubtitleOverlayView: View {
     @EnvironmentObject var appState: AppState
 
@@ -868,45 +979,13 @@ struct SubtitleOverlayView: View {
     var body: some View {
         VStack(spacing: 0) {
             if !appState.livePreviewText.isEmpty && (appState.recordingStatus == .recording || appState.recordingStatus == .transcribing || appState.isShowingPreview) {
-                Text(appState.livePreviewText)
-                    .font(.system(size: 13.5, weight: .medium, design: .rounded))
-                    .foregroundStyle(appState.livePreviewBackground == .glass ? Color.primary : Color.white)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(4)
-                    .lineSpacing(3)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 10)
-                    .shadow(color: appState.livePreviewBackground == .transparent ? Color.black.opacity(0.85) : Color.clear, radius: 3, x: 0, y: 1)
-                    .background {
-                        switch appState.livePreviewBackground {
-                        case .dark:
-                            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                                .fill(Color.black.opacity(0.82))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                                        .strokeBorder(Color.white.opacity(0.18), lineWidth: 0.8)
-                                )
-                        case .glass:
-                            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                                .fill(.ultraThinMaterial)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                                        .fill(Color.white.opacity(0.15))
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                                        .strokeBorder(Color.white.opacity(0.3), lineWidth: 0.8)
-                                )
-                        case .transparent:
-                            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                                .fill(Color.clear)
-                        }
-                    }
-                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-                    .frame(maxWidth: 680)
-                    .transition(.opacity.combined(with: .scale(scale: 0.96)))
-                    .animation(.easeInOut(duration: 0.2), value: appState.livePreviewText.isEmpty)
+                SmoothLivePreviewTextView(
+                    targetText: appState.livePreviewText,
+                    subtitleBackground: appState.livePreviewBackground,
+                    cornerRadius: cornerRadius
+                )
+                .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                .animation(.easeInOut(duration: 0.2), value: appState.livePreviewText.isEmpty)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
