@@ -7352,17 +7352,16 @@ struct AISettingsView: View {
 
 
             // SECTION: API Key Gateway (Auto-Failover, up to 10 keys)
-            GlassCollapsibleSection(
+            GlassSection(
                 title: appState.l("API Key Gateway (Auto-Failover)"),
-                icon: "network.badge.shield.half.filled",
-                isExpanded: $appState.isAIGatewayExpanded
+                icon: "key.fill"
             ) {
                 VStack(alignment: .leading, spacing: 14) {
                     // Gateway Overview & Description
                     HStack(alignment: .top, spacing: 10) {
                         Image(systemName: "shield.righthalf.filled")
                             .font(.system(size: 16))
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(.secondary)
                             .padding(.top, 1)
 
                         VStack(alignment: .leading, spacing: 3) {
@@ -7376,9 +7375,10 @@ struct AISettingsView: View {
 
                         Text("\(appState.gatewayKeys.count)/10")
                             .font(.system(size: 11, weight: .bold, design: .monospaced))
+                            .foregroundStyle(.secondary)
                             .padding(.horizontal, 7)
                             .padding(.vertical, 3)
-                            .background(Color.primary.opacity(0.06))
+                            .background(Color.primary.opacity(0.05))
                             .clipShape(Capsule())
                     }
 
@@ -7391,18 +7391,18 @@ struct AISettingsView: View {
                             }
                         }) {
                             HStack(spacing: 5) {
-                                Image(systemName: isAddingGatewayKey ? "xmark.circle.fill" : "plus.circle.fill")
-                                    .font(.system(size: 11.5, weight: .semibold))
+                                Image(systemName: isAddingGatewayKey ? "xmark" : "plus")
+                                    .font(.system(size: 11, weight: .semibold))
                                 Text(isAddingGatewayKey ? appState.l("Cancel") : appState.l("Add API Key"))
-                                    .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                                    .font(.system(size: 11.5, weight: .medium, design: .rounded))
                             }
                             .padding(.horizontal, 11)
                             .padding(.vertical, 5.5)
                             .background(
                                 Capsule()
-                                    .fill(appState.gatewayKeys.count >= 10 && !isAddingGatewayKey ? Color.secondary.opacity(0.12) : Color.blue.opacity(0.85))
+                                    .fill(isAddingGatewayKey ? Color.primary.opacity(0.1) : Color.primary.opacity(0.06))
                             )
-                            .foregroundStyle(appState.gatewayKeys.count >= 10 && !isAddingGatewayKey ? Color.secondary : Color.white)
+                            .foregroundStyle(Color.primary)
                         }
                         .buttonStyle(.plain)
                         .disabled(appState.gatewayKeys.count >= 10 && !isAddingGatewayKey)
@@ -7415,14 +7415,15 @@ struct AISettingsView: View {
                         }) {
                             HStack(spacing: 5) {
                                 Image(systemName: "list.bullet.rectangle")
-                                    .font(.system(size: 11.5, weight: .semibold))
+                                    .font(.system(size: 11, weight: .semibold))
                                 Text(appState.l("API Keys List"))
-                                    .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                                    .font(.system(size: 11.5, weight: .medium, design: .rounded))
                                 Text("\(appState.gatewayKeys.count)")
                                     .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                    .foregroundStyle(.secondary)
                                     .padding(.horizontal, 5)
                                     .padding(.vertical, 1)
-                                    .background(Color.primary.opacity(0.1))
+                                    .background(Color.primary.opacity(0.08))
                                     .clipShape(Capsule())
                                 Image(systemName: isShowingGatewayKeysList ? "chevron.up" : "chevron.down")
                                     .font(.system(size: 9, weight: .bold))
@@ -7521,7 +7522,7 @@ struct AISettingsView: View {
                                         .font(.system(size: 11.5, weight: .medium))
                                         .padding(.horizontal, 10)
                                         .padding(.vertical, 5)
-                                        .background(Color.primary.opacity(0.06))
+                                        .background(Color.primary.opacity(0.05))
                                         .cornerRadius(6)
                                 }
                                 .buttonStyle(.plain)
@@ -7544,11 +7545,11 @@ struct AISettingsView: View {
                                     }
                                 }) {
                                     Text(appState.l("Save Key"))
-                                        .font(.system(size: 11.5, weight: .semibold))
+                                        .font(.system(size: 11.5, weight: .medium))
                                         .padding(.horizontal, 12)
                                         .padding(.vertical, 5)
-                                        .background(Color.blue)
-                                        .foregroundStyle(.white)
+                                        .background(Color.primary.opacity(0.12))
+                                        .foregroundStyle(Color.primary)
                                         .cornerRadius(6)
                                 }
                                 .buttonStyle(.plain)
@@ -7582,16 +7583,10 @@ struct AISettingsView: View {
                                         // Priority badge
                                         Text("#\(index + 1)")
                                             .font(.system(size: 10, weight: .bold, design: .monospaced))
-                                            .foregroundStyle(index == 0 ? Color.blue : Color.secondary)
+                                            .foregroundStyle(Color.secondary)
                                             .frame(width: 22, alignment: .leading)
 
-                                        // Provider icon
-                                        Image(systemName: key.providerIcon)
-                                            .font(.system(size: 12))
-                                            .foregroundStyle(key.isEnabled ? Color.blue : Color.secondary)
-                                            .frame(width: 16)
-
-                                        // Provider label and masked key (last 3 symbols)
+                                        // Provider label and masked key (last 3 symbols) - NO LOGO
                                         VStack(alignment: .leading, spacing: 1) {
                                             HStack(spacing: 6) {
                                                 Text(key.maskedDisplay)
@@ -7600,11 +7595,11 @@ struct AISettingsView: View {
 
                                                 if index == 0 {
                                                     Text(appState.l("Primary"))
-                                                        .font(.system(size: 8.5, weight: .bold, design: .rounded))
+                                                        .font(.system(size: 8.5, weight: .medium, design: .rounded))
                                                         .padding(.horizontal, 4)
                                                         .padding(.vertical, 1)
-                                                        .background(Color.blue.opacity(0.12))
-                                                        .foregroundStyle(Color.blue)
+                                                        .background(Color.primary.opacity(0.06))
+                                                        .foregroundStyle(Color.secondary)
                                                         .clipShape(RoundedRectangle(cornerRadius: 3))
                                                 }
                                             }
@@ -7628,6 +7623,7 @@ struct AISettingsView: View {
                                         .toggleStyle(.switch)
                                         .controlSize(.mini)
                                         .labelsHidden()
+                                        .tint(Color.primary.opacity(0.75))
 
                                         // Right: Sort Menu (Move Up, Move Down, Move to Top, Move to Bottom)
                                         Menu {
@@ -7668,14 +7664,15 @@ struct AISettingsView: View {
                                             .disabled(index == appState.gatewayKeys.count - 1)
                                         } label: {
                                             Image(systemName: "arrow.up.arrow.down")
-                                                .font(.system(size: 11))
-                                                .foregroundStyle(Color.primary.opacity(0.75))
-                                                .padding(5)
-                                                .background(Color.primary.opacity(0.06))
+                                                .font(.system(size: 11, weight: .medium))
+                                                .foregroundStyle(Color.secondary)
+                                                .frame(width: 26, height: 26)
+                                                .background(Color.primary.opacity(0.05))
                                                 .clipShape(RoundedRectangle(cornerRadius: 6))
                                         }
                                         .menuStyle(.borderlessButton)
-                                        .frame(width: 24)
+                                        .menuIndicator(.hidden)
+                                        .fixedSize()
                                         .help(appState.l("Sort"))
 
                                         // Right: Delete key button
@@ -7685,10 +7682,10 @@ struct AISettingsView: View {
                                             }
                                         }) {
                                             Image(systemName: "trash")
-                                                .font(.system(size: 11))
-                                                .foregroundStyle(.red.opacity(0.85))
-                                                .padding(5)
-                                                .background(Color.red.opacity(0.08))
+                                                .font(.system(size: 11, weight: .medium))
+                                                .foregroundStyle(Color.secondary)
+                                                .frame(width: 26, height: 26)
+                                                .background(Color.primary.opacity(0.05))
                                                 .clipShape(RoundedRectangle(cornerRadius: 6))
                                         }
                                         .buttonStyle(.plain)
@@ -7708,43 +7705,6 @@ struct AISettingsView: View {
                             }
                         }
                     }
-                }
-            }
-
-
-            // SECTION 2: AI Provider & Credentials
-            GlassSection(title: appState.l("AI Provider & API Keys"), icon: "key.fill") {
-                VStack(alignment: .leading, spacing: 16) {
-                    // Provider Selector
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(appState.l("Active LLM Provider"))
-                                .font(.system(size: 14, weight: .medium, design: .rounded))
-                                .foregroundStyle(.primary)
-                            Text(appState.l("Select your cloud LLM or custom endpoint"))
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        LiquidGlassMenu(
-                            items: CloudAIProvider.allCases.map { $0.rawValue },
-                            selection: Binding(
-                                get: { appState.cloudAIProvider.rawValue },
-                                set: { appState.cloudAIProviderRaw = $0 }
-                            ),
-                            title: { raw in
-                                (CloudAIProvider(rawValue: raw) ?? .groq).displayName
-                            },
-                            displayTitle: { raw in
-                                (CloudAIProvider(rawValue: raw) ?? .groq).displayName
-                            }
-                        )
-                    }
-
-                    Divider().opacity(0.3)
-
-                    // Provider Specific Configuration
-                    providerConfigView
                 }
             }
 
@@ -7918,223 +7878,6 @@ struct AISettingsView: View {
                 testInputText = "я зашел на чад gpt.com чтобы пофиксить код в экскоде"
             } else if !isRussianUI && testInputText == "я зашел на чад gpt.com чтобы пофиксить код в экскоде" {
                 testInputText = "i went to chat gpt to fix the bug in ex code"
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var providerConfigView: some View {
-        switch appState.cloudAIProvider {
-        case .groq:
-            VStack(alignment: .leading, spacing: 12) {
-                apiKeyRow(
-                    title: "Groq API Key",
-                    key: $appState.groqAPIKey,
-                    placeholder: "gsk_...",
-                    helpURL: "https://console.groq.com/keys",
-                    helpLabel: "Get Groq API Key"
-                )
-
-                HStack {
-                    Text(appState.l("Model:"))
-                        .font(.system(size: 12, weight: .medium))
-                    Spacer()
-                    LiquidGlassMenu(
-                        items: groqModels.map { $0.id },
-                        selection: $appState.groqModel,
-                        title: { id in groqModels.first(where: { $0.id == id })?.name ?? id },
-                        displayTitle: { id in groqModels.first(where: { $0.id == id })?.name ?? id }
-                    )
-                }
-
-                HStack(spacing: 6) {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.green)
-                    Text(appState.l("Free tier includes GPT-OSS 120B with high rate limits (no credit card required)."))
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-        case .cerebras:
-            VStack(alignment: .leading, spacing: 12) {
-                apiKeyRow(
-                    title: "Cerebras API Key",
-                    key: $appState.cerebrasAPIKey,
-                    placeholder: "csk-...",
-                    helpURL: "https://cloud.cerebras.ai",
-                    helpLabel: "Get Cerebras API Key"
-                )
-
-                HStack {
-                    Text(appState.l("Model:"))
-                        .font(.system(size: 12, weight: .medium))
-                    Spacer()
-                    LiquidGlassMenu(
-                        items: cerebrasModels.map { $0.id },
-                        selection: $appState.cerebrasModel,
-                        title: { id in cerebrasModels.first(where: { $0.id == id })?.name ?? id },
-                        displayTitle: { id in cerebrasModels.first(where: { $0.id == id })?.name ?? id }
-                    )
-                }
-
-                HStack(spacing: 6) {
-                    Image(systemName: "info.circle")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.orange)
-                    Text(appState.l("Cerebras requires billing setup on cloud.cerebras.ai. If you see 'payment required' or 'model not found', check billing or use Groq/Gemini."))
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-        case .gemini:
-            VStack(alignment: .leading, spacing: 12) {
-                apiKeyRow(
-                    title: "Google Gemini API Key",
-                    key: $appState.geminiAPIKey,
-                    placeholder: "AIzaSy...",
-                    helpURL: "https://aistudio.google.com/app/apikey",
-                    helpLabel: "Get Gemini API Key"
-                )
-
-                HStack {
-                    Text(appState.l("Model:"))
-                        .font(.system(size: 12, weight: .medium))
-                    Spacer()
-                    LiquidGlassMenu(
-                        items: geminiModels.map { $0.id },
-                        selection: $appState.geminiModel,
-                        title: { id in geminiModels.first(where: { $0.id == id })?.name ?? id },
-                        displayTitle: { id in geminiModels.first(where: { $0.id == id })?.name ?? id }
-                    )
-                }
-
-                HStack(spacing: 6) {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.purple)
-                    Text(appState.l("Uses your personal free tier & paid quotas tied to your Google account."))
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-        case .customOpenAI:
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Text(appState.l("Base URL:"))
-                        .font(.system(size: 12, weight: .medium))
-                        .frame(width: 85, alignment: .leading)
-                    TextField("https://api.openai.com/v1", text: $appState.customOpenAIBaseURL)
-                        .textFieldStyle(.roundedBorder)
-                }
-
-                HStack {
-                    Text(appState.l("Model:"))
-                        .font(.system(size: 12, weight: .medium))
-                        .frame(width: 85, alignment: .leading)
-                    TextField("gpt-4o-mini", text: $appState.customOpenAIModel)
-                        .textFieldStyle(.roundedBorder)
-                }
-
-                HStack {
-                    Text(appState.l("API Key:"))
-                        .font(.system(size: 12, weight: .medium))
-                        .frame(width: 85, alignment: .leading)
-                    if isKeyVisible {
-                        TextField("sk-...", text: $appState.customOpenAIKey)
-                            .textFieldStyle(.roundedBorder)
-                    } else {
-                        SecureField("sk-...", text: $appState.customOpenAIKey)
-                            .textFieldStyle(.roundedBorder)
-                    }
-                    Button(action: { isKeyVisible.toggle() }) {
-                        Image(systemName: isKeyVisible ? "eye.slash" : "eye")
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                Text(appState.l("Compatible with OpenRouter, DeepSeek, LocalAI, vLLM, LM Studio, etc."))
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-            }
-
-        case .openAI:
-            VStack(alignment: .leading, spacing: 12) {
-                apiKeyRow(
-                    title: "OpenAI API Key",
-                    key: $appState.openAIAPIKey,
-                    placeholder: "sk-...",
-                    helpURL: "https://platform.openai.com/api-keys",
-                    helpLabel: "Get OpenAI API Key"
-                )
-            }
-
-        case .anthropic:
-            VStack(alignment: .leading, spacing: 12) {
-                apiKeyRow(
-                    title: "Anthropic Claude API Key",
-                    key: $appState.anthropicAPIKey,
-                    placeholder: "sk-ant-...",
-                    helpURL: "https://console.anthropic.com/settings/keys",
-                    helpLabel: "Get Anthropic API Key"
-                )
-            }
-
-        case .ollama:
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Text(appState.l("Endpoint:"))
-                        .font(.system(size: 12, weight: .medium))
-                        .frame(width: 85, alignment: .leading)
-                    TextField("http://localhost:11434", text: $appState.ollamaEndpoint)
-                        .textFieldStyle(.roundedBorder)
-                }
-                HStack {
-                    Text(appState.l("Model:"))
-                        .font(.system(size: 12, weight: .medium))
-                        .frame(width: 85, alignment: .leading)
-                    TextField("qwen2.5:7b", text: $appState.ollamaModel)
-                        .textFieldStyle(.roundedBorder)
-                }
-            }
-        }
-    }
-
-    private func apiKeyRow(title: String, key: Binding<String>, placeholder: String, helpURL: String, helpLabel: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(appState.l(title) + ":")
-                    .font(.system(size: 12, weight: .medium))
-                Spacer()
-                if let url = URL(string: helpURL) {
-                    Link(destination: url) {
-                        HStack(spacing: 4) {
-                            Text(appState.l(helpLabel))
-                            Image(systemName: "arrow.up.right.square")
-                        }
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.blue)
-                    }
-                }
-            }
-
-            HStack {
-                if isKeyVisible {
-                    TextField(placeholder, text: key)
-                        .textFieldStyle(.roundedBorder)
-                } else {
-                    SecureField(placeholder, text: key)
-                        .textFieldStyle(.roundedBorder)
-                }
-                Button(action: { isKeyVisible.toggle() }) {
-                    Image(systemName: isKeyVisible ? "eye.slash" : "eye")
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
             }
         }
     }
