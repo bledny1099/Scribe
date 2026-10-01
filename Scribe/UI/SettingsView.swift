@@ -4574,6 +4574,7 @@ struct VocabularySettingsView: View {
     @ObservedObject private var monitor = PersonalVocabularyMonitor.shared
     @AppStorage("vocabularyCitiesExpanded") private var isCitiesExpanded: Bool = true
     @AppStorage("vocabularyPresetsExpanded") private var isPresetsExpanded: Bool = true
+    @AppStorage("vocabularyPersonalLanguageExpanded") private var isPersonalLanguageExpanded: Bool = false
     @State private var selectedTab: VocabularyTab = .vocabulary
     @State private var newWord: String = ""
     @State private var newBlockedWord: String = ""
@@ -5132,415 +5133,7 @@ struct VocabularySettingsView: View {
                 }
             }
 
-            // SECTION: Personal Language & Speech Habits Monitor
-            GlassSection(title: appState.l("Personal Language & Speech Habits Monitor"), icon: "brain.head.profile") {
-                VStack(alignment: .leading, spacing: 14) {
-                    Text(appState.l("Learns unique vocabulary and command phrasing (like 'create', 'run') across apps in real time."))
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                        .lineSpacing(2)
-
-                    // Control & Status Bar
-                    HStack(spacing: 12) {
-                        HStack(spacing: 8) {
-                            Circle()
-                                .fill(monitor.isRunning ? Color.green : Color.secondary.opacity(0.4))
-                                .frame(width: 9, height: 9)
-                            
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(monitor.isRunning ? appState.l("Monitoring Active") : appState.l("Monitoring Inactive"))
-                                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                                    .foregroundStyle(.primary)
-
-                                if monitor.isRunning {
-                                    Text("\(appState.l("Time Remaining:")) \(monitor.remainingTimeFormatted)")
-                                        .font(.system(size: 10, weight: .medium))
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-
-                        Spacer()
-
-                        Button(action: {
-                            monitor.toggleMonitoring()
-                        }) {
-                            HStack(spacing: 6) {
-                                Image(systemName: monitor.isRunning ? "stop.fill" : "play.fill")
-                                    .font(.system(size: 10, weight: .bold))
-                                Text(monitor.isRunning ? appState.l("Stop Learning") : appState.l("Start Learning"))
-                                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                            }
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 7)
-                            .background(
-                                ZStack {
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(monitor.isRunning ? Color.red.opacity(0.18) : Color.accentColor)
-                                    if !monitor.isRunning {
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .strokeBorder(Color.white.opacity(0.2), lineWidth: 0.8)
-                                    }
-                                }
-                            )
-                            .foregroundStyle(monitor.isRunning ? Color.red : Color.white)
-                            .shadow(color: monitor.isRunning ? Color.clear : Color.accentColor.opacity(0.25), radius: 4, y: 1)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .padding(12)
-                    .background(Color.primary.opacity(0.03))
-                    .cornerRadius(12)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
-                    )
-
-                    // Duration Picker (Liquid Glass)
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(appState.l("Learning Duration:").uppercased())
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
-                            .foregroundStyle(.secondary)
-
-                        HStack(spacing: 8) {
-                            ForEach([(7, "7 Days", "1 Week"), (14, "14 Days", "Recommended"), (30, "30 Days", "1 Month")], id: \.0) { item in
-                                let days = item.0
-                                let isSelected = monitor.durationDays == days
-                                Button(action: {
-                                    withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-                                        monitor.setDuration(days: days)
-                                    }
-                                }) {
-                                    VStack(spacing: 3) {
-                                        Text(appState.l(item.1))
-                                            .font(.system(size: 12, weight: isSelected ? .bold : .semibold, design: .rounded))
-                                            .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
-                                        Text(appState.l(item.2))
-                                            .font(.system(size: 10, weight: isSelected ? .semibold : .medium, design: .rounded))
-                                            .foregroundStyle(isSelected ? Color.accentColor.opacity(0.85) : Color.secondary)
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 8)
-                                    .background(
-                                        ZStack {
-                                            RoundedRectangle(cornerRadius: 10)
-                                                .fill(isSelected ? Color.accentColor.opacity(0.16) : Color.primary.opacity(0.04))
-                                            if isSelected {
-                                                RoundedRectangle(cornerRadius: 10)
-                                                    .strokeBorder(
-                                                        LinearGradient(
-                                                            colors: [Color.accentColor.opacity(0.6), Color.accentColor.opacity(0.2)],
-                                                            startPoint: .topLeading,
-                                                            endPoint: .bottomTrailing
-                                                        ),
-                                                        lineWidth: 1.2
-                                                    )
-                                            } else {
-                                                RoundedRectangle(cornerRadius: 10)
-                                                    .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.8)
-                                            }
-                                        }
-                                    )
-                                    .contentShape(Rectangle())
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                    }
-
-                    // Metrics Tiles
-                    HStack(spacing: 10) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("\(monitor.wordsAnalyzedCount)")
-                                .font(.system(size: 16, weight: .bold, design: .rounded))
-                                .foregroundStyle(.primary)
-                            Text(appState.l("Analyzed Words"))
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundStyle(.secondary)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(10)
-                        .background(Color.primary.opacity(0.025))
-                        .cornerRadius(10)
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("\(monitor.rareWordsLearnedCount)")
-                                .font(.system(size: 16, weight: .bold, design: .rounded))
-                                .foregroundStyle(Color.accentColor)
-                            Text(appState.l("Rare Terms Learned"))
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundStyle(.secondary)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(10)
-                        .background(Color.primary.opacity(0.025))
-                        .cornerRadius(10)
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("\(monitor.constructionsLearnedCount)")
-                                .font(.system(size: 16, weight: .bold, design: .rounded))
-                                .foregroundStyle(.primary)
-                            Text(appState.l("Habitual Directives"))
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundStyle(.secondary)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(10)
-                        .background(Color.primary.opacity(0.025))
-                        .cornerRadius(10)
-                    }
-
-                    // Recent Learned Terms & Directives
-                    VStack(alignment: .leading, spacing: 8) {
-                        let directives = UserGrammarProfile.shared.topDirectives(limit: 6)
-                        let recentWords = monitor.recentlyLearnedWords
-
-                        HStack {
-                            Text(appState.l("Recently Learned Words & Directives"))
-                                .font(.system(size: 11, weight: .bold, design: .rounded))
-                                .foregroundStyle(Color.primary.opacity(0.75))
-
-                            Spacer()
-
-                            if !directives.isEmpty || !recentWords.isEmpty {
-                                Button(action: {
-                                    monitor.clearAllLearnedWords()
-                                }) {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "trash")
-                                            .font(.system(size: 8))
-                                        Text(appState.l("Clear All"))
-                                            .font(.system(size: 10, weight: .medium, design: .rounded))
-                                    }
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(Color.red.opacity(0.08))
-                                    .foregroundStyle(Color.red.opacity(0.85))
-                                    .cornerRadius(4)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-
-                        if directives.isEmpty && recentWords.isEmpty {
-                            Text(appState.l("No rare words or directives learned yet. Start typing in any app to train."))
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                                .italic()
-                        } else {
-                            FlowLayout(spacing: 6) {
-                                ForEach(directives, id: \.self) { d in
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "bolt.fill")
-                                            .font(.system(size: 9))
-                                            .foregroundStyle(Color.orange)
-                                        Text(d)
-                                            .font(.system(size: 11, weight: .semibold, design: .rounded))
-                                        Button(action: {
-                                            monitor.removeLearnedDirective(d)
-                                        }) {
-                                            Image(systemName: "xmark")
-                                                .font(.system(size: 8, weight: .bold))
-                                                .foregroundStyle(Color.orange.opacity(0.7))
-                                        }
-                                        .buttonStyle(.plain)
-                                    }
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color.orange.opacity(0.12))
-                                    .foregroundStyle(Color.orange)
-                                    .cornerRadius(6)
-                                }
-
-                                ForEach(recentWords, id: \.self) { w in
-                                    HStack(spacing: 4) {
-                                        Text(w)
-                                            .font(.system(size: 11, weight: .medium, design: .rounded))
-                                        Button(action: {
-                                            monitor.removeLearnedWord(w)
-                                        }) {
-                                            Image(systemName: "xmark")
-                                                .font(.system(size: 8, weight: .bold))
-                                                .foregroundStyle(Color.secondary.opacity(0.7))
-                                        }
-                                        .buttonStyle(.plain)
-                                    }
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color.primary.opacity(0.05))
-                                    .foregroundStyle(.primary)
-                                    .cornerRadius(6)
-                                }
-                            }
-                        }
-                    }
-                    .padding(12)
-                    .background(Color.primary.opacity(0.02))
-                    .cornerRadius(10)
-
-                    // Ignored Applications Section
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(appState.l("Ignored Applications"))
-                                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                                    .foregroundStyle(.primary)
-                                Text(appState.l("Terminal emulators, shells, and security apps are never monitored to prevent shell commands or sensitive fragments (e.g. Ghostty, Termius) from entering your vocabulary."))
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            Button(action: {
-                                monitor.resetIgnoredAppsToDefault()
-                            }) {
-                                Text(appState.l("Reset Defaults"))
-                                    .font(.system(size: 10.5, weight: .medium))
-                                    .foregroundStyle(.blue)
-                            }
-                            .buttonStyle(.plain)
-                        }
-
-                        // App chips
-                        FlowLayout(spacing: 6) {
-                            ForEach(monitor.ignoredApplications) { app in
-                                HStack(spacing: 4) {
-                                    Image(systemName: "terminal")
-                                        .font(.system(size: 8.5))
-                                        .foregroundStyle(.secondary)
-                                    Text(app.name)
-                                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                                    Button(action: {
-                                        monitor.removeIgnoredApp(bundleId: app.bundleId)
-                                    }) {
-                                        Image(systemName: "xmark")
-                                            .font(.system(size: 8, weight: .bold))
-                                            .foregroundStyle(.secondary.opacity(0.8))
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color.primary.opacity(0.06))
-                                .cornerRadius(6)
-                            }
-                        }
-
-                        // Add application row
-                        HStack {
-                            Menu {
-                                ForEach(NSWorkspace.shared.runningApplications.filter {
-                                    $0.activationPolicy == .regular &&
-                                    $0.bundleIdentifier != nil &&
-                                    !monitor.isAppIgnored(bundleId: $0.bundleIdentifier, name: $0.localizedName)
-                                }, id: \.processIdentifier) { runningApp in
-                                    Button(runningApp.localizedName ?? runningApp.bundleIdentifier ?? "App") {
-                                        if let bId = runningApp.bundleIdentifier {
-                                            monitor.addIgnoredApp(bundleId: bId, name: runningApp.localizedName ?? bId)
-                                        }
-                                    }
-                                }
-                            } label: {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "plus.circle.fill")
-                                    Text(appState.l("Add Running App..."))
-                                }
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(.blue)
-                            }
-                            .menuStyle(.borderlessButton)
-                            .fixedSize()
-
-                            Spacer()
-                        }
-                    }
-                    .padding(12)
-                    .background(Color.primary.opacity(0.02))
-                    .cornerRadius(10)
-
-                    // Privacy Assurance Footnote
-                    HStack(alignment: .top, spacing: 8) {
-                        Image(systemName: "lock.shield.fill")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-                            .padding(.top, 1)
-
-                        Text(appState.l("Secure password fields, password managers, tokens, and credit cards are strictly filtered at the Accessibility API level. Text is processed 100% locally in memory and never stored."))
-                            .font(.system(size: 10))
-                            .foregroundStyle(.secondary)
-                            .lineSpacing(2)
-                    }
-                }
-                .padding(14)
-            }
-
-            // SECTION: Dynamic App Context & Anti-Hallucination
-            GlassSection(title: appState.l("Dynamic App Context & Anti-Hallucination"), icon: "macwindow.badge.plus") {
-                VStack(alignment: .leading, spacing: 14) {
-                    Text(appState.l("Scribe automatically analyzes the destination application (IDE, Messenger, Notes, Browser, Design, Crypto) to inject relevant domain vocabulary and block out-of-context hallucinations."))
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                        .lineSpacing(2)
-
-                    // Live Active App Detection Card
-                    let detected = AetherContextEngine.shared.detectActiveAppDomain(targetApp: appState.targetRunningApplication)
-                    HStack(spacing: 12) {
-                        if let icon = detected.icon {
-                            Image(nsImage: icon)
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 32, height: 32)
-                                .cornerRadius(7)
-                        } else {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.accentColor.opacity(0.15))
-                                    .frame(width: 32, height: 32)
-                                Image(systemName: detected.domain.icon)
-                                    .font(.system(size: 15, weight: .semibold))
-                                    .foregroundStyle(Color.accentColor)
-                            }
-                        }
-
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(appState.l("Active Application Detected"))
-                                .font(.system(size: 10, weight: .bold, design: .rounded))
-                                .foregroundStyle(.secondary)
-                            
-                            HStack(spacing: 6) {
-                                Text(detected.name)
-                                    .font(.system(size: 13, weight: .bold, design: .rounded))
-                                    .foregroundStyle(.primary)
-                                    .lineLimit(1)
-
-                                Text("•")
-                                    .foregroundStyle(.secondary)
-
-                                Text(appState.l(detected.domain.displayName))
-                                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                                    .padding(.horizontal, 7)
-                                    .padding(.vertical, 2.5)
-                                    .background(Color.accentColor.opacity(0.12))
-                                    .foregroundStyle(Color.accentColor)
-                                    .cornerRadius(6)
-                                    .lineLimit(1)
-                                    .fixedSize(horizontal: true, vertical: false)
-                            }
-                        }
-
-                        Spacer()
-                    }
-                    .padding(12)
-                    .background(Color.primary.opacity(0.03))
-                    .cornerRadius(12)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
-                    )
-                }
-                .padding(14)
-            }
-
-            // SECTION: Custom Presets (Unified)
+            // SECTION 3: Custom Presets (Unified)
             GlassCollapsibleSection(
                 title: appState.l("Custom Presets"),
                 icon: "square.grid.2x2.fill",
@@ -5948,7 +5541,74 @@ struct VocabularySettingsView: View {
                 .padding(14)
             }
 
-            // SECTION: Open Community Dictionary (Automated 5-Min Sync)
+            // SECTION 4: Dynamic App Context & Anti-Hallucination
+            GlassSection(title: appState.l("Dynamic App Context & Anti-Hallucination"), icon: "macwindow.badge.plus") {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(appState.l("Scribe automatically analyzes the destination application (IDE, Messenger, Notes, Browser, Design, Crypto) to inject relevant domain vocabulary and block out-of-context hallucinations."))
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .lineSpacing(2)
+
+                    // Live Active App Detection Card
+                    let detected = AetherContextEngine.shared.detectActiveAppDomain(targetApp: appState.targetRunningApplication)
+                    HStack(spacing: 12) {
+                        if let icon = detected.icon {
+                            Image(nsImage: icon)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 32, height: 32)
+                                .cornerRadius(7)
+                        } else {
+                            ZStack {
+                                Circle()
+                                    .fill(Color.accentColor.opacity(0.15))
+                                    .frame(width: 32, height: 32)
+                                Image(systemName: detected.domain.icon)
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundStyle(Color.accentColor)
+                            }
+                        }
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(appState.l("Active Application Detected"))
+                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                .foregroundStyle(.secondary)
+                            
+                            HStack(spacing: 6) {
+                                Text(detected.name)
+                                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                    .lineLimit(1)
+
+                                Text("•")
+                                    .foregroundStyle(.secondary)
+
+                                Text(appState.l(detected.domain.displayName))
+                                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                    .padding(.horizontal, 7)
+                                    .padding(.vertical, 2.5)
+                                    .background(Color.accentColor.opacity(0.12))
+                                    .foregroundStyle(Color.accentColor)
+                                    .cornerRadius(6)
+                                    .lineLimit(1)
+                                    .fixedSize(horizontal: true, vertical: false)
+                            }
+                        }
+
+                        Spacer()
+                    }
+                    .padding(12)
+                    .background(Color.primary.opacity(0.03))
+                    .cornerRadius(12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+                    )
+                }
+                .padding(14)
+            }
+
+            // SECTION 5: Open Community Dictionary (Automated 5-Min Sync)
             GlassSection(title: appState.l("Open Community Dictionary"), icon: "network") {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(alignment: .center, spacing: 8) {
@@ -5984,10 +5644,355 @@ struct VocabularySettingsView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    .toggleStyle(SwitchToggleStyle(tint: .blue))
+                    .toggleStyle(SwitchToggleStyle(tint: .accentColor))
                     .padding(10)
                     .background(Color.primary.opacity(0.025))
                     .cornerRadius(8)
+                }
+                .padding(14)
+            }
+
+            // SECTION 6: Personal Language & Speech Habits Monitor
+            GlassCollapsibleSection(
+                title: appState.l("Personal Language & Speech Habits Monitor"),
+                icon: "brain.head.profile",
+                isExpanded: $isPersonalLanguageExpanded
+            ) {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(appState.l("Learns unique vocabulary and command phrasing (like 'create', 'run') across apps in real time."))
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .lineSpacing(2)
+
+                    // Control & Status Bar
+                    HStack(spacing: 12) {
+                        HStack(spacing: 8) {
+                            Circle()
+                                .fill(monitor.isRunning ? Color.green : Color.secondary.opacity(0.4))
+                                .frame(width: 9, height: 9)
+                            
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(monitor.isRunning ? appState.l("Monitoring Active") : appState.l("Monitoring Inactive"))
+                                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                                    .foregroundStyle(.primary)
+
+                                if monitor.isRunning {
+                                    Text("\(appState.l("Time Remaining:")) \(monitor.remainingTimeFormatted)")
+                                        .font(.system(size: 10, weight: .medium))
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+
+                        Spacer()
+
+                        Button(action: {
+                            monitor.toggleMonitoring()
+                        }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: monitor.isRunning ? "stop.fill" : "play.fill")
+                                    .font(.system(size: 10, weight: .bold))
+                                Text(monitor.isRunning ? appState.l("Stop Learning") : appState.l("Start Learning"))
+                                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 7)
+                            .background(
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(monitor.isRunning ? Color.red.opacity(0.18) : Color.accentColor)
+                                    if !monitor.isRunning {
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .strokeBorder(Color.white.opacity(0.2), lineWidth: 0.8)
+                                    }
+                                }
+                            )
+                            .foregroundStyle(monitor.isRunning ? Color.red : Color.white)
+                            .shadow(color: monitor.isRunning ? Color.clear : Color.accentColor.opacity(0.25), radius: 4, y: 1)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(12)
+                    .background(Color.primary.opacity(0.03))
+                    .cornerRadius(12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+                    )
+
+                    // Duration Picker (Liquid Glass)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(appState.l("Learning Duration:").uppercased())
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .foregroundStyle(.secondary)
+
+                        HStack(spacing: 8) {
+                            ForEach([(7, "7 Days", "1 Week"), (14, "14 Days", "Recommended"), (30, "30 Days", "1 Month")], id: \.0) { item in
+                                let days = item.0
+                                let isSelected = monitor.durationDays == days
+                                Button(action: {
+                                    withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                                        monitor.setDuration(days: days)
+                                    }
+                                }) {
+                                    VStack(spacing: 3) {
+                                        Text(appState.l(item.1))
+                                            .font(.system(size: 12, weight: isSelected ? .bold : .semibold, design: .rounded))
+                                            .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
+                                        Text(appState.l(item.2))
+                                            .font(.system(size: 10, weight: isSelected ? .semibold : .medium, design: .rounded))
+                                            .foregroundStyle(isSelected ? Color.accentColor.opacity(0.85) : Color.secondary)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 8)
+                                    .background(
+                                        ZStack {
+                                            RoundedRectangle(cornerRadius: 10)
+                                                .fill(isSelected ? Color.accentColor.opacity(0.16) : Color.primary.opacity(0.04))
+                                            if isSelected {
+                                                RoundedRectangle(cornerRadius: 10)
+                                                    .strokeBorder(
+                                                        LinearGradient(
+                                                            colors: [Color.accentColor.opacity(0.6), Color.accentColor.opacity(0.2)],
+                                                            startPoint: .topLeading,
+                                                            endPoint: .bottomTrailing
+                                                        ),
+                                                        lineWidth: 1.2
+                                                    )
+                                            } else {
+                                                RoundedRectangle(cornerRadius: 10)
+                                                    .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.8)
+                                            }
+                                        }
+                                    )
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+
+                    // Metrics Tiles
+                    HStack(spacing: 10) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("\(monitor.wordsAnalyzedCount)")
+                                .font(.system(size: 16, weight: .bold, design: .rounded))
+                                .foregroundStyle(.primary)
+                            Text(appState.l("Analyzed Words"))
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(10)
+                        .background(Color.primary.opacity(0.025))
+                        .cornerRadius(10)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("\(monitor.rareWordsLearnedCount)")
+                                .font(.system(size: 16, weight: .bold, design: .rounded))
+                                .foregroundStyle(Color.accentColor)
+                            Text(appState.l("Rare Terms Learned"))
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(10)
+                        .background(Color.primary.opacity(0.025))
+                        .cornerRadius(10)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("\(monitor.constructionsLearnedCount)")
+                                .font(.system(size: 16, weight: .bold, design: .rounded))
+                                .foregroundStyle(.primary)
+                            Text(appState.l("Habitual Directives"))
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(10)
+                        .background(Color.primary.opacity(0.025))
+                        .cornerRadius(10)
+                    }
+
+                    // Recent Learned Terms & Directives
+                    VStack(alignment: .leading, spacing: 8) {
+                        let directives = UserGrammarProfile.shared.topDirectives(limit: 6)
+                        let recentWords = monitor.recentlyLearnedWords
+
+                        HStack {
+                            Text(appState.l("Recently Learned Words & Directives"))
+                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                                .foregroundStyle(Color.primary.opacity(0.75))
+
+                            Spacer()
+
+                            if !directives.isEmpty || !recentWords.isEmpty {
+                                Button(action: {
+                                    monitor.clearAllLearnedWords()
+                                }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "trash")
+                                            .font(.system(size: 8))
+                                        Text(appState.l("Clear All"))
+                                            .font(.system(size: 10, weight: .medium, design: .rounded))
+                                    }
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color.red.opacity(0.08))
+                                    .foregroundStyle(Color.red.opacity(0.85))
+                                    .cornerRadius(4)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+
+                        if directives.isEmpty && recentWords.isEmpty {
+                            Text(appState.l("No rare words or directives learned yet. Start typing in any app to train."))
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                                .italic()
+                        } else {
+                            FlowLayout(spacing: 6) {
+                                ForEach(directives, id: \.self) { d in
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "bolt.fill")
+                                            .font(.system(size: 9))
+                                            .foregroundStyle(Color.orange)
+                                        Text(d)
+                                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                        Button(action: {
+                                            monitor.removeLearnedDirective(d)
+                                        }) {
+                                            Image(systemName: "xmark")
+                                                .font(.system(size: 8, weight: .bold))
+                                                .foregroundStyle(Color.orange.opacity(0.7))
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color.orange.opacity(0.12))
+                                    .foregroundStyle(Color.orange)
+                                    .cornerRadius(6)
+                                }
+
+                                ForEach(recentWords, id: \.self) { w in
+                                    HStack(spacing: 4) {
+                                        Text(w)
+                                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                                        Button(action: {
+                                            monitor.removeLearnedWord(w)
+                                        }) {
+                                            Image(systemName: "xmark")
+                                                .font(.system(size: 8, weight: .bold))
+                                                .foregroundStyle(Color.secondary.opacity(0.7))
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(Color.primary.opacity(0.05))
+                                    .foregroundStyle(.primary)
+                                    .cornerRadius(6)
+                                }
+                            }
+                        }
+                    }
+                    .padding(12)
+                    .background(Color.primary.opacity(0.02))
+                    .cornerRadius(10)
+
+                    // Ignored Applications Section
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(appState.l("Ignored Applications"))
+                                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                Text(appState.l("Terminal emulators, shells, and security apps are never monitored to prevent shell commands or sensitive fragments (e.g. Ghostty, Termius) from entering your vocabulary."))
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Button(action: {
+                                monitor.resetIgnoredAppsToDefault()
+                            }) {
+                                Text(appState.l("Reset Defaults"))
+                                    .font(.system(size: 10.5, weight: .medium))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+
+                        // App chips
+                        FlowLayout(spacing: 6) {
+                            ForEach(monitor.ignoredApplications) { app in
+                                HStack(spacing: 4) {
+                                    Image(systemName: "terminal")
+                                        .font(.system(size: 8.5))
+                                        .foregroundStyle(.secondary)
+                                    Text(app.name)
+                                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                                    Button(action: {
+                                        monitor.removeIgnoredApp(bundleId: app.bundleId)
+                                    }) {
+                                        Image(systemName: "xmark")
+                                            .font(.system(size: 8, weight: .bold))
+                                            .foregroundStyle(.secondary.opacity(0.8))
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.primary.opacity(0.06))
+                                .cornerRadius(6)
+                            }
+                        }
+
+                        // Add application row
+                        HStack {
+                            Menu {
+                                ForEach(NSWorkspace.shared.runningApplications.filter {
+                                    $0.activationPolicy == .regular &&
+                                    $0.bundleIdentifier != nil &&
+                                    !monitor.isAppIgnored(bundleId: $0.bundleIdentifier, name: $0.localizedName)
+                                }, id: \.processIdentifier) { runningApp in
+                                    Button(runningApp.localizedName ?? runningApp.bundleIdentifier ?? "App") {
+                                        if let bId = runningApp.bundleIdentifier {
+                                            monitor.addIgnoredApp(bundleId: bId, name: runningApp.localizedName ?? bId)
+                                        }
+                                    }
+                                }
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "plus.circle.fill")
+                                    Text(appState.l("Add Running App..."))
+                                }
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(.secondary)
+                            }
+                            .menuStyle(.borderlessButton)
+                            .fixedSize()
+
+                            Spacer()
+                        }
+                    }
+                    .padding(12)
+                    .background(Color.primary.opacity(0.02))
+                    .cornerRadius(10)
+
+                    // Privacy Assurance Footnote
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "lock.shield.fill")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                            .padding(.top, 1)
+
+                        Text(appState.l("Secure password fields, password managers, tokens, and credit cards are strictly filtered at the Accessibility API level. Text is processed 100% locally in memory and never stored."))
+                            .font(.system(size: 10))
+                            .foregroundStyle(.secondary)
+                            .lineSpacing(2)
+                    }
                 }
                 .padding(14)
             }
