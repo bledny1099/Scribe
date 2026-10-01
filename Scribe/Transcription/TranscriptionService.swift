@@ -2173,14 +2173,31 @@ public struct AIGatewayKey: Identifiable, Codable, Equatable, Sendable {
         self.customBaseURL = customBaseURL
     }
 
-    /// Provider label and last 3 characters of key (e.g. "Groq (•••7Pbz)")
+    public var shortProviderName: String {
+        switch provider {
+        case .groq:         return "Groq"
+        case .cerebras:     return "Cerebras"
+        case .gemini:       return "Gemini"
+        case .customOpenAI: return "Custom API"
+        case .openAI:       return "OpenAI"
+        case .anthropic:    return "Anthropic"
+        case .ollama:       return "Ollama"
+        }
+    }
+
+    public var lastThreeChars: String {
+        let clean = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { return "•••" }
+        return clean.count >= 3 ? String(clean.suffix(3)) : clean
+    }
+
+    /// Provider label and last 3 characters of key (e.g. "Groq •••7Pb")
     public var maskedDisplay: String {
         let clean = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         if clean.isEmpty {
-            return "\(provider.displayName) (•••)"
+            return "\(shortProviderName) •••"
         }
-        let suffix = clean.count >= 3 ? String(clean.suffix(3)) : clean
-        return "\(provider.displayName) (•••\(suffix))"
+        return "\(shortProviderName) •••\(lastThreeChars)"
     }
 
     public var providerIcon: String {
@@ -3153,6 +3170,78 @@ Use the following dictionary of canonical words to detect such phonetic mistakes
             }
             return content.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "\n", with: " ")
         }
+    }
+
+    /// Generates a concise lecture topic summary with AI Gateway multi-key sequential fallback
+    public func generateFastLectureTopicWithGateway(
+        transcript: String,
+        keys: [AIGatewayKey],
+        fallbackProvider: CloudAIProvider,
+        fallbackKey: String,
+        groqModel: String = "openai/gpt-oss-120b",
+        geminiModel: String = "gemini-2.0-flash",
+        cerebrasModel: String = "gpt-oss-120b",
+        customBaseURL: String = "https://api.openai.com/v1",
+        customModel: String = "gpt-4o-mini",
+        ollamaEndpoint: String = "http://localhost:11434",
+        ollamaModel: String = "llama3.2"
+    ) async throws -> String {
+        let activeKeys = keys.filter { $0.isEnabled && !$0.apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        guard !activeKeys.isEmpty else {
+            return try await generateFastLectureTopic(
+                transcript: transcript,
+                provider: fallbackProvider,
+                apiKey: fallbackKey,
+                groqModel: groqModel,
+                geminiModel: geminiModel,
+                cerebrasModel: cerebrasModel,
+                customBaseURL: customBaseURL,
+                customModel: customModel,
+                ollamaEndpoint: ollamaEndpoint,
+                ollamaModel: ollamaModel
+            )
+        }
+
+        var lastError: Error?
+        for (index, item) in activeKeys.enumerated() {
+            do {
+                let effectiveModel: String = {
+                    if !item.customModel.isEmpty { return item.customModel }
+                    switch item.provider {
+                    case .groq: return groqModel
+                    case .cerebras: return cerebrasModel
+                    case .gemini: return geminiModel
+                    case .customOpenAI, .openAI: return customModel
+                    case .anthropic: return "claude-3-5-haiku-latest"
+                    case .ollama: return ollamaModel
+                    }
+                }()
+
+                let result = try await generateFastLectureTopic(
+                    transcript: transcript,
+                    provider: item.provider,
+                    apiKey: item.apiKey,
+                    groqModel: effectiveModel,
+                    geminiModel: effectiveModel,
+                    cerebrasModel: effectiveModel,
+                    customBaseURL: item.customBaseURL.isEmpty ? customBaseURL : item.customBaseURL,
+                    customModel: effectiveModel,
+                    ollamaEndpoint: ollamaEndpoint,
+                    ollamaModel: effectiveModel
+                )
+                logger.info("AI Gateway (Lecture Topic): Key #\(index + 1) [\(item.provider.displayName)] succeeded.")
+                return result
+            } catch {
+                lastError = error
+                logger.warning("AI Gateway (Lecture Topic): Key #\(index + 1) [\(item.provider.displayName)] failed: \(error.localizedDescription). Trying next...")
+                continue
+            }
+        }
+
+        if let err = lastError {
+            throw err
+        }
+        return ""
     }
 }
 

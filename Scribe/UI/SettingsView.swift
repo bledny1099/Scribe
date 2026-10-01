@@ -7235,6 +7235,7 @@ struct AISettingsView: View {
     @State private var testDurationMs: Int? = nil
 
     @State private var isAddingGatewayKey: Bool = false
+    @State private var isShowingGatewayKeysList: Bool = true
     @State private var newKeyProvider: CloudAIProvider = .groq
     @State private var newKeyString: String = ""
     @State private var newKeyModel: String = ""
@@ -7381,40 +7382,72 @@ struct AISettingsView: View {
                             .clipShape(Capsule())
                     }
 
-                    // Add Key Button or Add Form
-                    if !isAddingGatewayKey {
-                        HStack {
-                            Button(action: {
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                    isAddingGatewayKey = true
-                                }
-                            }) {
-                                HStack(spacing: 5) {
-                                    Image(systemName: "plus.circle.fill")
-                                        .font(.system(size: 11.5, weight: .semibold))
-                                    Text(appState.l("Add API Key"))
-                                        .font(.system(size: 11.5, weight: .semibold, design: .rounded))
-                                }
-                                .padding(.horizontal, 11)
-                                .padding(.vertical, 5)
-                                .background(
-                                    Capsule()
-                                        .fill(appState.gatewayKeys.count >= 10 ? Color.secondary.opacity(0.12) : Color.blue.opacity(0.85))
-                                )
-                                .foregroundStyle(appState.gatewayKeys.count >= 10 ? Color.secondary : Color.white)
+                    // Action Buttons Row: [Add API Key] and [API Keys List (N)]
+                    HStack(spacing: 8) {
+                        // Button 1: Add Key Toggle
+                        Button(action: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                isAddingGatewayKey.toggle()
                             }
-                            .buttonStyle(.plain)
-                            .disabled(appState.gatewayKeys.count >= 10)
-
-                            if appState.gatewayKeys.count >= 10 {
-                                Text(appState.l("Maximum 10 gateway keys reached"))
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(.secondary)
+                        }) {
+                            HStack(spacing: 5) {
+                                Image(systemName: isAddingGatewayKey ? "xmark.circle.fill" : "plus.circle.fill")
+                                    .font(.system(size: 11.5, weight: .semibold))
+                                Text(isAddingGatewayKey ? appState.l("Cancel") : appState.l("Add API Key"))
+                                    .font(.system(size: 11.5, weight: .semibold, design: .rounded))
                             }
-
-                            Spacer()
+                            .padding(.horizontal, 11)
+                            .padding(.vertical, 5.5)
+                            .background(
+                                Capsule()
+                                    .fill(appState.gatewayKeys.count >= 10 && !isAddingGatewayKey ? Color.secondary.opacity(0.12) : Color.blue.opacity(0.85))
+                            )
+                            .foregroundStyle(appState.gatewayKeys.count >= 10 && !isAddingGatewayKey ? Color.secondary : Color.white)
                         }
-                    } else {
+                        .buttonStyle(.plain)
+                        .disabled(appState.gatewayKeys.count >= 10 && !isAddingGatewayKey)
+
+                        // Button 2: API Keys List Toggle
+                        Button(action: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                isShowingGatewayKeysList.toggle()
+                            }
+                        }) {
+                            HStack(spacing: 5) {
+                                Image(systemName: "list.bullet.rectangle")
+                                    .font(.system(size: 11.5, weight: .semibold))
+                                Text(appState.l("API Keys List"))
+                                    .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                                Text("\(appState.gatewayKeys.count)")
+                                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 1)
+                                    .background(Color.primary.opacity(0.1))
+                                    .clipShape(Capsule())
+                                Image(systemName: isShowingGatewayKeysList ? "chevron.up" : "chevron.down")
+                                    .font(.system(size: 9, weight: .bold))
+                            }
+                            .padding(.horizontal, 11)
+                            .padding(.vertical, 5.5)
+                            .background(
+                                Capsule()
+                                    .fill(isShowingGatewayKeysList ? Color.primary.opacity(0.08) : Color.primary.opacity(0.04))
+                            )
+                            .foregroundStyle(Color.primary)
+                        }
+                        .buttonStyle(.plain)
+
+                        if appState.gatewayKeys.count >= 10 && !isAddingGatewayKey {
+                            Text(appState.l("Maximum 10 gateway keys reached"))
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Spacer()
+                    }
+
+                    // Add Key Input Form
+                    if isAddingGatewayKey {
                         VStack(alignment: .leading, spacing: 10) {
                             HStack {
                                 Text(appState.l("New Gateway Key"))
@@ -7504,6 +7537,7 @@ struct AISettingsView: View {
                                     )
                                     withAnimation {
                                         isAddingGatewayKey = false
+                                        isShowingGatewayKeysList = true
                                         newKeyString = ""
                                         newKeyModel = ""
                                         newKeyBaseURL = ""
@@ -7530,110 +7564,147 @@ struct AISettingsView: View {
                         )
                     }
 
-                    // Key List
-                    if appState.gatewayKeys.isEmpty {
-                        HStack {
-                            Image(systemName: "key.slash")
-                                .foregroundStyle(.secondary)
-                            Text(appState.l("No gateway keys configured yet. Add keys to enable automatic failover."))
-                                .font(.system(size: 11.5))
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(.vertical, 4)
-                    } else {
-                        VStack(spacing: 6) {
-                            ForEach(Array(appState.gatewayKeys.enumerated()), id: \.element.id) { index, key in
-                                HStack(spacing: 8) {
-                                    // Move Up / Down
-                                    VStack(spacing: 1) {
+                    // Key List Drawer
+                    if isShowingGatewayKeysList {
+                        if appState.gatewayKeys.isEmpty {
+                            HStack {
+                                Image(systemName: "key.slash")
+                                    .foregroundStyle(.secondary)
+                                Text(appState.l("No gateway keys configured yet. Add keys to enable automatic failover."))
+                                    .font(.system(size: 11.5))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.vertical, 4)
+                        } else {
+                            VStack(spacing: 6) {
+                                ForEach(Array(appState.gatewayKeys.enumerated()), id: \.element.id) { index, key in
+                                    HStack(spacing: 8) {
+                                        // Priority badge
+                                        Text("#\(index + 1)")
+                                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                            .foregroundStyle(index == 0 ? Color.blue : Color.secondary)
+                                            .frame(width: 22, alignment: .leading)
+
+                                        // Provider icon
+                                        Image(systemName: key.providerIcon)
+                                            .font(.system(size: 12))
+                                            .foregroundStyle(key.isEnabled ? Color.blue : Color.secondary)
+                                            .frame(width: 16)
+
+                                        // Provider label and masked key (last 3 symbols)
+                                        VStack(alignment: .leading, spacing: 1) {
+                                            HStack(spacing: 6) {
+                                                Text(key.maskedDisplay)
+                                                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                                                    .foregroundStyle(key.isEnabled ? Color.primary : Color.secondary)
+
+                                                if index == 0 {
+                                                    Text(appState.l("Primary"))
+                                                        .font(.system(size: 8.5, weight: .bold, design: .rounded))
+                                                        .padding(.horizontal, 4)
+                                                        .padding(.vertical, 1)
+                                                        .background(Color.blue.opacity(0.12))
+                                                        .foregroundStyle(Color.blue)
+                                                        .clipShape(RoundedRectangle(cornerRadius: 3))
+                                                }
+                                            }
+
+                                            if !key.customModel.isEmpty {
+                                                Text(key.customModel)
+                                                    .font(.system(size: 9.5))
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                        }
+
+                                        Spacer()
+
+                                        // Enable / Disable switch
+                                        Toggle("", isOn: Binding(
+                                            get: { key.isEnabled },
+                                            set: { _ in
+                                                appState.toggleGatewayKey(id: key.id)
+                                            }
+                                        ))
+                                        .toggleStyle(.switch)
+                                        .controlSize(.mini)
+                                        .labelsHidden()
+
+                                        // Right: Sort Menu (Move Up, Move Down, Move to Top, Move to Bottom)
+                                        Menu {
+                                            Button(action: {
+                                                withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                                                    appState.moveGatewayKeyToTop(id: key.id)
+                                                }
+                                            }) {
+                                                Label(appState.l("Move to Top (#1)"), systemImage: "arrow.up.to.line")
+                                            }
+                                            .disabled(index == 0)
+
+                                            Button(action: {
+                                                withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                                                    appState.moveGatewayKeyUp(id: key.id)
+                                                }
+                                            }) {
+                                                Label(appState.l("Move Up"), systemImage: "arrow.up")
+                                            }
+                                            .disabled(index == 0)
+
+                                            Button(action: {
+                                                withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                                                    appState.moveGatewayKeyDown(id: key.id)
+                                                }
+                                            }) {
+                                                Label(appState.l("Move Down"), systemImage: "arrow.down")
+                                            }
+                                            .disabled(index == appState.gatewayKeys.count - 1)
+
+                                            Button(action: {
+                                                withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                                                    appState.moveGatewayKeyToBottom(id: key.id)
+                                                }
+                                            }) {
+                                                Label(appState.l("Move to Bottom"), systemImage: "arrow.down.to.line")
+                                            }
+                                            .disabled(index == appState.gatewayKeys.count - 1)
+                                        } label: {
+                                            Image(systemName: "arrow.up.arrow.down")
+                                                .font(.system(size: 11))
+                                                .foregroundStyle(Color.primary.opacity(0.75))
+                                                .padding(5)
+                                                .background(Color.primary.opacity(0.06))
+                                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                                        }
+                                        .menuStyle(.borderlessButton)
+                                        .frame(width: 24)
+                                        .help(appState.l("Sort"))
+
+                                        // Right: Delete key button
                                         Button(action: {
                                             withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-                                                appState.moveGatewayKeyUp(id: key.id)
+                                                appState.removeGatewayKey(id: key.id)
                                             }
                                         }) {
-                                            Image(systemName: "chevron.up")
-                                                .font(.system(size: 8.5, weight: .bold))
-                                                .foregroundStyle(index == 0 ? Color.secondary.opacity(0.25) : Color.primary.opacity(0.7))
+                                            Image(systemName: "trash")
+                                                .font(.system(size: 11))
+                                                .foregroundStyle(.red.opacity(0.85))
+                                                .padding(5)
+                                                .background(Color.red.opacity(0.08))
+                                                .clipShape(RoundedRectangle(cornerRadius: 6))
                                         }
                                         .buttonStyle(.plain)
-                                        .disabled(index == 0)
-
-                                        Button(action: {
-                                            withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-                                                appState.moveGatewayKeyDown(id: key.id)
-                                            }
-                                        }) {
-                                            Image(systemName: "chevron.down")
-                                                .font(.system(size: 8.5, weight: .bold))
-                                                .foregroundStyle(index == appState.gatewayKeys.count - 1 ? Color.secondary.opacity(0.25) : Color.primary.opacity(0.7))
-                                        }
-                                        .buttonStyle(.plain)
-                                        .disabled(index == appState.gatewayKeys.count - 1)
+                                        .help(appState.l("Delete Key"))
                                     }
-                                    .frame(width: 14)
-
-                                    // Priority badge
-                                    Text("#\(index + 1)")
-                                        .font(.system(size: 10, weight: .bold, design: .monospaced))
-                                        .foregroundStyle(.secondary)
-                                        .frame(width: 20, alignment: .leading)
-
-                                    // Provider icon
-                                    Image(systemName: key.providerIcon)
-                                        .font(.system(size: 12))
-                                        .foregroundStyle(key.isEnabled ? Color.blue : Color.secondary)
-                                        .frame(width: 16)
-
-                                    // Provider label and masked key (last 3 symbols)
-                                    VStack(alignment: .leading, spacing: 1) {
-                                        Text(key.maskedDisplay)
-                                            .font(.system(size: 12, weight: .medium, design: .monospaced))
-                                            .foregroundStyle(key.isEnabled ? Color.primary : Color.secondary)
-
-                                        if !key.customModel.isEmpty {
-                                            Text(key.customModel)
-                                                .font(.system(size: 9.5))
-                                                .foregroundStyle(.secondary)
-                                        }
-                                    }
-
-                                    Spacer()
-
-                                    // Enable / Disable switch
-                                    Toggle("", isOn: Binding(
-                                        get: { key.isEnabled },
-                                        set: { _ in
-                                            appState.toggleGatewayKey(id: key.id)
-                                        }
-                                    ))
-                                    .toggleStyle(.switch)
-                                    .controlSize(.mini)
-                                    .labelsHidden()
-
-                                    // Delete key button
-                                    Button(action: {
-                                        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-                                            appState.removeGatewayKey(id: key.id)
-                                        }
-                                    }) {
-                                        Image(systemName: "trash")
-                                            .font(.system(size: 10.5))
-                                            .foregroundStyle(.red.opacity(0.8))
-                                            .padding(3)
-                                    }
-                                    .buttonStyle(.plain)
-                                    .help(appState.l("Delete Key"))
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .fill(key.isEnabled ? Color.primary.opacity(0.04) : Color.primary.opacity(0.015))
+                                    )
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .strokeBorder(key.isEnabled ? Color.primary.opacity(0.08) : Color.primary.opacity(0.04), lineWidth: 0.8)
+                                    )
                                 }
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(key.isEnabled ? Color.primary.opacity(0.04) : Color.primary.opacity(0.015))
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .strokeBorder(key.isEnabled ? Color.primary.opacity(0.08) : Color.primary.opacity(0.04), lineWidth: 0.8)
-                                )
                             }
                         }
                     }

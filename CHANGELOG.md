@@ -5,6 +5,21 @@ All notable changes to Scribe will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.10.1] - 2026-10-01
+
+## Added
+- Dedicated action buttons in AI Gateway settings to toggle key addition and display the full gateway keys list.
+- Priority management menu per gateway key to reorder keys (Move Up, Move Down, Move to Top, Move to Bottom).
+- Masked key suffix formatting showing provider name and trailing characters with primary priority tags.
+- Automatic multi-key failover support for fast lecture topic generation in NoteExporter.
+
+## Changed
+- Redesigned gateway item row layout with right-aligned sort and deletion controls.
+- Automatic fallback synchronization when adding gateway keys for unconfigured single-provider settings.
+
+## Fixed
+- Fixed live preview text reveal animation with spring physics on continuous text updates.
+
 ## [2.10] - 2026-09-29
 
 ## Added

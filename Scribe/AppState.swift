@@ -710,6 +710,28 @@ final class AppState: ObservableObject {
         let newKey = AIGatewayKey(provider: provider, apiKey: cleanKey, isEnabled: true, customModel: customModel, customBaseURL: customBaseURL)
         gatewayKeys.append(newKey)
         saveGatewayKeys()
+
+        // Sync fallback key if empty
+        switch provider {
+        case .groq:
+            if groqAPIKey.isEmpty { groqAPIKey = cleanKey }
+        case .cerebras:
+            if cerebrasAPIKey.isEmpty { cerebrasAPIKey = cleanKey }
+        case .gemini:
+            if geminiAPIKey.isEmpty { geminiAPIKey = cleanKey }
+        case .openAI:
+            if openAIAPIKey.isEmpty { openAIAPIKey = cleanKey }
+        case .anthropic:
+            if anthropicAPIKey.isEmpty { anthropicAPIKey = cleanKey }
+        case .customOpenAI:
+            if customOpenAIKey.isEmpty {
+                customOpenAIKey = cleanKey
+                if !customModel.isEmpty { customOpenAIModel = customModel }
+                if !customBaseURL.isEmpty { customOpenAIBaseURL = customBaseURL }
+            }
+        case .ollama:
+            break
+        }
     }
 
     public func removeGatewayKey(id: UUID) {
@@ -733,6 +755,20 @@ final class AppState: ObservableObject {
     public func moveGatewayKeyDown(id: UUID) {
         guard let idx = gatewayKeys.firstIndex(where: { $0.id == id }), idx < gatewayKeys.count - 1 else { return }
         gatewayKeys.swapAt(idx, idx + 1)
+        saveGatewayKeys()
+    }
+
+    public func moveGatewayKeyToTop(id: UUID) {
+        guard let idx = gatewayKeys.firstIndex(where: { $0.id == id }), idx > 0 else { return }
+        let item = gatewayKeys.remove(at: idx)
+        gatewayKeys.insert(item, at: 0)
+        saveGatewayKeys()
+    }
+
+    public func moveGatewayKeyToBottom(id: UUID) {
+        guard let idx = gatewayKeys.firstIndex(where: { $0.id == id }), idx < gatewayKeys.count - 1 else { return }
+        let item = gatewayKeys.remove(at: idx)
+        gatewayKeys.append(item)
         saveGatewayKeys()
     }
 

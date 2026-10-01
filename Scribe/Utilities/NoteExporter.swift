@@ -134,10 +134,11 @@ class NoteExporter {
             let provider = state.cloudAIProvider
             if provider == .ollama || !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 do {
-                    let topic = try await CloudAIService.shared.generateFastLectureTopic(
+                    let topic = try await CloudAIService.shared.generateFastLectureTopicWithGateway(
                         transcript: trimmed,
-                        provider: provider,
-                        apiKey: key,
+                        keys: state.gatewayKeys,
+                        fallbackProvider: provider,
+                        fallbackKey: key,
                         groqModel: state.groqModel,
                         geminiModel: state.geminiModel,
                         cerebrasModel: state.cerebrasModel,
