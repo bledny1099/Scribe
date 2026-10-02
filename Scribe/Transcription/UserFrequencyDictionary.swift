@@ -24,7 +24,8 @@ public final class UserFrequencyDictionary: @unchecked Sendable {
         "their", "what", "so", "up", "out", "if", "about", "who", "get", "which", "go", "me", "is", "are", "was", "were", "been",
         "и", "в", "во", "не", "что", "он", "на", "я", "с", "со", "как", "а", "то", "все", "она", "так", "его", "но", "да", "ты", "к",
         "у", "же", "вы", "за", "бы", "по", "только", "ее", "мне", "было", "вот", "от", "меня", "еще", "нет", "о", "из", "ему", "теперь",
-        "когда", "даже", "ну", "вдруг", "ли", "если", "уже", "или", "ни", "быть", "был", "него", "до", "вас", "нибудь", "опять", "уж"
+        "когда", "даже", "ну", "вдруг", "ли", "если", "уже", "или", "ни", "быть", "был", "него", "до", "вас", "нибудь", "опять", "уж",
+        "также", "такое", "тоже", "такой", "такая", "такие"
     ]
 
     private init() {
@@ -236,7 +237,7 @@ public final class UserFrequencyDictionary: @unchecked Sendable {
             let data = try Data(contentsOf: fileURL)
             let decoded = try JSONDecoder().decode([String: Int].self, from: data)
             lock.lock()
-            self.wordFrequencies = decoded
+            self.wordFrequencies = decoded.filter { !self.stopWords.contains($0.key) }
             recomputeCacheUnderLock()
             lock.unlock()
             logger.info("Loaded \(decoded.count) words from UserFrequencyDictionary (Top 100 cached: \(self.cachedTopWords.count))")

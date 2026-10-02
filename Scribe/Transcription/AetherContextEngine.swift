@@ -88,6 +88,76 @@ public final class AetherContextEngine: @unchecked Sendable {
         }
     }
 
+    // MARK: - Specialized Coding Agent Profile
+
+    public enum CodingAgentProfile: String, CaseIterable, Identifiable, Sendable {
+        case claudeCode = "claudeCode"
+        case cursor = "cursor"
+        case xcode = "xcode"
+        case terminal = "terminal"
+        case genericCoding = "genericCoding"
+        case none = "none"
+
+        public var id: String { rawValue }
+
+        public var displayName: String {
+            switch self {
+            case .claudeCode: return "Claude Code"
+            case .cursor: return "Cursor"
+            case .xcode: return "Xcode"
+            case .terminal: return "Terminal & Shell"
+            case .genericCoding: return "IDE & Coding"
+            case .none: return "General System"
+            }
+        }
+
+        public var icon: String {
+            switch self {
+            case .claudeCode: return "terminal.fill"
+            case .cursor: return "cursorarrow.rays"
+            case .xcode: return "hammer.fill"
+            case .terminal: return "apple.terminal.fill"
+            case .genericCoding: return "chevron.left.forwardslash.chevron.right"
+            case .none: return "macwindow"
+            }
+        }
+    }
+
+    public struct AppContextDetails: Sendable {
+        public let name: String
+        public let domain: AppDomain
+        public let bundleId: String
+        public let icon: NSImage?
+        public let codingProfile: CodingAgentProfile
+        public let isClaudeCode: Bool
+        public let uniqueFeatures: [(name: String, desc: String, icon: String)]
+        public let specializedVocabulary: [String]
+    }
+
+    /// Unique capabilities of Claude Code that do not exist in traditional IDEs or general AI chats
+    public static let claudeCodeUniqueFeatures: [(name: String, desc: String, icon: String)] = [
+        ("/compact", "Context window compaction & conversation history summarization", "arrow.triangle.2.circlepath"),
+        ("CLAUDE.md", "Central project memory, architectural rules & style synchronization", "doc.badge.gearshape.fill"),
+        ("/cost", "Real-time token expense tracking & session budget analytics", "dollarsign.circle.fill"),
+        ("MCP Protocol", "Model Context Protocol tools, servers & dynamic resources", "network"),
+        ("Subagents", "Autonomous multi-agent orchestration, delegation & background tasks", "person.2.badge.gearshape.fill"),
+        ("/review & /pr", "Autonomous code review, diff verification & GitHub PR creation", "checkmark.seal.fill"),
+        ("Extended Thinking", "Dynamic reasoning token allocation & deep thought evaluation", "brain.head.profile")
+    ]
+
+    /// Specialized domain vocabulary for Claude Code
+    public static let claudeCodeVocabulary: [String] = [
+        "Claude Code", "CLAUDE.md", "/compact", "/cost", "/review", "/pr", "/init", "/memory", "/doctor", "/clear", "/resume", "/config",
+        "MCP", "MCP server", "Model Context Protocol", "subagent", "subagents", "invoke_subagent",
+        "extended thinking", "thinking budget", "reasoning tokens", "prompt caching", "cache creation", "cache read",
+        "Claude 3.7 Sonnet", "Claude 3.5 Sonnet", "Claude 3.5 Haiku", "Claude 3 Opus", "Anthropic",
+        "compact context", "context compaction", "cost analysis", "pull request", "vibe coding",
+        "клод", "клод код", "компакт", "сделай компакт", "сожми контекст", "косты", "токены", "контекстное окно",
+        "память проекта", "субагент", "запусти субагента", "сделай ревью", "создай PR", "пулреквест", "сделай коммит",
+        "поправь CLAUDE.md", "МСП", "MCP сервер", "MCP тулы", "бюджет рассуждений", "расширенные рассуждения",
+        "промпт кэширование", "запусти тесты", "проверь линтер", "задеплой", "пофикси", "рефакторинг"
+    ]
+
     // MARK: - Multilingual Subtitle & Outro Hallucination Matrix
 
     public static let multilingualHallucinationsByLanguage: [String: [String]] = [
@@ -206,6 +276,110 @@ public final class AetherContextEngine: @unchecked Sendable {
         return Array(Set(results))
     }
 
+    // MARK: - Specialized Coding Agent Profile Detection
+
+    /// Detects whether the active application is a specialized coding agent like Claude Code, Cursor, Xcode, etc.
+    public func detectCodingAgentProfile(targetApp: NSRunningApplication? = nil) -> CodingAgentProfile {
+        let app = targetApp ?? NSWorkspace.shared.frontmostApplication
+        let bundleId = (app?.bundleIdentifier ?? "").lowercased()
+        let nameLower = (app?.localizedName ?? "").lowercased()
+
+        let winContext = inspectActiveWindowContext(targetApp: app)
+        let windowTitleLower = (winContext.windowTitle ?? "").lowercased()
+        let docFileNameLower = (winContext.documentFileName ?? "").lowercased()
+
+        let isTerminalEmulator = bundleId.contains("terminal") ||
+            bundleId.contains("iterm") ||
+            bundleId.contains("warp") ||
+            bundleId.contains("ghostty") ||
+            bundleId.contains("kitty") ||
+            bundleId.contains("alacritty") ||
+            nameLower.contains("terminal") ||
+            nameLower.contains("iterm") ||
+            nameLower.contains("warp") ||
+            nameLower.contains("ghostty")
+
+        let isClaudeInContext = windowTitleLower.contains("claude") ||
+            docFileNameLower.contains("claude") ||
+            windowTitleLower.contains("claude.md") ||
+            docFileNameLower.contains("claude.md")
+
+        // 1. Claude Code (CLI inside terminal, dedicated desktop client, or active window)
+        if (bundleId.contains("anthropic") && (bundleId.contains("claude") || bundleId.contains("code"))) ||
+           (bundleId.contains("claude") && !bundleId.contains("icloud")) ||
+           (isTerminalEmulator && isClaudeInContext) ||
+           windowTitleLower.contains("claude code") {
+            return .claudeCode
+        }
+
+        // 2. Cursor IDE
+        if bundleId.contains("cursor") || nameLower.contains("cursor") || windowTitleLower.contains("cursor") {
+            return .cursor
+        }
+
+        // 3. Apple Xcode
+        if bundleId.contains("xcode") || nameLower.contains("xcode") {
+            return .xcode
+        }
+
+        // 4. Terminal / Shell
+        if isTerminalEmulator {
+            return .terminal
+        }
+
+        // 5. Generic Code Editors / IDEs
+        if bundleId.contains("vscode") ||
+            bundleId.contains("windsurf") ||
+            bundleId.contains("trae") ||
+            bundleId.contains("zed") ||
+            bundleId.contains("codex") ||
+            bundleId.contains("fleet") ||
+            bundleId.contains("intellij") ||
+            bundleId.contains("pycharm") ||
+            bundleId.contains("webstorm") ||
+            bundleId.contains("clion") ||
+            bundleId.contains("sublime") ||
+            bundleId.contains("android.studio") ||
+            nameLower.contains("vscode") ||
+            nameLower.contains("windsurf") ||
+            nameLower.contains("trae") ||
+            nameLower.contains("zed") ||
+            nameLower.contains("codex") {
+            return .genericCoding
+        }
+
+        return .none
+    }
+
+    /// Provides complete context details including agent profiles, unique features, and specialized vocabulary
+    public func detectDetailedAppContext(targetApp: NSRunningApplication? = nil) -> AppContextDetails {
+        let (appName, domain, bundleId, icon) = detectActiveAppDomain(targetApp: targetApp)
+        let codingProfile = detectCodingAgentProfile(targetApp: targetApp)
+        let isClaudeCode = (codingProfile == .claudeCode)
+
+        let uniqueFeatures: [(name: String, desc: String, icon: String)]
+        let specializedVocab: [String]
+
+        if isClaudeCode {
+            uniqueFeatures = Self.claudeCodeUniqueFeatures
+            specializedVocab = Self.claudeCodeVocabulary
+        } else {
+            uniqueFeatures = []
+            specializedVocab = domainSpecificVocabulary(for: domain, targetApp: targetApp)
+        }
+
+        return AppContextDetails(
+            name: isClaudeCode ? "Claude Code" : appName,
+            domain: domain,
+            bundleId: bundleId,
+            icon: icon,
+            codingProfile: codingProfile,
+            isClaudeCode: isClaudeCode,
+            uniqueFeatures: uniqueFeatures,
+            specializedVocabulary: specializedVocab
+        )
+    }
+
     // MARK: - App Domain Detection
 
     /// Determines the domain of the target or frontmost application
@@ -215,6 +389,13 @@ public final class AetherContextEngine: @unchecked Sendable {
         let bundleId = (app?.bundleIdentifier ?? "").lowercased()
         let nameLower = name.lowercased()
         let icon: NSImage? = app?.icon ?? (app?.bundleURL != nil ? NSWorkspace.shared.icon(forFile: app!.bundleURL!.path) : nil)
+
+        // 0. Specialized Coding Agent: Claude Code
+        if detectCodingAgentProfile(targetApp: app) == .claudeCode {
+            let claudeIcon = icon ?? NSImage(systemSymbolName: "terminal.fill", accessibilityDescription: nil)
+            let resolvedName = nameLower.contains("claude") ? name : "Claude Code (\(name))"
+            return (resolvedName, .ideAndCoding, bundleId.isEmpty ? "com.anthropic.claude-code" : bundleId, claudeIcon)
+        }
 
         // 1. IDEs, Terminals, Code Editors & Codex (Vibe Coding)
         if bundleId.contains("xcode") ||
@@ -425,7 +606,15 @@ public final class AetherContextEngine: @unchecked Sendable {
     // MARK: - Domain-Specific Vocabulary Biasing
 
     /// Specialized vocabulary injected to prime Whisper and Apple Speech for the active domain
-    public func domainSpecificVocabulary(for domain: AppDomain) -> [String] {
+    public func domainSpecificVocabulary(for domain: AppDomain, targetApp: NSRunningApplication? = nil) -> [String] {
+        if detectCodingAgentProfile(targetApp: targetApp) == .claudeCode {
+            return Self.claudeCodeVocabulary + [
+                "вайб-кодинг", "вайбкодинг", "vibe coding", "Codex", "Antigravity", "TypeScript", "SwiftUI",
+                "SwiftData", "Rust", "Next.js", "TailwindCSS", "PostgreSQL", "Docker", "API", "SDK", "JSON",
+                "regex", "refactor", "pull request", "commit", "merge", "branch", "async", "await", "deploy", "bugs"
+            ]
+        }
+
         switch domain {
         case .ideAndCoding:
             return [
@@ -562,7 +751,7 @@ public final class AetherContextEngine: @unchecked Sendable {
     /// Merges user custom vocabulary with target application domain vocabulary
     public func activeEffectiveVocabulary(targetApp: NSRunningApplication? = nil, userVocabulary: String, userLocation: String = "") -> String {
         let (_, domain, _, _) = detectActiveAppDomain(targetApp: targetApp)
-        let domainWords = domainSpecificVocabulary(for: domain)
+        let domainWords = domainSpecificVocabulary(for: domain, targetApp: targetApp)
         
         var userWords = userVocabulary.components(separatedBy: CharacterSet(charactersIn: ",\n;"))
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).normalizedPlainVocabularyWord() }
@@ -610,10 +799,21 @@ public final class AetherContextEngine: @unchecked Sendable {
     // MARK: - Acoustic Conditioning Prompts
 
     /// Constructs domain-specific contextual priming hints
-    public func domainContextPrompt(for domain: AppDomain, language: String?) -> String {
+    public func domainContextPrompt(for domain: AppDomain, language: String?, targetApp: NSRunningApplication? = nil) -> String {
+        let isClaudeCode = detectCodingAgentProfile(targetApp: targetApp) == .claudeCode
         let lang = (language ?? "").lowercased()
         let isRussianOnly = lang.starts(with: "ru")
         let isEnglishOnly = lang.starts(with: "en")
+
+        if isClaudeCode {
+            if isRussianOnly {
+                return "Claude Code агент разработки: голосовые команды и директивы в повелительном наклонении (сделай, создай, добавь, напиши, удали, пофикси, запусти, проверь, обнови, настрой, сожми контекст, проверь косты, запусти субагента, сделай ревью, создай PR, задеплой), специализированные команды и термины (/compact, CLAUDE.md, /cost, /review, /pr, MCP сервер, субагенты, reasoning tokens, prompt caching, vibe coding)."
+            } else if isEnglishOnly {
+                return "Claude Code AI coding agent: imperative commands (create, make, do, add, write, delete, fix, run, check, update, configure, deploy), unique agent features and workflows (/compact, CLAUDE.md, /cost, /review, /pr, MCP protocol, subagents, reasoning tokens, prompt caching, vibe coding)."
+            } else {
+                return "Claude Code AI coding agent directives (Russian & English): /compact, CLAUDE.md, /cost, /review, /pr, MCP, subagent, reasoning tokens, prompt caching, vibe coding, сделай, создай, добавь, напиши, удали, пофикси, запусти, проверь, сожми контекст, проверь косты."
+            }
+        }
 
         switch domain {
         case .ideAndCoding:
@@ -705,6 +905,10 @@ public final class AetherContextEngine: @unchecked Sendable {
                 return "Multilingual Russian and English speech: правильная пунктуация, commas, capitalization, заглавные буквы."
             }
         }
+    }
+
+    public func domainContextPrompt(for domain: AppDomain, language: String?) -> String {
+        return domainContextPrompt(for: domain, language: language, targetApp: nil)
     }
 
     // MARK: - Window & Active Document Accessibility Context
@@ -801,7 +1005,7 @@ public final class AetherContextEngine: @unchecked Sendable {
         language: String?
     ) -> String {
         let (appName, domain, _, _) = detectActiveAppDomain(targetApp: targetApp)
-        let domainHint = domainContextPrompt(for: domain, language: language)
+        let domainHint = domainContextPrompt(for: domain, language: language, targetApp: targetApp)
 
         var components: [String] = []
         components.append(basePrompt)

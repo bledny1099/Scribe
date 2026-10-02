@@ -4590,6 +4590,7 @@ struct VocabularySettingsView: View {
     @State private var copiedActiveBlockedWordsFeedback: Bool = false
     @State private var presetToDelete: VocabularyPreset? = nil
     @State private var addedHallucinationsFeedback: Bool = false
+    @State private var previewAppContextProfile: AetherContextEngine.CodingAgentProfile? = nil
 
     private var quickCityPresets: [String] {
         let isRussian = appState.selectedUILanguage == "ru" || (appState.selectedUILanguage == "auto" && Locale.current.language.languageCode?.identifier == "ru")
@@ -5544,38 +5545,103 @@ struct VocabularySettingsView: View {
             // SECTION 4: Dynamic App Context & Anti-Hallucination
             GlassSection(title: appState.l("Dynamic App Context & Anti-Hallucination"), icon: "macwindow.badge.plus") {
                 VStack(alignment: .leading, spacing: 14) {
-                    Text(appState.l("Scribe automatically analyzes the destination application (IDE, Messenger, Notes, Browser, Design, Crypto) to inject relevant domain vocabulary and block out-of-context hallucinations."))
+                    Text(appState.l("Scribe automatically analyzes the destination application to inject specialized agent vocabulary, prime commands, and block out-of-context hallucinations."))
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                         .lineSpacing(2)
 
+                    let liveDetails = AetherContextEngine.shared.detectDetailedAppContext(targetApp: appState.targetRunningApplication)
+                    let isPreviewClaude = previewAppContextProfile == .claudeCode
+                    let isClaudeActive = liveDetails.isClaudeCode || isPreviewClaude
+
+                    // Mode Selector / Live Status Bar
+                    HStack(spacing: 8) {
+                        Button(action: { previewAppContextProfile = nil }) {
+                            HStack(spacing: 5) {
+                                Circle()
+                                    .fill(previewAppContextProfile == nil ? Color.green : Color.secondary.opacity(0.5))
+                                    .frame(width: 6, height: 6)
+                                Text(appState.l("Live Active App"))
+                                    .font(.system(size: 11, weight: previewAppContextProfile == nil ? .bold : .medium, design: .rounded))
+                            }
+                            .padding(.horizontal, 9)
+                            .padding(.vertical, 5)
+                            .background(previewAppContextProfile == nil ? Color.accentColor.opacity(0.15) : Color.primary.opacity(0.04))
+                            .foregroundStyle(previewAppContextProfile == nil ? Color.accentColor : Color.secondary)
+                            .cornerRadius(7)
+                        }
+                        .buttonStyle(.plain)
+
+                        Button(action: {
+                            previewAppContextProfile = (previewAppContextProfile == .claudeCode) ? nil : .claudeCode
+                        }) {
+                            HStack(spacing: 5) {
+                                Image(systemName: "terminal.fill")
+                                    .font(.system(size: 10))
+                                Text(appState.l("Claude Code Specialization"))
+                                    .font(.system(size: 11, weight: isPreviewClaude ? .bold : .medium, design: .rounded))
+                            }
+                            .padding(.horizontal, 9)
+                            .padding(.vertical, 5)
+                            .background(isPreviewClaude ? Color.orange.opacity(0.18) : Color.primary.opacity(0.04))
+                            .foregroundStyle(isPreviewClaude ? Color.orange : Color.secondary)
+                            .cornerRadius(7)
+                        }
+                        .buttonStyle(.plain)
+
+                        Spacer()
+
+                        if liveDetails.isClaudeCode {
+                            HStack(spacing: 4) {
+                                Circle()
+                                    .fill(Color.orange)
+                                    .frame(width: 6, height: 6)
+                                Text(appState.l("Claude Agent Active"))
+                                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                                    .foregroundStyle(Color.orange)
+                            }
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 3)
+                            .background(Color.orange.opacity(0.12))
+                            .cornerRadius(6)
+                        }
+                    }
+
                     // Live Active App Detection Card
-                    let detected = AetherContextEngine.shared.detectActiveAppDomain(targetApp: appState.targetRunningApplication)
                     HStack(spacing: 12) {
-                        if let icon = detected.icon {
+                        if isPreviewClaude && !liveDetails.isClaudeCode {
+                            ZStack {
+                                Circle()
+                                    .fill(Color.orange.opacity(0.15))
+                                    .frame(width: 34, height: 34)
+                                Image(systemName: "terminal.fill")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundStyle(Color.orange)
+                            }
+                        } else if let icon = liveDetails.icon {
                             Image(nsImage: icon)
                                 .resizable()
                                 .scaledToFit()
-                                .frame(width: 32, height: 32)
-                                .cornerRadius(7)
+                                .frame(width: 34, height: 34)
+                                .cornerRadius(8)
                         } else {
                             ZStack {
                                 Circle()
                                     .fill(Color.accentColor.opacity(0.15))
-                                    .frame(width: 32, height: 32)
-                                Image(systemName: detected.domain.icon)
+                                    .frame(width: 34, height: 34)
+                                Image(systemName: liveDetails.domain.icon)
                                     .font(.system(size: 15, weight: .semibold))
                                     .foregroundStyle(Color.accentColor)
                             }
                         }
 
                         VStack(alignment: .leading, spacing: 3) {
-                            Text(appState.l("Active Application Detected"))
+                            Text(isPreviewClaude && !liveDetails.isClaudeCode ? appState.l("Simulated App Context") : appState.l("Active Application Detected"))
                                 .font(.system(size: 10, weight: .bold, design: .rounded))
                                 .foregroundStyle(.secondary)
                             
                             HStack(spacing: 6) {
-                                Text(detected.name)
+                                Text(isPreviewClaude && !liveDetails.isClaudeCode ? "Claude Code (CLI)" : liveDetails.name)
                                     .font(.system(size: 13, weight: .bold, design: .rounded))
                                     .foregroundStyle(.primary)
                                     .lineLimit(1)
@@ -5583,7 +5649,7 @@ struct VocabularySettingsView: View {
                                 Text("•")
                                     .foregroundStyle(.secondary)
 
-                                Text(appState.l(detected.domain.displayName))
+                                Text(appState.l(liveDetails.domain.displayName))
                                     .font(.system(size: 11, weight: .semibold, design: .rounded))
                                     .padding(.horizontal, 7)
                                     .padding(.vertical, 2.5)
@@ -5591,7 +5657,16 @@ struct VocabularySettingsView: View {
                                     .foregroundStyle(Color.accentColor)
                                     .cornerRadius(6)
                                     .lineLimit(1)
-                                    .fixedSize(horizontal: true, vertical: false)
+
+                                if isClaudeActive {
+                                    Text(appState.l("Agent Specialized"))
+                                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(Color.orange.opacity(0.15))
+                                        .foregroundStyle(Color.orange)
+                                        .cornerRadius(5)
+                                }
                             }
                         }
 
@@ -5602,8 +5677,119 @@ struct VocabularySettingsView: View {
                     .cornerRadius(12)
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
-                            .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+                            .strokeBorder(isClaudeActive ? Color.orange.opacity(0.3) : Color.primary.opacity(0.08), lineWidth: 1)
                     )
+
+                    // CLAUDE CODE DEEP SPECIALIZATION CARD
+                    if isClaudeActive {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "sparkles")
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundStyle(Color.orange)
+                                Text(appState.l("Claude Code Deep Specialization"))
+                                    .font(.system(size: 12.5, weight: .bold, design: .rounded))
+                                    .foregroundStyle(.primary)
+
+                                Spacer()
+
+                                Text(appState.l("Exclusive Capabilities"))
+                                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Text(appState.l("Tuned specifically for Claude Code agent workflows, acoustic phonetics, and unique capabilities that exist nowhere else in traditional IDEs."))
+                                .font(.system(size: 11.5))
+                                .foregroundStyle(.secondary)
+                                .lineSpacing(2)
+
+                            // Features Grid
+                            VStack(spacing: 7) {
+                                ForEach(AetherContextEngine.claudeCodeUniqueFeatures, id: \.name) { feature in
+                                    HStack(spacing: 10) {
+                                        ZStack {
+                                            RoundedRectangle(cornerRadius: 6)
+                                                .fill(Color.orange.opacity(0.12))
+                                                .frame(width: 26, height: 26)
+                                            Image(systemName: feature.icon)
+                                                .font(.system(size: 11, weight: .semibold))
+                                                .foregroundStyle(Color.orange)
+                                        }
+
+                                        VStack(alignment: .leading, spacing: 1) {
+                                            Text(feature.name)
+                                                .font(.system(size: 11.5, weight: .bold, design: .monospaced))
+                                                .foregroundStyle(.primary)
+
+                                            Text(appState.l(feature.desc))
+                                                .font(.system(size: 10.5))
+                                                .foregroundStyle(.secondary)
+                                                .lineLimit(1)
+                                        }
+
+                                        Spacer()
+                                    }
+                                    .padding(.horizontal, 9)
+                                    .padding(.vertical, 6)
+                                    .background(Color.primary.opacity(0.02))
+                                    .cornerRadius(8)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .strokeBorder(Color.primary.opacity(0.05), lineWidth: 1)
+                                    )
+                                }
+                            }
+
+                            // Primed Acoustic Vocabulary Chips
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(appState.l("Acoustic Primed Tokens"))
+                                    .font(.system(size: 10.5, weight: .bold, design: .rounded))
+                                    .foregroundStyle(.secondary)
+
+                                let isRussianUI = appState.selectedUILanguage == "ru" || (appState.selectedUILanguage == "auto" && Locale.current.language.languageCode?.identifier == "ru")
+                                let primedChips: [String] = isRussianUI
+                                    ? ["/compact", "CLAUDE.md", "/cost", "/review", "/pr", "MCP", "субагенты", "Extended Thinking", "вайб-кодинг", "сожми контекст", "проверь косты"]
+                                    : ["/compact", "CLAUDE.md", "/cost", "/review", "/pr", "MCP", "subagents", "Extended Thinking", "vibe coding", "compact context", "cost analysis"]
+
+                                FlowLayout(spacing: 6) {
+                                    ForEach(primedChips, id: \.self) { chip in
+                                        Text(chip)
+                                            .font(.system(size: 10.5, weight: .medium, design: .monospaced))
+                                            .padding(.horizontal, 7)
+                                            .padding(.vertical, 3)
+                                            .background(Color.orange.opacity(0.1))
+                                            .foregroundStyle(Color.primary.opacity(0.9))
+                                            .cornerRadius(5)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 5)
+                                                    .strokeBorder(Color.orange.opacity(0.25), lineWidth: 0.8)
+                                            )
+                                    }
+                                }
+                            }
+                            .padding(.top, 4)
+
+                            HStack(alignment: .top, spacing: 6) {
+                                Image(systemName: "info.circle")
+                                    .font(.system(size: 10.5))
+                                    .foregroundStyle(.secondary)
+                                    .padding(.top, 1)
+
+                                Text(appState.l("When dictating into Claude Code, Scribe primes Whisper & Speech with these exact tokens, eliminating phonetic misrecognitions for agent directives and slash commands."))
+                                    .font(.system(size: 10.5))
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            .padding(.top, 2)
+                        }
+                        .padding(13)
+                        .background(Color.orange.opacity(0.04))
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .strokeBorder(Color.orange.opacity(0.2), lineWidth: 1)
+                        )
+                    }
                 }
                 .padding(14)
             }

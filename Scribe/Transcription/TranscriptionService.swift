@@ -2348,6 +2348,10 @@ public enum AIRefinementMode: String, CaseIterable, Identifiable, Sendable {
                - NEVER DROP TEST PHRASES, MIC CHECKS, COUNTING, OR GREETINGS:
                  * If the user begins with "Раз, два, три, проверочка", "Раз, два, три", "Проверка связи", "Testing 1, 2, 3", "Привет", etc., YOU MUST RETAIN IT IN FULL!
                  * Never assume an opening test phrase is disposable noise. Every spoken sentence must appear in the final text.
+               - FIX ACOUSTIC WHISPER SLIPS BETWEEN 'ТАКОЕ' AND 'ТАКЖЕ':
+                 * Questions, definitions, and demonstratives use "такое" (e.g. "что такое API", "что это такое", "такое решение"), NEVER "что также"!
+                 * Conjunctions and adverbs meaning 'also' / 'as well' use "также" (e.g. "а также", "также важно", "также можно"), NEVER "а такое"!
+                 * Distinguish "так же, как" (comparative) from "такое как" (demonstrative).
             
             2. WHAT AND ONLY WHAT TO REMOVE:
                - Verbal filler sounds (заполнители пауз, междометия):

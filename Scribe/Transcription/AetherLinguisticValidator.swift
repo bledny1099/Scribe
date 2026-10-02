@@ -51,7 +51,17 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         "ситает": "считает",
         "ситаем": "считаем",
         "мало и мало": "мало места",
-        "мало, и мало": "мало места"
+        "мало, и мало": "мало места",
+        "пойск": "поиск",
+        "пойска": "поиска",
+        "пойску": "поиску",
+        "пойске": "поиске",
+        "пойском": "поиском",
+        "пойски": "поиски",
+        "пойсков": "поисков",
+        "пойскам": "поискам",
+        "пойсками": "поисками",
+        "пойсках": "поисках"
     ]
 
     /// Context-dependent photographic terms. If none of these keywords exist in text, words like "проявка" are acoustic mishearings of "проверка".
@@ -64,6 +74,14 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
     private let russianGrammarAgreementRules: [(pattern: String, replacement: String)] = [
         // Acoustic mishearings
         ("(?i)\\bмало[\\s,]+и\\s+мало\\b", "мало места"),
+        ("([a-zA-Z0-9.-]+\\.(?:app|com|ru|org|net|io|ai|dev|bot|me|co|site))([а-яА-ЯёЁ])", "$1 $2"),
+        ("(?i)\\b(а\\s+|и\\s+|но\\s+|да\\s+|ну\\s+)?что\\s+это\\s+также\\b", "$1что это такое"),
+        ("(?i)\\b(а\\s+|и\\s+|но\\s+|да\\s+|ну\\s+)?что\\s+также\\s*([?!])", "$1что такое$2"),
+        ("(?i)(^|[.!?;,\n«\"„—–-]\\s*|(?:^|\\b)(?:а|и|но|да|ну)\\s+)что\\s+также\\b(?!\\s+(?:является|может|важно|нужно|следует|относится|входит|имеет|стоит|позволяет|делает|будет|представляет))", "$1что такое"),
+        ("(?i)\\bчто\\s+также\\s+(?=[А-Яа-яёЁA-Za-z0-9_-]+(?:$|\\s*[?!]))", "что такое "),
+        ("(?i)(,\\s*а)\\s+такое\\b", "$1 также"),
+        ("(?i)\\bа\\s+такое\\b(?=\\s+(?:и|как|же|в|на|для|с|по|при|из|от|к|что|где|когда|если|не|все|всех|другие|прочие|дополнительные))", "а также"),
+        ("(?i)\\b(число|расстояние|расстояния|алгоритм|алгоритма|метрика|метрики|коэффициент|коэффициента)\\s+Левенштейн\\b", "$1 Левенштейна"),
 
         // Subject-verb agreement (1st person singular "я")
         ("(?i)\\bя\\s+говорит\\b", "я говорю"),
@@ -1325,11 +1343,14 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         "sorry", "i mean", "mean", "or rather", "rather", "actually", "oops", "whoops", "wait", "no"
     ]
 
-    /// Common short 3-4 letter word pairs that differ by 1 letter but represent distinct concepts (must not be collapsed).
-    private static let preservedShortWordPairs: Set<String> = [
+    /// Common word pairs that differ by 1 letter but represent distinct grammatical concepts (must not be collapsed).
+    private static let preservedDistinctWordPairs: Set<String> = [
         "cat_car", "car_cat", "dog_dig", "dig_dog", "bad_bed", "bed_bad",
         "man_men", "men_man", "boy_toy", "toy_boy", "дом_дым", "дым_дом",
-        "сон_сын", "сын_сон", "кот_кит", "кит_кот", "час_чай", "чай_час"
+        "сон_сын", "сын_сон", "кот_кит", "кит_кот", "час_чай", "чай_час",
+        "такое_также", "также_такое", "такой_также", "также_такой",
+        "такая_также", "также_такая", "тоже_такое", "такое_тоже",
+        "тоже_также", "также_тоже"
     ]
 
     /// Checks if w1 and w2 are slightly modified variants of the same spoken word (typo, slip, false start, or truncated prefix).
@@ -1356,12 +1377,13 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         let dist = levenshtein(s1, s2)
         let maxLen = max(count1, count2)
 
+        let pairKey = "\(s1)_\(s2)"
+        if Self.preservedDistinctWordPairs.contains(pairKey) {
+            return false
+        }
+
         // For short words (3-4 letters): allow dist 1 only if difference is clear typo/false-start
         if maxLen <= 4 {
-            let pairKey = "\(s1)_\(s2)"
-            if Self.preservedShortWordPairs.contains(pairKey) {
-                return false
-            }
             return dist == 1
         }
 

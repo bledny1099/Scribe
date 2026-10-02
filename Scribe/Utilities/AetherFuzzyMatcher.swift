@@ -183,10 +183,11 @@ public final class AetherFuzzyMatcher: @unchecked Sendable {
             }
         }
 
-        // 3. Levenshtein Fuzzy Alignment for Longer Single-Word Custom, User Top 100 & Built-in Vocabulary (>5 chars)
-        let userTopTargets = UserFrequencyDictionary.shared.topWords(limit: 100).filter { $0.count >= 5 && !$0.contains(" ") }
+        // 3. Levenshtein Fuzzy Alignment for Longer Single-Word Custom & Built-in Vocabulary (>5 chars)
+        // NOTE: Never include user frequency dictionary words here — frequent words must not overwrite
+        // spoken grammatical words (e.g. 'такое' vs 'также').
         let singleWordCleanVocab = cleanVocabulary.filter { $0.count >= 5 && !$0.contains(" ") }
-        let combinedTargets = (builtInDictionaryTargets + singleWordCleanVocab + userTopTargets).filter { !$0.contains(" ") }
+        let combinedTargets = (builtInDictionaryTargets + singleWordCleanVocab).filter { !$0.contains(" ") }
         if !combinedTargets.isEmpty {
             result = applyLevenshteinAlignment(text: result, targets: combinedTargets)
         }
@@ -195,6 +196,14 @@ public final class AetherFuzzyMatcher: @unchecked Sendable {
     }
 
     // MARK: - Levenshtein Distance Matching
+
+    /// Protected high-frequency grammatical words, pronouns, and conjunctions that must never be altered by fuzzy Levenshtein alignment
+    private static let protectedWords: Set<String> = [
+        "такое", "также", "тоже", "такой", "такая", "такие", "таким", "таком", "таких", "такому", "такую",
+        "только", "всегда", "когда", "зачем", "почему", "потом", "затем", "здесь", "везде",
+        "много", "мало", "очень", "точно", "прямо", "скоро", "долго", "часто", "редко",
+        "about", "their", "there", "these", "those", "which", "where", "would", "could", "should"
+    ]
 
     private func applyLevenshteinAlignment(text: String, targets: [String]) -> String {
         let words = text.components(separatedBy: " ")
@@ -205,6 +214,12 @@ public final class AetherFuzzyMatcher: @unchecked Sendable {
             let punctuationSet = CharacterSet.punctuationCharacters
             let cleanWord = word.trimmingCharacters(in: punctuationSet)
             guard cleanWord.count >= 5 else {
+                adjustedWords.append(word)
+                continue
+            }
+
+            let lowerClean = cleanWord.lowercased()
+            if Self.protectedWords.contains(lowerClean) {
                 adjustedWords.append(word)
                 continue
             }
