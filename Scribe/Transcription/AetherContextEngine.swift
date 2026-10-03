@@ -93,7 +93,9 @@ public final class AetherContextEngine: @unchecked Sendable {
     public enum CodingAgentProfile: String, CaseIterable, Identifiable, Sendable {
         case claudeCode = "claudeCode"
         case cursor = "cursor"
+        case antigravity = "antigravity"
         case xcode = "xcode"
+        case windsurf = "windsurf"
         case terminal = "terminal"
         case genericCoding = "genericCoding"
         case none = "none"
@@ -104,7 +106,9 @@ public final class AetherContextEngine: @unchecked Sendable {
             switch self {
             case .claudeCode: return "Claude Code"
             case .cursor: return "Cursor"
+            case .antigravity: return "Antigravity & Codex"
             case .xcode: return "Xcode"
+            case .windsurf: return "Windsurf"
             case .terminal: return "Terminal & Shell"
             case .genericCoding: return "IDE & Coding"
             case .none: return "General System"
@@ -115,10 +119,33 @@ public final class AetherContextEngine: @unchecked Sendable {
             switch self {
             case .claudeCode: return "terminal.fill"
             case .cursor: return "cursorarrow.rays"
+            case .antigravity: return "atom"
             case .xcode: return "hammer.fill"
+            case .windsurf: return "water.waves"
             case .terminal: return "apple.terminal.fill"
             case .genericCoding: return "chevron.left.forwardslash.chevron.right"
             case .none: return "macwindow"
+            }
+        }
+
+        public var tagline: String {
+            switch self {
+            case .claudeCode:
+                return "Tuned specifically for Claude Code agent workflows, acoustic phonetics, and unique capabilities that exist nowhere else in traditional IDEs."
+            case .cursor:
+                return "Tuned specifically for Cursor Composer, semantic codebase indexing, and multi-file diff directives."
+            case .antigravity:
+                return "Tuned specifically for Antigravity & Codex autonomous subagents, artifacts generation, and browser automation."
+            case .xcode:
+                return "Tuned specifically for Swift 6 native development, actor isolation, SwiftUI canvas, and Apple Neural Engine."
+            case .windsurf:
+                return "Tuned specifically for Windsurf Cascade collaborative agent, Supercomplete, and multi-file flow."
+            case .terminal:
+                return "Tuned specifically for command line engineering, git worktrees, container daemons, and shell navigation."
+            case .genericCoding:
+                return "Tuned for general software engineering, git workflows, and cross-platform compilation."
+            case .none:
+                return "Standard system transcription with zero-hallucination lexical matching."
             }
         }
     }
@@ -129,12 +156,14 @@ public final class AetherContextEngine: @unchecked Sendable {
         public let bundleId: String
         public let icon: NSImage?
         public let codingProfile: CodingAgentProfile
-        public let isClaudeCode: Bool
+        public let isSpecializedAgent: Bool
         public let uniqueFeatures: [(name: String, desc: String, icon: String)]
         public let specializedVocabulary: [String]
+        public let isClaudeCode: Bool
     }
 
-    /// Unique capabilities of Claude Code that do not exist in traditional IDEs or general AI chats
+    // MARK: - Specialized Unique Agent Features (Nowhere else in IDEs)
+
     public static let claudeCodeUniqueFeatures: [(name: String, desc: String, icon: String)] = [
         ("/compact", "Context window compaction & conversation history summarization", "arrow.triangle.2.circlepath"),
         ("CLAUDE.md", "Central project memory, architectural rules & style synchronization", "doc.badge.gearshape.fill"),
@@ -145,7 +174,51 @@ public final class AetherContextEngine: @unchecked Sendable {
         ("Extended Thinking", "Dynamic reasoning token allocation & deep thought evaluation", "brain.head.profile")
     ]
 
-    /// Specialized domain vocabulary for Claude Code
+    public static let cursorUniqueFeatures: [(name: String, desc: String, icon: String)] = [
+        ("Composer (Ctrl+I)", "Multi-file contextual diff generation, streaming edits & reject/accept control", "square.2.layers.3d"),
+        (".cursorrules", "Project-level system prompt, coding instructions & architectural guidelines", "doc.badge.gearshape.fill"),
+        ("@Symbols & Context", "Semantic codebase indexing with @Files, @Docs, @Web, @Git and @Code", "at"),
+        ("Cursor Tab", "Multi-token predictive autocomplete and next-edit code jump prediction", "arrow.right.to.line.compact"),
+        ("Shadow Workspace", "Background headless linter and compiler validation to prevent syntax bugs", "eye.trianglebadge.exclamationmark"),
+        ("Notepads", "Persistent cross-session context scratchpad for multi-task staging", "note.text")
+    ]
+
+    public static let antigravityUniqueFeatures: [(name: String, desc: String, icon: String)] = [
+        ("Browser Subagent", "Autonomous browser automation, DOM inspection & interactive WebP action recording", "globe.badge.chevron.backward"),
+        ("Artifacts Engine", "Interactive live artifacts with markdown reports, mermaid diagrams & carousels", "doc.text.image"),
+        ("Skills Architecture", "Modular SKILL.md on-demand instruction bundles with YAML frontmatter", "wrench.and.screwdriver.fill"),
+        ("Reactive Wakeup", "Zero-polling async task orchestration with automatic reactive wakeups", "bolt.badge.clock.fill"),
+        ("Multi-Agent Swarm", "One-shot autonomous subagent delegation with full trajectory transcripts", "person.3.sequence.fill"),
+        ("Dynamic Tools", "Dynamic tool registration and JSON Schema evaluation via MCP servers", "network")
+    ]
+
+    public static let xcodeUniqueFeatures: [(name: String, desc: String, icon: String)] = [
+        ("Swift 6 Concurrency", "Complete data race safety, actor isolation & @Sendable closures", "lock.shield.fill"),
+        ("SwiftData Engine", "Declarative schema management, @Model persistence & ModelContainer", "cylinder.split.1x2.fill"),
+        ("SwiftUI Canvas Previews", "Interactive live #Preview macros with dynamic traits and dark mode", "macwindow.on.rectangle"),
+        ("Time Profiler & Instruments", "Zero-overhead allocations tracking, leak analysis & thread profiling", "gauge.with.needle.fill"),
+        ("Apple Neural Engine & Metal", "CoreML MPSGraph execution, GPU shaders & low-latency neural inference", "cpu.fill"),
+        ("Xcode Cloud & TestFlight", "Continuous automated builds, codesigning & notarized distribution", "cloud.fill")
+    ]
+
+    public static let windsurfUniqueFeatures: [(name: String, desc: String, icon: String)] = [
+        ("Cascade Agent", "Real-time multi-file collaborative agent with interactive terminal execution", "water.waves"),
+        ("Supercomplete", "Multi-line intent prediction and code jumps across cursor positions", "wand.and.stars"),
+        ("Memories Engine", "Persistent user preference learning and codebase pattern retention", "brain"),
+        ("Live Terminal Sync", "Direct shell output monitoring and automated command generation", "terminal"),
+        ("Rules Engine", "Workspace-level constraints and project guidelines enforcement", "doc.badge.gearshape.fill")
+    ]
+
+    public static let terminalUniqueFeatures: [(name: String, desc: String, icon: String)] = [
+        ("AI Command Blocks", "Structured terminal block navigation, output isolation & AI explanation", "square.grid.3x1.below.line.grid.1x2"),
+        ("Worktree Isolation", "Parallel branch development via git worktrees without switching branches", "arrow.triangle.branch"),
+        ("Interactive Rebasing", "Git history rewriting, squash, fixup & automated bisect debugging", "arrow.triangle.merge"),
+        ("Container Daemons", "Multi-stage Docker compose orchestration, volume bindings & port bridges", "shippingbox.fill"),
+        ("Fuzzy Shell Navigation", "Interactive fzf searching, ripgrep parsing & zoxide smart jumping", "magnifyingglass")
+    ]
+
+    // MARK: - Specialized Agent Vocabularies
+
     public static let claudeCodeVocabulary: [String] = [
         "Claude Code", "CLAUDE.md", "/compact", "/cost", "/review", "/pr", "/init", "/memory", "/doctor", "/clear", "/resume", "/config",
         "MCP", "MCP server", "Model Context Protocol", "subagent", "subagents", "invoke_subagent",
@@ -157,6 +230,97 @@ public final class AetherContextEngine: @unchecked Sendable {
         "поправь CLAUDE.md", "МСП", "MCP сервер", "MCP тулы", "бюджет рассуждений", "расширенные рассуждения",
         "промпт кэширование", "запусти тесты", "проверь линтер", "задеплой", "пофикси", "рефакторинг"
     ]
+
+    public static let cursorVocabulary: [String] = [
+        "Cursor", "Composer", ".cursorrules", "cursorrules", "Cursor Tab", "@Files", "@Docs", "@Web", "@Git", "@Code", "@Folders",
+        "Shadow Workspace", "Notepad", "Notepads", "Apply Diff", "Accept All", "Reject All", "Partial Accept", "Inline Chat",
+        "Generate Edit", "Fast Mode", "Agent Mode", "Composer Chat", "Codebase Indexing", "Semantic Search", "Symbol Search",
+        "композер", "курсор", "курсоррулс", "примени диф", "прими изменения", "отклони изменения", "открой композер",
+        "проиндексируй код", "сгенерируй диф", "частичный акцепт", "добавь в контекст", "вайб-кодинг"
+    ]
+
+    public static let antigravityVocabulary: [String] = [
+        "Antigravity", "Codex", "Codex CLI", "Antigravity 2.0", "Browser Subagent", "Artifacts", "SKILL.md", "Reactive Wakeup",
+        "Subagent", "Subagents", "invoke_subagent", "browser_subagent", "run_command", "replace_file_content", "view_file",
+        "write_to_file", "grep_search", "list_dir", "task scheduler", "background task", "conversation transcript", "MCP",
+        "антигравити", "кодекс", "браузер агент", "артефакты", "скилл", "субагент", "делегируй", "запусти команду",
+        "создай файл", "проверь логи", "реактивный вейкап"
+    ]
+
+    public static let xcodeVocabulary: [String] = [
+        "Xcode", "SwiftUI", "SwiftData", "Swift 6", "Concurrency", "Sendable", "Actor", "MainActor", "ModelContainer", "#Preview",
+        "Instruments", "Time Profiler", "Memory Leaks", "CoreML", "Apple Neural Engine", "Metal", "TestFlight", "Notarization",
+        "DerivedData", "Archive", "Scheme", "Build Phase", "Podfile", "Package.swift", "SPM", "ViewBuilder", "StateObject",
+        "ObservedObject", "EnvironmentObject", "экскод", "свифт", "свифтдата", "акторы", "изоляция актора", "профайлер",
+        "утечки памяти", "нотаризация", "превью", "схема сборки", "пакеты свифт"
+    ]
+
+    public static let windsurfVocabulary: [String] = [
+        "Windsurf", "Cascade", "Supercomplete", "Codeium", "Memories", "Cascade Agent", "Context Awareness", "Flow State",
+        "Collaborative Agent", "Terminal Sync", "виндсерф", "каскад", "суперкомплит", "меморис", "агент каскад", "контекст проекта"
+    ]
+
+    public static let terminalVocabulary: [String] = [
+        "Terminal", "Zsh", "Ghostty", "iTerm", "Warp", "Kitty", "Alacritty", "Tmux", "Git", "worktree", "git rebase",
+        "docker compose", "Dockerfile", "fzf", "zoxide", "ripgrep", "awk", "sed", "sudo", "chmod", "chown", "ssh", "rsync",
+        "brew", "npm", "pnpm", "yarn", "cargo", "pip", "curl", "wget", "killall", "pgrep", "lsof", "терминал", "ребейз",
+        "ворктри", "докер компоуз", "засквошь коммиты", "алиасы", "скрипт", "пайплайн", "процесс"
+    ]
+
+    public static func uniqueFeatures(for profile: CodingAgentProfile) -> [(name: String, desc: String, icon: String)] {
+        switch profile {
+        case .claudeCode: return claudeCodeUniqueFeatures
+        case .cursor: return cursorUniqueFeatures
+        case .antigravity: return antigravityUniqueFeatures
+        case .xcode: return xcodeUniqueFeatures
+        case .windsurf: return windsurfUniqueFeatures
+        case .terminal: return terminalUniqueFeatures
+        case .genericCoding, .none: return []
+        }
+    }
+
+    public static func specializedVocabulary(for profile: CodingAgentProfile) -> [String] {
+        switch profile {
+        case .claudeCode: return claudeCodeVocabulary
+        case .cursor: return cursorVocabulary
+        case .antigravity: return antigravityVocabulary
+        case .xcode: return xcodeVocabulary
+        case .windsurf: return windsurfVocabulary
+        case .terminal: return terminalVocabulary
+        case .genericCoding, .none: return []
+        }
+    }
+
+    public static func primedChips(for profile: CodingAgentProfile, isRussian: Bool) -> [String] {
+        switch profile {
+        case .claudeCode:
+            return isRussian
+                ? ["/compact", "CLAUDE.md", "/cost", "/review", "/pr", "MCP", "субагенты", "Extended Thinking", "вайб-кодинг", "сожми контекст", "проверь косты"]
+                : ["/compact", "CLAUDE.md", "/cost", "/review", "/pr", "MCP", "subagents", "Extended Thinking", "vibe coding", "compact context", "cost analysis"]
+        case .cursor:
+            return isRussian
+                ? ["Composer", ".cursorrules", "@Files", "@Docs", "@Web", "Apply Diff", "Accept All", "Cursor Tab", "композер", "курсоррулс", "примени диф"]
+                : ["Composer", ".cursorrules", "@Files", "@Docs", "@Web", "Apply Diff", "Accept All", "Cursor Tab", "Shadow Workspace", "Notepads"]
+        case .antigravity:
+            return isRussian
+                ? ["Antigravity", "Codex CLI", "Browser Subagent", "Artifacts", "SKILL.md", "Reactive Wakeup", "субагент", "браузер агент", "артефакты", "MCP"]
+                : ["Antigravity", "Codex CLI", "Browser Subagent", "Artifacts", "SKILL.md", "Reactive Wakeup", "subagent", "MCP", "Skills Engine"]
+        case .xcode:
+            return isRussian
+                ? ["Swift 6", "Concurrency", "@Sendable", "SwiftData", "ModelContainer", "#Preview", "Instruments", "Time Profiler", "акторы", "изоляция актора"]
+                : ["Swift 6", "Concurrency", "@Sendable", "SwiftData", "ModelContainer", "#Preview", "Instruments", "Time Profiler", "Apple Neural Engine"]
+        case .windsurf:
+            return isRussian
+                ? ["Cascade", "Supercomplete", "Memories", "Live Terminal", "Codeium", "каскад", "суперкомплит", "вайб-кодинг"]
+                : ["Cascade", "Supercomplete", "Memories", "Live Terminal", "Codeium", "multi-file edits", "vibe coding"]
+        case .terminal:
+            return isRussian
+                ? ["git worktree", "git rebase", "docker compose", "zsh", "tmux", "fzf", "zoxide", "ворктри", "ребейз", "докер компоуз"]
+                : ["git worktree", "git rebase", "docker compose", "zsh", "tmux", "fzf", "zoxide", "ripgrep", "ssh", "sudo"]
+        case .genericCoding, .none:
+            return []
+        }
+    }
 
     // MARK: - Multilingual Subtitle & Outro Hallucination Matrix
 
@@ -312,27 +476,40 @@ public final class AetherContextEngine: @unchecked Sendable {
             return .claudeCode
         }
 
-        // 2. Cursor IDE
-        if bundleId.contains("cursor") || nameLower.contains("cursor") || windowTitleLower.contains("cursor") {
+        // 2. Google Antigravity & Codex CLI
+        if bundleId.contains("antigravity") ||
+           bundleId.contains("codex") ||
+           nameLower.contains("antigravity") ||
+           nameLower.contains("codex") ||
+           windowTitleLower.contains("antigravity") ||
+           windowTitleLower.contains("codex") {
+            return .antigravity
+        }
+
+        // 3. Cursor IDE
+        if bundleId.contains("cursor") || nameLower.contains("cursor") || windowTitleLower.contains("cursor") || docFileNameLower.contains("cursorrules") {
             return .cursor
         }
 
-        // 3. Apple Xcode
-        if bundleId.contains("xcode") || nameLower.contains("xcode") {
+        // 4. Windsurf (Codeium)
+        if bundleId.contains("windsurf") || bundleId.contains("codeium") || nameLower.contains("windsurf") || windowTitleLower.contains("windsurf") {
+            return .windsurf
+        }
+
+        // 5. Apple Xcode
+        if bundleId.contains("xcode") || nameLower.contains("xcode") || windowTitleLower.contains("xcode") {
             return .xcode
         }
 
-        // 4. Terminal / Shell
+        // 6. Terminal / Shell
         if isTerminalEmulator {
             return .terminal
         }
 
-        // 5. Generic Code Editors / IDEs
+        // 7. Generic Code Editors / IDEs
         if bundleId.contains("vscode") ||
-            bundleId.contains("windsurf") ||
             bundleId.contains("trae") ||
             bundleId.contains("zed") ||
-            bundleId.contains("codex") ||
             bundleId.contains("fleet") ||
             bundleId.contains("intellij") ||
             bundleId.contains("pycharm") ||
@@ -341,10 +518,8 @@ public final class AetherContextEngine: @unchecked Sendable {
             bundleId.contains("sublime") ||
             bundleId.contains("android.studio") ||
             nameLower.contains("vscode") ||
-            nameLower.contains("windsurf") ||
             nameLower.contains("trae") ||
-            nameLower.contains("zed") ||
-            nameLower.contains("codex") {
+            nameLower.contains("zed") {
             return .genericCoding
         }
 
@@ -355,28 +530,21 @@ public final class AetherContextEngine: @unchecked Sendable {
     public func detectDetailedAppContext(targetApp: NSRunningApplication? = nil) -> AppContextDetails {
         let (appName, domain, bundleId, icon) = detectActiveAppDomain(targetApp: targetApp)
         let codingProfile = detectCodingAgentProfile(targetApp: targetApp)
-        let isClaudeCode = (codingProfile == .claudeCode)
+        let isSpecialized = (codingProfile != .none && codingProfile != .genericCoding)
 
-        let uniqueFeatures: [(name: String, desc: String, icon: String)]
-        let specializedVocab: [String]
-
-        if isClaudeCode {
-            uniqueFeatures = Self.claudeCodeUniqueFeatures
-            specializedVocab = Self.claudeCodeVocabulary
-        } else {
-            uniqueFeatures = []
-            specializedVocab = domainSpecificVocabulary(for: domain, targetApp: targetApp)
-        }
+        let features = Self.uniqueFeatures(for: codingProfile)
+        let specializedVocab = isSpecialized ? Self.specializedVocabulary(for: codingProfile) : domainSpecificVocabulary(for: domain, targetApp: targetApp)
 
         return AppContextDetails(
-            name: isClaudeCode ? "Claude Code" : appName,
+            name: isSpecialized ? codingProfile.displayName : appName,
             domain: domain,
             bundleId: bundleId,
             icon: icon,
             codingProfile: codingProfile,
-            isClaudeCode: isClaudeCode,
-            uniqueFeatures: uniqueFeatures,
-            specializedVocabulary: specializedVocab
+            isSpecializedAgent: isSpecialized,
+            uniqueFeatures: features,
+            specializedVocabulary: specializedVocab,
+            isClaudeCode: (codingProfile == .claudeCode)
         )
     }
 
@@ -390,11 +558,17 @@ public final class AetherContextEngine: @unchecked Sendable {
         let nameLower = name.lowercased()
         let icon: NSImage? = app?.icon ?? (app?.bundleURL != nil ? NSWorkspace.shared.icon(forFile: app!.bundleURL!.path) : nil)
 
-        // 0. Specialized Coding Agent: Claude Code
-        if detectCodingAgentProfile(targetApp: app) == .claudeCode {
-            let claudeIcon = icon ?? NSImage(systemSymbolName: "terminal.fill", accessibilityDescription: nil)
-            let resolvedName = nameLower.contains("claude") ? name : "Claude Code (\(name))"
-            return (resolvedName, .ideAndCoding, bundleId.isEmpty ? "com.anthropic.claude-code" : bundleId, claudeIcon)
+        // 0. Specialized Coding Agents
+        let profile = detectCodingAgentProfile(targetApp: app)
+        if profile != .none && profile != .genericCoding {
+            let agentIcon = icon ?? NSImage(systemSymbolName: profile.icon, accessibilityDescription: nil)
+            let resolvedName: String
+            if profile == .claudeCode {
+                resolvedName = nameLower.contains("claude") ? name : "Claude Code (\(name))"
+            } else {
+                resolvedName = profile.displayName
+            }
+            return (resolvedName, .ideAndCoding, bundleId.isEmpty ? "dev.agent.\(profile.rawValue)" : bundleId, agentIcon)
         }
 
         // 1. IDEs, Terminals, Code Editors & Codex (Vibe Coding)
@@ -607,9 +781,11 @@ public final class AetherContextEngine: @unchecked Sendable {
 
     /// Specialized vocabulary injected to prime Whisper and Apple Speech for the active domain
     public func domainSpecificVocabulary(for domain: AppDomain, targetApp: NSRunningApplication? = nil) -> [String] {
-        if detectCodingAgentProfile(targetApp: targetApp) == .claudeCode {
-            return Self.claudeCodeVocabulary + [
-                "вайб-кодинг", "вайбкодинг", "vibe coding", "Codex", "Antigravity", "TypeScript", "SwiftUI",
+        let profile = detectCodingAgentProfile(targetApp: targetApp)
+        let agentVocab = Self.specializedVocabulary(for: profile)
+        if !agentVocab.isEmpty {
+            return agentVocab + [
+                "вайб-кодинг", "вайбкодинг", "vibe coding", "TypeScript", "SwiftUI",
                 "SwiftData", "Rust", "Next.js", "TailwindCSS", "PostgreSQL", "Docker", "API", "SDK", "JSON",
                 "regex", "refactor", "pull request", "commit", "merge", "branch", "async", "await", "deploy", "bugs"
             ]
@@ -800,12 +976,13 @@ public final class AetherContextEngine: @unchecked Sendable {
 
     /// Constructs domain-specific contextual priming hints
     public func domainContextPrompt(for domain: AppDomain, language: String?, targetApp: NSRunningApplication? = nil) -> String {
-        let isClaudeCode = detectCodingAgentProfile(targetApp: targetApp) == .claudeCode
+        let profile = detectCodingAgentProfile(targetApp: targetApp)
         let lang = (language ?? "").lowercased()
         let isRussianOnly = lang.starts(with: "ru")
         let isEnglishOnly = lang.starts(with: "en")
 
-        if isClaudeCode {
+        switch profile {
+        case .claudeCode:
             if isRussianOnly {
                 return "Claude Code агент разработки: голосовые команды и директивы в повелительном наклонении (сделай, создай, добавь, напиши, удали, пофикси, запусти, проверь, обнови, настрой, сожми контекст, проверь косты, запусти субагента, сделай ревью, создай PR, задеплой), специализированные команды и термины (/compact, CLAUDE.md, /cost, /review, /pr, MCP сервер, субагенты, reasoning tokens, prompt caching, vibe coding)."
             } else if isEnglishOnly {
@@ -813,6 +990,54 @@ public final class AetherContextEngine: @unchecked Sendable {
             } else {
                 return "Claude Code AI coding agent directives (Russian & English): /compact, CLAUDE.md, /cost, /review, /pr, MCP, subagent, reasoning tokens, prompt caching, vibe coding, сделай, создай, добавь, напиши, удали, пофикси, запусти, проверь, сожми контекст, проверь косты."
             }
+
+        case .cursor:
+            if isRussianOnly {
+                return "Cursor IDE и Composer: голосовые директивы (открой композер, примени диф, прими изменения, отклони, примени ко всем, добавь в контекст), символы и фичи (Composer, .cursorrules, @Files, @Docs, @Web, @Git, Cursor Tab, Shadow Workspace, Notepads, vibe coding)."
+            } else if isEnglishOnly {
+                return "Cursor IDE & Composer directives: imperative commands (open composer, apply diff, accept all, reject, add to context), context symbols and features (Composer, .cursorrules, @Files, @Docs, @Web, @Git, Cursor Tab, Shadow Workspace, Notepads, vibe coding)."
+            } else {
+                return "Cursor IDE & Composer context (Russian & English): Composer, .cursorrules, @Files, @Docs, @Web, Apply Diff, Accept All, Cursor Tab, Notepads, открой композер, примени диф, прими изменения."
+            }
+
+        case .antigravity:
+            if isRussianOnly {
+                return "Antigravity & Codex автономный парный агент: голосовые директивы (запусти субагента, проверь браузер, создай артефакт, примени скилл, запусти команду, пофикси код), инструменты (Browser Subagent, Artifacts Engine, SKILL.md, Reactive Wakeup, MCP servers, replace_file_content, run_command, vibe coding)."
+            } else if isEnglishOnly {
+                return "Antigravity & Codex autonomous pair programmer: imperative commands (launch subagent, check browser, generate artifact, apply skill, run command, fix code), agent features (Browser Subagent, Artifacts Engine, SKILL.md, Reactive Wakeup, MCP servers, replace_file_content, run_command, vibe coding)."
+            } else {
+                return "Antigravity & Codex context (Russian & English): Browser Subagent, Artifacts, SKILL.md, Reactive Wakeup, MCP, subagent, run_command, replace_file_content, субагент, браузер агент, артефакты."
+            }
+
+        case .xcode:
+            if isRussianOnly {
+                return "Apple Xcode и Swift разработка: голосовые директивы (собери проект, запусти тесты, открой превью, проверь профайлер, пофикси утечки), термины (SwiftUI, SwiftData, Swift 6, Concurrency, Sendable, Actor, MainActor, ModelContainer, #Preview, Instruments, Time Profiler, CoreML, Apple Neural Engine, TestFlight, нотаризация)."
+            } else if isEnglishOnly {
+                return "Apple Xcode & Swift native development: commands (build project, run tests, open preview, profile instruments, fix leaks), architecture terms (SwiftUI, SwiftData, Swift 6, Concurrency, Sendable, Actor, MainActor, ModelContainer, #Preview, Instruments, Time Profiler, CoreML, Apple Neural Engine, TestFlight, Notarization)."
+            } else {
+                return "Xcode & Swift native development (Russian & English): SwiftUI, SwiftData, Swift 6, Concurrency, Sendable, Actor, ModelContainer, #Preview, Instruments, Time Profiler, акторы, изоляция актора, нотаризация."
+            }
+
+        case .windsurf:
+            if isRussianOnly {
+                return "Windsurf и Cascade агент разработки: голосовые команды (запусти каскад, примени правки, обнови память проекта), фичи (Cascade Agent, Supercomplete, Memories, Live Terminal Sync, Codeium, vibe coding)."
+            } else if isEnglishOnly {
+                return "Windsurf & Cascade collaborative agent: commands (run cascade, apply changes, update memories), features (Cascade Agent, Supercomplete, Memories, Live Terminal Sync, Codeium, vibe coding)."
+            } else {
+                return "Windsurf & Cascade agent context (Russian & English): Cascade Agent, Supercomplete, Memories, Live Terminal, Codeium, каскад, суперкомплит, vibe coding."
+            }
+
+        case .terminal:
+            if isRussianOnly {
+                return "Терминал, командная строка и DevOps: голосовые команды (сделай ребейз, создай ворктри, запусти докер, проверь процессы, открой сессию), утилиты (Zsh, Ghostty, iTerm, Warp, Tmux, git worktree, git rebase, docker compose, fzf, zoxide, ripgrep, sudo, ssh, brew)."
+            } else if isEnglishOnly {
+                return "Terminal, Shell & DevOps CLI: commands (rebase branch, create worktree, run docker, check processes, open session), CLI tools (Zsh, Ghostty, iTerm, Warp, Tmux, git worktree, git rebase, docker compose, fzf, zoxide, ripgrep, sudo, ssh, brew)."
+            } else {
+                return "Terminal & Shell DevOps context (Russian & English): git worktree, git rebase, docker compose, Zsh, Ghostty, Warp, Tmux, fzf, zoxide, ripgrep, ребейз, ворктри, докер компоуз."
+            }
+
+        case .genericCoding, .none:
+            break
         }
 
         switch domain {

@@ -5551,72 +5551,88 @@ struct VocabularySettingsView: View {
                         .lineSpacing(2)
 
                     let liveDetails = AetherContextEngine.shared.detectDetailedAppContext(targetApp: appState.targetRunningApplication)
-                    let isPreviewClaude = previewAppContextProfile == .claudeCode
-                    let isClaudeActive = liveDetails.isClaudeCode || isPreviewClaude
+                    let activeProfile: AetherContextEngine.CodingAgentProfile = previewAppContextProfile ?? (liveDetails.isSpecializedAgent ? liveDetails.codingProfile : .none)
+                    let isSpecializedActive = activeProfile != .none && activeProfile != .genericCoding
+                    let activeThemeColor = profileColor(activeProfile)
 
                     // Mode Selector / Live Status Bar
-                    HStack(spacing: 8) {
-                        Button(action: { previewAppContextProfile = nil }) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 7) {
+                                Button(action: { previewAppContextProfile = nil }) {
+                                    HStack(spacing: 5) {
+                                        Circle()
+                                            .fill(previewAppContextProfile == nil ? Color.green : Color.secondary.opacity(0.5))
+                                            .frame(width: 6, height: 6)
+                                        Text(appState.l("Live Active App"))
+                                            .font(.system(size: 11, weight: previewAppContextProfile == nil ? .bold : .medium, design: .rounded))
+                                    }
+                                    .padding(.horizontal, 9)
+                                    .padding(.vertical, 5)
+                                    .background(previewAppContextProfile == nil ? Color.accentColor.opacity(0.15) : Color.primary.opacity(0.04))
+                                    .foregroundStyle(previewAppContextProfile == nil ? Color.accentColor : Color.secondary)
+                                    .cornerRadius(7)
+                                }
+                                .buttonStyle(.plain)
+
+                                ForEach([
+                                    AetherContextEngine.CodingAgentProfile.claudeCode,
+                                    .cursor,
+                                    .antigravity,
+                                    .xcode,
+                                    .windsurf,
+                                    .terminal
+                                ], id: \.self) { profile in
+                                    let isSelected = previewAppContextProfile == profile
+                                    let pColor = profileColor(profile)
+                                    Button(action: {
+                                        previewAppContextProfile = (previewAppContextProfile == profile) ? nil : profile
+                                    }) {
+                                        HStack(spacing: 5) {
+                                            Image(systemName: profile.icon)
+                                                .font(.system(size: 10))
+                                            Text(profile.displayName)
+                                                .font(.system(size: 11, weight: isSelected ? .bold : .medium, design: .rounded))
+                                        }
+                                        .padding(.horizontal, 9)
+                                        .padding(.vertical, 5)
+                                        .background(isSelected ? pColor.opacity(0.18) : Color.primary.opacity(0.04))
+                                        .foregroundStyle(isSelected ? pColor : Color.secondary)
+                                        .cornerRadius(7)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                            .padding(.vertical, 2)
+                        }
+
+                        if previewAppContextProfile == nil && liveDetails.isSpecializedAgent {
                             HStack(spacing: 5) {
                                 Circle()
-                                    .fill(previewAppContextProfile == nil ? Color.green : Color.secondary.opacity(0.5))
+                                    .fill(profileColor(liveDetails.codingProfile))
                                     .frame(width: 6, height: 6)
-                                Text(appState.l("Live Active App"))
-                                    .font(.system(size: 11, weight: previewAppContextProfile == nil ? .bold : .medium, design: .rounded))
+                                Text(String(format: appState.l("%@ Agent Detected & Active"), liveDetails.codingProfile.displayName))
+                                    .font(.system(size: 10.5, weight: .bold, design: .rounded))
+                                    .foregroundStyle(profileColor(liveDetails.codingProfile))
+                                Spacer()
                             }
                             .padding(.horizontal, 9)
-                            .padding(.vertical, 5)
-                            .background(previewAppContextProfile == nil ? Color.accentColor.opacity(0.15) : Color.primary.opacity(0.04))
-                            .foregroundStyle(previewAppContextProfile == nil ? Color.accentColor : Color.secondary)
-                            .cornerRadius(7)
-                        }
-                        .buttonStyle(.plain)
-
-                        Button(action: {
-                            previewAppContextProfile = (previewAppContextProfile == .claudeCode) ? nil : .claudeCode
-                        }) {
-                            HStack(spacing: 5) {
-                                Image(systemName: "terminal.fill")
-                                    .font(.system(size: 10))
-                                Text(appState.l("Claude Code Specialization"))
-                                    .font(.system(size: 11, weight: isPreviewClaude ? .bold : .medium, design: .rounded))
-                            }
-                            .padding(.horizontal, 9)
-                            .padding(.vertical, 5)
-                            .background(isPreviewClaude ? Color.orange.opacity(0.18) : Color.primary.opacity(0.04))
-                            .foregroundStyle(isPreviewClaude ? Color.orange : Color.secondary)
-                            .cornerRadius(7)
-                        }
-                        .buttonStyle(.plain)
-
-                        Spacer()
-
-                        if liveDetails.isClaudeCode {
-                            HStack(spacing: 4) {
-                                Circle()
-                                    .fill(Color.orange)
-                                    .frame(width: 6, height: 6)
-                                Text(appState.l("Claude Agent Active"))
-                                    .font(.system(size: 10, weight: .bold, design: .rounded))
-                                    .foregroundStyle(Color.orange)
-                            }
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 3)
-                            .background(Color.orange.opacity(0.12))
+                            .padding(.vertical, 4)
+                            .background(profileColor(liveDetails.codingProfile).opacity(0.1))
                             .cornerRadius(6)
                         }
                     }
 
-                    // Live Active App Detection Card
+                    // Live / Simulated Active App Detection Card
                     HStack(spacing: 12) {
-                        if isPreviewClaude && !liveDetails.isClaudeCode {
+                        if previewAppContextProfile != nil {
                             ZStack {
                                 Circle()
-                                    .fill(Color.orange.opacity(0.15))
+                                    .fill(activeThemeColor.opacity(0.15))
                                     .frame(width: 34, height: 34)
-                                Image(systemName: "terminal.fill")
+                                Image(systemName: activeProfile.icon)
                                     .font(.system(size: 16, weight: .semibold))
-                                    .foregroundStyle(Color.orange)
+                                    .foregroundStyle(activeThemeColor)
                             }
                         } else if let icon = liveDetails.icon {
                             Image(nsImage: icon)
@@ -5636,12 +5652,12 @@ struct VocabularySettingsView: View {
                         }
 
                         VStack(alignment: .leading, spacing: 3) {
-                            Text(isPreviewClaude && !liveDetails.isClaudeCode ? appState.l("Simulated App Context") : appState.l("Active Application Detected"))
+                            Text(previewAppContextProfile != nil ? appState.l("Simulated App Context") : appState.l("Active Application Detected"))
                                 .font(.system(size: 10, weight: .bold, design: .rounded))
                                 .foregroundStyle(.secondary)
                             
                             HStack(spacing: 6) {
-                                Text(isPreviewClaude && !liveDetails.isClaudeCode ? "Claude Code (CLI)" : liveDetails.name)
+                                Text(previewAppContextProfile != nil ? activeProfile.displayName : liveDetails.name)
                                     .font(.system(size: 13, weight: .bold, design: .rounded))
                                     .foregroundStyle(.primary)
                                     .lineLimit(1)
@@ -5649,7 +5665,7 @@ struct VocabularySettingsView: View {
                                 Text("•")
                                     .foregroundStyle(.secondary)
 
-                                Text(appState.l(liveDetails.domain.displayName))
+                                Text(appState.l(previewAppContextProfile != nil ? "IDE & Coding" : liveDetails.domain.displayName))
                                     .font(.system(size: 11, weight: .semibold, design: .rounded))
                                     .padding(.horizontal, 7)
                                     .padding(.vertical, 2.5)
@@ -5658,13 +5674,13 @@ struct VocabularySettingsView: View {
                                     .cornerRadius(6)
                                     .lineLimit(1)
 
-                                if isClaudeActive {
+                                if isSpecializedActive {
                                     Text(appState.l("Agent Specialized"))
                                         .font(.system(size: 10, weight: .bold, design: .monospaced))
                                         .padding(.horizontal, 6)
                                         .padding(.vertical, 2)
-                                        .background(Color.orange.opacity(0.15))
-                                        .foregroundStyle(Color.orange)
+                                        .background(activeThemeColor.opacity(0.15))
+                                        .foregroundStyle(activeThemeColor)
                                         .cornerRadius(5)
                                 }
                             }
@@ -5677,17 +5693,17 @@ struct VocabularySettingsView: View {
                     .cornerRadius(12)
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
-                            .strokeBorder(isClaudeActive ? Color.orange.opacity(0.3) : Color.primary.opacity(0.08), lineWidth: 1)
+                            .strokeBorder(isSpecializedActive ? activeThemeColor.opacity(0.3) : Color.primary.opacity(0.08), lineWidth: 1)
                     )
 
-                    // CLAUDE CODE DEEP SPECIALIZATION CARD
-                    if isClaudeActive {
+                    // SPECIALIZED CODING AGENT DEEP SPECIALIZATION CARD
+                    if isSpecializedActive {
                         VStack(alignment: .leading, spacing: 12) {
                             HStack(spacing: 8) {
                                 Image(systemName: "sparkles")
                                     .font(.system(size: 13, weight: .bold))
-                                    .foregroundStyle(Color.orange)
-                                Text(appState.l("Claude Code Deep Specialization"))
+                                    .foregroundStyle(activeThemeColor)
+                                Text(appState.l(specializationTitle(for: activeProfile)))
                                     .font(.system(size: 12.5, weight: .bold, design: .rounded))
                                     .foregroundStyle(.primary)
 
@@ -5698,76 +5714,78 @@ struct VocabularySettingsView: View {
                                     .foregroundStyle(.secondary)
                             }
 
-                            Text(appState.l("Tuned specifically for Claude Code agent workflows, acoustic phonetics, and unique capabilities that exist nowhere else in traditional IDEs."))
+                            Text(appState.l(activeProfile.tagline))
                                 .font(.system(size: 11.5))
                                 .foregroundStyle(.secondary)
                                 .lineSpacing(2)
 
                             // Features Grid
-                            VStack(spacing: 7) {
-                                ForEach(AetherContextEngine.claudeCodeUniqueFeatures, id: \.name) { feature in
-                                    HStack(spacing: 10) {
-                                        ZStack {
-                                            RoundedRectangle(cornerRadius: 6)
-                                                .fill(Color.orange.opacity(0.12))
-                                                .frame(width: 26, height: 26)
-                                            Image(systemName: feature.icon)
-                                                .font(.system(size: 11, weight: .semibold))
-                                                .foregroundStyle(Color.orange)
+                            let features = AetherContextEngine.uniqueFeatures(for: activeProfile)
+                            if !features.isEmpty {
+                                VStack(spacing: 7) {
+                                    ForEach(features, id: \.name) { feature in
+                                        HStack(spacing: 10) {
+                                            ZStack {
+                                                RoundedRectangle(cornerRadius: 6)
+                                                    .fill(activeThemeColor.opacity(0.12))
+                                                    .frame(width: 26, height: 26)
+                                                Image(systemName: feature.icon)
+                                                    .font(.system(size: 11, weight: .semibold))
+                                                    .foregroundStyle(activeThemeColor)
+                                            }
+
+                                            VStack(alignment: .leading, spacing: 1) {
+                                                Text(feature.name)
+                                                    .font(.system(size: 11.5, weight: .bold, design: .monospaced))
+                                                    .foregroundStyle(.primary)
+
+                                                Text(appState.l(feature.desc))
+                                                    .font(.system(size: 10.5))
+                                                    .foregroundStyle(.secondary)
+                                                    .lineLimit(1)
+                                            }
+
+                                            Spacer()
                                         }
-
-                                        VStack(alignment: .leading, spacing: 1) {
-                                            Text(feature.name)
-                                                .font(.system(size: 11.5, weight: .bold, design: .monospaced))
-                                                .foregroundStyle(.primary)
-
-                                            Text(appState.l(feature.desc))
-                                                .font(.system(size: 10.5))
-                                                .foregroundStyle(.secondary)
-                                                .lineLimit(1)
-                                        }
-
-                                        Spacer()
+                                        .padding(.horizontal, 9)
+                                        .padding(.vertical, 6)
+                                        .background(Color.primary.opacity(0.02))
+                                        .cornerRadius(8)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .strokeBorder(Color.primary.opacity(0.05), lineWidth: 1)
+                                        )
                                     }
-                                    .padding(.horizontal, 9)
-                                    .padding(.vertical, 6)
-                                    .background(Color.primary.opacity(0.02))
-                                    .cornerRadius(8)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .strokeBorder(Color.primary.opacity(0.05), lineWidth: 1)
-                                    )
                                 }
                             }
 
                             // Primed Acoustic Vocabulary Chips
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(appState.l("Acoustic Primed Tokens"))
-                                    .font(.system(size: 10.5, weight: .bold, design: .rounded))
-                                    .foregroundStyle(.secondary)
+                            let isRussianUI = appState.selectedUILanguage == "ru" || (appState.selectedUILanguage == "auto" && Locale.current.language.languageCode?.identifier == "ru")
+                            let primedChips = AetherContextEngine.primedChips(for: activeProfile, isRussian: isRussianUI)
+                            if !primedChips.isEmpty {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text(appState.l("Acoustic Primed Tokens"))
+                                        .font(.system(size: 10.5, weight: .bold, design: .rounded))
+                                        .foregroundStyle(.secondary)
 
-                                let isRussianUI = appState.selectedUILanguage == "ru" || (appState.selectedUILanguage == "auto" && Locale.current.language.languageCode?.identifier == "ru")
-                                let primedChips: [String] = isRussianUI
-                                    ? ["/compact", "CLAUDE.md", "/cost", "/review", "/pr", "MCP", "субагенты", "Extended Thinking", "вайб-кодинг", "сожми контекст", "проверь косты"]
-                                    : ["/compact", "CLAUDE.md", "/cost", "/review", "/pr", "MCP", "subagents", "Extended Thinking", "vibe coding", "compact context", "cost analysis"]
-
-                                FlowLayout(spacing: 6) {
-                                    ForEach(primedChips, id: \.self) { chip in
-                                        Text(chip)
-                                            .font(.system(size: 10.5, weight: .medium, design: .monospaced))
-                                            .padding(.horizontal, 7)
-                                            .padding(.vertical, 3)
-                                            .background(Color.orange.opacity(0.1))
-                                            .foregroundStyle(Color.primary.opacity(0.9))
-                                            .cornerRadius(5)
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 5)
-                                                    .strokeBorder(Color.orange.opacity(0.25), lineWidth: 0.8)
-                                            )
+                                    FlowLayout(spacing: 6) {
+                                        ForEach(primedChips, id: \.self) { chip in
+                                            Text(chip)
+                                                .font(.system(size: 10.5, weight: .medium, design: .monospaced))
+                                                .padding(.horizontal, 7)
+                                                .padding(.vertical, 3)
+                                                .background(activeThemeColor.opacity(0.1))
+                                                .foregroundStyle(Color.primary.opacity(0.9))
+                                                .cornerRadius(5)
+                                                .overlay(
+                                                    RoundedRectangle(cornerRadius: 5)
+                                                        .strokeBorder(activeThemeColor.opacity(0.25), lineWidth: 0.8)
+                                                )
+                                        }
                                     }
                                 }
+                                .padding(.top, 4)
                             }
-                            .padding(.top, 4)
 
                             HStack(alignment: .top, spacing: 6) {
                                 Image(systemName: "info.circle")
@@ -5775,7 +5793,9 @@ struct VocabularySettingsView: View {
                                     .foregroundStyle(.secondary)
                                     .padding(.top, 1)
 
-                                Text(appState.l("When dictating into Claude Code, Scribe primes Whisper & Speech with these exact tokens, eliminating phonetic misrecognitions for agent directives and slash commands."))
+                                Text(isRussianUI
+                                     ? "При диктовке в \(activeProfile.displayName) Scribe подает в модель распознавания эти токены, исключая ошибки в слэш-командах и голосовых директивах агенту."
+                                     : "When dictating into \(activeProfile.displayName), Scribe primes Whisper & Speech with these exact tokens, eliminating phonetic misrecognitions for agent directives and slash commands.")
                                     .font(.system(size: 10.5))
                                     .foregroundStyle(.secondary)
                                     .fixedSize(horizontal: false, vertical: true)
@@ -5783,11 +5803,11 @@ struct VocabularySettingsView: View {
                             .padding(.top, 2)
                         }
                         .padding(13)
-                        .background(Color.orange.opacity(0.04))
+                        .background(activeThemeColor.opacity(0.04))
                         .cornerRadius(12)
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
-                                .strokeBorder(Color.orange.opacity(0.2), lineWidth: 1)
+                                .strokeBorder(activeThemeColor.opacity(0.2), lineWidth: 1)
                         )
                     }
                 }
@@ -6235,6 +6255,31 @@ struct VocabularySettingsView: View {
         }
         .sheet(isPresented: $showingContributionPromptModal) {
             VocabularyContributionPromptModalView()
+        }
+    }
+
+    private func profileColor(_ profile: AetherContextEngine.CodingAgentProfile) -> Color {
+        switch profile {
+        case .claudeCode: return .orange
+        case .cursor: return .indigo
+        case .antigravity: return .teal
+        case .xcode: return .blue
+        case .windsurf: return .cyan
+        case .terminal: return .green
+        case .genericCoding: return .accentColor
+        case .none: return .secondary
+        }
+    }
+
+    private func specializationTitle(for profile: AetherContextEngine.CodingAgentProfile) -> String {
+        switch profile {
+        case .claudeCode: return "Claude Code Deep Specialization"
+        case .cursor: return "Cursor Deep Specialization"
+        case .antigravity: return "Antigravity & Codex Deep Specialization"
+        case .xcode: return "Xcode Deep Specialization"
+        case .windsurf: return "Windsurf Deep Specialization"
+        case .terminal: return "Terminal & Shell Deep Specialization"
+        default: return "Agent Deep Specialization"
         }
     }
 }
