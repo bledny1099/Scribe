@@ -5,6 +5,23 @@ All notable changes to Scribe will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.10.2] - 2026-10-07
+
+## Added
+- Backend coding agent profiling for Claude Code, Cursor, Antigravity, Xcode, Windsurf, and Terminal environments.
+- Specialized acoustic priming prompts and developer token biasing tailored to active agent workflows.
+
+## Changed
+- Reverted Dynamic App Context settings view to the clean minimal layout showing frontmost application and domain badge.
+- Optimized Levenshtein distance calculations with a flat two-row memory buffer in UserFrequencyDictionary.
+- Precompiled compound token regular expressions in PersonalVocabularyMonitor and UserGrammarProfile.
+
+## Fixed
+- Fixed potential application stalls by adding 0.25s messaging timeouts to Accessibility IPC calls on active windows and focused elements.
+- Fixed background thread Combine mutation warnings by dispatching @Published property updates to the main queue in PersonalVocabularyMonitor.
+- Fixed unsafe force-casts when copying AXUIElement attributes from deactivating applications.
+- Fixed document URL resolution for percent-encoded file paths in window context inspection.
+
 ## [2.10.1] - 2026-10-01
 
 ## Added
