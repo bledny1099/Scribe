@@ -285,26 +285,23 @@ public final class UserFrequencyDictionary: @unchecked Sendable {
     }
 
     private func levenshtein(_ s1: String, _ s2: String) -> Int {
+        if s1 == s2 { return 0 }
         let a = Array(s1)
         let b = Array(s2)
-        var dist = [[Int]](repeating: [Int](repeating: 0, count: b.count + 1), count: a.count + 1)
+        if a.isEmpty { return b.count }
+        if b.isEmpty { return a.count }
 
-        for i in 0...a.count { dist[i][0] = i }
-        for j in 0...b.count { dist[0][j] = j }
+        var v0 = Array(0...b.count)
+        var v1 = [Int](repeating: 0, count: b.count + 1)
 
-        for i in 1...a.count {
-            for j in 1...b.count {
-                if a[i - 1] == b[j - 1] {
-                    dist[i][j] = dist[i - 1][j - 1]
-                } else {
-                    dist[i][j] = min(
-                        dist[i - 1][j] + 1,
-                        dist[i][j - 1] + 1,
-                        dist[i - 1][j - 1] + 1
-                    )
-                }
+        for i in 0..<a.count {
+            v1[0] = i + 1
+            for j in 0..<b.count {
+                let cost = (a[i] == b[j]) ? 0 : 1
+                v1[j + 1] = min(v1[j] + 1, v0[j + 1] + 1, v0[j] + cost)
             }
+            v0 = v1
         }
-        return dist[a.count][b.count]
+        return v0[b.count]
     }
 }

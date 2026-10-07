@@ -34,6 +34,11 @@ public final class UserGrammarProfile: @unchecked Sendable {
         "write", "show", "generate", "look", "tell", "translate", "send", "find"
     ]
 
+    private static let tokenRegex: NSRegularExpression? = try? NSRegularExpression(
+        pattern: #"(?<![\p{L}\p{N}])[\p{L}\p{N}]+(?:[-_.][\p{L}\p{N}]+)*(?![\p{L}\p{N}])"#,
+        options: []
+    )
+
     private init() {
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         let scribeDir = appSupport.appendingPathComponent("Scribe", isDirectory: true)
@@ -51,10 +56,7 @@ public final class UserGrammarProfile: @unchecked Sendable {
         guard !trimmed.isEmpty else { return }
 
         // Split into words while keeping compound terms (Next.js, AI-стартап) intact
-        let tokenRegex = try? NSRegularExpression(
-            pattern: #"(?<![\p{L}\p{N}])[\p{L}\p{N}]+(?:[-_.][\p{L}\p{N}]+)*(?![\p{L}\p{N}])"#,
-            options: []
-        )
+        let tokenRegex = Self.tokenRegex
         let nsRange = NSRange(location: 0, length: trimmed.utf16.count)
         let matches = tokenRegex?.matches(in: trimmed, options: [], range: nsRange) ?? []
         let tokens: [String]

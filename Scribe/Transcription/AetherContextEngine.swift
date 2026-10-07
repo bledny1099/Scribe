@@ -127,95 +127,7 @@ public final class AetherContextEngine: @unchecked Sendable {
             case .none: return "macwindow"
             }
         }
-
-        public var tagline: String {
-            switch self {
-            case .claudeCode:
-                return "Tuned specifically for Claude Code agent workflows, acoustic phonetics, and unique capabilities that exist nowhere else in traditional IDEs."
-            case .cursor:
-                return "Tuned specifically for Cursor Composer, semantic codebase indexing, and multi-file diff directives."
-            case .antigravity:
-                return "Tuned specifically for Antigravity & Codex autonomous subagents, artifacts generation, and browser automation."
-            case .xcode:
-                return "Tuned specifically for Swift 6 native development, actor isolation, SwiftUI canvas, and Apple Neural Engine."
-            case .windsurf:
-                return "Tuned specifically for Windsurf Cascade collaborative agent, Supercomplete, and multi-file flow."
-            case .terminal:
-                return "Tuned specifically for command line engineering, git worktrees, container daemons, and shell navigation."
-            case .genericCoding:
-                return "Tuned for general software engineering, git workflows, and cross-platform compilation."
-            case .none:
-                return "Standard system transcription with zero-hallucination lexical matching."
-            }
-        }
     }
-
-    public struct AppContextDetails: Sendable {
-        public let name: String
-        public let domain: AppDomain
-        public let bundleId: String
-        public let icon: NSImage?
-        public let codingProfile: CodingAgentProfile
-        public let isSpecializedAgent: Bool
-        public let uniqueFeatures: [(name: String, desc: String, icon: String)]
-        public let specializedVocabulary: [String]
-        public let isClaudeCode: Bool
-    }
-
-    // MARK: - Specialized Unique Agent Features (Nowhere else in IDEs)
-
-    public static let claudeCodeUniqueFeatures: [(name: String, desc: String, icon: String)] = [
-        ("/compact", "Context window compaction & conversation history summarization", "arrow.triangle.2.circlepath"),
-        ("CLAUDE.md", "Central project memory, architectural rules & style synchronization", "doc.badge.gearshape.fill"),
-        ("/cost", "Real-time token expense tracking & session budget analytics", "dollarsign.circle.fill"),
-        ("MCP Protocol", "Model Context Protocol tools, servers & dynamic resources", "network"),
-        ("Subagents", "Autonomous multi-agent orchestration, delegation & background tasks", "person.2.badge.gearshape.fill"),
-        ("/review & /pr", "Autonomous code review, diff verification & GitHub PR creation", "checkmark.seal.fill"),
-        ("Extended Thinking", "Dynamic reasoning token allocation & deep thought evaluation", "brain.head.profile")
-    ]
-
-    public static let cursorUniqueFeatures: [(name: String, desc: String, icon: String)] = [
-        ("Composer (Ctrl+I)", "Multi-file contextual diff generation, streaming edits & reject/accept control", "square.2.layers.3d"),
-        (".cursorrules", "Project-level system prompt, coding instructions & architectural guidelines", "doc.badge.gearshape.fill"),
-        ("@Symbols & Context", "Semantic codebase indexing with @Files, @Docs, @Web, @Git and @Code", "at"),
-        ("Cursor Tab", "Multi-token predictive autocomplete and next-edit code jump prediction", "arrow.right.to.line.compact"),
-        ("Shadow Workspace", "Background headless linter and compiler validation to prevent syntax bugs", "eye.trianglebadge.exclamationmark"),
-        ("Notepads", "Persistent cross-session context scratchpad for multi-task staging", "note.text")
-    ]
-
-    public static let antigravityUniqueFeatures: [(name: String, desc: String, icon: String)] = [
-        ("Browser Subagent", "Autonomous browser automation, DOM inspection & interactive WebP action recording", "globe.badge.chevron.backward"),
-        ("Artifacts Engine", "Interactive live artifacts with markdown reports, mermaid diagrams & carousels", "doc.text.image"),
-        ("Skills Architecture", "Modular SKILL.md on-demand instruction bundles with YAML frontmatter", "wrench.and.screwdriver.fill"),
-        ("Reactive Wakeup", "Zero-polling async task orchestration with automatic reactive wakeups", "bolt.badge.clock.fill"),
-        ("Multi-Agent Swarm", "One-shot autonomous subagent delegation with full trajectory transcripts", "person.3.sequence.fill"),
-        ("Dynamic Tools", "Dynamic tool registration and JSON Schema evaluation via MCP servers", "network")
-    ]
-
-    public static let xcodeUniqueFeatures: [(name: String, desc: String, icon: String)] = [
-        ("Swift 6 Concurrency", "Complete data race safety, actor isolation & @Sendable closures", "lock.shield.fill"),
-        ("SwiftData Engine", "Declarative schema management, @Model persistence & ModelContainer", "cylinder.split.1x2.fill"),
-        ("SwiftUI Canvas Previews", "Interactive live #Preview macros with dynamic traits and dark mode", "macwindow.on.rectangle"),
-        ("Time Profiler & Instruments", "Zero-overhead allocations tracking, leak analysis & thread profiling", "gauge.with.needle.fill"),
-        ("Apple Neural Engine & Metal", "CoreML MPSGraph execution, GPU shaders & low-latency neural inference", "cpu.fill"),
-        ("Xcode Cloud & TestFlight", "Continuous automated builds, codesigning & notarized distribution", "cloud.fill")
-    ]
-
-    public static let windsurfUniqueFeatures: [(name: String, desc: String, icon: String)] = [
-        ("Cascade Agent", "Real-time multi-file collaborative agent with interactive terminal execution", "water.waves"),
-        ("Supercomplete", "Multi-line intent prediction and code jumps across cursor positions", "wand.and.stars"),
-        ("Memories Engine", "Persistent user preference learning and codebase pattern retention", "brain"),
-        ("Live Terminal Sync", "Direct shell output monitoring and automated command generation", "terminal"),
-        ("Rules Engine", "Workspace-level constraints and project guidelines enforcement", "doc.badge.gearshape.fill")
-    ]
-
-    public static let terminalUniqueFeatures: [(name: String, desc: String, icon: String)] = [
-        ("AI Command Blocks", "Structured terminal block navigation, output isolation & AI explanation", "square.grid.3x1.below.line.grid.1x2"),
-        ("Worktree Isolation", "Parallel branch development via git worktrees without switching branches", "arrow.triangle.branch"),
-        ("Interactive Rebasing", "Git history rewriting, squash, fixup & automated bisect debugging", "arrow.triangle.merge"),
-        ("Container Daemons", "Multi-stage Docker compose orchestration, volume bindings & port bridges", "shippingbox.fill"),
-        ("Fuzzy Shell Navigation", "Interactive fzf searching, ripgrep parsing & zoxide smart jumping", "magnifyingglass")
-    ]
 
     // MARK: - Specialized Agent Vocabularies
 
@@ -267,18 +179,6 @@ public final class AetherContextEngine: @unchecked Sendable {
         "ворктри", "докер компоуз", "засквошь коммиты", "алиасы", "скрипт", "пайплайн", "процесс"
     ]
 
-    public static func uniqueFeatures(for profile: CodingAgentProfile) -> [(name: String, desc: String, icon: String)] {
-        switch profile {
-        case .claudeCode: return claudeCodeUniqueFeatures
-        case .cursor: return cursorUniqueFeatures
-        case .antigravity: return antigravityUniqueFeatures
-        case .xcode: return xcodeUniqueFeatures
-        case .windsurf: return windsurfUniqueFeatures
-        case .terminal: return terminalUniqueFeatures
-        case .genericCoding, .none: return []
-        }
-    }
-
     public static func specializedVocabulary(for profile: CodingAgentProfile) -> [String] {
         switch profile {
         case .claudeCode: return claudeCodeVocabulary
@@ -288,37 +188,6 @@ public final class AetherContextEngine: @unchecked Sendable {
         case .windsurf: return windsurfVocabulary
         case .terminal: return terminalVocabulary
         case .genericCoding, .none: return []
-        }
-    }
-
-    public static func primedChips(for profile: CodingAgentProfile, isRussian: Bool) -> [String] {
-        switch profile {
-        case .claudeCode:
-            return isRussian
-                ? ["/compact", "CLAUDE.md", "/cost", "/review", "/pr", "MCP", "субагенты", "Extended Thinking", "вайб-кодинг", "сожми контекст", "проверь косты"]
-                : ["/compact", "CLAUDE.md", "/cost", "/review", "/pr", "MCP", "subagents", "Extended Thinking", "vibe coding", "compact context", "cost analysis"]
-        case .cursor:
-            return isRussian
-                ? ["Composer", ".cursorrules", "@Files", "@Docs", "@Web", "Apply Diff", "Accept All", "Cursor Tab", "композер", "курсоррулс", "примени диф"]
-                : ["Composer", ".cursorrules", "@Files", "@Docs", "@Web", "Apply Diff", "Accept All", "Cursor Tab", "Shadow Workspace", "Notepads"]
-        case .antigravity:
-            return isRussian
-                ? ["Antigravity", "Codex CLI", "Browser Subagent", "Artifacts", "SKILL.md", "Reactive Wakeup", "субагент", "браузер агент", "артефакты", "MCP"]
-                : ["Antigravity", "Codex CLI", "Browser Subagent", "Artifacts", "SKILL.md", "Reactive Wakeup", "subagent", "MCP", "Skills Engine"]
-        case .xcode:
-            return isRussian
-                ? ["Swift 6", "Concurrency", "@Sendable", "SwiftData", "ModelContainer", "#Preview", "Instruments", "Time Profiler", "акторы", "изоляция актора"]
-                : ["Swift 6", "Concurrency", "@Sendable", "SwiftData", "ModelContainer", "#Preview", "Instruments", "Time Profiler", "Apple Neural Engine"]
-        case .windsurf:
-            return isRussian
-                ? ["Cascade", "Supercomplete", "Memories", "Live Terminal", "Codeium", "каскад", "суперкомплит", "вайб-кодинг"]
-                : ["Cascade", "Supercomplete", "Memories", "Live Terminal", "Codeium", "multi-file edits", "vibe coding"]
-        case .terminal:
-            return isRussian
-                ? ["git worktree", "git rebase", "docker compose", "zsh", "tmux", "fzf", "zoxide", "ворктри", "ребейз", "докер компоуз"]
-                : ["git worktree", "git rebase", "docker compose", "zsh", "tmux", "fzf", "zoxide", "ripgrep", "ssh", "sudo"]
-        case .genericCoding, .none:
-            return []
         }
     }
 
@@ -442,110 +311,90 @@ public final class AetherContextEngine: @unchecked Sendable {
 
     // MARK: - Specialized Coding Agent Profile Detection
 
+    private static let terminalBundleHints = ["terminal", "iterm", "warp", "ghostty", "kitty", "alacritty", "wezterm", "tabby", "hyper"]
+    private static let terminalNameHints = ["terminal", "iterm", "warp", "ghostty", "kitty", "alacritty", "wezterm"]
+    private static let browserBundleHints = ["safari", "chrome", "chromium", "firefox", "brave", "microsoft.edge", "orion", "opera", "vivaldi", "company.thebrowser", "zen-browser", "yandex.browser"]
+
+    private static func isTerminalEmulator(bundleId: String, nameLower: String) -> Bool {
+        terminalBundleHints.contains { bundleId.contains($0) } || terminalNameHints.contains { nameLower.contains($0) }
+    }
+
+    private static func isBrowser(bundleId: String, nameLower: String) -> Bool {
+        browserBundleHints.contains { bundleId.contains($0) } || nameLower == "arc"
+    }
+
     /// Detects whether the active application is a specialized coding agent like Claude Code, Cursor, Xcode, etc.
+    /// Window titles are only trusted inside terminals (CLI agents) so a browser tab titled "Cursor pricing"
+    /// or "Xcode docs" never switches the recognizer into an IDE profile.
     public func detectCodingAgentProfile(targetApp: NSRunningApplication? = nil) -> CodingAgentProfile {
         let app = targetApp ?? NSWorkspace.shared.frontmostApplication
         let bundleId = (app?.bundleIdentifier ?? "").lowercased()
         let nameLower = (app?.localizedName ?? "").lowercased()
 
-        let winContext = inspectActiveWindowContext(targetApp: app)
-        let windowTitleLower = (winContext.windowTitle ?? "").lowercased()
-        let docFileNameLower = (winContext.documentFileName ?? "").lowercased()
-
-        let isTerminalEmulator = bundleId.contains("terminal") ||
-            bundleId.contains("iterm") ||
-            bundleId.contains("warp") ||
-            bundleId.contains("ghostty") ||
-            bundleId.contains("kitty") ||
-            bundleId.contains("alacritty") ||
-            nameLower.contains("terminal") ||
-            nameLower.contains("iterm") ||
-            nameLower.contains("warp") ||
-            nameLower.contains("ghostty")
-
-        let isClaudeInContext = windowTitleLower.contains("claude") ||
-            docFileNameLower.contains("claude") ||
-            windowTitleLower.contains("claude.md") ||
-            docFileNameLower.contains("claude.md")
-
-        // 1. Claude Code (CLI inside terminal, dedicated desktop client, or active window)
-        if (bundleId.contains("anthropic") && (bundleId.contains("claude") || bundleId.contains("code"))) ||
-           (bundleId.contains("claude") && !bundleId.contains("icloud")) ||
-           (isTerminalEmulator && isClaudeInContext) ||
-           windowTitleLower.contains("claude code") {
-            return .claudeCode
+        if Self.isBrowser(bundleId: bundleId, nameLower: nameLower) {
+            return .none
         }
 
-        // 2. Google Antigravity & Codex CLI
-        if bundleId.contains("antigravity") ||
-           bundleId.contains("codex") ||
-           nameLower.contains("antigravity") ||
-           nameLower.contains("codex") ||
-           windowTitleLower.contains("antigravity") ||
-           windowTitleLower.contains("codex") {
+        let isTerminal = Self.isTerminalEmulator(bundleId: bundleId, nameLower: nameLower)
+
+        // Static bundle/name checks first: no Accessibility round-trip needed.
+        if bundleId.contains("antigravity") || nameLower.contains("antigravity") ||
+           bundleId.contains("codex") || nameLower.contains("codex") {
             return .antigravity
         }
-
-        // 3. Cursor IDE
-        if bundleId.contains("cursor") || nameLower.contains("cursor") || windowTitleLower.contains("cursor") || docFileNameLower.contains("cursorrules") {
+        if bundleId.contains("cursor") || nameLower == "cursor" {
             return .cursor
         }
-
-        // 4. Windsurf (Codeium)
-        if bundleId.contains("windsurf") || bundleId.contains("codeium") || nameLower.contains("windsurf") || windowTitleLower.contains("windsurf") {
+        if bundleId.contains("windsurf") || bundleId.contains("codeium") || nameLower.contains("windsurf") {
             return .windsurf
         }
-
-        // 5. Apple Xcode
-        if bundleId.contains("xcode") || nameLower.contains("xcode") || windowTitleLower.contains("xcode") {
+        if bundleId == "com.apple.dt.xcode" || nameLower == "xcode" {
             return .xcode
         }
 
-        // 6. Terminal / Shell
-        if isTerminalEmulator {
-            return .terminal
-        }
-
-        // 7. Generic Code Editors / IDEs
-        if bundleId.contains("vscode") ||
+        let isGenericEditor = bundleId.contains("vscode") ||
+            bundleId.contains("vscodium") ||
             bundleId.contains("trae") ||
-            bundleId.contains("zed") ||
+            bundleId == "dev.zed.zed" ||
             bundleId.contains("fleet") ||
             bundleId.contains("intellij") ||
             bundleId.contains("pycharm") ||
             bundleId.contains("webstorm") ||
             bundleId.contains("clion") ||
+            bundleId.contains("goland") ||
             bundleId.contains("sublime") ||
             bundleId.contains("android.studio") ||
-            nameLower.contains("vscode") ||
-            nameLower.contains("trae") ||
-            nameLower.contains("zed") {
-            return .genericCoding
+            nameLower == "zed" ||
+            nameLower.contains("visual studio code") ||
+            nameLower == "trae"
+
+        guard isTerminal || isGenericEditor else {
+            return .none
         }
 
-        return .none
-    }
+        // Title-based checks only for terminals (Claude Code / Codex CLI) and editors (Claude Code extension, .cursorrules).
+        let winContext = inspectActiveWindowContext(targetApp: app)
+        let windowTitleLower = (winContext.windowTitle ?? "").lowercased()
+        let docFileNameLower = (winContext.documentFileName ?? "").lowercased()
 
-    /// Provides complete context details including agent profiles, unique features, and specialized vocabulary
-    public func detectDetailedAppContext(targetApp: NSRunningApplication? = nil) -> AppContextDetails {
-        let (appName, domain, bundleId, icon) = detectActiveAppDomain(targetApp: targetApp)
-        let codingProfile = detectCodingAgentProfile(targetApp: targetApp)
-        let isSpecialized = (codingProfile != .none && codingProfile != .genericCoding)
+        if isTerminal {
+            if windowTitleLower.contains("claude") || docFileNameLower == "claude.md" {
+                return .claudeCode
+            }
+            if windowTitleLower.contains("codex") {
+                return .antigravity
+            }
+            return .terminal
+        }
 
-        let features = Self.uniqueFeatures(for: codingProfile)
-        let specializedVocab = isSpecialized ? Self.specializedVocabulary(for: codingProfile) : domainSpecificVocabulary(for: domain, targetApp: targetApp)
-
-        return AppContextDetails(
-            name: isSpecialized ? codingProfile.displayName : appName,
-            domain: domain,
-            bundleId: bundleId,
-            icon: icon,
-            codingProfile: codingProfile,
-            isSpecializedAgent: isSpecialized,
-            uniqueFeatures: features,
-            specializedVocabulary: specializedVocab,
-            isClaudeCode: (codingProfile == .claudeCode)
-        )
+        // Generic editor
+        if windowTitleLower.contains("claude code") || docFileNameLower == "claude.md" {
+            return .claudeCode
+        }
+        if docFileNameLower == ".cursorrules" {
+            return .cursor
+        }
+        return .genericCoding
     }
 
     // MARK: - App Domain Detection
@@ -556,53 +405,16 @@ public final class AetherContextEngine: @unchecked Sendable {
         let name = app?.localizedName ?? "General"
         let bundleId = (app?.bundleIdentifier ?? "").lowercased()
         let nameLower = name.lowercased()
-        let icon: NSImage? = app?.icon ?? (app?.bundleURL != nil ? NSWorkspace.shared.icon(forFile: app!.bundleURL!.path) : nil)
+        let icon: NSImage? = app?.icon ?? app?.bundleURL.map { NSWorkspace.shared.icon(forFile: $0.path) }
 
-        // 0. Specialized Coding Agents
+        // 0. Specialized Coding Agents (backend-only specialization; UI keeps the true application name)
         let profile = detectCodingAgentProfile(targetApp: app)
         if profile != .none && profile != .genericCoding {
-            let agentIcon = icon ?? NSImage(systemSymbolName: profile.icon, accessibilityDescription: nil)
-            let resolvedName: String
-            if profile == .claudeCode {
-                resolvedName = nameLower.contains("claude") ? name : "Claude Code (\(name))"
-            } else {
-                resolvedName = profile.displayName
-            }
-            return (resolvedName, .ideAndCoding, bundleId.isEmpty ? "dev.agent.\(profile.rawValue)" : bundleId, agentIcon)
+            return (name, .ideAndCoding, bundleId, icon)
         }
 
-        // 1. IDEs, Terminals, Code Editors & Codex (Vibe Coding)
-        if bundleId.contains("xcode") ||
-           bundleId.contains("vscode") ||
-           bundleId.contains("cursor") ||
-           bundleId.contains("antigravity") ||
-           bundleId.contains("windsurf") ||
-           bundleId.contains("trae") ||
-           bundleId.contains("fleet") ||
-           bundleId.contains("zed") ||
-           bundleId.contains("codex") ||
-           bundleId.contains("copilot") ||
-           bundleId.contains("terminal") ||
-           bundleId.contains("iterm") ||
-           bundleId.contains("warp") ||
-           bundleId.contains("kitty") ||
-           bundleId.contains("alacritty") ||
-           bundleId.contains("ghostty") ||
-           bundleId.contains("intellij") ||
-           bundleId.contains("pycharm") ||
-           bundleId.contains("webstorm") ||
-           bundleId.contains("clion") ||
-           bundleId.contains("sublime") ||
-           bundleId.contains("android.studio") ||
-           nameLower.contains("cursor") ||
-           nameLower.contains("xcode") ||
-           nameLower.contains("antigravity") ||
-           nameLower.contains("windsurf") ||
-           nameLower.contains("trae") ||
-           nameLower.contains("zed") ||
-           nameLower.contains("codex") ||
-           nameLower.contains("copilot") ||
-           nameLower.contains("terminal") {
+        // 1. Other IDEs & code editors (terminals and agent IDEs are already covered by the profile above)
+        if profile == .genericCoding || bundleId.contains("copilot") || nameLower.contains("copilot") {
             return (name, .ideAndCoding, bundleId, icon)
         }
 
@@ -619,8 +431,8 @@ public final class AetherContextEngine: @unchecked Sendable {
            bundleId.contains("ollama") ||
            bundleId.contains("lmstudio") ||
            bundleId.contains("bionic") ||
-           bundleId.contains("jan") ||
-           bundleId.contains("poe") ||
+           bundleId.contains("jan.ai") ||
+           bundleId.contains("quora.poe") ||
            nameLower.contains("chatgpt") ||
            nameLower.contains("claude") ||
            nameLower.contains("gemini") ||
@@ -631,8 +443,8 @@ public final class AetherContextEngine: @unchecked Sendable {
            nameLower.contains("lm studio") ||
            nameLower.contains("lmstudio") ||
            nameLower.contains("bionic") ||
-           nameLower.contains("poe") ||
-           nameLower.contains("jan") {
+           nameLower == "poe" ||
+           nameLower == "jan" {
             return (name, .aiChatAndLLMs, bundleId, icon)
         }
 
@@ -657,11 +469,11 @@ public final class AetherContextEngine: @unchecked Sendable {
         if bundleId.contains("notion") ||
            bundleId.contains("obsidian") ||
            bundleId.contains("notes") ||
-           bundleId.contains("bear") ||
-           bundleId.contains("craft") ||
+           bundleId.contains("shinyfrog.bear") ||
+           bundleId.contains("lukilabs.craft") ||
            bundleId.contains("ulysses") ||
-           bundleId.contains("pages") ||
-           bundleId.contains("word") ||
+           bundleId.contains("iwork.pages") ||
+           bundleId.contains("microsoft.word") ||
            bundleId.contains("scrivener") ||
            bundleId.contains("textedit") ||
            nameLower.contains("notion") ||
@@ -671,18 +483,7 @@ public final class AetherContextEngine: @unchecked Sendable {
         }
 
         // 5. Browsers & Research
-        if bundleId.contains("safari") ||
-           bundleId.contains("chrome") ||
-           bundleId.contains("arc") ||
-           bundleId.contains("brave") ||
-           bundleId.contains("firefox") ||
-           bundleId.contains("edge") ||
-           bundleId.contains("orion") ||
-           bundleId.contains("opera") ||
-           bundleId.contains("vivaldi") ||
-           nameLower.contains("safari") ||
-           nameLower.contains("chrome") ||
-           nameLower.contains("arc") {
+        if Self.isBrowser(bundleId: bundleId, nameLower: nameLower) {
             let winContext = inspectActiveWindowContext(targetApp: app)
             if let wt = winContext.windowTitle?.lowercased() {
                 if wt.contains("v0.dev") || wt.contains("bolt.new") || wt.contains("antigravity") || wt.contains("codex") || wt.contains("github") {
@@ -941,9 +742,10 @@ public final class AetherContextEngine: @unchecked Sendable {
         }
 
         var combined = userWords
+        var seen = Set(userWords.map { $0.lowercased() })
         for w in domainWords {
             let norm = w.normalizedPlainVocabularyWord()
-            if !combined.contains(where: { $0.caseInsensitiveCompare(norm) == .orderedSame }) {
+            if seen.insert(norm.lowercased()).inserted {
                 combined.append(norm)
             }
         }
@@ -964,10 +766,9 @@ public final class AetherContextEngine: @unchecked Sendable {
             .filter { !$0.isEmpty }
 
         var combined = userBlocked
-        for b in domainBlocked {
-            if !combined.contains(where: { $0.caseInsensitiveCompare(b) == .orderedSame }) {
-                combined.append(b)
-            }
+        var seen = Set(userBlocked.map { $0.lowercased() })
+        for b in domainBlocked where seen.insert(b.lowercased()).inserted {
+            combined.append(b)
         }
         return combined.joined(separator: ", ")
     }
@@ -1145,35 +946,64 @@ public final class AetherContextEngine: @unchecked Sendable {
         public let keywords: [String]
     }
 
+    private static let emptyWindowContext = WindowContext(windowTitle: nil, documentFileName: nil, fileExtension: nil, keywords: [])
+    private static let windowContextTTL: CFAbsoluteTime = 1.0
+    private let windowContextLock = NSLock()
+    private var cachedWindowContext: (pid: pid_t, timestamp: CFAbsoluteTime, value: WindowContext)?
+
     /// Inspects the frontmost active window title and open document name via Accessibility API (100% locally, no network).
+    /// Results are cached per process for a short TTL: prompt building, vocabulary merging and domain detection all
+    /// ask for the same window during one dictation, and each AX call is a synchronous IPC round-trip.
     public func inspectActiveWindowContext(targetApp: NSRunningApplication? = nil) -> WindowContext {
         guard AXIsProcessTrusted() else {
-            return WindowContext(windowTitle: nil, documentFileName: nil, fileExtension: nil, keywords: [])
+            return Self.emptyWindowContext
         }
 
         let app = targetApp ?? NSWorkspace.shared.frontmostApplication
         guard let pid = app?.processIdentifier else {
-            return WindowContext(windowTitle: nil, documentFileName: nil, fileExtension: nil, keywords: [])
+            return Self.emptyWindowContext
         }
 
+        let now = CFAbsoluteTimeGetCurrent()
+        windowContextLock.lock()
+        if let cached = cachedWindowContext, cached.pid == pid, now - cached.timestamp < Self.windowContextTTL {
+            windowContextLock.unlock()
+            return cached.value
+        }
+        windowContextLock.unlock()
+
+        let result = queryWindowContext(pid: pid)
+
+        windowContextLock.lock()
+        cachedWindowContext = (pid, CFAbsoluteTimeGetCurrent(), result)
+        windowContextLock.unlock()
+        return result
+    }
+
+    private func queryWindowContext(pid: pid_t) -> WindowContext {
         let appElement = AXUIElementCreateApplication(pid)
+        // Default AX timeout is ~6s; a beachballing target app must never stall dictation.
+        AXUIElementSetMessagingTimeout(appElement, 0.25)
+
         var focusedWindowValue: AnyObject?
         let copyRes = AXUIElementCopyAttributeValue(appElement, kAXFocusedWindowAttribute as CFString, &focusedWindowValue)
 
         var title: String?
         var documentURL: String?
 
-        if copyRes == .success, let window = focusedWindowValue {
+        if copyRes == .success, let windowRef = focusedWindowValue, CFGetTypeID(windowRef) == AXUIElementGetTypeID() {
+            let window = windowRef as! AXUIElement
+            AXUIElementSetMessagingTimeout(window, 0.25)
             // 1. Window Title
             var titleVal: AnyObject?
-            if AXUIElementCopyAttributeValue(window as! AXUIElement, kAXTitleAttribute as CFString, &titleVal) == .success,
+            if AXUIElementCopyAttributeValue(window, kAXTitleAttribute as CFString, &titleVal) == .success,
                let t = titleVal as? String, !t.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 title = t.trimmingCharacters(in: .whitespacesAndNewlines)
             }
 
             // 2. Document URL / Path
             var docVal: AnyObject?
-            if AXUIElementCopyAttributeValue(window as! AXUIElement, kAXDocumentAttribute as CFString, &docVal) == .success,
+            if AXUIElementCopyAttributeValue(window, kAXDocumentAttribute as CFString, &docVal) == .success,
                let doc = docVal as? String, !doc.isEmpty {
                 documentURL = doc
             }
@@ -1184,7 +1014,8 @@ public final class AetherContextEngine: @unchecked Sendable {
         var extractedKeywords: [String] = []
 
         if let doc = documentURL {
-            let url = URL(fileURLWithPath: doc)
+            // AXDocument is usually a percent-encoded file:// URL, sometimes a plain path.
+            let url = doc.hasPrefix("file://") ? (URL(string: doc) ?? URL(fileURLWithPath: doc)) : URL(fileURLWithPath: doc)
             fileName = url.lastPathComponent
             fileExt = url.pathExtension.isEmpty ? nil : url.pathExtension
             if let fn = fileName { extractedKeywords.append(fn) }
@@ -1270,13 +1101,14 @@ public final class AetherContextEngine: @unchecked Sendable {
             .filter { !$0.isEmpty }
             
         let isEnglishTarget = language?.lowercased().starts(with: "en") == true
+        var seenVocab = Set(combinedVocabItems.map { $0.lowercased() })
         for rw in learnedRareWords {
             if isEnglishTarget {
                 let hasCyrillic = rw.unicodeScalars.contains { ($0.value >= 0x0400 && $0.value <= 0x04FF) || ($0.value >= 0x0500 && $0.value <= 0x052F) }
                 if hasCyrillic { continue }
             }
             let norm = rw.normalizedPlainVocabularyWord()
-            if !combinedVocabItems.contains(where: { $0.caseInsensitiveCompare(norm) == .orderedSame }) {
+            if seenVocab.insert(norm.lowercased()).inserted {
                 combinedVocabItems.append(norm)
             }
         }
@@ -1297,6 +1129,10 @@ public final class AetherContextEngine: @unchecked Sendable {
     ) -> [String] {
         var strings: [String] = []
 
+        // Active window & document keywords first: they are the most specific signal and must survive the cap below.
+        let winContext = inspectActiveWindowContext(targetApp: targetApp)
+        strings.append(contentsOf: winContext.keywords)
+
         // Add effective vocabulary (user + domain)
         let effectiveVocab = activeEffectiveVocabulary(targetApp: targetApp, userVocabulary: customVocabulary, userLocation: userLocation)
         let customWords = effectiveVocab
@@ -1307,18 +1143,7 @@ public final class AetherContextEngine: @unchecked Sendable {
 
         // Add learned rare words from Writing Monitor
         let learnedRare = UserGrammarProfile.shared.topIdiosyncraticWords(limit: 20)
-        for rw in learnedRare {
-            let norm = rw.normalizedPlainVocabularyWord()
-            if !strings.contains(where: { $0.caseInsensitiveCompare(norm) == .orderedSame }) {
-                strings.append(norm)
-            }
-        }
-
-        // Add active window & document keywords
-        let winContext = inspectActiveWindowContext(targetApp: targetApp)
-        if !winContext.keywords.isEmpty {
-            strings.append(contentsOf: winContext.keywords)
-        }
+        strings.append(contentsOf: learnedRare.map { $0.normalizedPlainVocabularyWord() })
 
         // Add user locations & street indicators
         if !userLocation.isEmpty {
@@ -1335,7 +1160,16 @@ public final class AetherContextEngine: @unchecked Sendable {
             ])
         }
 
-        return Array(Set(strings)).prefix(120).map { $0 }
+        // Ordered, case-insensitive dedupe. Array(Set(...)) used to shuffle priorities and drop random user terms at the cap.
+        var seen = Set<String>()
+        var ordered: [String] = []
+        ordered.reserveCapacity(min(strings.count, 120))
+        for s in strings where ordered.count < 120 {
+            if seen.insert(s.lowercased()).inserted {
+                ordered.append(s)
+            }
+        }
+        return ordered
     }
 }
 

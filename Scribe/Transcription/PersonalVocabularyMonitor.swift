@@ -51,6 +51,11 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
     ]
 
     private let lock = NSLock()
+    private var internalWordsAnalyzedCount: Int = 0
+    private var internalRareWordsLearnedCount: Int = 0
+    private var internalConstructionsLearnedCount: Int = 0
+    private var internalRecentlyLearnedWords: [String] = []
+
     private var globalEventMonitor: Any? = nil
     private var appSwitchObserver: NSObjectProtocol? = nil
     private var checkTimer: Timer? = nil
@@ -61,6 +66,11 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
     private var processingQueue = DispatchQueue(label: "com.aleksei.scribe.vocabulary_monitor", qos: .utility)
 
     private let spellChecker = NSSpellChecker.shared
+
+    private static let compoundTokensRegex: NSRegularExpression? = try? NSRegularExpression(
+        pattern: #"(?<![\p{L}\p{N}])[\p{L}\p{N}]+(?:[-_.][\p{L}\p{N}]+)*(?![\p{L}\p{N}])"#,
+        options: []
+    )
 
     /// Apps strictly excluded from any text observation for user privacy & security
     private let excludedBundleIdentifiers: Set<String> = [
@@ -235,10 +245,12 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
             var targetElement: AXUIElement? = nil
             if let deactivatingApp = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication {
                 let appElement = AXUIElementCreateApplication(deactivatingApp.processIdentifier)
+                AXUIElementSetMessagingTimeout(appElement, 0.25)
                 var focusedInDeactivated: AnyObject?
                 if AXUIElementCopyAttributeValue(appElement, kAXFocusedUIElementAttribute as CFString, &focusedInDeactivated) == .success,
-                   let el = focusedInDeactivated as! AXUIElement? {
-                    targetElement = el
+                   let obj = focusedInDeactivated,
+                   CFGetTypeID(obj) == AXUIElementGetTypeID() {
+                    targetElement = (obj as! AXUIElement)
                 }
             }
             self?.scheduleElementInspection(targetElement: targetElement, delay: 0.15)
@@ -409,6 +421,7 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
         let element: AXUIElement
         if let target = targetElement {
             element = target
+            AXUIElementSetMessagingTimeout(element, 0.25)
         } else {
             // 0. Check frontmost application
             if let frontApp = NSWorkspace.shared.frontmostApplication {
@@ -418,12 +431,15 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
             }
 
             let systemWide = AXUIElementCreateSystemWide()
+            AXUIElementSetMessagingTimeout(systemWide, 0.25)
             var focusedElementObj: AnyObject?
             guard AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focusedElementObj) == .success,
-                  let el = focusedElementObj as! AXUIElement? else {
+                  let obj = focusedElementObj,
+                  CFGetTypeID(obj) == AXUIElementGetTypeID() else {
                 return
             }
-            element = el
+            element = (obj as! AXUIElement)
+            AXUIElementSetMessagingTimeout(element, 0.25)
         }
 
         // 1. STRICT PRIVACY: Verify element's owning application process is not an ignored/terminal app
@@ -482,8 +498,7 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
     // MARK: - Privacy Sanitizer & Incremental Learning Engine
 
     private func extractCompoundTokens(from text: String) -> [String] {
-        let pattern = #"(?<![\p{L}\p{N}])[\p{L}\p{N}]+(?:[-_.][\p{L}\p{N}]+)*(?![\p{L}\p{N}])"#
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
+        guard let regex = Self.compoundTokensRegex else {
             return text.components(separatedBy: CharacterSet.alphanumerics.inverted).filter { $0.count >= 2 }
         }
         let nsRange = NSRange(location: 0, length: text.utf16.count)
@@ -558,7 +573,7 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
         var learnedPhraseComponentWords = Set<String>()
 
         lock.lock()
-        wordsAnalyzedCount += wordTokens.count
+        internalWordsAnalyzedCount += wordTokens.count
 
         // 3. Multi-Word Atomic Phrase Detection (e.g. "Pull Request", "пулл реквест", "код ревью", "баг фикс", "машинное обучение")
         for sentence in rawSentences {
@@ -607,7 +622,7 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
                                     UserGrammarProfile.shared.removeIdiosyncraticWord(subLower)
                                 }
 
-                                let alreadyInRecent = recentlyLearnedWords.contains { $0.lowercased() == lowerPhrase }
+                                let alreadyInRecent = internalRecentlyLearnedWords.contains { $0.lowercased() == lowerPhrase }
                                 let alreadyInNew = newlyLearned.contains { $0.lowercased() == lowerPhrase }
                                 if !alreadyInRecent && !alreadyInNew {
                                     newlyLearned.append(canonicalPhrase)
@@ -661,7 +676,7 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
                 UserFrequencyDictionary.shared.record(text: normalizedWord)
 
                 let lowerNorm = normalizedWord.lowercased()
-                let alreadyInRecent = recentlyLearnedWords.contains { $0.lowercased() == lowerNorm }
+                let alreadyInRecent = internalRecentlyLearnedWords.contains { $0.lowercased() == lowerNorm }
                 let alreadyInNew = newlyLearned.contains { $0.lowercased() == lowerNorm }
 
                 if !alreadyInRecent && !alreadyInNew {
@@ -672,11 +687,11 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
 
         if !newlyLearned.isEmpty {
             for w in newlyLearned {
-                recentlyLearnedWords.insert(w, at: 0)
+                internalRecentlyLearnedWords.insert(w, at: 0)
             }
             // Strict case-insensitive deduplication
             var seen = Set<String>()
-            recentlyLearnedWords = recentlyLearnedWords.filter { w in
+            internalRecentlyLearnedWords = internalRecentlyLearnedWords.filter { w in
                 let low = w.lowercased()
                 if seen.contains(low) { return false }
                 seen.insert(low)
@@ -684,9 +699,9 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
             }
 
             // Purge isolated sub-words if the multi-word phrase is present
-            let multiWordLearned = recentlyLearnedWords.filter { $0.contains(" ") }
+            let multiWordLearned = internalRecentlyLearnedWords.filter { $0.contains(" ") }
             if !multiWordLearned.isEmpty {
-                recentlyLearnedWords.removeAll { w in
+                internalRecentlyLearnedWords.removeAll { w in
                     if !w.contains(" ") {
                         let low = w.lowercased()
                         for phrase in multiWordLearned {
@@ -700,18 +715,28 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
                 }
             }
 
-            if recentlyLearnedWords.count > 40 {
-                recentlyLearnedWords = Array(recentlyLearnedWords.prefix(40))
+            if internalRecentlyLearnedWords.count > 40 {
+                internalRecentlyLearnedWords = Array(internalRecentlyLearnedWords.prefix(40))
             }
-            rareWordsLearnedCount = UserGrammarProfile.shared.learnedIdiosyncraticWordsCount
-            constructionsLearnedCount = UserGrammarProfile.shared.learnedConstructionsCount
         }
 
+        internalRareWordsLearnedCount = UserGrammarProfile.shared.learnedIdiosyncraticWordsCount
+        internalConstructionsLearnedCount = UserGrammarProfile.shared.learnedConstructionsCount
+
         savePersistedStateUnderLock()
+
+        let updatedWords = internalWordsAnalyzedCount
+        let updatedRare = internalRareWordsLearnedCount
+        let updatedConstructions = internalConstructionsLearnedCount
+        let updatedRecent = internalRecentlyLearnedWords
         lock.unlock()
 
-        DispatchQueue.main.async {
-            self.objectWillChange.send()
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.wordsAnalyzedCount = updatedWords
+            self.rareWordsLearnedCount = updatedRare
+            self.constructionsLearnedCount = updatedConstructions
+            self.recentlyLearnedWords = updatedRecent
         }
     }
 
@@ -721,18 +746,22 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
     public func removeLearnedWord(_ word: String) {
         let lower = word.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         lock.lock()
-        recentlyLearnedWords.removeAll { $0.lowercased() == lower }
+        internalRecentlyLearnedWords.removeAll { $0.lowercased() == lower }
         candidateFrequencies.removeValue(forKey: lower)
         candidatePhraseFrequencies.removeValue(forKey: lower)
         candidatePhraseCasing.removeValue(forKey: lower)
-        rareWordsLearnedCount = max(0, rareWordsLearnedCount - 1)
+        internalRareWordsLearnedCount = max(0, internalRareWordsLearnedCount - 1)
         savePersistedStateUnderLock()
+        let updatedRecent = internalRecentlyLearnedWords
+        let updatedRare = internalRareWordsLearnedCount
         lock.unlock()
 
         UserGrammarProfile.shared.removeIdiosyncraticWord(lower)
 
-        DispatchQueue.main.async {
-            self.objectWillChange.send()
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.recentlyLearnedWords = updatedRecent
+            self.rareWordsLearnedCount = updatedRare
         }
         logger.info("Removed learned word '\(word)'")
     }
@@ -741,12 +770,14 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
     public func removeLearnedDirective(_ directive: String) {
         UserGrammarProfile.shared.removeDirective(directive)
         lock.lock()
-        constructionsLearnedCount = UserGrammarProfile.shared.learnedConstructionsCount
+        internalConstructionsLearnedCount = UserGrammarProfile.shared.learnedConstructionsCount
         savePersistedStateUnderLock()
+        let updatedConstructions = internalConstructionsLearnedCount
         lock.unlock()
 
-        DispatchQueue.main.async {
-            self.objectWillChange.send()
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.constructionsLearnedCount = updatedConstructions
         }
         logger.info("Removed learned directive '\(directive)'")
     }
@@ -754,19 +785,22 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
     /// Clears all learned words, directives, and monitor cache
     public func clearAllLearnedWords() {
         lock.lock()
-        recentlyLearnedWords.removeAll()
+        internalRecentlyLearnedWords.removeAll()
         candidateFrequencies.removeAll()
         candidatePhraseFrequencies.removeAll()
         candidatePhraseCasing.removeAll()
-        rareWordsLearnedCount = 0
-        constructionsLearnedCount = 0
+        internalRareWordsLearnedCount = 0
+        internalConstructionsLearnedCount = 0
         savePersistedStateUnderLock()
         lock.unlock()
 
         UserGrammarProfile.shared.clearAll()
 
-        DispatchQueue.main.async {
-            self.objectWillChange.send()
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.recentlyLearnedWords = []
+            self.rareWordsLearnedCount = 0
+            self.constructionsLearnedCount = 0
         }
         logger.info("Cleared all learned words and directives in PersonalVocabularyMonitor")
     }
@@ -785,10 +819,10 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
         defaults.set(durationDays, forKey: "writingMonitorDurationDays")
         if let s = startDate { defaults.set(s.timeIntervalSince1970, forKey: "writingMonitorStartDate") }
         if let e = endDate { defaults.set(e.timeIntervalSince1970, forKey: "writingMonitorEndDate") }
-        defaults.set(wordsAnalyzedCount, forKey: "writingMonitorWordsAnalyzed")
-        defaults.set(rareWordsLearnedCount, forKey: "writingMonitorRareWordsCount")
-        defaults.set(constructionsLearnedCount, forKey: "writingMonitorConstructionsCount")
-        defaults.set(recentlyLearnedWords, forKey: "writingMonitorRecentWords")
+        defaults.set(internalWordsAnalyzedCount, forKey: "writingMonitorWordsAnalyzed")
+        defaults.set(internalRareWordsLearnedCount, forKey: "writingMonitorRareWordsCount")
+        defaults.set(internalConstructionsLearnedCount, forKey: "writingMonitorConstructionsCount")
+        defaults.set(internalRecentlyLearnedWords, forKey: "writingMonitorRecentWords")
         saveIgnoredAppsUnderLock()
     }
 
@@ -801,13 +835,13 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
         if sTs > 0 { self.startDate = Date(timeIntervalSince1970: sTs) }
         let eTs = defaults.double(forKey: "writingMonitorEndDate")
         if eTs > 0 { self.endDate = Date(timeIntervalSince1970: eTs) }
-        self.wordsAnalyzedCount = defaults.integer(forKey: "writingMonitorWordsAnalyzed")
-        self.rareWordsLearnedCount = defaults.integer(forKey: "writingMonitorRareWordsCount")
-        self.constructionsLearnedCount = defaults.integer(forKey: "writingMonitorConstructionsCount")
-        self.recentlyLearnedWords = defaults.stringArray(forKey: "writingMonitorRecentWords") ?? []
+        self.internalWordsAnalyzedCount = defaults.integer(forKey: "writingMonitorWordsAnalyzed")
+        self.internalRareWordsLearnedCount = defaults.integer(forKey: "writingMonitorRareWordsCount")
+        self.internalConstructionsLearnedCount = defaults.integer(forKey: "writingMonitorConstructionsCount")
+        var loadedRecent = defaults.stringArray(forKey: "writingMonitorRecentWords") ?? []
 
         // Sanitize: purge "gho", stop words, and random short stubs from stored recent words
-        self.recentlyLearnedWords.removeAll { w in
+        loadedRecent.removeAll { w in
             let low = w.lowercased()
             if low == "gho" { return true }
             if stopWords.contains(low) { return true }
@@ -819,9 +853,9 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
         UserGrammarProfile.shared.removeIdiosyncraticWord("gho")
 
         // Clean up any split sub-words if the multi-word phrase is present
-        let multiWordLearned = self.recentlyLearnedWords.filter { $0.contains(" ") }
+        let multiWordLearned = loadedRecent.filter { $0.contains(" ") }
         if !multiWordLearned.isEmpty {
-            self.recentlyLearnedWords.removeAll { w in
+            loadedRecent.removeAll { w in
                 if !w.contains(" ") {
                     let low = w.lowercased()
                     for phrase in multiWordLearned {
@@ -835,6 +869,11 @@ public final class PersonalVocabularyMonitor: ObservableObject, @unchecked Senda
                 return false
             }
         }
+        self.internalRecentlyLearnedWords = loadedRecent
+        self.wordsAnalyzedCount = self.internalWordsAnalyzedCount
+        self.rareWordsLearnedCount = self.internalRareWordsLearnedCount
+        self.constructionsLearnedCount = self.internalConstructionsLearnedCount
+        self.recentlyLearnedWords = self.internalRecentlyLearnedWords
 
         // Load ignored applications (only keep apps present on this Mac)
         if let data = defaults.data(forKey: "writingMonitorIgnoredApps"),
