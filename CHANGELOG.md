@@ -5,6 +5,22 @@ All notable changes to Scribe will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.10.3] - 2026-10-12
+
+## Added
+- Diagnostic log entry showing how much trailing silence the audio conditioner trims and at which threshold.
+
+## Changed
+- Live preview caches the detected language per recording session instead of running language detection on every snapshot.
+- Live preview snapshots decode without truncated text prompts, so the preview matches the final transcription.
+- Recording continues for 200 ms after the hotkey is released (was 60 ms) to keep the last syllable.
+
+## Fixed
+- Fixed the linguistic validator replacing correctly spelled words with frequent user words (e.g. "что" to "это", "you" to "your").
+- Fixed fuzzy dictionary alignment rewriting valid words into vocabulary terms (e.g. "Describe" to "Scribe").
+- Fixed quiet speech at the end of a recording being cut off as silence, especially on 2-channel USB microphones.
+- Removed an unused conditioning prompt build from the final transcription path.
+
 ## [2.10.2] - 2026-10-07
 
 ## Added
