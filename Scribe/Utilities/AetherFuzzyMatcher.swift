@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 import os.log
 
 private let logger = Logger(subsystem: "com.aleksei.scribe", category: "AetherFuzzyMatcher")
@@ -224,6 +225,13 @@ public final class AetherFuzzyMatcher: @unchecked Sendable {
                 continue
             }
 
+            // A real dictionary word was most likely spoken as-is: never bend it toward a vocabulary term
+            // ("Describe" must not become "Scribe", "planet" must not become "plane").
+            if isValidDictionaryWord(cleanWord) {
+                adjustedWords.append(word)
+                continue
+            }
+
             let isCapitalized = cleanWord.first?.isUppercase == true
 
             var matchedTarget: String? = nil
@@ -243,8 +251,9 @@ public final class AetherFuzzyMatcher: @unchecked Sendable {
 
                 let dist = levenshteinDistance(cleanWord.lowercased(), target.lowercased())
                 let maxAllowedDist = cleanWord.count >= 8 ? 2 : 1
+                let sameFirstLetter = cleanWord.lowercased().first == target.lowercased().first
 
-                if dist > 0 && dist <= maxAllowedDist {
+                if dist > 0 && dist <= maxAllowedDist && (dist == 1 || sameFirstLetter) {
                     matchedTarget = target
                     break
                 }
@@ -271,6 +280,21 @@ public final class AetherFuzzyMatcher: @unchecked Sendable {
     /// Checks if a string contains Cyrillic characters
     private func isCyrillic(_ s: String) -> Bool {
         s.unicodeScalars.contains { $0.value >= 0x0400 && $0.value <= 0x04FF }
+    }
+
+    /// True when the system spellchecker accepts the word in its script's language (ru for Cyrillic, en otherwise).
+    private func isValidDictionaryWord(_ word: String) -> Bool {
+        let lang = isCyrillic(word) ? "ru" : "en"
+        var wordCount = 0
+        let range = NSSpellChecker.shared.checkSpelling(
+            of: word,
+            startingAt: 0,
+            language: lang,
+            wrap: false,
+            inSpellDocumentWithTag: 0,
+            wordCount: &wordCount
+        )
+        return range.location == NSNotFound || range.length == 0
     }
 
     /// Detects if word is an inflected grammatical form of target (cases: -а, -у, -е, -ом, -ем, -ами, -ях, etc.)

@@ -539,6 +539,30 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         return bestLang
     }
 
+    /// Language chosen for the current live preview session. Detected once and reused, so each
+    /// snapshot runs a single encoder pass instead of a separate language-detection pass.
+    private let snapshotLanguageLock = NSLock()
+    private var snapshotLockedLanguage: String?
+
+    /// Must be called when a new recording starts so the next session re-detects its language.
+    func resetLivePreviewSession() {
+        snapshotLanguageLock.lock()
+        snapshotLockedLanguage = nil
+        snapshotLanguageLock.unlock()
+    }
+
+    private func lockedSnapshotLanguage() -> String? {
+        snapshotLanguageLock.lock()
+        defer { snapshotLanguageLock.unlock() }
+        return snapshotLockedLanguage
+    }
+
+    private func setLockedSnapshotLanguage(_ lang: String) {
+        snapshotLanguageLock.lock()
+        snapshotLockedLanguage = lang
+        snapshotLanguageLock.unlock()
+    }
+
     /// Fast greedy transcription of an in-flight audio snapshot for live preview updates while user is speaking.
     /// Runs on background cooperative pool without secondary passes or heavy post-processing.
     func transcribeSnapshot(
@@ -593,6 +617,11 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             options.language = first
             options.detectLanguage = false
             resolvedLang = first
+        } else if let cached = lockedSnapshotLanguage(), effectiveAllowed.contains(cached) {
+            // Language already settled for this recording: skip the extra detection encoder pass.
+            options.language = cached
+            options.detectLanguage = false
+            resolvedLang = cached
         } else {
             // Multilingual live preview:
             // When Russian is enabled, Russian mode naturally handles Russian speech and preserves technical English terms.
@@ -618,26 +647,11 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             options.detectLanguage = false
         }
 
-        // Inject compact initial prompt conditioning for proper punctuation, capitalization, and vocabulary
-        if let tokenizer = kit.tokenizer {
-            let basePrompt = (resolvedLang == "ru")
-                ? "Привет, это аккуратная речь с пунктуацией и терминами: "
-                : "Hello, this is a clean transcription with proper punctuation: "
-            let promptText = AetherContextEngine.shared.buildConditioningPrompt(
-                basePrompt: basePrompt,
-                customVocabulary: customVocabulary,
-                userLocation: "",
-                targetApp: targetApp,
-                language: resolvedLang
-            )
-            let tokens = tokenizer.encode(text: promptText)
-            options.promptTokens = Array(tokens.prefix(min(tokens.count, 24)))
-            options.usePrefillCache = false
-        } else {
-            options.usePrefillPrompt = true
-            options.usePrefillCache = true
-            options.promptTokens = nil
-        }
+        // Decode exactly like the final pass (no text prompt). The old 24-token prompt was cut mid-sentence,
+        // leaked words like "терминами" into short snapshots and made the preview disagree with the final text.
+        options.usePrefillPrompt = true
+        options.usePrefillCache = true
+        options.promptTokens = nil
 
         do {
             let results = try await kit.transcribe(audioPath: pathToTranscribe, decodeOptions: options)
@@ -654,11 +668,6 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
                     var retryOpts = options
                     retryOpts.language = "en"
                     retryOpts.detectLanguage = false
-                    if let tokenizer = kit.tokenizer {
-                        let enTokens = tokenizer.encode(text: "Hello, this is a clean transcription with punctuation.")
-                        retryOpts.promptTokens = Array(enTokens.prefix(min(enTokens.count, 20)))
-                        retryOpts.usePrefillCache = false
-                    }
                     if let retryResults = try? await kit.transcribe(audioPath: pathToTranscribe, decodeOptions: retryOpts) {
                         let retryText = retryResults.map(\.text).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
                         if !retryText.isEmpty {
@@ -673,11 +682,6 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
                     var retryOpts = options
                     retryOpts.language = "ru"
                     retryOpts.detectLanguage = false
-                    if let tokenizer = kit.tokenizer {
-                        let ruTokens = tokenizer.encode(text: "Привет, это аккуратная речь с пунктуацией.")
-                        retryOpts.promptTokens = Array(ruTokens.prefix(min(ruTokens.count, 20)))
-                        retryOpts.usePrefillCache = false
-                    }
                     if let retryResults = try? await kit.transcribe(audioPath: pathToTranscribe, decodeOptions: retryOpts) {
                         let retryText = retryResults.map(\.text).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
                         if !retryText.isEmpty {
@@ -686,6 +690,13 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
                         }
                     }
                 }
+            }
+
+            // Remember the settled language once there is enough audio to trust it (multilingual mode only).
+            if (language == nil || language == "auto") && effectiveAllowed.count > 1,
+               let audioFile = try? AVAudioFile(forReading: URL(fileURLWithPath: pathToTranscribe)),
+               Double(audioFile.length) / audioFile.processingFormat.sampleRate >= 2.0 {
+                setLockedSnapshotLanguage(resolvedLang)
             }
 
             // Strict script and boundary hallucination filter for snapshot live preview
@@ -930,32 +941,8 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             resolvedLang = fallback
         }
 
-        // 3. Stage A: Context Biasing & Dynamic Vocabulary Injection
-        let langKey = resolvedLang
-        let basePrompt: String
-        if resolvedLang != "auto" {
-            basePrompt = initialPrompt[resolvedLang] ?? initialPrompt["auto"]!
-        } else if !preferredLanguages.isEmpty {
-            // Only combine prompts from languages explicitly enabled by the user
-            var combined: [String] = []
-            for code in preferredLanguages {
-                if let p = initialPrompt[code] {
-                    combined.append(p)
-                }
-            }
-            basePrompt = combined.isEmpty ? initialPrompt["auto"]! : combined.joined(separator: " ")
-        } else {
-            basePrompt = initialPrompt["auto"]!
-        }
-
-        let promptText = AetherContextEngine.shared.buildConditioningPrompt(
-            basePrompt: basePrompt,
-            customVocabulary: customVocabulary,
-            userLocation: userLocation,
-            targetApp: targetApp,
-            language: resolvedLang != "auto" ? resolvedLang : language
-        )
-
+        // Text prompts are intentionally not used for the final Whisper pass: long vocabulary prompts made
+        // large-v3-turbo hallucinate terms. Vocabulary is applied afterwards by TextReplacer instead.
         options.wordTimestamps = false
         options.usePrefillPrompt = true
         options.usePrefillCache = true

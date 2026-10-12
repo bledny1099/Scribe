@@ -2401,6 +2401,7 @@ final class AppState: ObservableObject {
     private func startInterimWhisperGeneration() {
         stopInterimWhisperGeneration()
         latestWhisperTranscription = ""
+        transcriptionService.resetLivePreviewSession()
 
         let preferredLangs = multilingualLanguages.isEmpty ? ["ru", "en"] : multilingualLanguages
         let isSingle = recognitionMode == "singleLanguage"

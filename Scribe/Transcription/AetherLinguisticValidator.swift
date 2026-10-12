@@ -744,21 +744,9 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
                 continue
             }
 
-            // Check if there is a strong User Top 100 match (fuzzy candidate) within the same script
-            if let userCandidate = userFreqDict.findBestFuzzyCandidate(for: word, maxDistance: 2, limit: 100) {
-                let candidateIsCyrillic = userCandidate.word.unicodeScalars.contains { ($0.value >= 0x0400 && $0.value <= 0x04FF) || ($0.value >= 0x0500 && $0.value <= 0x052F) }
-                if (isWordCyrillic && candidateIsCyrillic) || (isWordLatin && !candidateIsCyrillic) {
-                    let userWordFreq = userCandidate.count
-                    let currentWordFreq = userFreqDict.frequency(of: lowerWord)
-
-                    // If current word is non-existent in user history, but close to a frequent user top word
-                    if userCandidate.distance == 1 && userWordFreq >= 2 && currentWordFreq == 0 {
-                        let matchedCase = matchCapitalization(original: word, target: userCandidate.word)
-                        replacements.append((range: wordRange, replacement: matchedCase))
-                        continue
-                    }
-                }
-            }
+            // NOTE: correctly spelled words are never pulled toward frequent user words here.
+            // That rule rewrote "что"→"это", "так"→"там", "you"→"your", "was"→"gas" and then recorded the
+            // wrong output back into the frequency dictionary, reinforcing itself.
 
             // Determine checking language: Latin words MUST be checked against English, never Russian!
             let tokenCheckLang: String
@@ -807,8 +795,11 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
                     }
                 }
 
-                // Check Top 100 User Words first before generic spellchecker
-                if let userMatch = userFreqDict.findBestFuzzyCandidate(for: word, maxDistance: 2, limit: 100) {
+                // Check Top 100 User Words first before generic spellchecker (misspelled words only).
+                // Short words get distance 1 only; the candidate must be genuinely frequent.
+                let userMaxDistance = word.count >= 7 ? 2 : 1
+                if let userMatch = userFreqDict.findBestFuzzyCandidate(for: word, maxDistance: userMaxDistance, limit: 100),
+                   userMatch.count >= 3 {
                     let matchIsCyrillic = userMatch.word.unicodeScalars.contains { ($0.value >= 0x0400 && $0.value <= 0x04FF) }
                     if (isWordCyrillic && matchIsCyrillic) || (isWordLatin && !matchIsCyrillic) {
                         let matchedCase = matchCapitalization(original: word, target: userMatch.word)
