@@ -1311,8 +1311,8 @@ final class AppState: ObservableObject {
         let livePreview = self.livePreviewEnabled
 
         Task {
-            // Keep background recording active for ~60ms trailing speech tail buffer so trailing syllables are never cut off
-            try? await Task.sleep(for: .milliseconds(60))
+            // Keep recording ~200ms after hotkey release: people often let go right on the last syllable
+            try? await Task.sleep(for: .milliseconds(200))
 
             if livePreview { self.stopLiveStreaming() }
             // Keep livePreviewText intact so preview panel displays intermediate/final recognized words smoothly

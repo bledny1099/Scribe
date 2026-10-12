@@ -51,7 +51,8 @@ public final class AetherAudioConditioner: @unchecked Sendable {
 
             // 2. VAD: Find speech boundaries (leading & trailing silence)
             guard let (startFrame, endFrame) = detectSpeechBoundaries(
-                channelData: channelData[0],
+                channelData: channelData,
+                channelCount: channelCount,
                 count: samplesPerChannel,
                 sampleRate: sampleRate
             ) else {
@@ -108,20 +109,25 @@ public final class AetherAudioConditioner: @unchecked Sendable {
 
     // MARK: - VAD & Speech Boundary Detection
 
-    private func detectSpeechBoundaries(channelData: UnsafePointer<Float>, count: Int, sampleRate: Float) -> (Int, Int)? {
+    private func detectSpeechBoundaries(channelData: UnsafePointer<UnsafeMutablePointer<Float>>, channelCount: Int, count: Int, sampleRate: Float) -> (Int, Int)? {
         let frameSize = Int(sampleRate * 0.02) // 20ms frame
         guard frameSize > 0, count > frameSize else { return nil }
 
         let totalFrames = count / frameSize
         guard totalFrames >= 5 else { return nil } // Less than 100ms is not speech
 
-        // 1. Gather frame RMS values
+        // 1. Gather frame RMS values. Multi-channel interfaces (e.g. Fifine SC3) often carry the mic on only
+        // one channel, so take the loudest channel per frame instead of trusting channel 0.
         var frameRMSValues = [Float](repeating: 0, count: totalFrames)
         for f in 0..<totalFrames {
             let offset = f * frameSize
-            var frameRms: Float = 0
-            vDSP_rmsqv(channelData.advanced(by: offset), 1, &frameRms, vDSP_Length(frameSize))
-            frameRMSValues[f] = frameRms
+            var loudest: Float = 0
+            for ch in 0..<max(1, channelCount) {
+                var frameRms: Float = 0
+                vDSP_rmsqv(channelData[ch].advanced(by: offset), 1, &frameRms, vDSP_Length(frameSize))
+                loudest = max(loudest, frameRms)
+            }
+            frameRMSValues[f] = loudest
         }
 
         // 2. Dynamic energy analysis
@@ -162,16 +168,39 @@ public final class AetherAudioConditioner: @unchecked Sendable {
         }
 
         // Must have at least 3 speech frames (~60ms of speech) to avoid single-click transients
-        guard let first = firstSpeechFrame, let last = lastSpeechFrame, totalSpeechFrames >= 3 else {
+        guard var first = firstSpeechFrame, var last = lastSpeechFrame, totalSpeechFrames >= 3 else {
             logger.info("AetherAudioConditioner: Only \(totalSpeechFrames) speech frames found (<3). Audio is silence or clicks.")
             return nil
         }
 
-        // Add 400ms lead and 800ms tail padding to ensure trailing consonants, word endings, and soft speech tails are never cut off
+        // Trim boundaries with a softer threshold than the speech-presence check. A quiet phrase spoken after a
+        // pause (lower voice, turned head) must not be mistaken for trailing silence and cut off before Whisper.
+        // A boundary frame only counts if it sits in a short run of energy (3 of 5 frames) so single clicks are ignored.
+        let boundaryThresholdDb = min(-50.0, max(-64.0, noiseFloorDb + 1.5))
+        let boundaryThresholdRMS = pow(10.0, boundaryThresholdDb / 20.0)
+        func isSustained(_ f: Int) -> Bool {
+            let lo = max(0, f - 2), hi = min(totalFrames - 1, f + 2)
+            var active = 0
+            for k in lo...hi where frameRMSValues[k] > boundaryThresholdRMS { active += 1 }
+            return active >= 3
+        }
+        if let f = (0..<totalFrames).first(where: isSustained) {
+            first = min(first, f * frameSize)
+        }
+        if let f = (0..<totalFrames).reversed().first(where: isSustained) {
+            last = max(last, (f + 1) * frameSize)
+        }
+
+        // 400ms lead and 1.2s tail padding so trailing consonants and soft word endings are never cut off
         let leadPadding = Int(sampleRate * 0.40)
-        let tailPadding = Int(sampleRate * 0.80)
+        let tailPadding = Int(sampleRate * 1.20)
         let start = max(0, first - leadPadding)
         let end = min(count, last + tailPadding)
+
+        let trimmedTail = Float(count - end) / sampleRate
+        if trimmedTail > 0.5 {
+            logger.info("AetherAudioConditioner: trimmed \(String(format: "%.2f", trimmedTail))s of trailing silence (boundary threshold \(String(format: "%.1f", boundaryThresholdDb)) dBFS, noise floor \(String(format: "%.1f", noiseFloorDb)) dBFS)")
+        }
 
         return (start, end)
     }
