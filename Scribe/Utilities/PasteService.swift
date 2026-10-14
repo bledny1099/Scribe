@@ -241,22 +241,33 @@ final class PasteService {
     /// Types text directly into the focused window using simulated Unicode keystrokes.
     static func typeText(_ text: String) {
         guard !text.isEmpty, isAccessibilityGranted() else { return }
-        guard let source = CGEventSource(stateID: .hidSystemState) else { return }
+        let source = CGEventSource(stateID: .privateState) ?? CGEventSource(stateID: .hidSystemState)
+        guard let source else { return }
 
-        let utf16Array = Array(text.utf16)
-        var index = 0
-        while index < utf16Array.count {
-            let chunkSize = min(20, utf16Array.count - index)
-            var chunk = Array(utf16Array[index..<(index + chunkSize)])
+        // Chunk by Character (grapheme cluster) so UTF-16 surrogate pairs are never split across events,
+        // clear modifier flags so residual hotkey modifiers don't turn characters into shortcuts,
+        // and pace chunks slightly so target apps never drop trailing keystrokes on long dictations.
+        let characters = Array(text)
+        let maxCharsPerChunk = 10
+        var charIndex = 0
+        while charIndex < characters.count {
+            let endIdx = min(charIndex + maxCharsPerChunk, characters.count)
+            let chunkString = String(characters[charIndex..<endIdx])
+            var utf16Chunk = Array(chunkString.utf16)
             if let eventDown = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: true) {
-                eventDown.keyboardSetUnicodeString(stringLength: chunk.count, unicodeString: &chunk)
+                eventDown.flags = []
+                eventDown.keyboardSetUnicodeString(stringLength: utf16Chunk.count, unicodeString: &utf16Chunk)
                 eventDown.post(tap: .cghidEventTap)
             }
             if let eventUp = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: false) {
-                eventUp.keyboardSetUnicodeString(stringLength: chunk.count, unicodeString: &chunk)
+                eventUp.flags = []
+                eventUp.keyboardSetUnicodeString(stringLength: utf16Chunk.count, unicodeString: &utf16Chunk)
                 eventUp.post(tap: .cghidEventTap)
             }
-            index += chunkSize
+            charIndex = endIdx
+            if charIndex < characters.count {
+                usleep(3000) // 3ms pacing between chunks prevents event buffer overflow
+            }
         }
     }
 

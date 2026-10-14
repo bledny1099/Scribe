@@ -61,7 +61,8 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         "пойсков": "поисков",
         "пойскам": "поискам",
         "пойсками": "поисками",
-        "пойсках": "поисках"
+        "пойсках": "поисках",
+        "hermetography": "chromatography"
     ]
 
     /// Context-dependent photographic terms. If none of these keywords exist in text, words like "проявка" are acoustic mishearings of "проверка".
@@ -346,6 +347,7 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         ("(?i)\\b(?:свифт[\\s-]*юай|свифтюай)\\b", "SwiftUI"),
         ("(?i)\\b(?:свифт[\\s-]*дата|свифтдата)\\b", "SwiftData"),
         ("(?i)\\b(?:виспер[\\s-]*кит|виспур[\\s-]*кит)\\b", "WhisperKit"),
+        ("(?i)\\b(?:скрайб|scribe)\\b", "Scribe"),
         ("(?i)\\b(?:тайп[\\s-]*скрипт|тайпскрипт)\\b", "TypeScript"),
         ("(?i)\\b(?:пайтон|питон)\\b", "Python"),
         ("(?i)\\bмайнкрафте\\s+его\\b", "Minecraft"),
@@ -1328,10 +1330,11 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
     // MARK: - Speech Self-Correction & False Start Repair
 
     /// Recognized filler markers that speakers use when immediately repairing a speech slip or false start.
+    /// Note: Negation particles ("не", "no") are intentionally excluded so constructs like "делал, не делала" are never collapsed.
     private static let repairMarkerSet: Set<String> = [
-        "ой", "ай", "нет", "не", "а нет", "точнее", "вернее", "то есть",
+        "ой", "ай", "нет", "а нет", "точнее", "вернее", "то есть",
         "в смысле", "а именно", "пардон", "извиняюсь", "прости", "простите",
-        "sorry", "i mean", "mean", "or rather", "rather", "actually", "oops", "whoops", "wait", "no"
+        "sorry", "i mean", "mean", "or rather", "rather", "actually", "oops", "whoops", "wait"
     ]
 
     /// Common word pairs that differ by 1 letter but represent distinct grammatical concepts (must not be collapsed).
@@ -1339,10 +1342,33 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         "cat_car", "car_cat", "dog_dig", "dig_dog", "bad_bed", "bed_bad",
         "man_men", "men_man", "boy_toy", "toy_boy", "дом_дым", "дым_дом",
         "сон_сын", "сын_сон", "кот_кит", "кит_кот", "час_чай", "чай_час",
+        "как_так", "так_как", "кто_что", "что_кто", "так_там", "там_так",
+        "тут_тот", "тот_тут", "сам_там", "там_сам", "куда_туда", "туда_куда",
+        "какой_такой", "такой_какой", "какая_такая", "такая_какая",
+        "какое_такое", "такое_какое", "какие_такие", "такие_какие",
+        "потом_потому", "потому_потом",
         "такое_также", "также_такое", "такой_также", "также_такой",
         "такая_также", "также_такая", "тоже_такое", "такое_тоже",
         "тоже_также", "также_тоже"
     ]
+
+    private func isDictionaryRecognizedWord(_ word: String) -> Bool {
+        let lower = word.lowercased().trimmingCharacters(in: CharacterSet.punctuationCharacters)
+        guard lower.count >= 2 else { return true }
+        let isCyrillic = lower.unicodeScalars.contains { ($0.value >= 0x0400 && $0.value <= 0x04FF) || ($0.value >= 0x0500 && $0.value <= 0x052F) }
+        let isLatin = lower.unicodeScalars.contains { ($0.value >= 0x0041 && $0.value <= 0x005A) || ($0.value >= 0x0061 && $0.value <= 0x007A) }
+        let checkLang = isCyrillic ? "ru_RU" : (isLatin ? "en_US" : "ru_RU")
+        var wc = 0
+        let range = spellChecker.checkSpelling(
+            of: lower,
+            startingAt: 0,
+            language: checkLang,
+            wrap: false,
+            inSpellDocumentWithTag: 0,
+            wordCount: &wc
+        )
+        return range.length == 0
+    }
 
     /// Checks if w1 and w2 are slightly modified variants of the same spoken word (typo, slip, false start, or truncated prefix).
     /// CRITICAL: Returns FALSE if w1 and w2 are identical (as intentional repetitions e.g. "chemistry chemistry" must be preserved).
@@ -1359,6 +1385,11 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         // Skip very short tokens (< 3 chars) to avoid false positives on prepositions/pronouns
         guard count1 >= 3 && count2 >= 3 else { return false }
 
+        let pairKey = "\(s1)_\(s2)"
+        if Self.preservedDistinctWordPairs.contains(pairKey) {
+            return false
+        }
+
         // 1. Prefix false-start / truncation (e.g. "chem" -> "chemistry", "компи" -> "компилятор")
         if s2.hasPrefix(s1) && count2 > count1 && (count2 - count1) <= 7 {
             return true
@@ -1367,11 +1398,6 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         // 2. Levenshtein edit distance check:
         let dist = levenshtein(s1, s2)
         let maxLen = max(count1, count2)
-
-        let pairKey = "\(s1)_\(s2)"
-        if Self.preservedDistinctWordPairs.contains(pairKey) {
-            return false
-        }
 
         // For short words (3-4 letters): allow dist 1 only if difference is clear typo/false-start
         if maxLen <= 4 {
@@ -1470,6 +1496,18 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
 
                 // Check if t1 and t2 are a slightly modified variant
                 if isSlightlyModifiedVariant(t1.word, t2.word) {
+                    // When there is no explicit repair marker and no hesitation ellipsis (... / …),
+                    // do not collapse two valid dictionary words unless they are 7+ character inflections sharing a 5-char stem.
+                    let hasEllipsis = separator.contains("...") || separator.contains("…")
+                    if betweenWords.isEmpty && !hasEllipsis {
+                        let s1Lower = t1.word.lowercased()
+                        let s2Lower = t2.word.lowercased()
+                        let isLongSharedStem = s1Lower.count >= 7 && s2Lower.count >= 7 && s1Lower.prefix(5) == s2Lower.prefix(5)
+                        if !isLongSharedStem && isDictionaryRecognizedWord(t1.word) {
+                            continue
+                        }
+                    }
+
                     // Match! Replace span from start of t1 to end of t2 with corrected t2
                     let replaceSpan = NSRange(location: t1.range.location, length: (t2.range.location + t2.range.length) - t1.range.location)
 

@@ -191,11 +191,14 @@ public final class AetherAudioConditioner: @unchecked Sendable {
             last = max(last, (f + 1) * frameSize)
         }
 
-        // 400ms lead and 1.2s tail padding so trailing consonants and soft word endings are never cut off
+        // 400ms lead and 1.6s tail padding so trailing consonants and soft word endings are never cut off
         let leadPadding = Int(sampleRate * 0.40)
-        let tailPadding = Int(sampleRate * 1.20)
+        let tailPadding = Int(sampleRate * 1.60)
         let start = max(0, first - leadPadding)
-        let end = min(count, last + tailPadding)
+        var end = min(count, last + tailPadding)
+        if count - end < Int(sampleRate * 1.0) {
+            end = count
+        }
 
         let trimmedTail = Float(count - end) / sampleRate
         if trimmedTail > 0.5 {

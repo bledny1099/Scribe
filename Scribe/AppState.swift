@@ -1231,11 +1231,12 @@ final class AppState: ObservableObject {
 
     /// Cancel the current recording without transcribing — just stop and close.
     func cancelRecording() {
-        isLectureRecording = false
         if isShowingPreview {
             hideSettingsPreviewPanel()
             return
         }
+        guard isRecording else { return }
+        isLectureRecording = false
         stopDurationTimer()
         stopInterimWhisperGeneration()
         if livePreviewEnabled { stopLiveStreaming() }
@@ -1301,6 +1302,7 @@ final class AppState: ObservableObject {
 
     private func stopRecording() {
         stopDurationTimer()
+        let pendingInterimTask = self.interimWhisperTask
         stopInterimWhisperGeneration()
         isRecording = false
         isTranscribing = true
@@ -1311,8 +1313,8 @@ final class AppState: ObservableObject {
         let livePreview = self.livePreviewEnabled
 
         Task {
-            // Keep recording ~200ms after hotkey release: people often let go right on the last syllable
-            try? await Task.sleep(for: .milliseconds(200))
+            // Keep recording ~320ms after hotkey release: people often let go right on the last syllable
+            try? await Task.sleep(for: .milliseconds(320))
 
             if livePreview { self.stopLiveStreaming() }
             // Keep livePreviewText intact so preview panel displays intermediate/final recognized words smoothly
@@ -1320,6 +1322,9 @@ final class AppState: ObservableObject {
 
             let audioURL = self.audioRecorder.stopRecording()
             logger.info("Recording stopped with trailing tail buffer, audioURL=\(audioURL?.path ?? "nil")")
+
+            // Wait for any in-flight interim Whisper decode to finish before starting final transcription
+            _ = await pendingInterimTask?.value
 
             guard let audioURL else {
                 logger.warning("No audio URL returned")
@@ -1360,10 +1365,12 @@ final class AppState: ObservableObject {
                     recognitionEngine: self.recognitionEngine
                 )
 
-                // Fast exit if no speech was detected
-                if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    if !self.latestWhisperTranscription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        text = self.latestWhisperTranscription
+                // Fast exit if no speech was detected, or recover if final decode truncated a prefix that interim preview already captured
+                let trimmedFinal = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                let trimmedInterim = self.latestWhisperTranscription.trimmingCharacters(in: .whitespacesAndNewlines)
+                if trimmedFinal.isEmpty {
+                    if !trimmedInterim.isEmpty {
+                        text = trimmedInterim
                         logger.info("Using interim Whisper live preview text as final transcription: '\(text)'")
                     } else {
                         logger.info("Transcription returned empty text (no speech detected)")
@@ -1375,6 +1382,13 @@ final class AppState: ObservableObject {
                         self.audioRecorder.purgeMemory()
                         try? FileManager.default.removeItem(at: audioURL)
                         return
+                    }
+                } else if !trimmedInterim.isEmpty {
+                    let cleanFinalPrefix = trimmedFinal.trimmingCharacters(in: .punctuationCharacters.union(.whitespacesAndNewlines)).lowercased()
+                    let cleanInterim = trimmedInterim.trimmingCharacters(in: .punctuationCharacters.union(.whitespacesAndNewlines)).lowercased()
+                    if cleanFinalPrefix.count >= 4 && cleanInterim.count >= cleanFinalPrefix.count + 3 && cleanInterim.hasPrefix(cleanFinalPrefix) {
+                        logger.info("Final transcription ('\(trimmedFinal)') was a truncated prefix of interim preview ('\(trimmedInterim)'); recovering full interim text.")
+                        text = trimmedInterim
                     }
                 }
 
@@ -2264,11 +2278,12 @@ final class AppState: ObservableObject {
         escMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard event.keyCode == 53 else { return } // 53 = Esc
             Task { @MainActor [weak self] in
-                self?.cancelRecording()
+                guard let self, self.isRecording || self.isShowingPreview else { return }
+                self.cancelRecording()
             }
         }
         localEscMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            if event.keyCode == 53 {
+            if event.keyCode == 53, let self, (self.isRecording || self.isShowingPreview) {
                 Task { @MainActor [weak self] in
                     self?.cancelRecording()
                 }

@@ -5,6 +5,25 @@ All notable changes to Scribe will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.10.4] - 2026-10-14
+
+## Added
+- Actor-based inference gate (`WhisperInferenceGate`) to serialize live preview snapshots and final WhisperKit decoding passes.
+- Anti-truncation and tail-retention checks in `CloudAIService.sanitizeRefinedText` that fall back to the local transcript if an LLM response drops trailing words or cuts off a word mid-syllable.
+- Built-in vocabulary and phonetic replacement rules for `Scribe` (including Russian spoken forms) and `chromatography`.
+
+## Changed
+- Set WhisperKit `windowClipTime` to `0.0`, raised `sampleLength` to `448`, and enabled `withoutTimestamps` for single-window utterances up to 28 seconds so the decoder never exits early on trailing timestamps.
+- Increased post-hotkey trailing audio capture to 320 ms and expanded `AetherAudioConditioner` tail padding to 1.6 seconds.
+- Raised `max_tokens` to 4096 across Cloud AI providers and rejected responses truncated by token limits (`finish_reason = length` or `MAX_TOKENS`).
+- Updated `PasteService.typeText` to chunk by character, clear residual modifier flags, use a private event source, and pace keystroke chunks by 3 ms.
+
+## Fixed
+- Fixed mid-word and end-of-sentence speech cutoffs caused by WhisperKit's 1.0-second window clip padding and timestamp seeker boundary checks.
+- Fixed `AetherLinguisticValidator.repairSpeechSelfCorrections` collapsing negated verb pairs (such as "делал, не делала") and adjacent valid dictionary words when no repair marker or ellipsis is present.
+- Fixed `stripTrailingRepetitions` matching partial word suffixes and stripping natural paired expressions such as "снова и снова".
+- Fixed the global `Esc` monitor cancelling active transcriptions or deleting temporary audio files when `isRecording` is false.
+
 ## [2.10.3] - 2026-10-12
 
 ## Added
