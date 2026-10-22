@@ -69,6 +69,16 @@ enum OverlayStyle: String, CaseIterable, Identifiable {
     var supportsEmbeddedPreview: Bool {
         return true
     }
+
+    /// Whether this overlay style has a square geometry (positioned to the left/right of windows) vs horizontal (positioned below/above windows).
+    var isSquareStyle: Bool {
+        switch self {
+        case .classic, .orb:
+            return true
+        case .waveform, .minimal, .ecg:
+            return false
+        }
+    }
 }
 
 // MARK: - Overlay Size
@@ -604,7 +614,7 @@ final class AppState: ObservableObject {
     @AppStorage("customOpenAIModel") public var customOpenAIModel: String = "gpt-4o-mini"
     @AppStorage("geminiModel") public var geminiModel: String = "gemini-2.0-flash"
     @AppStorage("cerebrasModel") public var cerebrasModel: String = "gpt-oss-120b"
-    @AppStorage("groqModel") public var groqModel: String = "openai/gpt-oss-120b"
+    @AppStorage("groqModel") public var groqModel: String = "qwen/qwen3.8-27b"
     @AppStorage("anthropicAPIKey") public var anthropicAPIKey: String = ""
     @AppStorage("openAIAPIKey") public var openAIAPIKey: String = ""
     @AppStorage("ollamaEndpoint") public var ollamaEndpoint: String = "http://localhost:11434"
@@ -704,12 +714,25 @@ final class AppState: ObservableObject {
     }
 
     public func addGatewayKey(provider: CloudAIProvider, apiKey: String, customModel: String = "", customBaseURL: String = "") {
-        guard gatewayKeys.count < 10 else { return }
         let cleanKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanKey.isEmpty else { return }
-        let newKey = AIGatewayKey(provider: provider, apiKey: cleanKey, isEnabled: true, customModel: customModel, customBaseURL: customBaseURL)
-        gatewayKeys.append(newKey)
-        saveGatewayKeys()
+
+        if let existingIdx = gatewayKeys.firstIndex(where: { $0.apiKey == cleanKey }) {
+            gatewayKeys[existingIdx].provider = provider
+            gatewayKeys[existingIdx].isEnabled = true
+            if !customModel.isEmpty { gatewayKeys[existingIdx].customModel = customModel }
+            if !customBaseURL.isEmpty { gatewayKeys[existingIdx].customBaseURL = customBaseURL }
+            saveGatewayKeys()
+        } else {
+            guard gatewayKeys.count < 10 else { return }
+            let newKey = AIGatewayKey(provider: provider, apiKey: cleanKey, isEnabled: true, customModel: customModel, customBaseURL: customBaseURL)
+            gatewayKeys.append(newKey)
+            saveGatewayKeys()
+        }
+
+        if gatewayKeys.count == 1 {
+            cloudAIProvider = provider
+        }
 
         // Sync fallback key if empty
         switch provider {
@@ -846,9 +869,9 @@ final class AppState: ObservableObject {
             return l("Aether Neural runs high-accuracy WhisperKit on Apple Neural Engine (ANE) & GPU with context conditioning, dynamic vocabulary, and rich grammatical language modeling.")
         }
     }
-    @AppStorage("recognitionMode") private var savedRecognitionMode: String = "multilingual"
+    @AppStorage("recognitionMode") private var savedRecognitionMode: String = "singleLanguage"
     @AppStorage("singleDictationLanguage") private var savedSingleDictationLanguage: String = "en"
-    @AppStorage("multilingualLanguages") public var multilingualLanguages: [String] = ["ru", "en"]
+    @AppStorage("multilingualLanguages") public var multilingualLanguages: [String] = ["en"]
 
     public var recognitionMode: String {
         get {
@@ -1021,17 +1044,12 @@ final class AppState: ObservableObject {
         return livePreviewEnabled && (isShowingPreview || !livePreviewText.isEmpty)
     }
 
-    @AppStorage("selectedPasteMode") var selectedPasteModeRaw: String = PasteMode.paste.rawValue
+    @AppStorage("selectedPasteMode") var selectedPasteModeRaw: String = PasteMode.directType.rawValue
 
-    /// Computed property for type-safe paste mode access (restricted to paste or directType).
+    /// Computed property for type-safe paste mode access (always Direct Typing).
     var selectedPasteMode: PasteMode {
-        get {
-            let mode = PasteMode(rawValue: selectedPasteModeRaw) ?? .paste
-            return (mode == .directType) ? .directType : .paste
-        }
-        set {
-            selectedPasteModeRaw = (newValue == .directType) ? PasteMode.directType.rawValue : PasteMode.paste.rawValue
-        }
+        get { .directType }
+        set { selectedPasteModeRaw = PasteMode.directType.rawValue }
     }
 
     // MARK: Services
@@ -1043,24 +1061,31 @@ final class AppState: ObservableObject {
 
     private var recordingPanel: RecordingPanel?
     private var subtitlePanel: NSPanel?
+    private var panelHideGeneration: Int = 0
     private var cancellables   = Set<AnyCancellable>()
     private var escMonitor: Any?
     private var localEscMonitor: Any?
     private var durationTimer: Timer?
     private var periodicSyncTimer: Timer?
+    private var audioStartTask: Task<Void, Never>?
 
     // MARK: Init
 
     init() {
         AppState.shared = self
         logger.info("AppState init")
+        selectedPasteModeRaw = PasteMode.directType.rawValue
         setupHotkeyHandler()
         setupEscHandler()
         setupLivePreviewResizing()
         setupPeriodicAutoSync()
         preloadModel()
+        PermissionWindowManager.shared.restoreCrashBackupIfPresent(appState: self)
         checkFirstLaunchPermissions()
         loadGatewayKeys()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+            self?.prewarmOverlayPanelsIfNeeded()
+        }
         
         // Record anonymous installation & active user telemetry
         TelemetryService.shared.recordAppLaunch()
@@ -1069,8 +1094,8 @@ final class AppState: ObservableObject {
         if cerebrasModel.contains("llama") || cerebrasModel.isEmpty {
             cerebrasModel = "gpt-oss-120b"
         }
-        if groqModel.contains("llama") || groqModel.contains("qwen-2.5") || groqModel.isEmpty {
-            groqModel = "openai/gpt-oss-120b"
+        if groqModel.contains("llama") || groqModel.contains("qwen-2.5") || groqModel.contains("gpt-oss-120b") || groqModel.isEmpty {
+            groqModel = "qwen/qwen3.8-27b"
         }
         
         // Remove old pre-seeded location presets if present
@@ -1134,7 +1159,12 @@ final class AppState: ObservableObject {
             }
         }
         
-        if CommandLine.arguments.contains("--permissions") {
+        if CommandLine.arguments.contains("--test-onboarding") || UserDefaults.standard.bool(forKey: "launchTestOnboardingOnce") {
+            UserDefaults.standard.removeObject(forKey: "launchTestOnboardingOnce")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                PermissionWindowManager.shared.showWindow(appState: self, isTestRun: true)
+            }
+        } else if CommandLine.arguments.contains("--permissions") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 PermissionWindowManager.shared.showWindow(appState: self)
             }
@@ -1180,6 +1210,9 @@ final class AppState: ObservableObject {
     @AppStorage("userName") public var userName: String = ""
 
     private func checkFirstLaunchPermissions() {
+        if CommandLine.arguments.contains("--test-onboarding") || UserDefaults.standard.bool(forKey: "launchTestOnboardingOnce") {
+            return
+        }
         let namePromptDone = UserDefaults.standard.bool(forKey: "hasCompletedOnboardingNamePrompt")
         let mic = PermissionManager.shared.isMicrophoneGranted
         let ax = PasteService.isAccessibilityGranted()
@@ -1236,9 +1269,13 @@ final class AppState: ObservableObject {
             return
         }
         guard isRecording else { return }
+        audioStartTask?.cancel()
+        audioStartTask = nil
         isLectureRecording = false
         stopDurationTimer()
         stopInterimWhisperGeneration()
+        audioRecorder.enableLiveBuffer = false
+        audioRecorder.purgeMemory()
         if livePreviewEnabled { stopLiveStreaming() }
         livePreviewText = ""
         liveStreamLastInsertedText = ""
@@ -1259,51 +1296,70 @@ final class AppState: ObservableObject {
     private func startRecording() {
         hideSettingsPreviewPanel()
         captureTargetApplication()
-        do {
-            audioRecorder.enableLiveBuffer = (!isLectureRecording && livePreviewEnabled && !isInstantEngine)
-            if !audioRecorder.enableLiveBuffer {
-                audioRecorder.purgeMemory()
-            }
-            try audioRecorder.startRecording()
-            isRecording     = true
-            recordingStatus = .recording
-            recordingDuration = 0
-            livePreviewText = ""
-            startDurationTimer()
-            if !isLectureRecording {
-                if livePreviewEnabled {
-                    if isInstantEngine {
-                        startLiveStreaming()
-                    } else {
-                        startInterimWhisperGeneration()
+        isRecording     = true
+        recordingStatus = .recording
+        recordingDuration = 0
+        livePreviewText = ""
+        latestWhisperTranscription = ""
+        if !isLectureRecording {
+            showPanel()
+        }
+        if soundFeedbackEnabled { SoundFeedback.play(.recordingStarted) }
+        startDurationTimer()
+
+        audioStartTask?.cancel()
+        audioStartTask = Task.detached(priority: .userInitiated) { [weak self] in
+            guard let self = self else { return }
+            do {
+                await MainActor.run {
+                    self.audioRecorder.enableLiveBuffer = !self.isLectureRecording && self.livePreviewEnabled && !self.isInstantEngine
+                    self.audioRecorder.purgeMemory()
+                }
+
+                try self.audioRecorder.startRecording()
+
+                await MainActor.run {
+                    guard self.isRecording else {
+                        _ = self.audioRecorder.stopRecording()
+                        return
+                    }
+                    if !self.isLectureRecording && self.livePreviewEnabled {
+                        if self.isInstantEngine {
+                            self.startLiveStreaming()
+                        } else {
+                            self.startInterimWhisperGeneration()
+                        }
                     }
                 }
-                showPanel()
-            }
-            if soundFeedbackEnabled { SoundFeedback.play(.recordingStarted) }
-            
-            // Pre-warm Whisper neural engine and CoreML compute graph during recording (neural engine only)
-            if !isInstantEngine {
-                Task.detached(priority: .userInitiated) { [weak self] in
-                    guard let self = self else { return }
-                    let model = await self.effectiveModel
-                    try? await self.transcriptionService.ensureModelLoaded(modelName: model)
+
+                // Pre-warm Whisper neural engine and CoreML compute graph during recording (neural engine only)
+                if await !self.isInstantEngine {
+                    Task.detached(priority: .utility) { [weak self] in
+                        guard let self = self else { return }
+                        let model = await self.effectiveModel
+                        try? await self.transcriptionService.ensureModelLoaded(modelName: model)
+                    }
                 }
+
+                logger.info("Audio recording hardware started successfully")
+            } catch {
+                await MainActor.run {
+                    self.isRecording = false
+                    self.isLectureRecording = false
+                    self.recordingStatus = .error("Mic error")
+                    self.hidePanel()
+                    if self.soundFeedbackEnabled { SoundFeedback.play(.error) }
+                }
+                logger.error("Failed to start audio recording: \(error.localizedDescription)")
             }
-            
-            logger.info("Recording started")
-        } catch {
-            isLectureRecording = false
-            recordingStatus = .error("Mic error")
-            if soundFeedbackEnabled { SoundFeedback.play(.error) }
-            logger.error("Failed to start recording: \(error.localizedDescription)")
         }
     }
 
     private func stopRecording() {
         stopDurationTimer()
-        let pendingInterimTask = self.interimWhisperTask
-        stopInterimWhisperGeneration()
+        interimWhisperTimer?.invalidate()
+        interimWhisperTimer = nil
+        audioRecorder.enableLiveBuffer = false
         isRecording = false
         isTranscribing = true
         recordingStatus = .transcribing
@@ -1311,61 +1367,121 @@ final class AppState: ObservableObject {
 
         let soundFeedback = self.soundFeedbackEnabled
         let livePreview = self.livePreviewEnabled
+        let startTask = self.audioStartTask
+        self.audioStartTask = nil
 
         Task {
-            // Keep recording ~320ms after hotkey release: people often let go right on the last syllable
-            try? await Task.sleep(for: .milliseconds(320))
+            await self.performStopRecording(
+                soundFeedback: soundFeedback,
+                livePreview: livePreview,
+                startTask: startTask
+            )
+        }
+    }
 
-            if livePreview { self.stopLiveStreaming() }
-            // Keep livePreviewText intact so preview panel displays intermediate/final recognized words smoothly
-            if soundFeedback { SoundFeedback.play(.recordingStopped) }
-
-            let audioURL = self.audioRecorder.stopRecording()
-            logger.info("Recording stopped with trailing tail buffer, audioURL=\(audioURL?.path ?? "nil")")
-
-            // Wait for any in-flight interim Whisper decode to finish before starting final transcription
-            _ = await pendingInterimTask?.value
-
-            guard let audioURL else {
-                logger.warning("No audio URL returned")
-                self.isLectureRecording = false
-                self.isTranscribing = false
-                self.recordingStatus = .idle
-                self.hidePanel()
-                return
-            }
-
-            // Check file exists and has content
-            if let attrs = try? FileManager.default.attributesOfItem(atPath: audioURL.path),
-               let size = attrs[.size] as? UInt64 {
-                logger.info("Audio file size: \(size) bytes")
-                if size < 1000 {
-                    logger.warning("Audio file very small (\(size) bytes), might be too short")
-                }
-            }
-
-            do {
-                let isSingle = self.recognitionMode == "singleLanguage"
-                let langParam: String? = isSingle ? (self.singleDictationLanguage == "auto" ? nil : self.singleDictationLanguage) : nil
-                let preferredLangs: [String] = isSingle ?
-                    (self.singleDictationLanguage == "auto" ? (self.multilingualLanguages.isEmpty ? ["ru", "en"] : self.multilingualLanguages) : [self.singleDictationLanguage]) :
-                    (self.multilingualLanguages.isEmpty ? ["ru", "en"] : self.multilingualLanguages)
-
-                logger.info("Starting transcription with model=\(self.effectiveModel), mode=\(self.recognitionMode), lang=\(langParam ?? "auto"), preferred=\(preferredLangs)…")
-
-                var text = try await transcriptionService.transcribe(
-                    audioURL: audioURL,
-                    modelName: self.effectiveModel,
-                    language: self.isInstantEngine ? "en" : langParam,
-                    preferredLanguages: self.isInstantEngine ? ["en"] : preferredLangs,
-                    autoTranslate: self.isInstantEngine ? false : self.autoTranslate,
-                    customVocabulary: self.vocabulary,
-                    userLocation: self.effectiveUserLocation,
-                    targetApp: self.targetRunningApplication,
-                    recognitionEngine: self.recognitionEngine
+    private func makeLivePreviewProgressHandler(
+        enabled: Bool,
+        preferredLangs: [String],
+        effectiveVocab: String,
+        effectiveBlocked: String
+    ) -> (@Sendable (String) -> Void)? {
+        guard enabled else { return nil }
+        return { [weak self] (progressRaw: String) in
+            guard let self else { return }
+            Task { @MainActor in
+                self.applyLivePreviewUpdate(
+                    rawText: progressRaw,
+                    preferredLangs: preferredLangs,
+                    effectiveVocab: effectiveVocab,
+                    effectiveBlocked: effectiveBlocked,
+                    allowShrink: false
                 )
+            }
+        }
+    }
 
-                // Fast exit if no speech was detected, or recover if final decode truncated a prefix that interim preview already captured
+    private func performStopRecording(
+        soundFeedback: Bool,
+        livePreview: Bool,
+        startTask: Task<Void, Never>?
+    ) async {
+        // Await start task to ensure CoreAudio file has been initialized
+        _ = await startTask?.value
+
+        // Keep recording ~80ms after hotkey release: captures trailing syllable cleanly without noticeable delay
+        try? await Task.sleep(for: .milliseconds(80))
+
+        if livePreview { self.stopLiveStreaming() }
+        // Keep livePreviewText intact so preview panel displays intermediate/final recognized words smoothly
+        if soundFeedback { SoundFeedback.play(.recordingStopped) }
+
+        let audioURL = self.audioRecorder.stopRecording()
+        logger.info("Recording stopped with trailing tail buffer, audioURL=\(audioURL?.path ?? "nil")")
+
+        guard let audioURL else {
+            logger.warning("No audio URL returned")
+            self.stopInterimWhisperGeneration()
+            self.livePreviewText = ""
+            self.isLectureRecording = false
+            self.isTranscribing = false
+            self.recordingStatus = .error("No speech")
+            try? await Task.sleep(for: .milliseconds(1200))
+            guard !self.isRecording else { return }
+            self.hidePanel()
+            return
+        }
+
+        // Check file exists and has content
+        if let attrs = try? FileManager.default.attributesOfItem(atPath: audioURL.path),
+           let size = attrs[.size] as? UInt64 {
+            logger.info("Audio file size: \(size) bytes")
+            if size < 1000 {
+                logger.warning("Audio file very small (\(size) bytes), might be too short")
+            }
+        }
+
+        do {
+            let isSingle = self.recognitionMode == "singleLanguage"
+            let langParam: String? = isSingle ? (self.singleDictationLanguage == "auto" ? nil : self.singleDictationLanguage) : nil
+            let preferredLangs: [String] = isSingle ?
+                (self.singleDictationLanguage == "auto" ? (self.multilingualLanguages.isEmpty ? ["ru", "en"] : self.multilingualLanguages) : [self.singleDictationLanguage]) :
+                (self.multilingualLanguages.isEmpty ? ["ru", "en"] : self.multilingualLanguages)
+
+            let effectiveBlocked = AetherContextEngine.shared.activeEffectiveBlockedWords(
+                targetApp: self.targetRunningApplication,
+                userBlockedWords: self.blockedWords,
+                recognitionLanguages: isSingle ? [self.singleDictationLanguage] : preferredLangs
+            )
+            let effectiveVocab = AetherContextEngine.shared.activeEffectiveVocabulary(
+                targetApp: self.targetRunningApplication,
+                userVocabulary: self.vocabulary,
+                userLocation: self.effectiveUserLocation
+            )
+
+            logger.info("Starting transcription with model=\(self.effectiveModel), mode=\(self.recognitionMode), lang=\(langParam ?? "auto"), preferred=\(preferredLangs)…")
+
+            let progressHandler = self.makeLivePreviewProgressHandler(
+                enabled: livePreview,
+                preferredLangs: preferredLangs,
+                effectiveVocab: effectiveVocab,
+                effectiveBlocked: effectiveBlocked
+            )
+
+            var text = try await transcriptionService.transcribe(
+                audioURL: audioURL,
+                modelName: self.effectiveModel,
+                language: self.isInstantEngine ? "en" : langParam,
+                preferredLanguages: self.isInstantEngine ? ["en"] : preferredLangs,
+                autoTranslate: self.isInstantEngine ? false : self.autoTranslate,
+                customVocabulary: self.vocabulary,
+                userLocation: self.effectiveUserLocation,
+                targetApp: self.targetRunningApplication,
+                recognitionEngine: self.recognitionEngine,
+                onProgressText: progressHandler
+            )
+            self.stopInterimWhisperGeneration()
+
+                // Fast exit if no speech was detected, or recover if final decode truncated a prefix/suffix that interim preview already captured
                 let trimmedFinal = text.trimmingCharacters(in: .whitespacesAndNewlines)
                 let trimmedInterim = self.latestWhisperTranscription.trimmingCharacters(in: .whitespacesAndNewlines)
                 if trimmedFinal.isEmpty {
@@ -1374,34 +1490,36 @@ final class AppState: ObservableObject {
                         logger.info("Using interim Whisper live preview text as final transcription: '\(text)'")
                     } else {
                         logger.info("Transcription returned empty text (no speech detected)")
-                        recordingStatus = .error("No speech")
-                        try? await Task.sleep(for: .milliseconds(750))
-                        hidePanel()
+                        self.livePreviewText = ""
+                        self.recordingStatus = .error("No speech")
                         self.isLectureRecording = false
-                        isTranscribing = false
+                        self.isTranscribing = false
                         self.audioRecorder.purgeMemory()
                         try? FileManager.default.removeItem(at: audioURL)
+                        try? await Task.sleep(for: .milliseconds(1200))
+                        guard !self.isRecording else { return }
+                        self.hidePanel()
                         return
                     }
                 } else if !trimmedInterim.isEmpty {
-                    let cleanFinalPrefix = trimmedFinal.trimmingCharacters(in: .punctuationCharacters.union(.whitespacesAndNewlines)).lowercased()
+                    let cleanFinal = trimmedFinal.trimmingCharacters(in: .punctuationCharacters.union(.whitespacesAndNewlines)).lowercased()
                     let cleanInterim = trimmedInterim.trimmingCharacters(in: .punctuationCharacters.union(.whitespacesAndNewlines)).lowercased()
-                    if cleanFinalPrefix.count >= 4 && cleanInterim.count >= cleanFinalPrefix.count + 3 && cleanInterim.hasPrefix(cleanFinalPrefix) {
-                        logger.info("Final transcription ('\(trimmedFinal)') was a truncated prefix of interim preview ('\(trimmedInterim)'); recovering full interim text.")
+                    if cleanFinal.count >= 4 && cleanInterim.count >= cleanFinal.count + 4 &&
+                        (cleanInterim.hasPrefix(cleanFinal) || cleanInterim.hasSuffix(cleanFinal)) {
+                        logger.info("Final transcription ('\(trimmedFinal)') was a truncated substring of interim preview ('\(trimmedInterim)'); recovering full interim text.")
                         text = trimmedInterim
                     }
                 }
 
-                let effectiveBlocked = AetherContextEngine.shared.activeEffectiveBlockedWords(
-                    targetApp: self.targetRunningApplication,
-                    userBlockedWords: self.blockedWords,
-                    recognitionLanguages: isSingle ? [self.singleDictationLanguage] : preferredLangs
-                )
-                let effectiveVocab = AetherContextEngine.shared.activeEffectiveVocabulary(
-                    targetApp: self.targetRunningApplication,
-                    userVocabulary: self.vocabulary,
-                    userLocation: self.effectiveUserLocation
-                )
+                if livePreview && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    self.applyLivePreviewUpdate(
+                        rawText: text,
+                        preferredLangs: preferredLangs,
+                        effectiveVocab: effectiveVocab,
+                        effectiveBlocked: effectiveBlocked,
+                        allowShrink: true
+                    )
+                }
 
                 // AI Refinement with Cloud / LLM Provider & Gateway Failover
                 if self.enableCloudAI {
@@ -1470,10 +1588,14 @@ final class AppState: ObservableObject {
 
                 if text.isEmpty {
                     logger.warning("Transcription returned empty text")
+                    self.livePreviewText = ""
                     recordingStatus = .error("No speech")
                     self.isLectureRecording = false
-                    try? await Task.sleep(for: .milliseconds(750))
+                    self.isTranscribing = false
+                    try? await Task.sleep(for: .milliseconds(1200))
+                    guard !self.isRecording else { return }
                     hidePanel()
+                    return
                 } else if TranscriptionService.isVoiceCancelCommand(text) {
                     logger.info("Voice cancel command detected: '\(text)'")
                     recordingStatus = .error("Cancelled")
@@ -1530,7 +1652,7 @@ final class AppState: ObservableObject {
                             logger.info("Integrations-only mode active: Skipping active window paste.")
                         } else if self.selectedPasteMode == .directType {
                             logger.info("Direct typing mode: Typing text directly without touching clipboard…")
-                            try? await Task.sleep(for: .milliseconds(350))
+                            try? await Task.sleep(for: .milliseconds(40))
                             PasteService.typeText(text)
                         } else {
                             // Populate clipboard
@@ -1542,22 +1664,23 @@ final class AppState: ObservableObject {
 
                             logger.info("Text copied to clipboard, simulating paste…")
                             // Brief delay so the user sees the checkmark, then paste
-                            try? await Task.sleep(for: .milliseconds(400))
+                            try? await Task.sleep(for: .milliseconds(60))
                             PasteService.simulatePaste()
 
                             // If preserving clipboard, restore original user content after target app consumes paste
                             if let snapshot = previousClipboard {
-                                try? await Task.sleep(for: .milliseconds(250))
+                                try? await Task.sleep(for: .milliseconds(120))
                                 snapshot.restore()
                                 logger.info("Previous clipboard contents restored")
                             }
                         }
 
-                        try? await Task.sleep(for: .seconds(0.8))
+                        try? await Task.sleep(for: .milliseconds(350))
                         hidePanel()
                     }
                 }
             } catch {
+                self.stopInterimWhisperGeneration()
                 self.isLectureRecording = false
                 recordingStatus = .error("Error")
                 if self.soundFeedbackEnabled { SoundFeedback.play(.error) }
@@ -1571,7 +1694,6 @@ final class AppState: ObservableObject {
             // Securely wipe audio RAM buffers and clean up temp file
             self.audioRecorder.purgeMemory()
             try? FileManager.default.removeItem(at: audioURL)
-        }
     }
 
     // MARK: - Lecture Notifications & File Import
@@ -1758,7 +1880,68 @@ final class AppState: ObservableObject {
 
     // MARK: - Panel Management
 
+    private func prewarmOverlayPanelsIfNeeded() {
+        if recordingPanel == nil {
+            let overlay = RecordingOverlayView()
+                .environmentObject(self)
+                .environmentObject(audioRecorder)
+            let isEmbedded = false
+            let hasAI = false
+            let activeAppName = showTargetAppInOverlay ? targetAppName : ""
+            let isTimerVis = durationVisible
+            let panel = RecordingPanel.make(
+                style: selectedOverlayStyle,
+                appearance: selectedOverlayAppearance,
+                size: selectedOverlaySize,
+                isEmbeddedPreviewActive: isEmbedded,
+                previewTextLength: 0,
+                targetAppName: activeAppName,
+                isTimerVisible: isTimerVis,
+                hasAIMode: hasAI
+            )
+            panel.setContent(
+                overlay,
+                style: selectedOverlayStyle,
+                overlaySize: selectedOverlaySize,
+                isEmbeddedPreviewActive: isEmbedded,
+                previewTextLength: 0,
+                targetAppName: activeAppName,
+                isTimerVisible: isTimerVis,
+                hasAIMode: hasAI
+            )
+            panel.alphaValue = 0
+            recordingPanel = panel
+        }
+
+        if subtitlePanel == nil {
+            let subPanel = NSPanel(
+                contentRect: NSRect(x: 0, y: 0, width: 800, height: 100),
+                styleMask: [.borderless, .nonactivatingPanel],
+                backing: .buffered,
+                defer: false
+            )
+            subPanel.isFloatingPanel = true
+            subPanel.level = .floating
+            subPanel.backgroundColor = .clear
+            subPanel.isOpaque = false
+            subPanel.hasShadow = false
+            subPanel.ignoresMouseEvents = true
+
+            let subView = SubtitleOverlayView().environmentObject(self)
+            let host = NSHostingView(rootView: subView)
+            host.layer?.backgroundColor = .clear
+            subPanel.contentView = host
+            subPanel.alphaValue = 0
+            subtitlePanel = subPanel
+        }
+    }
+
     private func showPanel() {
+        panelHideGeneration &+= 1
+        prewarmOverlayPanelsIfNeeded()
+
+        guard let panel = recordingPanel, let subPanel = subtitlePanel else { return }
+
         let overlay = RecordingOverlayView()
             .environmentObject(self)
             .environmentObject(audioRecorder)
@@ -1767,16 +1950,8 @@ final class AppState: ObservableObject {
         let hasAI = false
         let activeAppName = showTargetAppInOverlay ? targetAppName : ""
         let isTimerVis = durationVisible
-        let panel = RecordingPanel.make(
-            style: selectedOverlayStyle,
-            appearance: selectedOverlayAppearance,
-            size: selectedOverlaySize,
-            isEmbeddedPreviewActive: isEmbedded,
-            previewTextLength: livePreviewText.count,
-            targetAppName: activeAppName,
-            isTimerVisible: isTimerVis,
-            hasAIMode: hasAI
-        )
+
+        panel.updateAppearance(selectedOverlayAppearance)
         panel.setContent(
             overlay,
             style: selectedOverlayStyle,
@@ -1789,43 +1964,25 @@ final class AppState: ObservableObject {
         )
 
         panel.positionPanel(mode: overlayPositionMode, targetApp: targetRunningApplication)
-
+        panel.alphaValue = 1
         panel.orderFrontRegardless()
-        recordingPanel = panel
-
-        // Create the subtitle panel for live preview
-        let subPanel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 800, height: 100),
-            styleMask: [.borderless, .nonactivatingPanel],
-            backing: .buffered,
-            defer: false
-        )
-        subPanel.isFloatingPanel = true
-        subPanel.level = .floating
-        subPanel.backgroundColor = .clear
-        subPanel.isOpaque = false
-        subPanel.hasShadow = false
-        subPanel.ignoresMouseEvents = true
-
-        let subView = SubtitleOverlayView().environmentObject(self)
-        let host = NSHostingView(rootView: subView)
-        host.layer?.backgroundColor = .clear
-        subPanel.contentView = host
 
         updateSubtitlePanelFrame(for: panel, subPanel: subPanel)
-
-        panel.addChildWindow(subPanel, ordered: .above)
-        subtitlePanel = subPanel
+        subPanel.alphaValue = 1
+        if subPanel.parent == nil {
+            panel.addChildWindow(subPanel, ordered: .above)
+        }
+        subPanel.orderFrontRegardless()
     }
 
     func updateSubtitlePanelFrame(for mainPanel: NSPanel, subPanel: NSPanel) {
         let screen = mainPanel.screen ?? NSScreen.main ?? NSScreen.screens.first
         let screenFrame = screen?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
 
-        let textLen = livePreviewText.count
-        let estimatedLines = max(1, min(4, (textLen / 45) + 1))
-        let subHeight: CGFloat = max(54, CGFloat(estimatedLines * 24 + 18))
-        let baseSubWidth = max(mainPanel.frame.width + 80, 520)
+        // Use a fixed transparent canvas height (up to 4 lines) so subPanel never calls setFrame
+        // or shifts mainPanel mid-sentence when livePreviewText wraps onto a new line.
+        let subHeight: CGFloat = livePreviewEnabled ? 132 : 54
+        let baseSubWidth = max(mainPanel.frame.width + 120, 700)
         let subWidth: CGFloat = min(baseSubWidth, screenFrame.width - 48)
 
         let frame = mainPanel.frame
@@ -1858,18 +2015,23 @@ final class AppState: ObservableObject {
     }
 
     private func hidePanel() {
+        panelHideGeneration &+= 1
+        let expectedGen = panelHideGeneration
         let panel = recordingPanel
         let sub = subtitlePanel
         NSAnimationContext.runAnimationGroup { ctx in
-            ctx.duration = 0.25
+            ctx.duration = 0.18
             panel?.animator().alphaValue = 0
             sub?.animator().alphaValue = 0
         } completionHandler: { [weak self] in
             DispatchQueue.main.async {
-                self?.recordingPanel?.close()
-                self?.recordingPanel = nil
-                self?.subtitlePanel?.close()
-                self?.subtitlePanel = nil
+                guard let self = self, self.panelHideGeneration == expectedGen else { return }
+                guard !self.isRecording && !self.isTranscribing else { return }
+                if let sub = self.subtitlePanel {
+                    self.recordingPanel?.removeChildWindow(sub)
+                    sub.orderOut(nil)
+                }
+                self.recordingPanel?.orderOut(nil)
             }
         }
         recordingStatus = .idle
@@ -1943,67 +2105,98 @@ final class AppState: ObservableObject {
 
     func onThemeChangedPreview() {
         guard !isRecording && !isTranscribing else { return }
-        if settingsPreviewPanel != nil {
-            // Preview is active: colors update automatically via SwiftUI binding. Reset 5-second timer.
-            previewDismissTimer?.invalidate()
-            previewDismissTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: false) { [weak self] _ in
-                Task { @MainActor [weak self] in
-                    self?.hideSettingsPreviewPanel()
-                }
-            }
-        } else {
-            showSettingsPreviewFor5Seconds()
+        showSettingsPreviewFor5Seconds()
+    }
+
+    private func activePreviewReferenceWindow() -> NSWindow? {
+        if let permWin = PermissionWindowManager.shared.window, permWin.isVisible {
+            return permWin
         }
+        if let settingsWin = SettingsWindowManager.shared.window, settingsWin.isVisible {
+            return settingsWin
+        }
+        return NSApp.keyWindow ?? PermissionWindowManager.shared.window ?? SettingsWindowManager.shared.window
     }
 
     private func targetPreviewOrigin(for style: OverlayStyle, size: NSSize, isDragging: Bool = false) -> NSPoint {
-        let mode = overlayPositionMode
-        let targetWin = SettingsWindowManager.shared.window ?? NSApp.keyWindow
+        let targetWin = activePreviewReferenceWindow()
         let screen = targetWin?.screen ?? NSScreen.main ?? NSScreen.screens.first
         guard let screen = screen else { return .zero }
         let screenFrame = screen.visibleFrame
 
-        switch mode {
-        case .screenBottom:
+        guard let windowFrame = targetWin?.frame else {
             let x = screenFrame.midX - size.width / 2
             let y = screenFrame.minY + 24
             return NSPoint(x: x, y: y)
+        }
 
-        case .activeWindow:
-            if let windowFrame = targetWin?.frame {
-                let isNearlyFullScreen = windowFrame.width >= (screenFrame.width - 60) && windowFrame.height >= (screenFrame.height - 60)
-                let isValidWindowFrame = windowFrame.intersects(screenFrame) && windowFrame.width >= 200
+        let isNearlyFullScreen = windowFrame.width >= (screenFrame.width - 60) && windowFrame.height >= (screenFrame.height - 60)
+        let isValidWindowFrame = windowFrame.intersects(screenFrame) && windowFrame.width >= 200
 
-                if isNearlyFullScreen || !isValidWindowFrame {
-                    let x = screenFrame.midX - size.width / 2
-                    let y = screenFrame.minY + 24
-                    return NSPoint(x: x, y: y)
-                } else {
-                    let centeredX = windowFrame.midX - size.width / 2
-                    let clampedX = max(screenFrame.minX + 16, min(centeredX, screenFrame.maxX - size.width - 16))
+        if isNearlyFullScreen || !isValidWindowFrame {
+            let x = screenFrame.midX - size.width / 2
+            let y = screenFrame.minY + 24
+            return NSPoint(x: x, y: y)
+        }
 
-                    // Position cleanly below the window with comfortable 14pt gap, keeping safely above the dock
-                    let targetY = windowFrame.minY - size.height - 14
-                    let clampedY = max(screenFrame.minY + 12, min(targetY, windowFrame.minY - size.height - 4))
+        if style.isSquareStyle {
+            // Square styles (.classic, .orb): display to the right or left of the window
+            let gap: CGFloat = 18
+            let rightX = windowFrame.maxX + gap
+            let leftX = windowFrame.minX - size.width - gap
+            let spaceRight = screenFrame.maxX - windowFrame.maxX
+            let spaceLeft = windowFrame.minX - screenFrame.minX
+            let fitsRight = (rightX + size.width) <= (screenFrame.maxX - 12)
+            let fitsLeft = leftX >= (screenFrame.minX + 12)
 
-                    return NSPoint(x: clampedX, y: clampedY)
-                }
+            let targetX: CGFloat
+            if fitsRight && (!fitsLeft || spaceRight >= spaceLeft) {
+                targetX = rightX
+            } else if fitsLeft {
+                targetX = leftX
+            } else if spaceRight >= spaceLeft {
+                targetX = min(rightX, screenFrame.maxX - size.width - 12)
             } else {
-                let x = screenFrame.midX - size.width / 2
-                let y = screenFrame.minY + 24
-                return NSPoint(x: x, y: y)
+                targetX = max(screenFrame.minX + 12, leftX)
             }
+
+            let centeredY = windowFrame.midY - size.height / 2
+            let clampedY = max(screenFrame.minY + 16, min(centeredY, screenFrame.maxY - size.height - 16))
+            return NSPoint(x: targetX, y: clampedY)
+        } else {
+            // Horizontal styles (.waveform, .minimal, .ecg): display below or above the window
+            let gap: CGFloat = 16
+            let centeredX = windowFrame.midX - size.width / 2
+            let clampedX = max(screenFrame.minX + 16, min(centeredX, screenFrame.maxX - size.width - 16))
+
+            let belowY = windowFrame.minY - size.height - gap
+            let aboveY = windowFrame.maxY + gap
+            let spaceBelow = windowFrame.minY - screenFrame.minY
+            let spaceAbove = screenFrame.maxY - windowFrame.maxY
+            let fitsBelow = belowY >= (screenFrame.minY + 10)
+            let fitsAbove = (aboveY + size.height) <= (screenFrame.maxY - 10)
+
+            let targetY: CGFloat
+            if fitsBelow && (!fitsAbove || spaceBelow >= spaceAbove) {
+                targetY = belowY
+            } else if fitsAbove {
+                targetY = aboveY
+            } else if spaceBelow >= spaceAbove {
+                targetY = max(screenFrame.minY + 10, belowY)
+            } else {
+                targetY = min(screenFrame.maxY - size.height - 10, aboveY)
+            }
+
+            return NSPoint(x: clampedX, y: targetY)
         }
     }
 
     func moveSettingsPreviewPanelWithWindow() {
         guard let panel = settingsPreviewPanel, panel.isVisible else { return }
-        if overlayPositionMode == .activeWindow {
-            let targetOrigin = targetPreviewOrigin(for: selectedOverlayStyle, size: panel.frame.size, isDragging: true)
-            panel.setFrameOrigin(targetOrigin)
-            if let subPanel = settingsSubtitlePanel {
-                updateSubtitlePanelFrame(for: panel, subPanel: subPanel)
-            }
+        let targetOrigin = targetPreviewOrigin(for: selectedOverlayStyle, size: panel.frame.size, isDragging: true)
+        panel.setFrameOrigin(targetOrigin)
+        if let subPanel = settingsSubtitlePanel {
+            updateSubtitlePanelFrame(for: panel, subPanel: subPanel)
         }
     }
 
@@ -2069,7 +2262,8 @@ final class AppState: ObservableObject {
             )
 
             if frameDiff > 1.0 {
-                if !isDragging && (abs(oldFrame.origin.x - targetOrigin.x) > 4 || abs(oldFrame.origin.y - targetOrigin.y) > 4) {
+                let isLargeCrossJump = abs(oldFrame.origin.x - targetOrigin.x) > 100 && abs(oldFrame.origin.y - targetOrigin.y) > 80
+                if !isDragging && !isLargeCrossJump && (abs(oldFrame.origin.x - targetOrigin.x) > 4 || abs(oldFrame.origin.y - targetOrigin.y) > 4) {
                     NSAnimationContext.runAnimationGroup { ctx in
                         ctx.duration = 0.22
                         ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
@@ -2082,7 +2276,7 @@ final class AppState: ObservableObject {
 
             existingPanel.orderFrontRegardless()
         } else if createIfNeeded {
-            // Create new panel with smooth slide-up entrance animation
+            // Create new panel with smooth entrance animation
             let panel = RecordingPanel.make(
                 style: selectedOverlayStyle,
                 appearance: selectedOverlayAppearance,
@@ -2105,9 +2299,19 @@ final class AppState: ObservableObject {
             )
             panel.collectionBehavior = [.moveToActiveSpace, .ignoresCycle]
 
-            let startY = targetOrigin.y - 24
+            let refMidX = activePreviewReferenceWindow()?.frame.midX ?? targetOrigin.x
+            let refMidY = activePreviewReferenceWindow()?.frame.midY ?? targetOrigin.y
+            let startOrigin: NSPoint
+            if selectedOverlayStyle.isSquareStyle {
+                let offsetX: CGFloat = (targetOrigin.x >= refMidX) ? -14 : 14
+                startOrigin = NSPoint(x: targetOrigin.x + offsetX, y: targetOrigin.y)
+            } else {
+                let offsetY: CGFloat = (targetOrigin.y <= refMidY) ? 14 : -14
+                startOrigin = NSPoint(x: targetOrigin.x, y: targetOrigin.y + offsetY)
+            }
+
             panel.setFrame(targetFrame, display: false)
-            panel.setFrameOrigin(NSPoint(x: targetOrigin.x, y: startY))
+            panel.setFrameOrigin(startOrigin)
             panel.alphaValue = 0
 
             panel.ignoresMouseEvents = true
@@ -2115,7 +2319,7 @@ final class AppState: ObservableObject {
             settingsPreviewPanel = panel
 
             NSAnimationContext.runAnimationGroup { ctx in
-                ctx.duration = 0.35
+                ctx.duration = 0.30
                 ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
                 panel.animator().alphaValue = 1
                 panel.animator().setFrameOrigin(targetOrigin)
@@ -2230,7 +2434,11 @@ final class AppState: ObservableObject {
         KeyboardShortcuts.onKeyDown(for: .toggleRecording) { [weak self] in
             Task { @MainActor in
                 guard let self = self else { return }
-                if self.pushToTalk && !self.isRecording {
+                if self.pushToTalk {
+                    if !self.isRecording {
+                        self.toggleRecording()
+                    }
+                } else {
                     self.toggleRecording()
                 }
             }
@@ -2239,11 +2447,7 @@ final class AppState: ObservableObject {
         KeyboardShortcuts.onKeyUp(for: .toggleRecording) { [weak self] in
             Task { @MainActor in
                 guard let self = self else { return }
-                if self.pushToTalk {
-                    if self.isRecording {
-                        self.toggleRecording()
-                    }
-                } else {
+                if self.pushToTalk && self.isRecording {
                     self.toggleRecording()
                 }
             }
@@ -2252,7 +2456,12 @@ final class AppState: ObservableObject {
         KeyboardShortcuts.onKeyDown(for: .directNoteRecording) { [weak self] in
             Task { @MainActor in
                 guard let self = self, self.enableDirectNote else { return }
-                if self.pushToTalk && !self.isRecording {
+                if self.pushToTalk {
+                    if !self.isRecording {
+                        self.isDirectNoteRecording = true
+                        self.toggleRecording()
+                    }
+                } else {
                     self.isDirectNoteRecording = true
                     self.toggleRecording()
                 }
@@ -2262,12 +2471,7 @@ final class AppState: ObservableObject {
         KeyboardShortcuts.onKeyUp(for: .directNoteRecording) { [weak self] in
             Task { @MainActor in
                 guard let self = self, self.enableDirectNote else { return }
-                if self.pushToTalk {
-                    if self.isRecording {
-                        self.toggleRecording()
-                    }
-                } else {
-                    self.isDirectNoteRecording = true
+                if self.pushToTalk && self.isRecording {
                     self.toggleRecording()
                 }
             }
@@ -2295,18 +2499,21 @@ final class AppState: ObservableObject {
 
     private func preloadModel() {
         Task {
-            // 1. Pre-warm Parakeet TDT v3 on Apple Neural Engine (instant when cached)
-            Task.detached(priority: .userInitiated) {
-                try? await ParakeetEngine.shared.loadModel()
+            if self.recognitionEngine.contains("Parakeet") {
+                Task.detached(priority: .userInitiated) {
+                    try? await ParakeetEngine.shared.loadModel()
+                }
             }
 
-            do {
-                let targetModel = self.effectiveModel
-                logger.info("Preloading WhisperKit model '\(targetModel)'…")
-                try await transcriptionService.ensureModelLoaded(modelName: targetModel)
-                logger.info("WhisperKit model loaded successfully")
-            } catch {
-                logger.error("WhisperKit model preload failed: \(error.localizedDescription)")
+            if !self.isInstantEngine {
+                do {
+                    let targetModel = self.effectiveModel
+                    logger.info("Preloading WhisperKit model '\(targetModel)'…")
+                    try await transcriptionService.ensureModelLoaded(modelName: targetModel)
+                    logger.info("WhisperKit model loaded successfully")
+                } catch {
+                    logger.error("WhisperKit model preload failed: \(error.localizedDescription)")
+                }
             }
         }
     }
@@ -2413,6 +2620,37 @@ final class AppState: ObservableObject {
 
     // MARK: - Native Whisper Live Streaming & Interim Generation
 
+    private func applyLivePreviewUpdate(
+        rawText: String,
+        preferredLangs: [String],
+        effectiveVocab: String,
+        effectiveBlocked: String,
+        allowShrink: Bool = false
+    ) {
+        guard self.isRecording || self.isTranscribing else { return }
+        let trimmedRaw = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedRaw.isEmpty else { return }
+        let cleaned = TranscriptionService.stripBuiltInHallucinations(trimmedRaw)
+        var formatted = ScribeModeProcessor.shared.process(text: cleaned, mode: self.transcriptionMode)
+        formatted = TextReplacer.apply(
+            replacements: self.textReplacements,
+            vocabulary: effectiveVocab,
+            blockedWords: effectiveBlocked,
+            blockedAction: self.blockedWordsActionRaw,
+            to: formatted
+        ).trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !formatted.isEmpty else { return }
+        guard AppState.isTextAllowedForLivePreview(text: formatted, allowedLanguages: preferredLangs) else { return }
+
+        let currentLen = self.livePreviewText.count
+        if allowShrink || currentLen == 0 || formatted.count >= currentLen {
+            self.latestWhisperTranscription = formatted
+            if self.livePreviewText != formatted {
+                self.livePreviewText = formatted
+            }
+        }
+    }
+
     private func startInterimWhisperGeneration() {
         stopInterimWhisperGeneration()
         latestWhisperTranscription = ""
@@ -2434,13 +2672,22 @@ final class AppState: ObservableObject {
             userLocation: self.effectiveUserLocation
         )
 
-        // Poll every 1.2 seconds to track user speech in real-time with responsive feedback
-        interimWhisperTimer = Timer.scheduledTimer(withTimeInterval: 1.2, repeats: true) { [weak self] _ in
+        let partialHandler = self.makeLivePreviewProgressHandler(
+            enabled: true,
+            preferredLangs: preferredLangs,
+            effectiveVocab: effectiveVocab,
+            effectiveBlocked: effectiveBlocked
+        )
+
+        // Poll every 0.85 seconds to track user speech in real-time with responsive token streaming
+        interimWhisperTimer = Timer.scheduledTimer(withTimeInterval: 0.85, repeats: true) { [weak self] _ in
             Task { @MainActor in
-                guard let self = self, self.isRecording, self.recordingDuration >= 0.6 else { return }
+                guard let self = self, self.isRecording, self.recordingDuration >= 0.45 else { return }
                 guard self.interimWhisperTask == nil else { return }
 
                 guard let snapshotURL = self.audioRecorder.createSnapshot() else { return }
+                let customVocab = self.vocabulary
+                let currentTargetApp = self.targetRunningApplication
 
                 self.interimWhisperTask = Task.detached(priority: .userInitiated) { [weak self] in
                     guard let self = self else { return }
@@ -2456,24 +2703,20 @@ final class AppState: ObservableObject {
                         modelName: model,
                         language: lang,
                         preferredLanguages: preferredLangs,
-                        customVocabulary: self.vocabulary,
-                        targetApp: self.targetRunningApplication
+                        customVocabulary: customVocab,
+                        targetApp: currentTargetApp,
+                        onPartialText: partialHandler
                     ), !rawSnapshot.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         await MainActor.run {
-                            if self.isRecording && !rawSnapshot.isEmpty {
-                                let cleaned = TranscriptionService.stripBuiltInHallucinations(rawSnapshot)
-                                var formatted = ScribeModeProcessor.shared.process(text: cleaned, mode: self.transcriptionMode)
-                                formatted = TextReplacer.apply(
-                                    replacements: self.textReplacements,
-                                    vocabulary: effectiveVocab,
-                                    blockedWords: effectiveBlocked,
-                                    blockedAction: self.blockedWordsActionRaw,
-                                    to: formatted
+                            if (self.isRecording || self.isTranscribing) && !rawSnapshot.isEmpty {
+                                let allowMinorRefinement = rawSnapshot.count >= max(1, self.livePreviewText.count - 6)
+                                self.applyLivePreviewUpdate(
+                                    rawText: rawSnapshot,
+                                    preferredLangs: preferredLangs,
+                                    effectiveVocab: effectiveVocab,
+                                    effectiveBlocked: effectiveBlocked,
+                                    allowShrink: allowMinorRefinement
                                 )
-                                if AppState.isTextAllowedForLivePreview(text: formatted, allowedLanguages: preferredLangs) {
-                                    self.latestWhisperTranscription = formatted
-                                    self.livePreviewText = formatted
-                                }
                             }
                         }
                     }
@@ -2553,6 +2796,7 @@ final class AppState: ObservableObject {
     private func stopInterimWhisperGeneration() {
         interimWhisperTimer?.invalidate()
         interimWhisperTimer = nil
+        transcriptionService.cancelSnapshot()
         interimWhisperTask?.cancel()
         interimWhisperTask = nil
     }

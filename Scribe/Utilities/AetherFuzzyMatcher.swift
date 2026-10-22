@@ -24,6 +24,12 @@ public final class AetherFuzzyMatcher: @unchecked Sendable {
         "анти-гравити": "Antigravity",
         "супабейс": "Supabase",
         "супабейз": "Supabase",
+        "досимпл": "doSimple",
+        "до симпл": "doSimple",
+        "до-симпл": "doSimple",
+        "дусимпл": "doSimple",
+        "ду симпл": "doSimple",
+        "dosimple": "doSimple",
         "кубернетес": "Kubernetes",
         "кубер": "Kubernetes",
         "докер": "Docker",
@@ -81,7 +87,21 @@ public final class AetherFuzzyMatcher: @unchecked Sendable {
         "вайбкодинг": "вайбкодинг",
         "гемнай": "Gemini",
         "джеминай": "Gemini",
-        "джемини": "Gemini"
+        "джемини": "Gemini",
+        "бесзел": "Beszel",
+        "безел": "Beszel",
+        "беззел": "Beszel",
+        "бесзэл": "Beszel",
+        "клаудфлейр": "Cloudflare",
+        "клаудфлер": "Cloudflare",
+        "графана": "Grafana",
+        "портейнер": "Portainer",
+        "кулифай": "Coolify",
+        "докплой": "Dokploy",
+        "висперкит": "WhisperKit",
+        "виспер кит": "WhisperKit",
+        "фастапи": "FastAPI",
+        "фаст апи": "FastAPI"
     ]
 
     /// Morphological phonetic & acoustic correction patterns (e.g. speech mishearing of roots)
@@ -185,15 +205,121 @@ public final class AetherFuzzyMatcher: @unchecked Sendable {
         }
 
         // 3. Levenshtein Fuzzy Alignment for Longer Single-Word Custom & Built-in Vocabulary (>5 chars)
-        // NOTE: Never include user frequency dictionary words here — frequent words must not overwrite
-        // spoken grammatical words (e.g. 'такое' vs 'также').
         let singleWordCleanVocab = cleanVocabulary.filter { $0.count >= 5 && !$0.contains(" ") }
         let combinedTargets = (builtInDictionaryTargets + singleWordCleanVocab).filter { !$0.contains(" ") }
         if !combinedTargets.isEmpty {
             result = applyLevenshteinAlignment(text: result, targets: combinedTargets)
         }
 
+        // 4. Cross-Script Phonetic Skeleton Alignment for Active Screen & Custom Latin Identifiers
+        let latinTargets = singleWordCleanVocab.filter { !isCyrillic($0) && $0.count >= 5 }
+        if !latinTargets.isEmpty && isCyrillic(result) {
+            result = applyCrossScriptPhoneticAlignment(text: result, latinTargets: latinTargets)
+        }
+
         return result
+    }
+
+    // MARK: - Dynamic Cross-Script Phonetic Skeleton Alignment
+
+    private func applyCrossScriptPhoneticAlignment(text: String, latinTargets: [String]) -> String {
+        let precomputedTargets: [(target: String, skeleton: String)] = latinTargets.compactMap { t in
+            let skel = Self.latinPhoneticSkeleton(t)
+            guard skel.count >= 4 else { return nil }
+            return (t, skel)
+        }
+        guard !precomputedTargets.isEmpty else { return text }
+
+        let punctuationSet = CharacterSet.punctuationCharacters
+        let words = text.components(separatedBy: " ")
+        var adjusted: [String] = []
+        var i = 0
+
+        while i < words.count {
+            let word = words[i]
+            let cleanWord = word.trimmingCharacters(in: punctuationSet)
+
+            // Check single unrecognized Cyrillic word against Latin targets
+            if cleanWord.count >= 5 && isCyrillic(cleanWord) && !Self.protectedWords.contains(cleanWord.lowercased()) && !isValidDictionaryWord(cleanWord) {
+                let cyrSkel = Self.cyrillicPhoneticSkeleton(cleanWord)
+                if cyrSkel.count >= 4 {
+                    var bestTarget: String? = nil
+                    for item in precomputedTargets {
+                        guard cyrSkel.first == item.skeleton.first else { continue }
+                        let dist = levenshteinDistance(cyrSkel, item.skeleton)
+                        let maxDist = item.skeleton.count >= 7 ? 2 : 1
+                        if dist <= maxDist {
+                            bestTarget = item.target
+                            break
+                        }
+                    }
+                    if let matched = bestTarget {
+                        let prefixScalars = word.unicodeScalars.prefix(while: { punctuationSet.contains($0) })
+                        let suffixScalars = word.unicodeScalars.reversed().prefix(while: { punctuationSet.contains($0) }).reversed()
+                        let prefix = String(String.UnicodeScalarView(prefixScalars))
+                        let suffix = String(String.UnicodeScalarView(suffixScalars))
+                        adjusted.append("\(prefix)\(matched)\(suffix)")
+                        i += 1
+                        continue
+                    }
+                }
+            }
+
+            adjusted.append(word)
+            i += 1
+        }
+
+        return adjusted.joined(separator: " ")
+    }
+
+    private static func cyrillicPhoneticSkeleton(_ word: String) -> String {
+        let map: [Character: String] = [
+            "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "o",
+            "ж": "j", "з": "z", "и": "i", "й": "i", "к": "k", "л": "l", "м": "m",
+            "н": "n", "о": "o", "п": "p", "р": "r", "с": "s", "т": "t", "у": "u",
+            "ф": "f", "х": "h", "ц": "s", "ч": "c", "ш": "s", "щ": "s", "ъ": "",
+            "ы": "i", "ь": "", "э": "e", "ю": "u", "я": "a"
+        ]
+        var raw = ""
+        for ch in word.lowercased() {
+            if let mapped = map[ch] {
+                raw += mapped
+            } else if ch.isLetter || ch.isNumber {
+                raw.append(ch)
+            }
+        }
+        return collapseDuplicates(raw)
+    }
+
+    private static func latinPhoneticSkeleton(_ word: String) -> String {
+        var s = word.lowercased()
+        let replacements: [(String, String)] = [
+            ("ph", "f"), ("ck", "k"), ("qu", "kv"), ("sh", "s"), ("ch", "c"),
+            ("th", "t"), ("sz", "z"), ("oo", "u"), ("ee", "i"), ("ea", "i"),
+            ("ai", "ei"), ("ay", "ei"), ("ce", "se"), ("ci", "si"), ("cy", "si"),
+            ("x", "ks"), ("w", "v"), ("c", "k"), ("y", "i"), ("j", "j")
+        ]
+        for (k, v) in replacements {
+            s = s.replacingOccurrences(of: k, with: v)
+        }
+        // Drop silent trailing 'e' on longer words (e.g. Simple -> simpl, Supabase -> supabas)
+        if s.count >= 5 && s.hasSuffix("e") {
+            s.removeLast()
+        }
+        s = s.filter { $0.isLetter || $0.isNumber }
+        return collapseDuplicates(s)
+    }
+
+    private static func collapseDuplicates(_ s: String) -> String {
+        var out = ""
+        var prev: Character? = nil
+        for ch in s {
+            if ch != prev {
+                out.append(ch)
+                prev = ch
+            }
+        }
+        return out
     }
 
     // MARK: - Levenshtein Distance Matching

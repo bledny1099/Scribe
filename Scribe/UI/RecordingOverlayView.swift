@@ -858,7 +858,7 @@ struct OrbOverlay: View {
     }
 }
 
-// MARK: - Smooth Live Preview Text View (Spring physics & smooth text streaming)
+// MARK: - Smooth Live Preview Text View (Smooth non-blinking text streaming)
 struct SmoothLivePreviewTextView: View {
     let targetText: String
     let subtitleBackground: SubtitleBackground
@@ -866,13 +866,6 @@ struct SmoothLivePreviewTextView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var displayedText: String = ""
-    @State private var typingTask: Task<Void, Never>?
-
-    // Physics parameters matching Framer Motion config:
-    // stiffness: 500, damping: 30, mass: 0.5
-    private var springAnimation: Animation {
-        .interpolatingSpring(mass: 0.5, stiffness: 500, damping: 30)
-    }
 
     private var textColor: Color {
         subtitleBackground == .glass ? Color.primary : Color.white
@@ -918,10 +911,10 @@ struct SmoothLivePreviewTextView: View {
             .shadow(color: subtitleBackground == .transparent ? Color.black.opacity(0.85) : Color.clear, radius: 3, x: 0, y: 1)
             .background(bubbleBackground)
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-            .frame(maxWidth: 680)
+            .frame(minWidth: 96, maxWidth: 680)
             .animation(
-                reduceMotion ? .none : springAnimation,
-                value: displayedText.count
+                reduceMotion ? .none : .smooth(duration: 0.16, extraBounce: 0),
+                value: displayedText
             )
             .task(id: targetText) {
                 await updateStreamingText(to: targetText)
@@ -930,8 +923,6 @@ struct SmoothLivePreviewTextView: View {
 
     @MainActor
     private func updateStreamingText(to target: String) async {
-        typingTask?.cancel()
-
         if reduceMotion {
             displayedText = target
             return
@@ -942,27 +933,39 @@ struct SmoothLivePreviewTextView: View {
             return
         }
 
-        // Fast prefix reconciliation: roll back only non-matching suffix to avoid jarred resets
-        var common = ""
-        for (c1, c2) in zip(displayedText, target) {
-            if c1 == c2 { common.append(c1) } else { break }
-        }
-        if common.count < displayedText.count {
-            displayedText = common
+        // Never collapse displayedText back to 1 char when Whisper refines capitalization or an earlier word.
+        // If target is shorter or equal in length, update in-place without resetting the bubble.
+        if target.count <= displayedText.count {
+            if displayedText != target {
+                displayedText = target
+            }
+            return
         }
 
-        if displayedText.isEmpty && !target.isEmpty {
-            displayedText = String(target.prefix(1))
+        if displayedText.isEmpty {
+            let firstSpaceDistance = target.firstIndex(of: " ").map { target.distance(from: target.startIndex, to: $0) } ?? min(target.count, 6)
+            let initialCount = max(min(target.count, 3), min(firstSpaceDistance, 10))
+            let idx = target.index(target.startIndex, offsetBy: initialCount)
+            displayedText = String(target[..<idx])
+        } else {
+            // Reconcile existing length in-place so early punctuation/word refinements never shrink the frame,
+            // then smoothly stream only the newly added suffix characters.
+            let keepCount = min(displayedText.count, target.count)
+            let keepIdx = target.index(target.startIndex, offsetBy: keepCount)
+            let updatedPrefix = String(target[..<keepIdx])
+            if displayedText != updatedPrefix {
+                displayedText = updatedPrefix
+            }
         }
 
         while displayedText.count < target.count {
             if Task.isCancelled { return }
             let remaining = target.count - displayedText.count
-            let step = max(1, remaining / 14)
+            let step = max(2, min(6, (remaining + 7) / 8))
             let nextIndex = target.index(target.startIndex, offsetBy: min(target.count, displayedText.count + step))
             displayedText = String(target[..<nextIndex])
 
-            let sleepMs = remaining > 15 ? 12 : 18
+            let sleepMs = remaining > 24 ? 14 : 20
             try? await Task.sleep(nanoseconds: UInt64(sleepMs * 1_000_000))
         }
     }
@@ -978,14 +981,14 @@ struct SubtitleOverlayView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if !appState.livePreviewText.isEmpty && (appState.recordingStatus == .recording || appState.recordingStatus == .transcribing || appState.isShowingPreview) {
+            if !appState.livePreviewText.isEmpty && (appState.recordingStatus == .recording || appState.recordingStatus == .transcribing || appState.recordingStatus == .done || appState.isShowingPreview) {
                 SmoothLivePreviewTextView(
                     targetText: appState.livePreviewText,
                     subtitleBackground: appState.livePreviewBackground,
                     cornerRadius: cornerRadius
                 )
-                .transition(.opacity.combined(with: .scale(scale: 0.96)))
-                .animation(.easeInOut(duration: 0.2), value: appState.livePreviewText.isEmpty)
+                .transition(.opacity.combined(with: .scale(scale: 0.97)))
+                .animation(.smooth(duration: 0.18, extraBounce: 0), value: appState.livePreviewText.isEmpty)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

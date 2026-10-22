@@ -264,6 +264,27 @@ public final class AudioDeviceManager: ObservableObject {
 
     // MARK: - Nonisolated Helper for Audio Thread
 
+    /// Nonisolated static helper to get the system default input AudioDeviceID
+    public nonisolated static func defaultInputDeviceID() -> AudioDeviceID? {
+        var defaultInputAddress = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDefaultInputDevice,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var defaultInputDeviceID: AudioDeviceID = 0
+        var defaultSize = UInt32(MemoryLayout<AudioDeviceID>.size)
+        let status = AudioObjectGetPropertyData(
+            AudioObjectID(kAudioObjectSystemObject),
+            &defaultInputAddress,
+            0,
+            nil,
+            &defaultSize,
+            &defaultInputDeviceID
+        )
+        guard status == noErr && defaultInputDeviceID != 0 else { return nil }
+        return defaultInputDeviceID
+    }
+
     /// Nonisolated static helper to find AudioDeviceID for a given UID without touching MainActor state
     public nonisolated static func findDeviceID(byUID targetUID: String) -> AudioDeviceID? {
         guard targetUID != systemDefaultUID && !targetUID.isEmpty else { return nil }

@@ -87,11 +87,18 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
  
         levelTracker.reset()
 
-        let inputNode = audioEngine.inputNode
-        
-        // Route audio input to user-selected hardware microphone
+        // 1. Reset any lingering engine state from previous runs
+        if audioEngine.isRunning {
+            audioEngine.stop()
+            audioEngine.inputNode.removeTap(onBus: 0)
+            audioEngine.reset()
+        }
+
+        // 2. Route audio input to user-selected hardware microphone ONLY if user explicitly chose a specific device
         let selectedUID = UserDefaults.standard.string(forKey: "selectedAudioInputDeviceUID") ?? AudioDeviceManager.systemDefaultUID
-        if let targetDeviceID = AudioDeviceManager.findDeviceID(byUID: selectedUID),
+        let inputNode = audioEngine.inputNode
+        if selectedUID != AudioDeviceManager.systemDefaultUID,
+           let targetDeviceID = AudioDeviceManager.findDeviceID(byUID: selectedUID),
            let audioUnit = inputNode.audioUnit {
             var deviceID = targetDeviceID
             let status = AudioUnitSetProperty(
@@ -104,14 +111,17 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
             )
             if status == noErr {
                 logger.info("Configured audio input device ID: \(deviceID)")
+                audioEngine.reset()
             } else {
                 logger.warning("Failed to configure audio input device ID \(deviceID), status: \(status)")
             }
         }
  
-        var recordingFormat = inputNode.inputFormat(forBus: 0)
+        let activeInputNode = audioEngine.inputNode
+        // CRITICAL: Always use the hardware inputFormat first to prevent "Format mismatch" crashes in CoreAudio AUHAL
+        var recordingFormat = activeInputNode.inputFormat(forBus: 0)
         if recordingFormat.sampleRate <= 0 || recordingFormat.channelCount == 0 {
-            recordingFormat = inputNode.outputFormat(forBus: 0)
+            recordingFormat = activeInputNode.outputFormat(forBus: 0)
         }
         if recordingFormat.sampleRate <= 0 || recordingFormat.channelCount == 0 {
             if let fallback = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: 44100, channels: 1, interleaved: false) {
@@ -132,9 +142,9 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
         let queue = audioProcessingQueue
  
         // Ensure any lingering tap is removed before installing a new one
-        inputNode.removeTap(onBus: 0)
+        activeInputNode.removeTap(onBus: 0)
 
-        inputNode.installTap(onBus: 0, bufferSize: 2048, format: recordingFormat) { [weak self] buffer, _ in
+        activeInputNode.installTap(onBus: 0, bufferSize: 2048, format: recordingFormat) { [weak self] buffer, _ in
             guard let self = self, self.isRecording else {
                 return
             }
@@ -189,8 +199,8 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
 
                     self.samplesLock.lock()
                     self.recordedSamples.append(contentsOf: samples)
-                    // Whisper snapshot preview only requires the last ~30 seconds of speech; enforce rolling cap
-                    let maxSamples = Int(recordingFormat.sampleRate * 30)
+                    // Keep up to 180 seconds in memory so the opening words of a dictation are never trimmed from snapshots
+                    let maxSamples = Int(recordingFormat.sampleRate * 180)
                     if self.recordedSamples.count > maxSamples {
                         let excess = self.recordedSamples.count - maxSamples
                         self.recordedSamples.removeFirst(excess)
@@ -208,7 +218,7 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
         do {
             try audioEngine.start()
         } catch {
-            inputNode.removeTap(onBus: 0)
+            activeInputNode.removeTap(onBus: 0)
             isRecording = false
             logger.error("Failed to start audio engine: \(error.localizedDescription)")
             throw error
@@ -223,7 +233,10 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
     func stopRecording() -> URL? {
         isRecording = false
         audioEngine.inputNode.removeTap(onBus: 0)
-        audioEngine.stop()
+        if audioEngine.isRunning {
+            audioEngine.stop()
+        }
+        audioEngine.reset()
         
         // Drain pending audio write blocks
         audioProcessingQueue.sync {

@@ -743,6 +743,16 @@ public final class AetherContextEngine: @unchecked Sendable {
 
         var combined = userWords
         var seen = Set(userWords.map { $0.lowercased() })
+
+        // Include active window/document identifiers and rolling session terms so fuzzy & phonetic alignment knows what's on screen
+        let winContext = inspectActiveWindowContext(targetApp: targetApp)
+        for kw in (winContext.keywords + recentSessionKeywords(limit: 12)) {
+            let norm = kw.normalizedPlainVocabularyWord()
+            if norm.count >= 3 && seen.insert(norm.lowercased()).inserted {
+                combined.append(norm)
+            }
+        }
+
         for w in domainWords {
             let norm = w.normalizedPlainVocabularyWord()
             if seen.insert(norm.lowercased()).inserted {
@@ -943,17 +953,269 @@ public final class AetherContextEngine: @unchecked Sendable {
         public let windowTitle: String?
         public let documentFileName: String?
         public let fileExtension: String?
+        public let focusedTextSnippet: String?
         public let keywords: [String]
     }
 
-    private static let emptyWindowContext = WindowContext(windowTitle: nil, documentFileName: nil, fileExtension: nil, keywords: [])
+    private static let emptyWindowContext = WindowContext(
+        windowTitle: nil,
+        documentFileName: nil,
+        fileExtension: nil,
+        focusedTextSnippet: nil,
+        keywords: []
+    )
     private static let windowContextTTL: CFAbsoluteTime = 1.0
     private let windowContextLock = NSLock()
     private var cachedWindowContext: (pid: pid_t, timestamp: CFAbsoluteTime, value: WindowContext)?
 
-    /// Inspects the frontmost active window title and open document name via Accessibility API (100% locally, no network).
-    /// Results are cached per process for a short TTL: prompt building, vocabulary merging and domain detection all
-    /// ask for the same window during one dictation, and each AX call is a synchronous IPC round-trip.
+    // MARK: - Rolling Session Context Memory
+
+    private struct SessionEntry: Sendable {
+        let text: String
+        let timestamp: CFAbsoluteTime
+        let topics: Set<SemanticTopic>
+        let keywords: [String]
+    }
+
+    private let sessionLock = NSLock()
+    private var sessionHistory: [SessionEntry] = []
+    private static let sessionRetentionSeconds: CFAbsoluteTime = 1800.0 // 30 minutes
+    private static let maxSessionEntries = 12
+
+    public enum SemanticTopic: String, CaseIterable, Sendable {
+        case codingAndGit = "coding_git"
+        case serverAndDevOps = "server_devops"
+        case databaseAndStorage = "database_storage"
+        case uiAndDesign = "ui_design"
+        case audioAndSpeech = "audio_speech"
+        case aiAndLLMs = "ai_llms"
+        case financeAndCrypto = "finance_crypto"
+        case medicineAndHealth = "medicine_health"
+
+        public var promptSummaryRu: String {
+            switch self {
+            case .codingAndGit:
+                return "Тема: программирование, код, Git, функции, ветки, коммиты, билд, баги."
+            case .serverAndDevOps:
+                return "Тема: серверы, деплой, демо-сервер, Docker, Vercel, хост, порт, логи, кластер, мониторинг."
+            case .databaseAndStorage:
+                return "Тема: базы данных, таблицы, миграции, SQL, индексы, запросы, схемы, кэш."
+            case .uiAndDesign:
+                return "Тема: интерфейс, верстка, превью, оверлей, плашка, бордер, паддинг, скролл, стек, кнопки, скриншоты."
+            case .audioAndSpeech:
+                return "Тема: звук, микрофон, частота дискретизации, запись, транскрибация, распознавание речи, буфер."
+            case .aiAndLLMs:
+                return "Тема: нейросети, ИИ-модели, промпт, токены, инференс, контекст, субагенты, галлюцинации."
+            case .financeAndCrypto:
+                return "Тема: финансы, крипто, токены, кошелек, транзакции, стейкинг, курс."
+            case .medicineAndHealth:
+                return "Тема: медицина, анализы, диагностика, симптомы, препараты, дозировка."
+            }
+        }
+    }
+
+    /// Records a finalized transcription in the rolling session memory so subsequent dictations
+    /// understand the ongoing conversation topic and vocabulary.
+    public func recordUtteranceInSession(_ text: String, targetApp: NSRunningApplication? = nil) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 3 else { return }
+
+        let detectedTopics = inferSemanticTopics(from: trimmed, targetApp: targetApp, includeSession: false)
+        let extracted = Self.extractSalientKeywords(from: trimmed)
+        let now = CFAbsoluteTimeGetCurrent()
+
+        sessionLock.lock()
+        sessionHistory.removeAll { now - $0.timestamp > Self.sessionRetentionSeconds }
+        sessionHistory.append(SessionEntry(
+            text: String(trimmed.suffix(240)),
+            timestamp: now,
+            topics: detectedTopics,
+            keywords: extracted
+        ))
+        if sessionHistory.count > Self.maxSessionEntries {
+            sessionHistory.removeFirst(sessionHistory.count - Self.maxSessionEntries)
+        }
+        sessionLock.unlock()
+    }
+
+    /// Returns the most relevant keywords from recent dictations in the current session.
+    public func recentSessionKeywords(limit: Int = 15) -> [String] {
+        let now = CFAbsoluteTimeGetCurrent()
+        sessionLock.lock()
+        sessionHistory.removeAll { now - $0.timestamp > Self.sessionRetentionSeconds }
+        let entries = sessionHistory
+        sessionLock.unlock()
+
+        var seen = Set<String>()
+        var result: [String] = []
+        for entry in entries.reversed() {
+            for kw in entry.keywords {
+                if seen.insert(kw.lowercased()).inserted {
+                    result.append(kw)
+                    if result.count >= limit { return result }
+                }
+            }
+        }
+        return result
+    }
+
+    /// Returns a brief summary of the last few utterances for LLM context conditioning.
+    public func recentSessionSummary(maxUtterances: Int = 3) -> String? {
+        let now = CFAbsoluteTimeGetCurrent()
+        sessionLock.lock()
+        sessionHistory.removeAll { now - $0.timestamp > Self.sessionRetentionSeconds }
+        let recent = sessionHistory.suffix(maxUtterances).map { $0.text }
+        sessionLock.unlock()
+
+        guard !recent.isEmpty else { return nil }
+        return recent.joined(separator: " | ")
+    }
+
+    /// Infers active semantic topics from the current utterance, active window context, active app domain, and recent session memory.
+    public func inferSemanticTopics(
+        from text: String,
+        targetApp: NSRunningApplication? = nil,
+        includeSession: Bool = true
+    ) -> Set<SemanticTopic> {
+        var topics = Set<SemanticTopic>()
+        let winContext = inspectActiveWindowContext(targetApp: targetApp)
+        let (_, domain, _, _) = detectActiveAppDomain(targetApp: targetApp)
+        let profile = detectCodingAgentProfile(targetApp: targetApp)
+
+        // 1. Domain & IDE baseline cues
+        switch domain {
+        case .ideAndCoding:
+            topics.insert(.codingAndGit)
+        case .aiChatAndLLMs:
+            topics.insert(.aiAndLLMs)
+        case .designAndCreative:
+            topics.insert(.uiAndDesign)
+        case .cryptoAndTrading:
+            topics.insert(.financeAndCrypto)
+        case .medicalAndHealth, .nutritionAndBiohacking:
+            topics.insert(.medicineAndHealth)
+        default:
+            break
+        }
+        if profile == .terminal {
+            topics.insert(.serverAndDevOps)
+            topics.insert(.codingAndGit)
+        }
+
+        // Combine utterance text + window title + focused text snippet for lexical topic scoring
+        var combinedCorpus = text.lowercased()
+        if let wt = winContext.windowTitle {
+            combinedCorpus += " " + wt.lowercased()
+        }
+        if let fn = winContext.documentFileName {
+            combinedCorpus += " " + fn.lowercased()
+        }
+        if let snippet = winContext.focusedTextSnippet {
+            combinedCorpus += " " + snippet.lowercased()
+        }
+
+        // 2. Score lexical cues per semantic topic
+        let codingCues = [
+            "код", "кода", "коде", "гит", "git", "ветк", "коммит", "commit", "merge", "мерж", "пулл", "ребейз",
+            "функци", "метод", "класс", "структур", "переменн", "массив", "цикл", "компил", "билд", "build",
+            "баг", "ошибк", "дебаг", "рефактор", "тест", "файл", "папк", "репозитор", "зависимост", "пакет",
+            "импорт", "экспорт", "асинхрон", "актор", "swift", "python", "typescript", "react", "xcode", "cursor",
+            "дифф", "diff", "линтер", "хук", "пропс", "стейт", "рендер", "скрипт"
+        ]
+        if codingCues.contains(where: { combinedCorpus.contains($0) }) {
+            topics.insert(.codingAndGit)
+        }
+
+        let serverCues = [
+            "сервер", "server", "депло", "deploy", "докер", "docker", "контейнер", "vercel", "версел", "beszel", "бесзел",
+            "хост", "host", "порт", "port", "лог", "логи", "логов", "кластер", "cluster", "нджинкс", "nginx",
+            "прокси", "proxy", "балансиров", "ssh", "впс", "vps", "бэкенд", "backend", "апи", "api", "эндпоинт",
+            "вебхук", "webhook", "пинг", "мониторинг", "демо", "стенд", "прод", "стейджинг", "воркер", "демон"
+        ]
+        if serverCues.contains(where: { combinedCorpus.contains($0) }) {
+            topics.insert(.serverAndDevOps)
+        }
+
+        let dbCues = [
+            "база", "базу", "базы", "базе", "таблиц", "table", "миграц", "sql", "postgres", "постгрес",
+            "supabase", "супабейз", "redis", "редис", "индекс", "запрос", "query", "схем", "schema",
+            "колонк", "строк", "запис", "бэкап", "дамп", "кэш", "cache", "firestore", "prisma"
+        ]
+        if dbCues.contains(where: { combinedCorpus.contains($0) }) {
+            topics.insert(.databaseAndStorage)
+        }
+
+        let uiCues = [
+            "интерфейс", "кнопк", "окно", "окон", "экран", "панел", "плашк", "оверлей", "overlay", "превью", "preview",
+            "скриншот", "screenshot", "верстк", "макет", "дизайн", "бордер", "border", "паддинг", "padding",
+            "отступ", "рамк", "цвет", "шрифт", "иконк", "анимац", "скролл", "scroll", "стек", "stack", "модалк",
+            "вкладк", "таб", "сайдбар", "хедер", "футер", "карточк", "список", "форма", "инпут", "курсор", "фокус"
+        ]
+        if uiCues.contains(where: { combinedCorpus.contains($0) }) {
+            topics.insert(.uiAndDesign)
+        }
+
+        let audioCues = [
+            "звук", "аудио", "audio", "микрофон", "запис", "частот", "дискретизац", "герц", "khz", "гц",
+            "транскриб", "распознав", "речь", "речи", "голос", "whisper", "виспер", "буфер", "семпл",
+            "шумоподавл", "громкост", "децибел", "диктовк", "субтитр"
+        ]
+        if audioCues.contains(where: { combinedCorpus.contains($0) }) {
+            topics.insert(.audioAndSpeech)
+        }
+
+        let aiCues = [
+            "нейросет", "модел", "model", "промпт", "промт", "prompt", "токен", "token", "инференс", "inference",
+            "контекст", "context", "галлюцинац", "агент", "субагент", "llm", "gpt", "claude", "gemini", "ollama",
+            "квантован", "веса", "эмбеддинг", "дообуч", "рассужден", "ии"
+        ]
+        if aiCues.contains(where: { combinedCorpus.contains($0) }) {
+            topics.insert(.aiAndLLMs)
+        }
+
+        // 3. Include recent session topics if within active session window
+        if includeSession {
+            let now = CFAbsoluteTimeGetCurrent()
+            sessionLock.lock()
+            let recentEntries = sessionHistory.filter { now - $0.timestamp <= Self.sessionRetentionSeconds }.suffix(4)
+            sessionLock.unlock()
+            for entry in recentEntries {
+                topics.formUnion(entry.topics)
+            }
+        }
+
+        return topics
+    }
+
+    private static let stopWords: Set<String> = [
+        "это", "как", "так", "что", "чтобы", "для", "или", "если", "когда", "тут", "там", "где",
+        "все", "всё", "еще", "ещё", "уже", "просто", "очень", "надо", "нужно", "можно", "будет",
+        "было", "быть", "есть", "нет", "при", "под", "над", "про", "без", "через", "после",
+        "сейчас", "теперь", "потом", "тогда", "вообще", "короче", "кстати", "давай", "сделай",
+        "the", "and", "for", "with", "that", "this", "from", "have", "are", "was", "were", "not"
+    ]
+
+    private static func extractSalientKeywords(from text: String) -> [String] {
+        let rawTokens = text.components(separatedBy: CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_.")).inverted)
+        var results: [String] = []
+        var seen = Set<String>()
+        for token in rawTokens {
+            let cleaned = token.trimmingCharacters(in: CharacterSet(charactersIn: "-_."))
+            guard cleaned.count >= 3 && cleaned.count <= 32 else { continue }
+            let lower = cleaned.lowercased()
+            guard !stopWords.contains(lower) else { continue }
+            // Keep technical/Latin identifiers or longer Cyrillic domain words
+            let hasLatin = cleaned.unicodeScalars.contains { ($0.value >= 0x0041 && $0.value <= 0x005A) || ($0.value >= 0x0061 && $0.value <= 0x007A) }
+            if hasLatin || cleaned.count >= 4 {
+                if seen.insert(lower).inserted {
+                    results.append(cleaned)
+                }
+            }
+        }
+        return Array(results.prefix(12))
+    }
+
+    /// Inspects the frontmost active window title, open document name, and focused UI text via Accessibility API (100% locally, no network).
     public func inspectActiveWindowContext(targetApp: NSRunningApplication? = nil) -> WindowContext {
         guard AXIsProcessTrusted() else {
             return Self.emptyWindowContext
@@ -983,17 +1245,18 @@ public final class AetherContextEngine: @unchecked Sendable {
     private func queryWindowContext(pid: pid_t) -> WindowContext {
         let appElement = AXUIElementCreateApplication(pid)
         // Default AX timeout is ~6s; a beachballing target app must never stall dictation.
-        AXUIElementSetMessagingTimeout(appElement, 0.25)
+        AXUIElementSetMessagingTimeout(appElement, 0.20)
 
         var focusedWindowValue: AnyObject?
         let copyRes = AXUIElementCopyAttributeValue(appElement, kAXFocusedWindowAttribute as CFString, &focusedWindowValue)
 
         var title: String?
         var documentURL: String?
+        var focusedSnippet: String?
 
         if copyRes == .success, let windowRef = focusedWindowValue, CFGetTypeID(windowRef) == AXUIElementGetTypeID() {
             let window = windowRef as! AXUIElement
-            AXUIElementSetMessagingTimeout(window, 0.25)
+            AXUIElementSetMessagingTimeout(window, 0.20)
             // 1. Window Title
             var titleVal: AnyObject?
             if AXUIElementCopyAttributeValue(window, kAXTitleAttribute as CFString, &titleVal) == .success,
@@ -1009,6 +1272,37 @@ public final class AetherContextEngine: @unchecked Sendable {
             }
         }
 
+        // 3. Focused UI Element value / placeholder / description (captures active chat/editor context)
+        var focusedElemVal: AnyObject?
+        if AXUIElementCopyAttributeValue(appElement, kAXFocusedUIElementAttribute as CFString, &focusedElemVal) == .success,
+           let elemRef = focusedElemVal, CFGetTypeID(elemRef) == AXUIElementGetTypeID() {
+            let elem = elemRef as! AXUIElement
+            AXUIElementSetMessagingTimeout(elem, 0.15)
+
+            var snippets: [String] = []
+            var valObj: AnyObject?
+            if AXUIElementCopyAttributeValue(elem, kAXValueAttribute as CFString, &valObj) == .success,
+               let valStr = valObj as? String {
+                let trimmed = valStr.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty {
+                    snippets.append(String(trimmed.suffix(400)))
+                }
+            }
+            var descObj: AnyObject?
+            if AXUIElementCopyAttributeValue(elem, kAXDescriptionAttribute as CFString, &descObj) == .success,
+               let descStr = descObj as? String, !descStr.isEmpty {
+                snippets.append(String(descStr.prefix(120)))
+            }
+            var placeholderObj: AnyObject?
+            if AXUIElementCopyAttributeValue(elem, kAXPlaceholderValueAttribute as CFString, &placeholderObj) == .success,
+               let phStr = placeholderObj as? String, !phStr.isEmpty {
+                snippets.append(String(phStr.prefix(120)))
+            }
+            if !snippets.isEmpty {
+                focusedSnippet = snippets.joined(separator: " ")
+            }
+        }
+
         var fileName: String?
         var fileExt: String?
         var extractedKeywords: [String] = []
@@ -1019,26 +1313,35 @@ public final class AetherContextEngine: @unchecked Sendable {
             fileName = url.lastPathComponent
             fileExt = url.pathExtension.isEmpty ? nil : url.pathExtension
             if let fn = fileName { extractedKeywords.append(fn) }
-        } else if let t = title {
-            // Extract possible file name from title e.g. "auth.ts — Scribe — Cursor" or "SettingsView.swift"
-            let components = t.components(separatedBy: CharacterSet(charactersIn: " —-–|/\\"))
-            for comp in components {
-                let trimmed = comp.trimmingCharacters(in: .whitespacesAndNewlines)
-                if trimmed.contains(".") && trimmed.count >= 3 && trimmed.count <= 40 {
-                    let ext = (trimmed as NSString).pathExtension
-                    if !ext.isEmpty && ext.count <= 6 {
-                        fileName = trimmed
-                        fileExt = ext
-                        extractedKeywords.append(trimmed)
-                        break
+        }
+
+        if let t = title {
+            if fileName == nil {
+                // Extract possible file name from title e.g. "auth.ts — Scribe — Cursor" or "SettingsView.swift"
+                let components = t.components(separatedBy: CharacterSet(charactersIn: " —-–|/\\"))
+                for comp in components {
+                    let trimmed = comp.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if trimmed.contains(".") && trimmed.count >= 3 && trimmed.count <= 40 {
+                        let ext = (trimmed as NSString).pathExtension
+                        if !ext.isEmpty && ext.count <= 6 {
+                            fileName = trimmed
+                            fileExt = ext
+                            extractedKeywords.append(trimmed)
+                            break
+                        }
                     }
                 }
             }
-            // Add clean keywords from window title (letters and digits, len >= 3)
-            let rawWords = t.components(separatedBy: CharacterSet.alphanumerics.inverted)
-                .filter { $0.count >= 3 && $0.count <= 25 }
-            for w in rawWords {
-                if !extractedKeywords.contains(w) {
+            for w in Self.extractSalientKeywords(from: t) {
+                if !extractedKeywords.contains(where: { $0.caseInsensitiveCompare(w) == .orderedSame }) {
+                    extractedKeywords.append(w)
+                }
+            }
+        }
+
+        if let snippet = focusedSnippet {
+            for w in Self.extractSalientKeywords(from: snippet) {
+                if !extractedKeywords.contains(where: { $0.caseInsensitiveCompare(w) == .orderedSame }) {
                     extractedKeywords.append(w)
                 }
             }
@@ -1048,11 +1351,12 @@ public final class AetherContextEngine: @unchecked Sendable {
             windowTitle: title,
             documentFileName: fileName,
             fileExtension: fileExt,
-            keywords: Array(extractedKeywords.prefix(8))
+            focusedTextSnippet: focusedSnippet,
+            keywords: Array(extractedKeywords.prefix(18))
         )
     }
 
-    /// Generates a comprehensive prompt string conditioned on active app, location, and custom vocabulary
+    /// Generates a comprehensive prompt string conditioned on active app, screen context, session memory, location, and custom vocabulary
     public func buildConditioningPrompt(
         basePrompt: String,
         customVocabulary: String,
@@ -1075,12 +1379,28 @@ public final class AetherContextEngine: @unchecked Sendable {
         if let fn = winContext.documentFileName {
             components.append("Active file: \(fn).")
         } else if let wt = winContext.windowTitle, !wt.isEmpty {
-            let cleanTitle = String(wt.prefix(50))
+            let cleanTitle = String(wt.prefix(60))
             components.append("Window: \(cleanTitle).")
         }
 
+        // Active Semantic Topics from Window + Session Memory
+        let activeTopics = inferSemanticTopics(from: "", targetApp: targetApp, includeSession: true)
+        let isRussian = language == "ru" || language == nil
+        if isRussian && !activeTopics.isEmpty {
+            let topicDescriptions = activeTopics.prefix(2).map { $0.promptSummaryRu }.joined(separator: " ")
+            components.append(topicDescriptions)
+        }
+
+        // Recent Session Context Keywords
+        let sessionWords = recentSessionKeywords(limit: 12)
+        let screenAndSessionWords = (winContext.keywords + sessionWords)
+        if !screenAndSessionWords.isEmpty {
+            var seen = Set<String>()
+            let uniqueContextWords = screenAndSessionWords.filter { seen.insert($0.lowercased()).inserted }.prefix(14)
+            components.append("Context terms: \(uniqueContextWords.joined(separator: ", ")).")
+        }
+
         if !userLocation.isEmpty {
-            let isRussian = language == "ru" || language == nil
             let locHeader = isRussian ? "Локации, острова и адреса:" : "Locations, islands and streets:"
             let addressAffixes = isRussian
                 ? "остров, о., архипелаг, ул., улица, проспект, бульвар, переулок, шоссе, набережная, наб., площадь, пл., корп., стр., вл."
@@ -1129,9 +1449,10 @@ public final class AetherContextEngine: @unchecked Sendable {
     ) -> [String] {
         var strings: [String] = []
 
-        // Active window & document keywords first: they are the most specific signal and must survive the cap below.
+        // Active window, focused element, and recent session keywords first
         let winContext = inspectActiveWindowContext(targetApp: targetApp)
         strings.append(contentsOf: winContext.keywords)
+        strings.append(contentsOf: recentSessionKeywords(limit: 15))
 
         // Add effective vocabulary (user + domain)
         let effectiveVocab = activeEffectiveVocabulary(targetApp: targetApp, userVocabulary: customVocabulary, userLocation: userLocation)
@@ -1160,7 +1481,7 @@ public final class AetherContextEngine: @unchecked Sendable {
             ])
         }
 
-        // Ordered, case-insensitive dedupe. Array(Set(...)) used to shuffle priorities and drop random user terms at the cap.
+        // Ordered, case-insensitive dedupe.
         var seen = Set<String>()
         var ordered: [String] = []
         ordered.reserveCapacity(min(strings.count, 120))

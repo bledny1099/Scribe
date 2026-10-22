@@ -43,7 +43,7 @@ public enum ScribeMode: String, CaseIterable, Identifiable, Codable, Sendable {
     public var fullDescription: String {
         switch self {
         case .clean:
-            return "Automatically removes verbal clutter (uh, um, эээ, ну типа, короче), fixes capitalization, and standardizes punctuation."
+            return "Automatically removes verbal clutter (uh, um), fixes capitalization, and standardizes punctuation."
         case .raw:
             return "Preserves every spoken word exactly as uttered by the model without conversational truncation or filler stripping (leaves everything as is)."
         }

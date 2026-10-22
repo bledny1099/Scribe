@@ -5,6 +5,26 @@ All notable changes to Scribe will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.10.5] - 2026-10-22
+
+## Added
+- Context-aware vocabulary scoring and rolling session memory in `AetherContextEngine`, extracting surrounding window text, domain signals, and recent transcript terms to prioritize relevant technical vocabulary.
+- Cross-script phonetic skeleton alignment in `AetherFuzzyMatcher` and context-driven term snapping in `AetherLinguisticValidator` to match spoken Russian transliterations against active English identifiers.
+- Downward expander (soft noise gate) in `AetherAudioConditioner.normalizeLoudness` and token log-probability filter (`isLowConfidenceNoiseGuess`) in `TranscriptionService` to suppress quiet non-speech sounds, breaths, and keyboard taps.
+- Real-time partial token callbacks (`onPartialText` and `onProgressText`) so the live subtitle preview continues streaming during final transcription.
+
+## Changed
+- Enabled single-pass encoder language detection (`detectLanguage = true`, `language = nil`, `usePrefillCache = false`) in multilingual WhisperKit decoding so English utterances decode with `<|en|>` from frame 0 without clipping opening words.
+- Updated `AetherAudioConditioner.detectSpeechBoundaries` to use the 20th-percentile noise floor, require `+6.0 dB` above noise floor across at least 5 sustained frames, and mirror the dominant channel on 2-channel USB audio interfaces.
+- Expanded `AudioRecorder` live preview ring buffer capacity from 30 seconds to 180 seconds and skipped redundant `audioEngine.reset()` calls when starting from a stopped engine.
+- Updated `SmoothLivePreviewTextView` to reconcile prefix edits in place without resetting displayed characters and fixed `updateSubtitlePanelFrame` to a constant 132 pt canvas height.
+
+## Fixed
+- Fixed opening words of English sentences being dropped in multilingual mode when preceded by a Russian language prompt.
+- Fixed live preview frame blinking and text disappearing mid-sentence when Whisper revises earlier words or the subtitle overlay resizes.
+- Fixed quiet breaths, microphone rustle, and key presses being transcribed as isolated hallucinated words such as `"shift"`, `"mm-."`, or trailing `"you"`.
+- Fixed "No speech" capsule notification not appearing when a recording contains only background noise or silence.
+
 ## [2.10.4] - 2026-10-14
 
 ## Added

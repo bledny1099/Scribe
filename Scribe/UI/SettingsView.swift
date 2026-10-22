@@ -1812,6 +1812,9 @@ struct LiquidGlassSegmentedPicker<T: Hashable>: View {
     let label: (T) -> (name: String, icon: String)
 
     @Namespace private var segmentAnimation
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var isLight: Bool { colorScheme == .light }
 
     var body: some View {
         HStack(spacing: itemSpacing) {
@@ -1827,12 +1830,12 @@ struct LiquidGlassSegmentedPicker<T: Hashable>: View {
                         if !info.icon.isEmpty {
                             Image(systemName: info.icon)
                                 .font(.system(size: iconSize, weight: isSelected ? .bold : .semibold))
-                                .foregroundStyle(isSelected ? .white : .primary.opacity(0.7))
+                                .foregroundStyle(isSelected ? (isLight ? Color.black.opacity(0.88) : .white) : .primary.opacity(0.7))
                         }
                         if !info.name.isEmpty {
                             Text(info.name)
                                 .font(.system(size: fontSize, weight: isSelected ? .bold : .medium, design: .rounded))
-                                .foregroundStyle(isSelected ? .white : .primary.opacity(0.75))
+                                .foregroundStyle(isSelected ? (isLight ? Color.black.opacity(0.88) : .white) : .primary.opacity(0.75))
                                 .lineLimit(1)
                                 .fixedSize(horizontal: true, vertical: false)
                         }
@@ -1851,11 +1854,16 @@ struct LiquidGlassSegmentedPicker<T: Hashable>: View {
                                 Capsule()
                                     .fill(
                                         LinearGradient(
-                                            colors: [
-                                                Color.white.opacity(0.28),
-                                                Color.white.opacity(0.12),
-                                                Color.white.opacity(0.04)
-                                            ],
+                                            colors: isLight
+                                                ? [
+                                                    Color.white.opacity(0.95),
+                                                    Color.white.opacity(0.82)
+                                                ]
+                                                : [
+                                                    Color.white.opacity(0.28),
+                                                    Color.white.opacity(0.12),
+                                                    Color.white.opacity(0.04)
+                                                ],
                                             startPoint: .topLeading,
                                             endPoint: .bottomTrailing
                                         )
@@ -1867,8 +1875,8 @@ struct LiquidGlassSegmentedPicker<T: Hashable>: View {
                                     .fill(
                                         LinearGradient(
                                             colors: [
-                                                Color.white.opacity(0.45),
-                                                Color.white.opacity(0.15),
+                                                Color.white.opacity(isLight ? 0.8 : 0.45),
+                                                Color.white.opacity(isLight ? 0.3 : 0.15),
                                                 Color.clear
                                             ],
                                             startPoint: .top,
@@ -1886,11 +1894,16 @@ struct LiquidGlassSegmentedPicker<T: Hashable>: View {
                                 Capsule()
                                     .strokeBorder(
                                         LinearGradient(
-                                            colors: [
-                                                Color.white.opacity(0.75),
-                                                Color.white.opacity(0.35),
-                                                Color.white.opacity(0.15)
-                                            ],
+                                            colors: isLight
+                                                ? [
+                                                    Color.black.opacity(0.14),
+                                                    Color.black.opacity(0.08)
+                                                ]
+                                                : [
+                                                    Color.white.opacity(0.75),
+                                                    Color.white.opacity(0.35),
+                                                    Color.white.opacity(0.15)
+                                                ],
                                             startPoint: .topLeading,
                                             endPoint: .bottomTrailing
                                         ),
@@ -1900,7 +1913,7 @@ struct LiquidGlassSegmentedPicker<T: Hashable>: View {
                             }
                         }
                     )
-                    .shadow(color: isSelected ? Color.black.opacity(0.35) : Color.clear, radius: 6, x: 0, y: 3)
+                    .shadow(color: isSelected ? Color.black.opacity(isLight ? 0.12 : 0.35) : Color.clear, radius: isLight ? 4 : 6, x: 0, y: isLight ? 2 : 3)
                     .shadow(color: isSelected ? Color.white.opacity(0.2) : Color.clear, radius: 4, x: 0, y: -1)
                 }
                 .buttonStyle(.plain)
@@ -1915,10 +1928,15 @@ struct LiquidGlassSegmentedPicker<T: Hashable>: View {
                 Capsule()
                     .fill(
                         LinearGradient(
-                            colors: [
-                                Color.black.opacity(0.25),
-                                Color.black.opacity(0.15)
-                            ],
+                            colors: isLight
+                                ? [
+                                    Color.black.opacity(0.07),
+                                    Color.black.opacity(0.04)
+                                ]
+                                : [
+                                    Color.black.opacity(0.25),
+                                    Color.black.opacity(0.15)
+                                ],
                             startPoint: .top,
                             endPoint: .bottom
                         )
@@ -1929,10 +1947,15 @@ struct LiquidGlassSegmentedPicker<T: Hashable>: View {
             Capsule()
                 .strokeBorder(
                     LinearGradient(
-                        colors: [
-                            Color.white.opacity(0.25),
-                            Color.white.opacity(0.08)
-                        ],
+                        colors: isLight
+                            ? [
+                                Color.black.opacity(0.10),
+                                Color.black.opacity(0.06)
+                            ]
+                            : [
+                                Color.white.opacity(0.25),
+                                Color.white.opacity(0.08)
+                            ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     ),
@@ -2312,6 +2335,7 @@ struct ThemeSwatchButton: View {
 
 struct OverlayPreviewStageView: View {
     @EnvironmentObject var appState: AppState
+    var maxStageWidth: CGFloat? = nil
 
     private var currentStyle: OverlayStyle { appState.selectedOverlayStyle }
     private var currentSize: OverlaySize { appState.selectedOverlaySize }
@@ -2349,6 +2373,10 @@ struct OverlayPreviewStageView: View {
             isTimerVisible: isTimerVis,
             hasAIMode: hasAI
         )
+        let fitScale: CGFloat = {
+            guard let maxW = maxStageWidth, targetSize.width > (maxW - 24) else { return 1.0 }
+            return (maxW - 24) / max(1, targetSize.width)
+        }()
 
         VStack(spacing: 10) {
             // Stage Canvas
@@ -2387,16 +2415,21 @@ struct OverlayPreviewStageView: View {
                     .clipShape(RoundedRectangle(cornerRadius: targetRadius, style: .continuous))
                     .overlay(panelBorder(for: currentAppearance, radius: targetRadius))
                     .shadow(color: Color.black.opacity(0.40), radius: 14, x: 0, y: 7)
+                    .scaleEffect(fitScale)
+                    .frame(width: targetSize.width * fitScale, height: targetSize.height * fitScale)
             }
-            .frame(maxWidth: .infinity)
-            .frame(height: max(130, targetSize.height + 40))
+            .frame(maxWidth: maxStageWidth ?? .infinity)
+            .frame(height: max(116, targetSize.height * fitScale + 36))
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
             // Footer info bar
             HStack {
                 HStack(spacing: 6) {
+                    let sparklesColor: Color = (appState.selectedTheme == .whiteGlow && appState.selectedPanelAppearance == .light)
+                        ? .primary
+                        : (appState.selectedTheme.gradientColors.first ?? .blue)
                     Image(systemName: "sparkles")
-                        .foregroundStyle(appState.selectedTheme.gradientColors.first ?? .blue)
+                        .foregroundStyle(sparklesColor)
                         .font(.system(size: 11, weight: .semibold))
                     Text(appState.l("Live Preview"))
                         .font(.system(size: 12, weight: .semibold, design: .rounded))
@@ -2482,6 +2515,8 @@ struct SupportDeveloperModal: View {
     @EnvironmentObject var appState: AppState
     @ObservedObject var authService = AuthService.shared
     @Environment(\.dismiss) var dismiss
+    var customTitle: String? = nil
+    var onContinue: (() -> Void)? = nil
     var onOpenStatistics: (() -> Void)? = nil
 
     @AppStorage("isScribeSupporter") private var isScribeSupporter: Bool = false
@@ -2519,7 +2554,7 @@ struct SupportDeveloperModal: View {
             // Clean Header
             HStack {
                 HStack(spacing: 8) {
-                    Text(appState.l("Support Scribe"))
+                    Text(customTitle ?? appState.l("Support Scribe"))
                         .font(.system(size: 16, weight: .bold, design: .rounded))
                     Text("☕️")
                         .font(.system(size: 15))
@@ -2936,6 +2971,31 @@ struct SupportDeveloperModal: View {
                     .padding(.bottom, 24)
                 }
                 .padding(.top, 14) // Top breathing room so content isn't cramped
+            }
+
+            if let onContinue = onContinue {
+                Divider().opacity(0.5)
+                Button(action: {
+                    dismiss()
+                    onContinue()
+                }) {
+                    HStack(spacing: 8) {
+                        Text(appState.l("Continue"))
+                            .font(.system(size: 13.5, weight: .bold, design: .rounded))
+                        Image(systemName: "arrow.right")
+                            .font(.system(size: 11.5, weight: .bold))
+                    }
+                    .foregroundStyle(appState.selectedPanelAppearance == .light ? Color.white : Color(white: 0.12))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(appState.selectedPanelAppearance == .light ? Color(white: 0.14) : Color.white)
+                    )
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 14)
             }
         }
         .frame(width: 470, height: 630)
@@ -6377,47 +6437,6 @@ struct GeneralSettingsView: View {
             // SECTION: Recording Options
             GlassSection(title: appState.l("Options"), icon: "gearshape") {
                 VStack(spacing: 16) {
-                    // Insertion Method
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(appState.l("Insertion Method"))
-                                .font(.system(size: 14, weight: .medium, design: .rounded))
-                                .foregroundStyle(.primary)
-                            Text(appState.l("Choose how dictation is inserted into active applications"))
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Picker("", selection: Binding(
-                            get: { (appState.selectedPasteMode == .directType) ? PasteMode.directType : PasteMode.paste },
-                            set: { appState.selectedPasteMode = $0 }
-                        )) {
-                            Text(appState.l("Paste via Clipboard (⌘V)")).tag(PasteMode.paste)
-                            Text(appState.l("Direct Typing (No Clipboard)")).tag(PasteMode.directType)
-                        }
-                        .labelsHidden()
-                        .pickerStyle(.menu)
-                        .frame(width: 220)
-                    }
-
-                    // Preserve clipboard
-                    if appState.selectedPasteMode == .paste {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(appState.l("Preserve Clipboard"))
-                                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.primary)
-                                Text(appState.l("Keeps previous clipboard content after dictating"))
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            Toggle("", isOn: $appState.preserveClipboard)
-                                .toggleStyle(.switch)
-                                .labelsHidden()
-                        }
-                    }
-
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(appState.l("Live Preview"))
@@ -7248,10 +7267,10 @@ struct AISettingsView: View {
     @State private var isNewKeyStringVisible: Bool = false
 
     private let groqModels: [(id: String, name: String)] = [
-        ("openai/gpt-oss-120b", "GPT-OSS 120B (Recommended)"),
-        ("openai/gpt-oss-20b", "GPT-OSS 20B (Ultra-Fast)"),
-        ("groq/compound-mini", "Compound Mini"),
-        ("qwen/qwen3.8-27b", "Qwen 3.8 27B")
+        ("qwen/qwen3.8-27b", "Qwen 3.8 27B (Recommended, Ultra-Fast)"),
+        ("openai/gpt-oss-20b", "GPT-OSS 20B"),
+        ("openai/gpt-oss-120b", "GPT-OSS 120B"),
+        ("groq/compound-mini", "Compound Mini")
     ]
 
     private let cerebrasModels: [(id: String, name: String)] = [
@@ -7462,7 +7481,7 @@ struct AISettingsView: View {
                                 Spacer()
                             }
 
-                            HStack {
+                            HStack(spacing: 8) {
                                 Text(appState.l("Provider:"))
                                     .font(.system(size: 12, weight: .medium))
                                     .frame(width: 70, alignment: .leading)
@@ -7475,6 +7494,14 @@ struct AISettingsView: View {
                                     title: { (CloudAIProvider(rawValue: $0) ?? .groq).displayName },
                                     displayTitle: { (CloudAIProvider(rawValue: $0) ?? .groq).displayName }
                                 )
+                                if CloudAIProvider.detect(fromAPIKey: newKeyString) != nil {
+                                    Text(appState.l("Auto-detected"))
+                                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                                        .foregroundStyle(.green)
+                                        .padding(.horizontal, 7)
+                                        .padding(.vertical, 3)
+                                        .background(Capsule().fill(Color.green.opacity(0.14)))
+                                }
                                 Spacer()
                             }
 
@@ -7494,6 +7521,11 @@ struct AISettingsView: View {
                                         .foregroundStyle(.secondary)
                                 }
                                 .buttonStyle(.plain)
+                            }
+                            .onChange(of: newKeyString) { newValue in
+                                if let detected = CloudAIProvider.detect(fromAPIKey: newValue) {
+                                    newKeyProvider = detected
+                                }
                             }
 
                             if newKeyProvider == .customOpenAI {
@@ -7873,8 +7905,8 @@ struct AISettingsView: View {
             if appState.cerebrasModel.contains("llama") || appState.cerebrasModel.isEmpty {
                 appState.cerebrasModel = "gpt-oss-120b"
             }
-            if appState.groqModel.contains("llama") || appState.groqModel.contains("qwen-2.5") || appState.groqModel.isEmpty {
-                appState.groqModel = "openai/gpt-oss-120b"
+            if appState.groqModel.contains("llama") || appState.groqModel.contains("qwen-2.5") || appState.groqModel.contains("gpt-oss-120b") || appState.groqModel.isEmpty {
+                appState.groqModel = "qwen/qwen3.8-27b"
             }
         }
         .onChange(of: appState.selectedUILanguage) { newLang in

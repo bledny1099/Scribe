@@ -62,7 +62,20 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         "пойскам": "поискам",
         "пойсками": "поисками",
         "пойсках": "поисках",
-        "hermetography": "chromatography"
+        "hermetography": "chromatography",
+        "отскриншот": "отскриншоть",
+        "заскриншот": "заскриншоть",
+        "отскриншотит": "отскриншоть",
+        "заскриншотит": "заскриншоть",
+        "отскриншотить": "отскриншоть",
+        "заскриншотить": "заскриншоть",
+        "от скриншот": "отскриншоть",
+        "от скриншоть": "отскриншоть",
+        "за скриншот": "заскриншоть",
+        "за скриншоть": "заскриншоть",
+        "дело-сервер": "демо-сервер",
+        "дело сервер": "демо-сервер",
+        "делосервер": "демо-сервер"
     ]
 
     /// Context-dependent photographic terms. If none of these keywords exist in text, words like "проявка" are acoustic mishearings of "проверка".
@@ -76,6 +89,8 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         // Acoustic mishearings
         ("(?i)\\bмало[\\s,]+и\\s+мало\\b", "мало места"),
         ("([a-zA-Z0-9.-]+\\.(?:app|com|ru|org|net|io|ai|dev|bot|me|co|site))([а-яА-ЯёЁ])", "$1 $2"),
+        ("(?i)\\bдело[\\s-–—]+сервер([а-яё]*)\\b", "демо-сервер$1"),
+        ("(?i)\\bделосервер([а-яё]*)\\b", "демо-сервер$1"),
         ("(?i)\\b(а\\s+|и\\s+|но\\s+|да\\s+|ну\\s+)?что\\s+это\\s+также\\b", "$1что это такое"),
         ("(?i)\\b(а\\s+|и\\s+|но\\s+|да\\s+|ну\\s+)?что\\s+также\\s*([?!])", "$1что такое$2"),
         ("(?i)(^|[.!?;,\n«\"„—–-]\\s*|(?:^|\\b)(?:а|и|но|да|ну)\\s+)что\\s+также\\b(?!\\s+(?:является|может|важно|нужно|следует|относится|входит|имеет|стоит|позволяет|делает|будет|представляет))", "$1что такое"),
@@ -83,6 +98,14 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         ("(?i)(,\\s*а)\\s+такое\\b", "$1 также"),
         ("(?i)\\bа\\s+такое\\b(?=\\s+(?:и|как|же|в|на|для|с|по|при|из|от|к|что|где|когда|если|не|все|всех|другие|прочие|дополнительные))", "а также"),
         ("(?i)\\b(число|расстояние|расстояния|алгоритм|алгоритма|метрика|метрики|коэффициент|коэффициента)\\s+Левенштейн\\b", "$1 Левенштейна"),
+        // Acoustic mishearings for "флешка" (misheard as "алешка" in hardware/storage context)
+        ("(?i)\\b(когда|если|пока|куда)\\s+алешк([а-яё]*)\\b", "$1 флешк$2"),
+        ("(?i)\\b(из|с|на|в|во|к|для|по|от)\\s+алешк([а-яё]*)\\b", "$1 флешк$2"),
+        ("(?i)\\bалешк([а-яё]*)\\s+(подключается|подключена|вставлена|определяется|форматируется|монтируется|отключается)\\b", "флешк$1 $2"),
+        ("(?i)\\b(usb|юсб|fat32|exfat|ntfs)\\s+алешк([а-яё]*)\\b", "$1 флешк$2"),
+        ("(?i)\\b(ключ|данные|файлы|образ|диск|носитель|раздел)\\s+(?:из|с|на)\\s+алешк([а-яё]*)\\b", "$1 из флешк$2"),
+        // Acoustic mishearings: декстоп -> десктоп
+        ("(?i)\\bдекстоп([а-яё]*)\\b", "десктоп$1"),
 
         // Subject-verb agreement (1st person singular "я")
         ("(?i)\\bя\\s+говорит\\b", "я говорю"),
@@ -181,6 +204,8 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         ("(?i)\\bсам\\s+ситаешь\\b", "сам считаешь"),
         ("(?i)\\bкак\\s+ситаешь\\b", "как считаешь"),
         ("(?i)\\bкак\\s+сам\\s+ситаешь\\b", "как сам считаешь"),
+        ("(?i)\\bмастеринг(?=\\s+(?:в\\s+начале|при\\s+первом|при\\s+скачивании|при\\s+запуске|при\\s+установке|при\\s+входе|в\\s+приложении))", "онбординг"),
+        ("(?i)(?<=\\b(?:адаптируй|сделай|настрой|покажи|запусти|обнови|переделай)\\s+)мастеринг\\b", "онбординг"),
         ("(?i)\\bа\\.\\s*семки\\s*а\\.\\s*егорова\\b", "")
     ]
 
@@ -313,11 +338,25 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         "откроешь": "открой",
         "закроешь": "закрой",
         "поменяешь": "поменяй",
-        "пофиксишь": "пофикси"
+        "пофиксишь": "пофикси",
+
+        // Screenshot commands
+        "отскриншотит": "отскриншоть",
+        "отскриншотят": "отскриншоть",
+        "отскриншочу": "отскриншоть",
+        "отскриншотишь": "отскриншоть",
+        "отскриншот": "отскриншоть",
+        "заскриншотит": "заскриншоть",
+        "заскриншотят": "заскриншоть",
+        "заскриншочу": "заскриншоть",
+        "заскриншотишь": "заскриншоть",
+        "заскриншот": "заскриншоть"
     ]
 
     /// Systematic AI and developer tooling brand name normalizations
     private let brandNormalizationRules: [(pattern: String, replacement: String)] = [
+        ("(?i)\\b(?:до|ду)\\s*[-–—]?\\s*(?:simple|симпл)\\b", "doSimple"),
+        ("(?i)\\bdosimple\\b", "doSimple"),
         ("(?i)\\b(?:чат[\\s-]*гпт|чат[\\s-]*gpt|chat[\\s-]*gpt|chatgpt|чат[\\s-]*джи[\\s-]*пи[\\s-]*ти|чат[\\s-]*джипити|чатджипити)\\s*([0-9]+(?:\\.[0-9]+)?(?:[a-z]|o|mini|pro|turbo)?)\\b", "ChatGPT $1"),
         ("(?i)\\b(?:чат[\\s-]*гпт|чат[\\s-]*gpt|chat[\\s-]*gpt|chatgpt|чат[\\s-]*джи[\\s-]*пи[\\s-]*ти|чат[\\s-]*джипити|чатджипити)\\b", "ChatGPT"),
         ("(?i)\\b(?:гпт|джи[\\s-]*пи[\\s-]*ти|джипити)\\s*([0-9]+(?:\\.[0-9]+)?(?:[a-z]|o|mini|pro|turbo)?)\\b", "GPT-$1"),
@@ -593,7 +632,8 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         text: String,
         language: String? = nil,
         customVocabulary: [String] = [],
-        wordTimings: [(word: String, start: Float, end: Float)]? = nil
+        wordTimings: [(word: String, start: Float, end: Float)]? = nil,
+        targetApp: NSRunningApplication? = nil
     ) -> String {
         guard !text.isEmpty else { return text }
 
@@ -664,7 +704,7 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
         let isRussian = langCode.hasPrefix("ru") || hasCyrillic
 
         if isRussian {
-            // 3a. Russian: Ukrainian sanitization, agreement, and imperative command mapping
+            // 3a. Russian: Ukrainian sanitization, agreement, semantic topic disambiguation, and imperative command mapping
             for (regex, rep) in compiledUkrainianWordMap {
                 let range = NSRange(result.startIndex..<result.endIndex, in: result)
                 result = regex.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: rep)
@@ -687,6 +727,7 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
                 result = regex.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: rep)
             }
 
+            result = applySemanticContextDisambiguation(result, targetApp: targetApp)
             result = applyRussianSubjectVerbGenderAgreement(result)
             result = applyRussianCommandImperativeRules(result)
         } else if langCode.hasPrefix("de") {
@@ -936,6 +977,289 @@ public final class AetherLinguisticValidator: @unchecked Sendable {
             }
         }
 
+        return result
+    }
+
+    // MARK: - Semantic Topic & Collocation Context Disambiguation
+
+    private static let compiledCollocationRules: [(regex: NSRegularExpression, template: String)] = {
+        let rawRules: [(String, String)] = [
+            // "чистота дискретизации / кадров / обновления / звука / экрана / сигнала" -> "частота ..."
+            ("(?i)\\bчистот(а|у|ы|е|ой)\\s+(дискретизац[а-яё]*|кадров|обновлен[а-яё]*|экран[а-яё]*|звук[а-яё]*|сигнал[а-яё]*|процессор[а-яё]*|памят[а-яё]*|опрос[а-яё]*|канал[а-яё]*|герц|гц|khz)\\b", "частот$1 $2"),
+            // "дело-сервер / дело-режим / дело-версия / дело-проект / дело-стенд / дело-база" -> "демо-..."
+            ("(?i)\\b(?:дело|тело)[\\s-]+(сервер[а-яё]*|режим[а-яё]*|верси[а-яё]*|проект[а-яё]*|аккаунт[а-яё]*|стенд[а-яё]*|баз[а-яё]*|данны[а-яё]*|доступ[а-яё]*|сайт[а-яё]*|приложени[а-яё]*|экран[а-яё]*)\\b", "демо-$1"),
+            // "среда переработки" -> "среда разработки"
+            ("(?i)\\bсред(а|у|ы|е|ой)\\s+переработк(и|е)\\b", "сред$1 разработк$2"),
+            // "переменная вооружения" -> "переменная окружения"
+            ("(?i)\\bпеременн(ая|ую|ой|ые|ых|ым|ыми)\\s+вооружени(я|й)\\b", "переменн$1 окружени$2"),
+            // "точка остановки" (in code/debug) -> "точка останова"
+            ("(?i)\\bточк(а|у|и|е|ой)\\s+остановк(и|е)\\b", "точк$1 останова"),
+            // "исходный кот" -> "исходный код"
+            ("(?i)\\bисходн(ый|ого|ому|ым|ом|ые|ых)\\s+кот(а|у|ом|е|ы|ов)?\\b", "исходн$1 код$2"),
+            // "буфер отмены" -> "буфер обмена"
+            ("(?i)\\bбуфер(а|у|ом|е)?\\s+отмен(ы|а)\\b", "буфер$1 обмена"),
+            // "команда строка" -> "командная строка"
+            ("(?i)\\bкоманд(а|у|ы|е|ой)\\s+строк(а|у|и|е|ой)\\b", "командн$1 строк$2"),
+            // "искусственный инцидент" -> "искусственный интеллект"
+            ("(?i)\\bискусственн(ый|ого|ому|ым|ом)\\s+инцидент([а-яё]*)\\b", "искусственн$1 интеллект$2"),
+            // "живое интервью / лайв интервью / live интервью" -> "... превью"
+            ("(?i)\\b(живо[а-яё]+|лайв|live|интерактивно[а-яё]+|быстро[а-яё]+)\\s+интервью\\b", "$1 превью"),
+            ("(?i)\\bинтервью\\s+(работ[а-яё]*|не\\s+работ[а-яё]*|пропал[а-яё]*|зависл[а-яё]*|показ[а-яё]*|отображ[а-яё]*|окн[а-яё]*|панел[а-яё]*|оверле[а-яё]*|текст[а-яё]*)\\b", "превью $1"),
+            // "языковая / локальная / большая / голосовая медаль" -> "... модель"
+            ("(?i)\\b(языков[а-яё]+|локальн[а-яё]+|больш[а-яё]+|голосов[а-яё]+|нейронн[а-яё]+|облачн[а-яё]+|быстр[а-яё]+|нов[а-яё]+|тяжел[а-яё]+|легк[а-яё]+)\\s+медал(ь|и|ью|ей|ям|ях)\\b", "$1 модел$2"),
+            ("(?i)\\b(загруз[а-яё]+|скача[а-яё]+|обуч[а-яё]+|выбр[а-яё]+|выбер[а-яё]+|переключ[а-яё]+|использ[а-яё]+|запуст[а-яё]+)\\s+медал(ь|и|ью|ей)\\b", "$1 модел$2"),
+            // "системный / написать / отправить фронт / промт" -> "... промпт"
+            ("(?i)\\b(системн[а-яё]+|большо[а-яё]+|длинн[а-яё]+|коротк[а-яё]+|текстов[а-яё]+|контекстн[а-яё]+|правильн[а-яё]+|новый)\\s+(?:фронт|промт)\\b", "$1 промпт"),
+            ("(?i)\\b(напиш[а-яё]+|написа[а-яё]+|отправ[а-яё]+|переда[а-яё]+|добав[а-яё]+|измен[а-яё]+|обнов[а-яё]+|сгенерир[а-яё]+)\\s+промт(а|у|ом|е|ы|ов)?\\b", "$1 промпт$2"),
+            // "сделать / откатить / запушить комитет" -> "... коммит"
+            ("(?i)\\b(сдела[а-яё]+|откат[а-яё]+|запуш[а-яё]+|созда[а-яё]+|последн[а-яё]+|перв[а-яё]+|нов[а-яё]+|чист[а-яё]+)\\s+комитет\\b", "$1 коммит"),
+            // "переключить / смержить / создать / удалить сетку" -> "... ветку"
+            ("(?i)\\b(переключ[а-яё]+|смерж[а-яё]+|влить|влил[а-яё]*|созда[а-яё]+|удал[а-яё]+|отдельн[а-яё]+|основн[а-яё]+|главн[а-яё]+|нов[а-яё]+|рабоч[а-яё]+|мастер|мейн)\\s+сетк(а|у|и|е|ой)\\b", "$1 ветк$2"),
+            // "локальный / удаленный хвост / тост" -> "... хост"
+            ("(?i)\\b(локальн[а-яё]+|удаленн[а-яё]+|виртуальн[а-яё]+|доменн[а-яё]+|серверн[а-яё]+|прописа[а-яё]+)\\s+(?:хвост|тост)\\b", "$1 хост"),
+            // "открыть / слушать / пробросить борт / торт" -> "... порт"
+            ("(?i)\\b(откры[а-яё]+|закры[а-яё]+|слуша[а-яё]+|проброс[а-яё]+|локальн[а-яё]+|сетев[а-яё]+|свободн[а-яё]+|занят[а-яё]*)\\s+(?:борт|торт)\\b", "$1 порт"),
+            ("(?i)\\b(?:борт|торт)\\s+(\\d{2,5})\\b", "порт $1")
+        ]
+        return rawRules.compactMap { pattern, template in
+            guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+            return (regex, template)
+        }
+    }()
+
+    /// Substitutes acoustically similar real dictionary words that are semantically out-of-place
+    /// given the surrounding words in the utterance, active window/screen context, and rolling session memory.
+    private func applySemanticContextDisambiguation(_ text: String, targetApp: NSRunningApplication? = nil) -> String {
+        var result = text
+
+        // 1. Always-safe collocation & bigram repairs
+        for (regex, template) in Self.compiledCollocationRules {
+            let range = NSRange(result.startIndex..<result.endIndex, in: result)
+            result = regex.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: template)
+        }
+
+        // 2. Infer active semantic topics from the utterance + active screen + rolling session memory
+        let topics = AetherContextEngine.shared.inferSemanticTopics(from: result, targetApp: targetApp, includeSession: true)
+        guard !topics.isEmpty else { return result }
+
+        let lower = result.lowercased()
+
+        // Topic Group A: Coding, Git, Server, Database
+        if !topics.isDisjoint(with: [.codingAndGit, .serverAndDevOps, .databaseAndStorage]) {
+            let literalAnimalOrGardenGuards = [
+                "корм", "шерст", "лап", "мяу", "кошк", "собак", "ветеринар", "питомц", "животн",
+                "помидор", "огурц", "рассад", "огород", "грядк", "урожа", "растен", "парник", "цвет",
+                "бензин", "топлив", "мусор", "литр", "ран", "аптек", "мозол", "бинт"
+            ]
+            let hasLiteralGuard = literalAnimalOrGardenGuards.contains { lower.contains($0) }
+
+            if !hasLiteralGuard {
+                let codingSubstitutions: [(pattern: String, replacement: String)] = [
+                    // кот -> код
+                    ("(?i)\\bкот\\b", "код"),
+                    ("(?i)\\bкота\\b", "кода"),
+                    ("(?i)\\bкоту\\b", "коду"),
+                    ("(?i)\\bкотом\\b", "кодом"),
+                    ("(?i)\\bкоте\\b", "коде"),
+                    // теплица -> таблица
+                    ("(?i)\\bтеплиц(а|у|ы|е|ей|ам|ами|ах)\\b", "таблиц$1"),
+                    ("(?i)\\bтеплиц\\b", "таблиц"),
+                    // эмиграция -> миграция
+                    ("(?i)\\bэмиграци(я|и|ю|ей|ям|ями|ях|й)\\b", "миграци$1"),
+                    // бак -> баг
+                    ("(?i)\\bбак\\b", "баг"),
+                    ("(?i)\\bбака\\b", "бага"),
+                    ("(?i)\\bбаку\\b", "багу"),
+                    ("(?i)\\bбаком\\b", "багом"),
+                    ("(?i)\\bбаки\\b", "баги"),
+                    ("(?i)\\bбаков\\b", "багов"),
+                    ("(?i)\\bбакам\\b", "багам"),
+                    ("(?i)\\bбаках\\b", "багах"),
+                    // пластырь -> кластер
+                    ("(?i)\\bпластыр(ь|я|ю|ем|е|и|ей|ям|ях)\\b", "кластер")
+                ]
+                result = applyCasePreservingRegexMap(result, rules: codingSubstitutions)
+
+                // блог -> лог (only when sentence has server/error/console/check/file cues and no social/video/content cues)
+                let logCues = ["сервер", "ошибк", "консол", "терминал", "провер", "посмотр", "откро", "вывод", "файл", "докер", "упал", "пишет"]
+                let blogGuards = ["ютуб", "youtube", "тикток", "инстаграм", "подписчик", "канал", "видео", "контент", "пост", "стать", "автор"]
+                if logCues.contains(where: { lower.contains($0) }) && !blogGuards.contains(where: { lower.contains($0) }) {
+                    result = applyCasePreservingRegexMap(result, rules: [
+                        ("(?i)\\bблог\\b", "лог"),
+                        ("(?i)\\bблога\\b", "лога"),
+                        ("(?i)\\bблоге\\b", "логе"),
+                        ("(?i)\\bблоги\\b", "логи"),
+                        ("(?i)\\bблогов\\b", "логов"),
+                        ("(?i)\\bблогам\\b", "логам"),
+                        ("(?i)\\bблогах\\b", "логах")
+                    ])
+                }
+
+                // билет -> билд (when sentence has build/compile/xcode/release/app cues and no travel/cinema cues)
+                let buildCues = ["собрать", "собери", "собрал", "компил", "релиз", "упал", "сломал", "тест", "xcode", "приложен", "проект", "архив", "верси"]
+                let ticketGuards = ["кино", "театр", "самолет", "поезд", "концерт", "касс", "купить", "рейс", "вокзал", "аэропорт"]
+                if buildCues.contains(where: { lower.contains($0) }) && !ticketGuards.contains(where: { lower.contains($0) }) {
+                    result = applyCasePreservingRegexMap(result, rules: [
+                        ("(?i)\\bбилет\\b", "билд"),
+                        ("(?i)\\bбилета\\b", "билда"),
+                        ("(?i)\\bбилету\\b", "билду"),
+                        ("(?i)\\bбилетом\\b", "билдом"),
+                        ("(?i)\\bбилете\\b", "билде"),
+                        ("(?i)\\bбилеты\\b", "билды"),
+                        ("(?i)\\bбилетов\\b", "билдов")
+                    ])
+                }
+
+                // миф -> дифф (when sentence has git/changes/lines/code/apply cues)
+                let diffCues = ["гит", "git", "изменен", "строк", "файл", "примен", "посмотр", "коммит", "ветк", "код", "пулл", "мерж"]
+                if diffCues.contains(where: { lower.contains($0) }) {
+                    result = applyCasePreservingRegexMap(result, rules: [
+                        ("(?i)\\bмиф\\b", "дифф"),
+                        ("(?i)\\bмифа\\b", "диффа"),
+                        ("(?i)\\bмифы\\b", "диффы"),
+                        ("(?i)\\bмифов\\b", "диффов")
+                    ])
+                }
+            }
+        }
+
+        // Topic Group B: AI, LLMs, Audio, Speech Recognition
+        if !topics.isDisjoint(with: [.aiAndLLMs, .audioAndSpeech]) {
+            let literalMedalOrOceanGuards = [
+                "олимпи", "чемпион", "золот", "серебр", "бронз", "спорт", "турнир", "наград", "побед",
+                "атлантич", "тихий", "индийск", "ледовит", "море", "пляж", "волн", "корабл", "остров",
+                "люстр", "гирлянд", "фонар", "праздничн"
+            ]
+            let hasLiteralGuard = literalMedalOrOceanGuards.contains { lower.contains($0) }
+
+            if !hasLiteralGuard {
+                let aiSubstitutions: [(pattern: String, replacement: String)] = [
+                    // медаль -> модель
+                    ("(?i)\\bмедал(ь|и|ью|ей|ям|ями|ях)\\b", "модел$1"),
+                    // океан -> токен
+                    ("(?i)\\bокеан\\b", "токен"),
+                    ("(?i)\\bокеана\\b", "токена"),
+                    ("(?i)\\bокеану\\b", "токену"),
+                    ("(?i)\\bокеаном\\b", "токеном"),
+                    ("(?i)\\bокеане\\b", "токене"),
+                    ("(?i)\\bокеаны\\b", "токены"),
+                    ("(?i)\\bокеанов\\b", "токенов"),
+                    ("(?i)\\bокеанам\\b", "токенам"),
+                    ("(?i)\\bокеанами\\b", "токенами"),
+                    ("(?i)\\bокеанах\\b", "токенах"),
+                    // иллюминация -> галлюцинация
+                    ("(?i)\\bиллюминаци(я|и|ю|ей|ям|ями|ях|й)\\b", "галлюцинаци$1"),
+                    // промт -> промпт
+                    ("(?i)\\bпромт\\b", "промпт"),
+                    ("(?i)\\bпромта\\b", "промпта"),
+                    ("(?i)\\bпромту\\b", "промпту"),
+                    ("(?i)\\bпромтом\\b", "промптом"),
+                    ("(?i)\\bпромте\\b", "промпте"),
+                    ("(?i)\\bпромты\\b", "промпты"),
+                    ("(?i)\\bпромтов\\b", "промптов")
+                ]
+                result = applyCasePreservingRegexMap(result, rules: aiSubstitutions)
+
+                // референс -> инференс (when sentence has model/speed/local/gpu/ane/token/llm cues and no design/mockup cues)
+                let inferenceCues = ["модел", "скорост", "локальн", "быстр", "токен", "нейросет", "gpu", "ane", "coreml", "whisper", "память", "задержк"]
+                let designGuards = ["дизайн", "макет", "фигм", "figma", "картинк", "стил", "цвет", "шрифт", "лендинг"]
+                if inferenceCues.contains(where: { lower.contains($0) }) && !designGuards.contains(where: { lower.contains($0) }) {
+                    result = applyCasePreservingRegexMap(result, rules: [
+                        ("(?i)\\bреференс\\b", "инференс"),
+                        ("(?i)\\bреференса\\b", "инференса"),
+                        ("(?i)\\bреференсу\\b", "инференсу"),
+                        ("(?i)\\bреференсом\\b", "инференсом"),
+                        ("(?i)\\bреференсе\\b", "инференсе")
+                    ])
+                }
+            }
+        }
+
+        // Topic Group C: UI, Design, Frontend, Layout
+        if !topics.isDisjoint(with: [.uiAndDesign, .codingAndGit]) {
+            let literalFoodOrFurnitureGuards = [
+                "чай", "кофе", "кухн", "тарелк", "ложк", "вилк", "обед", "ужин", "завтрак", "рецепт",
+                "салат", "мясо", "говядин", "прожарк", "ресторан", "кафе", "десерт", "сладк",
+                "мебел", "стул", "кресл", "диван", "комнате", "кухонн"
+            ]
+            let hasLiteralGuard = literalFoodOrFurnitureGuards.contains { lower.contains($0) }
+
+            if !hasLiteralGuard {
+                let uiSubstitutions: [(pattern: String, replacement: String)] = [
+                    // пудинг -> паддинг
+                    ("(?i)\\bпудинг\\b", "паддинг"),
+                    ("(?i)\\bпудинга\\b", "паддинга"),
+                    ("(?i)\\bпудинги\\b", "паддинги"),
+                    ("(?i)\\bпудингов\\b", "паддингов"),
+                    // оливье -> оверлей
+                    ("(?i)\\bоливье\\b", "оверлей"),
+                    // стейк -> стек
+                    ("(?i)\\bстейк\\b", "стек"),
+                    ("(?i)\\bстейка\\b", "стека"),
+                    ("(?i)\\bстейке\\b", "стеке"),
+                    ("(?i)\\bстейки\\b", "стеки")
+                ]
+                result = applyCasePreservingRegexMap(result, rules: uiSubstitutions)
+
+                // ордер -> бордер (when sentence has UI/frame/radius/color/button/card/outline cues)
+                let borderCues = ["рамк", "радиус", "цвет", "тонк", "толст", "кнопк", "карточк", "контур", "обводк", "пиксел", "px", "плашк", "окн", "убер", "убрать", "добав"]
+                let orderGuards = ["бирж", "рыночн", "лимитн", "трейд", "купить", "продать", "суд", "арест", "обыск"]
+                if borderCues.contains(where: { lower.contains($0) }) && !orderGuards.contains(where: { lower.contains($0) }) {
+                    result = applyCasePreservingRegexMap(result, rules: [
+                        ("(?i)\\bордер\\b", "бордер"),
+                        ("(?i)\\bордера\\b", "бордера"),
+                        ("(?i)\\bордеру\\b", "бордеру"),
+                        ("(?i)\\bордером\\b", "бордером"),
+                        ("(?i)\\bордере\\b", "бордере"),
+                        ("(?i)\\bордеры\\b", "бордеры"),
+                        ("(?i)\\bордеров\\b", "бордеров")
+                    ])
+                }
+
+                // чашка -> плашка (when sentence has UI/window/overlay/top/bottom/panel/screen cues)
+                let badgeCues = ["всплыва", "верхн", "нижн", "полупрозрачн", "оверлей", "экран", "окн", "панел", "кнопк", "текст", "иконк", "индикатор", "статус", "закреп"]
+                if badgeCues.contains(where: { lower.contains($0) }) {
+                    result = applyCasePreservingRegexMap(result, rules: [
+                        ("(?i)\\bчашк(а|у|и|е|ой|ек|кам|ках)\\b", "плашк$1")
+                    ])
+                }
+
+                // стол -> скролл (when sentence has vertical/horizontal/smooth/page/list/window cues)
+                let scrollCues = ["плавн", "вертикальн", "горизонтальн", "бесконечн", "страниц", "список", "списка", "вниз", "вверх", "окн", "колесик", "прокрут"]
+                if scrollCues.contains(where: { lower.contains($0) }) {
+                    result = applyCasePreservingRegexMap(result, rules: [
+                        ("(?i)\\bстол\\b", "скролл"),
+                        ("(?i)\\bстола\\b", "скролла"),
+                        ("(?i)\\bстолу\\b", "скроллу"),
+                        ("(?i)\\bстолом\\b", "скроллом"),
+                        ("(?i)\\bстоле\\b", "скролле")
+                    ])
+                }
+            }
+        }
+
+        return result
+    }
+
+    private func applyCasePreservingRegexMap(_ text: String, rules: [(pattern: String, replacement: String)]) -> String {
+        var result = text
+        for rule in rules {
+            guard let regex = try? NSRegularExpression(pattern: rule.pattern) else { continue }
+            let nsString = result as NSString
+            let matches = regex.matches(in: result, options: [], range: NSRange(location: 0, length: nsString.length))
+            for match in matches.reversed() {
+                guard let range = Range(match.range, in: result) else { continue }
+                let originalWord = String(result[range])
+                let replaced = regex.stringByReplacingMatches(
+                    in: originalWord,
+                    options: [],
+                    range: NSRange(location: 0, length: (originalWord as NSString).length),
+                    withTemplate: rule.replacement
+                )
+                let matchedCase = matchCapitalization(original: originalWord, target: replaced)
+                result.replaceSubrange(range, with: matchedCase)
+            }
+        }
         return result
     }
 

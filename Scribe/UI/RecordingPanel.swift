@@ -306,6 +306,10 @@ final class RecordingPanel: NSPanel {
             ])
         }
 
+        if self.frame.size != targetSize {
+            self.setContentSize(targetSize)
+        }
+
         let targetRadius = Self.radius(
             for: style,
             overlaySize: overlaySize,
@@ -360,45 +364,10 @@ final class RecordingPanel: NSPanel {
             return nil
         }
 
-        // 1. Check Accessibility API on frontmost app
-        let appElement = AXUIElementCreateApplication(pid)
-
-        // Try MainWindow first (best representation of the primary app window)
-        var mainWinObj: AnyObject?
-        if AXUIElementCopyAttributeValue(appElement, kAXMainWindowAttribute as CFString, &mainWinObj) == .success,
-           let win = mainWinObj as! AXUIElement? {
-            if let frame = getAXBounds(element: win) {
-                return frame
-            }
-        }
-
-        // Try FocusedWindow next
-        var focusedWinObj: AnyObject?
-        if AXUIElementCopyAttributeValue(appElement, kAXFocusedWindowAttribute as CFString, &focusedWinObj) == .success,
-           let win = focusedWinObj as! AXUIElement? {
-            var roleObj: AnyObject?
-            _ = AXUIElementCopyAttributeValue(win, kAXRoleAttribute as CFString, &roleObj)
-            let role = roleObj as? String ?? ""
-
-            if role == (kAXWindowRole as String) {
-                if let frame = getAXBounds(element: win) {
-                    return frame
-                }
-            } else {
-                // If focused element is a child group or sidebar, query its parent window
-                var parentWinObj: AnyObject?
-                if AXUIElementCopyAttributeValue(win, kAXWindowAttribute as CFString, &parentWinObj) == .success,
-                   let pWin = parentWinObj as! AXUIElement? {
-                    if let frame = getAXBounds(element: pWin) {
-                        return frame
-                    }
-                }
-            }
-        }
-
-        // 2. Query CGWindowList: list is pre-sorted in Z-order (top-to-bottom).
-        // The first layer-0 window matching the application PID is the active focused window.
-        if let windowList = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] {
+        // 1. Fast path: Query CGWindowList (WindowServer shared memory, <0.1ms, zero cross-process IPC).
+        // The list is pre-sorted in front-to-back Z-order, so the first layer-0 window matching `pid` is the active window.
+        let windowList = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]]
+        if let windowList = windowList {
             for window in windowList {
                 guard let winPID = window[kCGWindowOwnerPID as String] as? pid_t,
                       winPID == pid,
@@ -418,8 +387,32 @@ final class RecordingPanel: NSPanel {
                 let cocoaY = primaryHeight - (y + h)
                 return NSRect(x: x, y: cocoaY, width: w, height: h)
             }
+        }
 
-            // Fallback: check other application windows on layer 0
+        // 2. Fallback: Check Accessibility API with a strict 40ms timeout so busy apps never block the main thread
+        let appElement = AXUIElementCreateApplication(pid)
+        AXUIElementSetMessagingTimeout(appElement, 0.04)
+
+        var mainWinObj: AnyObject?
+        if AXUIElementCopyAttributeValue(appElement, kAXMainWindowAttribute as CFString, &mainWinObj) == .success,
+           let win = mainWinObj as! AXUIElement? {
+            AXUIElementSetMessagingTimeout(win, 0.04)
+            if let frame = getAXBounds(element: win) {
+                return frame
+            }
+        }
+
+        var focusedWinObj: AnyObject?
+        if AXUIElementCopyAttributeValue(appElement, kAXFocusedWindowAttribute as CFString, &focusedWinObj) == .success,
+           let win = focusedWinObj as! AXUIElement? {
+            AXUIElementSetMessagingTimeout(win, 0.04)
+            if let frame = getAXBounds(element: win) {
+                return frame
+            }
+        }
+
+        // 3. Final fallback: check other visible application windows on layer 0
+        if let windowList = windowList {
             for window in windowList {
                 guard let winPID = window[kCGWindowOwnerPID as String] as? pid_t,
                       winPID != scribePID,

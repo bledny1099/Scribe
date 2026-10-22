@@ -91,7 +91,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
     /// Whisper uses this as "previous context" so it learns the expected output style.
     private let initialPrompt: [String: String] = [
         "en": "Hello, this is a clean transcription with proper punctuation, commas, and natural sentence structures. Terms: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
-        "ru": "Привет, это аккуратная транскрипция с правильной пунктуацией, падежами и терминами. Термины: Bybit, Binance, Telegram, ChatGPT, Gemini, Claude, OpenAI, Swift, SwiftUI, Xcode, Docker, Kubernetes, Next.js, Rust, WhisperKit, PostgreSQL, TypeScript, Python, LLM, commit, pull request, merge, push, deploy, API, Google, Antigravity, IDE, Scribe, транскрибатор, Хабр.",
+        "ru": "Привет, это аккуратная транскрипция с правильной пунктуацией, падежами и терминами. Термины: Bybit, Binance, Telegram, ChatGPT, Gemini, Claude, OpenAI, Swift, SwiftUI, Xcode, Docker, Kubernetes, Next.js, Rust, WhisperKit, PostgreSQL, TypeScript, Python, LLM, commit, pull request, merge, push, deploy, API, Google, Antigravity, IDE, Scribe, doSimple, Vercel, демо-сервер, транскрибатор, Хабр.",
         "es": "Términos: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
         "de": "Begriffe: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
         "fr": "Termes: Bybit, Binance, MetaMask, Solana, TikTok, Instagram, YouTube, Snapchat, Telegram, Viber, ChatGPT, Gemini, Claude, Kimi, Perplexity, Midjourney, OpenAI, paperclip-ai, Claude Code, Ollama, PyTorch, Supabase, SwiftData, Docker, Kubernetes, Next.js, Rust, WhisperKit, HuggingFace, Vercel, TailwindCSS, PostgreSQL, GraphQL, TypeScript, LLM, Llama, LangChain, Google, Antigravity, IDE, Scribe.",
@@ -543,6 +543,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
     /// snapshot runs a single encoder pass instead of a separate language-detection pass.
     private let snapshotLanguageLock = NSLock()
     private var snapshotLockedLanguage: String?
+    private var snapshotCancelRequested: Bool = false
 
     /// Serializes access to the shared WhisperKit instance so live preview snapshots and the final
     /// transcription pass never run concurrent CoreML decoder predictions or race on internal state.
@@ -584,7 +585,21 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
     func resetLivePreviewSession() {
         snapshotLanguageLock.lock()
         snapshotLockedLanguage = nil
+        snapshotCancelRequested = false
         snapshotLanguageLock.unlock()
+    }
+
+    /// Signals any in-flight snapshot decode to abort on the very next token step.
+    func cancelSnapshot() {
+        snapshotLanguageLock.lock()
+        snapshotCancelRequested = true
+        snapshotLanguageLock.unlock()
+    }
+
+    private func isSnapshotCancelRequested() -> Bool {
+        snapshotLanguageLock.lock()
+        defer { snapshotLanguageLock.unlock() }
+        return snapshotCancelRequested
     }
 
     private func lockedSnapshotLanguage() -> String? {
@@ -607,43 +622,33 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         language: String?,
         preferredLanguages: [String] = [],
         customVocabulary: String = "",
-        targetApp: NSRunningApplication? = nil
+        targetApp: NSRunningApplication? = nil,
+        onPartialText: (@Sendable (String) -> Void)? = nil
     ) async -> String? {
-        guard !Task.isCancelled else { return nil }
+        guard !Task.isCancelled && !isSnapshotCancelRequested() else { return nil }
         guard let kit = whisperKit else { return nil }
         guard FileManager.default.fileExists(atPath: audioURL.path) else { return nil }
 
-        // Condition the audio: high-pass filter, silence trimming, loudness normalization
-        let pathToTranscribe: String
-        let tempConditionedURL: URL?
-        if let conditioned = AetherAudioConditioner.shared.condition(audioURL: audioURL) {
-            pathToTranscribe = conditioned.path
-            tempConditionedURL = (conditioned != audioURL) ? conditioned : nil
-        } else {
-            return nil
-        }
-        defer {
-            if let temp = tempConditionedURL {
-                try? FileManager.default.removeItem(at: temp)
-            }
-        }
+        // Live preview snapshots bypass heavy disk conditioning for instant latency
+        let pathToTranscribe = audioURL.path
 
         await whisperGate.acquire()
         defer { whisperGate.release() }
-        guard !Task.isCancelled else { return nil }
+        guard !Task.isCancelled && !isSnapshotCancelRequested() else { return nil }
 
         var options = DecodingOptions(task: .transcribe)
         options.temperature = 0.0
         options.temperatureFallbackCount = 0
         options.withoutTimestamps = true
         options.skipSpecialTokens = true
-        options.sampleLength = 448
+        options.sampleLength = 224
         options.windowClipTime = 0.0
-        options.noSpeechThreshold = 0.60
-        options.logProbThreshold = -1.0
-        options.compressionRatioThreshold = 2.4
+        options.firstTokenLogProbThreshold = nil
+        options.logProbThreshold = nil
+        options.noSpeechThreshold = nil
+        options.compressionRatioThreshold = 2.6
 
-        var resolvedLang: String = "ru"
+        var resolvedLang: String = "auto"
         let allowedBases = (!preferredLanguages.isEmpty ? preferredLanguages : (language.map { [$0] } ?? ["ru", "en"]))
             .map { baseLanguageCode(for: $0).lowercased() }
             .filter { !$0.isEmpty && $0 != "auto" }
@@ -654,103 +659,112 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             let base = baseLanguageCode(for: lang).lowercased()
             options.language = base
             options.detectLanguage = false
+            options.usePrefillCache = true
             resolvedLang = base
         } else if effectiveAllowed.count == 1, let first = effectiveAllowed.first {
             options.language = first
             options.detectLanguage = false
+            options.usePrefillCache = true
             resolvedLang = first
         } else if let cached = lockedSnapshotLanguage(), effectiveAllowed.contains(cached) {
-            // Language already settled for this recording: skip the extra detection encoder pass.
+            // Language already settled for this recording: skip detection step.
             options.language = cached
             options.detectLanguage = false
+            options.usePrefillCache = true
             resolvedLang = cached
         } else {
-            // Multilingual live preview:
-            // When Russian is enabled, Russian mode naturally handles Russian speech and preserves technical English terms.
-            // Only switch initial decoding language to English if language detection strongly (> 0.70) detects English and ru is negligible (< 0.08).
-            if let (detected, probs) = try? await kit.detectLanguage(audioPath: pathToTranscribe) {
-                let cleanDetected = detected.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
-                let enProb = Self.linearProbability(for: "en", in: probs)
-                let ruProb = Self.linearProbability(for: "ru", in: probs)
-
-                if effectiveAllowed.contains("ru") && effectiveAllowed.contains("en") {
-                    if cleanDetected == "en" && enProb >= 0.70 && ruProb < 0.08 {
-                        resolvedLang = "en"
-                    } else {
-                        resolvedLang = "ru"
-                    }
-                } else {
-                    resolvedLang = Self.resolveDetectedLanguage(rawDetected: detected, probs: probs, allowedBases: effectiveAllowed)
-                }
-            } else {
-                resolvedLang = effectiveAllowed.contains("ru") ? "ru" : effectiveAllowed[0]
-            }
-            options.language = resolvedLang
-            options.detectLanguage = false
+            // Multilingual mode (e.g. ["ru", "en"]) before language is settled:
+            // Detect language directly from the already-computed encoderOutput (~3ms, single AudioEncoder pass)
+            // so English sentences are never forced through <|ru|> and their opening words are never cut off.
+            options.language = nil
+            options.detectLanguage = true
+            options.usePrefillCache = false
+            resolvedLang = "auto"
         }
 
-        // Decode exactly like the final pass (no text prompt). The old 24-token prompt was cut mid-sentence,
-        // leaked words like "терминами" into short snapshots and made the preview disagree with the final text.
         options.usePrefillPrompt = true
-        options.usePrefillCache = true
         options.promptTokens = nil
 
+        var lastCallbackEmitTime = CFAbsoluteTimeGetCurrent()
+        var lastEmittedLength = 0
+        let shouldContinueCallback: TranscriptionCallback = { [weak self] progress in
+            guard let self = self else { return false }
+            if Task.isCancelled || self.isSnapshotCancelRequested() {
+                return false
+            }
+            if let onPartialText = onPartialText, (progress.windowId ?? 0) == 0 {
+                let now = CFAbsoluteTimeGetCurrent()
+                let raw = progress.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                if raw.count >= lastEmittedLength + 3 && (now - lastCallbackEmitTime) >= 0.055 {
+                    let cleaned = Self.cleanTranscription(raw, preferredLanguages: effectiveAllowed, targetLanguage: resolvedLang)
+                    if !cleaned.isEmpty {
+                        lastEmittedLength = raw.count
+                        lastCallbackEmitTime = now
+                        onPartialText(cleaned)
+                    }
+                }
+            }
+            return nil
+        }
+
         do {
-            let results = try await kit.transcribe(audioPath: pathToTranscribe, decodeOptions: options)
+            let results: [TranscriptionResult] = try await kit.transcribe(
+                audioPath: pathToTranscribe,
+                decodeOptions: options,
+                callback: shouldContinueCallback
+            )
+            guard !Task.isCancelled && !isSnapshotCancelRequested() else { return nil }
             var text = results.map(\.text).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
-            if text.isEmpty { return nil }
+            if text.isEmpty || Self.isLowConfidenceNoiseGuess(results: results, text: text) { return nil }
 
             let latCount = text.unicodeScalars.filter { ($0.value >= 0x0041 && $0.value <= 0x005A) || ($0.value >= 0x0061 && $0.value <= 0x007A) }.count
             let cyrCount = text.unicodeScalars.filter { ($0.value >= 0x0400 && $0.value <= 0x04FF) || ($0.value >= 0x0500 && $0.value <= 0x052F) }.count
+            let snapDetected = results.first.map { baseLanguageCode(for: $0.language).lowercased() }
 
-            // Bidirectional Script Mismatch Check for Live Preview:
-            if resolvedLang == "ru" && effectiveAllowed.contains("en") {
-                // If speech was decoded as Russian but is overwhelmingly Latin (> 12 Latin, < 4 Cyrillic), re-decode in English
-                if latCount >= 12 && cyrCount < 4 {
-                    var retryOpts = options
-                    retryOpts.language = "en"
-                    retryOpts.detectLanguage = false
-                    if let retryResults = try? await kit.transcribe(audioPath: pathToTranscribe, decodeOptions: retryOpts) {
-                        let retryText = retryResults.map(\.text).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
-                        if !retryText.isEmpty {
-                            text = retryText
-                            resolvedLang = "en"
-                        }
-                    }
-                }
-            } else if resolvedLang == "en" && effectiveAllowed.contains("ru") {
-                // If speech was decoded as English but contains Cyrillic or was Russian speech forced into English phonetics, re-decode in Russian
-                if cyrCount >= 4 || (latCount < 8 && cyrCount > 0) {
-                    var retryOpts = options
-                    retryOpts.language = "ru"
-                    retryOpts.detectLanguage = false
-                    if let retryResults = try? await kit.transcribe(audioPath: pathToTranscribe, decodeOptions: retryOpts) {
-                        let retryText = retryResults.map(\.text).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
-                        if !retryText.isEmpty {
-                            text = retryText
-                            resolvedLang = "ru"
-                        }
-                    }
+            if resolvedLang == "auto" {
+                if let det = snapDetected, effectiveAllowed.contains(det) {
+                    resolvedLang = det
+                } else if cyrCount > latCount && effectiveAllowed.contains("ru") {
+                    resolvedLang = "ru"
+                } else if latCount > cyrCount && effectiveAllowed.contains("en") {
+                    resolvedLang = "en"
+                } else {
+                    resolvedLang = effectiveAllowed.first ?? "ru"
                 }
             }
 
-            // Remember the settled language once there is enough audio to trust it (multilingual mode only).
-            if (language == nil || language == "auto") && effectiveAllowed.count > 1,
-               let audioFile = try? AVAudioFile(forReading: URL(fileURLWithPath: pathToTranscribe)),
-               Double(audioFile.length) / audioFile.processingFormat.sampleRate >= 2.0 {
-                setLockedSnapshotLanguage(resolvedLang)
+            // Lock snapshot language once clear script evidence is present, or switch if user switched languages
+            if effectiveAllowed.count > 1 && (language == nil || language == "auto") {
+                if effectiveAllowed.contains("en") && latCount >= 10 && cyrCount == 0 {
+                    setLockedSnapshotLanguage("en")
+                    resolvedLang = "en"
+                } else if effectiveAllowed.contains("ru") && cyrCount >= 6 && latCount < 4 {
+                    setLockedSnapshotLanguage("ru")
+                    resolvedLang = "ru"
+                } else if resolvedLang == "ru" && effectiveAllowed.contains("en") && latCount >= 12 && cyrCount < 4 {
+                    setLockedSnapshotLanguage("en")
+                    resolvedLang = "en"
+                } else if resolvedLang == "en" && effectiveAllowed.contains("ru") && cyrCount >= 4 {
+                    setLockedSnapshotLanguage("ru")
+                    resolvedLang = "ru"
+                }
             }
 
             // Strict script and boundary hallucination filter for snapshot live preview
             text = Self.cleanTranscription(text, preferredLanguages: effectiveAllowed, targetLanguage: resolvedLang)
             if text.isEmpty { return nil }
 
-            let customVocabList = customVocabulary.components(separatedBy: CharacterSet(charactersIn: ",\n;")).map { $0.trimmingCharacters(in: .whitespaces) }
+            let customVocabList = AetherContextEngine.shared.buildContextualStrings(
+                customVocabulary: customVocabulary,
+                targetApp: targetApp
+            )
             text = AetherLinguisticValidator.shared.validateAndCorrect(
                 text: text,
                 language: resolvedLang,
-                customVocabulary: customVocabList
+                customVocabulary: customVocabList,
+                targetApp: targetApp
             )
+            text = AetherFuzzyMatcher.shared.realign(text: text, vocabulary: customVocabList)
             return text.isEmpty ? nil : text
         } catch {
             return nil
@@ -831,7 +845,8 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         customVocabulary: String = "",
         userLocation: String = "",
         targetApp: NSRunningApplication? = nil,
-        recognitionEngine: String = "Aether Neural (Recommended)"
+        recognitionEngine: String = "Aether Neural (Recommended)",
+        onProgressText: (@Sendable (String) -> Void)? = nil
     ) async throws -> String {
         logger.info("Aether Transcribing: \(audioURL.lastPathComponent), model: \(modelName), engine: \(recognitionEngine), language: \(language ?? "auto-detect"), translate: \(autoTranslate)")
 
@@ -872,6 +887,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
                         language: "en",
                         customVocabulary: customVocabList
                     )
+                    onProgressText?(text)
                     UserFrequencyDictionary.shared.record(text: text)
                     logger.info("Aether Instant transcription completed: '\(text)'")
                     await MainActor.run { state = .done(text) }
@@ -906,6 +922,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
                         language: baseLang != "auto" ? baseLang : language,
                         customVocabulary: customVocabList
                     )
+                    onProgressText?(text)
                     UserFrequencyDictionary.shared.record(text: text)
                     logger.info("Parakeet TDT v3 transcription completed: '\(text)'")
                     await MainActor.run { state = .done(text) }
@@ -925,6 +942,8 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             throw TranscriptionError.modelNotLoaded
         }
 
+        // Preempt any still-running live preview snapshot right when the final pass is ready to acquire the gate
+        cancelSnapshot()
         await whisperGate.acquire()
         defer { whisperGate.release() }
 
@@ -942,11 +961,12 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         options.temperatureFallbackCount = 0
         options.withoutTimestamps = (conditionedDurationSeconds > 0 && conditionedDurationSeconds <= 28.0)
         options.skipSpecialTokens = true
-        options.sampleLength = 448
+        options.sampleLength = 224
         options.windowClipTime = 0.0
-        options.noSpeechThreshold = 0.60
-        options.logProbThreshold = -1.0
-        options.compressionRatioThreshold = 2.4
+        options.firstTokenLogProbThreshold = nil
+        options.logProbThreshold = nil
+        options.noSpeechThreshold = nil
+        options.compressionRatioThreshold = 2.6
         options.usePrefillPrompt = true
         options.usePrefillCache = true
         options.promptTokens = nil
@@ -956,42 +976,31 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             // User explicitly chose single locked language
             options.language = baseLang
             options.detectLanguage = false
+            options.usePrefillCache = true
             logger.info("Single language mode: Locked to '\(baseLang)'")
         } else if !preferredLanguages.isEmpty {
             // Multilingual mode with user preferred languages (e.g. Russian and English)
-            let allowedBases = preferredLanguages.map { baseLanguageCode(for: $0).lowercased() }
+            let allowedBases = preferredLanguages.map { baseLanguageCode(for: $0).lowercased() }.filter { !$0.isEmpty && $0 != "auto" }
             if allowedBases.count == 1, let single = allowedBases.first {
                 resolvedLang = single
                 options.language = single
                 options.detectLanguage = false
+                options.usePrefillCache = true
                 logger.info("Single preferred language mode: locked to '\(single)'")
-            } else if let kit = whisperKit {
-                do {
-                    let detectStart = Date()
-                    let (detected, langProbs) = try await kit.detectLanguage(audioPath: path)
-                    let chosen = Self.resolveDetectedLanguage(rawDetected: detected, probs: langProbs, allowedBases: allowedBases)
-                    resolvedLang = chosen
-                    options.language = chosen
-                    options.detectLanguage = false
-                    let chosenProb = Self.linearProbability(for: chosen, in: langProbs)
-                    logger.info("Aether language detection: locked to '\(chosen)' (probability: \(String(format: "%.4f", chosenProb)), duration: \(String(format: "%.3f", Date().timeIntervalSince(detectStart)))s) from allowed \(allowedBases)")
-                } catch {
-                    logger.warning("WhisperKit.detectLanguage failed: \(error.localizedDescription); locking to fallback from allowed \(allowedBases)")
-                    let fallback = allowedBases.contains("ru") ? "ru" : allowedBases[0]
-                    options.language = fallback
-                    options.detectLanguage = false
-                    resolvedLang = fallback
-                }
             } else {
-                let fallback = allowedBases.contains("ru") ? "ru" : allowedBases[0]
-                options.language = fallback
-                options.detectLanguage = false
-                resolvedLang = fallback
+                // Native single-pass language detection directly on encoderOutput (~3ms, no duplicate AudioEncoder pass).
+                // Ensures English utterances are decoded with <|en|> from frame 0 so the opening words are never cut off.
+                resolvedLang = "auto"
+                options.language = nil
+                options.detectLanguage = true
+                options.usePrefillCache = false
+                logger.info("Multilingual mode: detecting language natively from encoderOutput across allowed \(allowedBases)")
             }
         } else {
             let fallback = (!preferredLanguages.isEmpty ? preferredLanguages.map { baseLanguageCode(for: $0).lowercased() } : ["ru"]).first ?? "ru"
             options.language = fallback
             options.detectLanguage = false
+            options.usePrefillCache = true
             resolvedLang = fallback
         }
 
@@ -999,12 +1008,33 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         // large-v3-turbo hallucinate terms. Vocabulary is applied afterwards by TextReplacer instead.
         options.wordTimestamps = false
         options.usePrefillPrompt = true
-        options.usePrefillCache = true
         options.promptTokens = nil
         logger.debug("Calling WhisperKit.transcribe(audioPath: \(path), language: \(options.language ?? "auto"))")
 
+        var lastProgressEmitTime = CFAbsoluteTimeGetCurrent()
+        var lastProgressLength = 0
+        let finalProgressCallback: TranscriptionCallback = { progress in
+            if let onProgressText = onProgressText, (progress.windowId ?? 0) == 0 {
+                let now = CFAbsoluteTimeGetCurrent()
+                let raw = progress.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                if raw.count >= lastProgressLength + 2 && (now - lastProgressEmitTime) >= 0.045 {
+                    let cleaned = Self.cleanTranscription(raw, preferredLanguages: preferredLanguages, targetLanguage: resolvedLang)
+                    if !cleaned.isEmpty {
+                        lastProgressLength = raw.count
+                        lastProgressEmitTime = now
+                        onProgressText(cleaned)
+                    }
+                }
+            }
+            return nil
+        }
+
         // Execute WhisperKit neural network inference off the MainActor on background cooperative pool
-        var results: [TranscriptionResult] = try await kit.transcribe(audioPath: path, decodeOptions: options)
+        var results: [TranscriptionResult] = try await kit.transcribe(
+            audioPath: path,
+            decodeOptions: options,
+            callback: finalProgressCallback
+        )
 
         let detectedLang = results.first?.language.lowercased()
         logger.info("WhisperKit returned \(results.count) result(s), detected language: '\(detectedLang ?? "unknown")'")
@@ -1013,46 +1043,37 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         // Use base language codes (e.g. en-US -> en) so dialect identifiers match WhisperKit 2-letter codes.
         let allowedLanguages = preferredLanguages.map { baseLanguageCode(for: $0).lowercased() }
         let detectedBase = detectedLang != nil ? baseLanguageCode(for: detectedLang!).lowercased() : nil
-        var preliminaryText = results.map(\.text).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
-        preliminaryText = Self.stripBuiltInHallucinations(preliminaryText)
-
-        // If the first pass produced empty text (e.g. user spoke very softly or whisper was too conservative),
-        // execute an automatic fallback pass constrained strictly to allowed languages!
-        if preliminaryText.isEmpty {
-            logger.info("Primary decoding produced empty text. Attempting fallback decoding with lenient thresholds…")
-            var fallbackOptions = options
-            let fallbackLang = allowedLanguages.contains("ru") ? "ru" : (allowedLanguages.first ?? "en")
-            fallbackOptions.language = fallbackLang
-            fallbackOptions.detectLanguage = false
-            fallbackOptions.noSpeechThreshold = 0.65
-            fallbackOptions.logProbThreshold = -1.5
-            fallbackOptions.usePrefillPrompt = true
-            fallbackOptions.usePrefillCache = true
-            fallbackOptions.promptTokens = nil
-            if let fallbackResults = try? await kit.transcribe(audioPath: path, decodeOptions: fallbackOptions) {
-                var fallbackText = fallbackResults.map(\.text).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
-                fallbackText = Self.stripBuiltInHallucinations(fallbackText)
-                if !fallbackText.isEmpty {
-                    results = fallbackResults
-                    preliminaryText = fallbackText
-                    logger.info("Fallback decoding successfully transcribed (\(fallbackText.count) chars): '\(fallbackText.prefix(50))'")
-                }
-            }
+        if resolvedLang == "auto", let det = detectedBase, allowedLanguages.contains(det) {
+            resolvedLang = det
         }
 
-        let wordCount = preliminaryText.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }.count
+        var preliminaryText = results.map(\.text).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+        if Self.isLowConfidenceNoiseGuess(results: results, text: preliminaryText) {
+            logger.info("Rejected low-confidence noise/breath guess: '\(preliminaryText)'")
+            preliminaryText = ""
+        }
+        preliminaryText = Self.stripBuiltInHallucinations(preliminaryText)
 
-        // Do not trigger costly second-pass on minor dialect variants (e.g. uk/be when ru is allowed)
-        let isSlavicVariantOfRussian = allowedLanguages.contains("ru") && (detectedBase == "uk" || detectedBase == "be")
+        // Fast exit: if primary decoding produced empty text (no speech detected), return immediately!
+        guard !preliminaryText.isEmpty else {
+            logger.info("Primary decoding produced empty text (no speech detected). Exiting transcription fast.")
+            await MainActor.run { state = .done("") }
+            return ""
+        }
+
+        let hasUkrainianOrBelarusianChars = preliminaryText.range(of: "[іїєґІЇЄҐўЎ]", options: .regularExpression) != nil
+        let isCleanSlavicVariantOfRussian = allowedLanguages.contains("ru") && (detectedBase == "uk" || detectedBase == "be") && !hasUkrainianOrBelarusianChars
 
         // Re-decode if audio was recognized in an unselected language (e.g. hallucinated Arabic or foreign speech on noise)
-        if !allowedLanguages.isEmpty, let detected = detectedBase, !allowedLanguages.contains(detected), !isSlavicVariantOfRussian {
+        if !allowedLanguages.isEmpty, let detected = detectedBase, !allowedLanguages.contains(detected), !isCleanSlavicVariantOfRussian {
             let slavicUnselected: Set<String> = ["uk", "be", "bg", "mk", "sr", "pl", "cs", "sk", "hr", "sl"]
             let latinCount = preliminaryText.unicodeScalars.filter { ($0.value >= 0x0041 && $0.value <= 0x005A) || ($0.value >= 0x0061 && $0.value <= 0x007A) }.count
             let cyrillicCount = preliminaryText.unicodeScalars.filter { ($0.value >= 0x0400 && $0.value <= 0x04FF) || ($0.value >= 0x0500 && $0.value <= 0x052F) }.count
 
             let targetFallback: String
-            if allowedLanguages.contains("ru") && slavicUnselected.contains(detected) {
+            if let settled = lockedSnapshotLanguage(), allowedLanguages.contains(settled) {
+                targetFallback = settled
+            } else if allowedLanguages.contains("ru") && slavicUnselected.contains(detected) {
                 targetFallback = "ru"
             } else if allowedLanguages.contains("en") && latinCount > cyrillicCount {
                 targetFallback = "en"
@@ -1071,27 +1092,27 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             redecodeOptions.language = targetFallback
             redecodeOptions.detectLanguage = false
             redecodeOptions.wordTimestamps = false
-
             redecodeOptions.usePrefillPrompt = true
             redecodeOptions.usePrefillCache = true
             redecodeOptions.promptTokens = nil
 
-            if let retryResults = try? await kit.transcribe(audioPath: path, decodeOptions: redecodeOptions), !retryResults.isEmpty {
+            if let retryResults = try? await kit.transcribe(audioPath: path, decodeOptions: redecodeOptions, callback: finalProgressCallback), !retryResults.isEmpty {
                 results = retryResults
                 resolvedLang = targetFallback
+                preliminaryText = results.map(\.text).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+                preliminaryText = Self.stripBuiltInHallucinations(preliminaryText)
                 logger.info("Successfully re-decoded audio in locked target language '\(targetFallback)'")
             }
         }
 
         // Automatic Script Mismatch Correction:
-        // If decoded in Russian mode, but output is overwhelmingly English Latin (> 10 Latin, >= 2x Cyrillic),
-        // or decoded in English mode, but output is overwhelmingly Russian Cyrillic (> 10 Cyrillic, >= 2x Latin),
-        // re-decode once in the true spoken language!
+        // If decoded in Russian mode, but output is overwhelmingly English Latin,
+        // or decoded in English mode, but output is overwhelmingly Russian Cyrillic, re-decode in the true spoken language!
         let postLatinCount = preliminaryText.unicodeScalars.filter { ($0.value >= 0x0041 && $0.value <= 0x005A) || ($0.value >= 0x0061 && $0.value <= 0x007A) }.count
         let postCyrillicCount = preliminaryText.unicodeScalars.filter { ($0.value >= 0x0400 && $0.value <= 0x04FF) || ($0.value >= 0x0500 && $0.value <= 0x052F) }.count
 
-        if resolvedLang == "ru" && allowedLanguages.contains("en") && postLatinCount >= 16 && postCyrillicCount < 6 {
-            logger.warning("Decoded text is purely Latin (\(postLatinCount) Latin vs \(postCyrillicCount) Cyrillic) in 'ru' mode. Re-decoding in 'en' mode…")
+        if resolvedLang == "ru" && allowedLanguages.contains("en") && postLatinCount >= 10 && postCyrillicCount < 4 {
+            logger.info("Decoded text is English Latin (\(postLatinCount) Latin vs \(postCyrillicCount) Cyrillic) in 'ru' mode. Re-decoding in 'en' mode for full sentence accuracy…")
             var scriptRedecodeOpts = options
             scriptRedecodeOpts.language = "en"
             scriptRedecodeOpts.detectLanguage = false
@@ -1099,34 +1120,17 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             scriptRedecodeOpts.usePrefillPrompt = true
             scriptRedecodeOpts.usePrefillCache = true
             scriptRedecodeOpts.promptTokens = nil
-
-            if let retryResults = try? await kit.transcribe(audioPath: path, decodeOptions: scriptRedecodeOpts), !retryResults.isEmpty {
+            if let retryResults = try? await kit.transcribe(audioPath: path, decodeOptions: scriptRedecodeOpts, callback: finalProgressCallback), !retryResults.isEmpty {
                 let retryText = retryResults.map(\.text).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
                 if !retryText.isEmpty {
                     results = retryResults
                     preliminaryText = retryText
                     resolvedLang = "en"
-                    logger.info("Successfully re-decoded audio in 'en' mode: '\(retryText.prefix(50))'")
                 }
             }
-        } else if resolvedLang == "en" && allowedLanguages.contains("ru") && postCyrillicCount >= 6 {
-            logger.warning("Decoded text contains Cyrillic (\(postCyrillicCount) Cyrillic vs \(postLatinCount) Latin) in 'en' mode. Re-decoding in 'ru' mode to avoid forced translation…")
-            var scriptRedecodeOpts = options
-            scriptRedecodeOpts.language = "ru"
-            scriptRedecodeOpts.detectLanguage = false
-            scriptRedecodeOpts.wordTimestamps = false
-            scriptRedecodeOpts.usePrefillPrompt = true
-            scriptRedecodeOpts.usePrefillCache = true
-            scriptRedecodeOpts.promptTokens = nil
-
-            if let retryResults = try? await kit.transcribe(audioPath: path, decodeOptions: scriptRedecodeOpts), !retryResults.isEmpty {
-                let retryText = retryResults.map(\.text).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
-                if !retryText.isEmpty {
-                    results = retryResults
-                    preliminaryText = retryText
-                    resolvedLang = "ru"
-                    logger.info("Successfully re-decoded audio in 'ru' mode: '\(retryText.prefix(50))'")
-                }
+        } else if resolvedLang == "en" && allowedLanguages.contains("ru") && (postCyrillicCount >= 4 || lockedSnapshotLanguage() == "ru") {
+            if postCyrillicCount >= 4 {
+                resolvedLang = "ru"
             }
         }
 
@@ -1162,16 +1166,28 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         }
 
         // Stage C: Linguistic validation against native macOS dictionary, speech self-correction repair, and phonetic correction
-        let customVocabList = customVocabulary.components(separatedBy: CharacterSet(charactersIn: ",\n;")).map { $0.trimmingCharacters(in: .whitespaces) }
+        let customVocabList = AetherContextEngine.shared.buildContextualStrings(
+            customVocabulary: customVocabulary,
+            userLocation: userLocation,
+            targetApp: targetApp
+        )
         text = AetherLinguisticValidator.shared.validateAndCorrect(
             text: text,
             language: effectiveOutputLang,
             customVocabulary: customVocabList,
-            wordTimings: wordTimings
+            wordTimings: wordTimings,
+            targetApp: targetApp
         )
+        text = AetherFuzzyMatcher.shared.realign(text: text, vocabulary: customVocabList)
 
-        // Track user spoken word frequencies for dynamic Top 100 lexicon adaptation
+        // Immediately push validated text to live preview (so preview updates before Cloud AI finishes)
+        if !text.isEmpty {
+            onProgressText?(text)
+        }
+
+        // Track user spoken word frequencies and rolling session context memory
         UserFrequencyDictionary.shared.record(text: text)
+        AetherContextEngine.shared.recordUtteranceInSession(text, targetApp: targetApp)
 
         logger.info("Transcribed text (\(text.count) chars): \(text.prefix(100))")
 
@@ -1488,10 +1504,10 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         return cleaned
     }
 
-    /// Removes hallucinated speaker labels at the beginning of transcriptions (e.g. "Speaker 1:", "Brooklyn:", "Narrator:").
+    /// Removes hallucinated speaker labels at the beginning of transcriptions (e.g. "Speaker 1:", "Narrator:").
     private static func stripLeadingSpeakerLabels(_ text: String) -> String {
         var cleaned = text
-        let pattern = #"^(?:[A-Z][a-zA-Z0-9_\s]{1,15}|Speaker\s*\d*|Narrator|Host|Interviewer|Voice|Man|Woman|Boy|Girl):\s+"#
+        let pattern = #"^(?i)(?:Speaker\s*\d+|Narrator|Interviewer|Commentator|Subtitles|Translator):\s+"#
         cleaned = cleaned.replacingOccurrences(of: pattern, with: "", options: .regularExpression)
         return cleaned
     }
@@ -1616,7 +1632,35 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         return result.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// Strips built-in boundary hallucination artifacts (subtitles, credits, YouTube noise loops).
+    /// Rejects 1-2 word Whisper outputs when token log-probabilities indicate a low-confidence guess on a quiet sound/breath/click.
+    private static func isLowConfidenceNoiseGuess(results: [TranscriptionResult], text: String) -> Bool {
+        let clean = text.trimmingCharacters(in: CharacterSet.punctuationCharacters.union(.whitespacesAndNewlines))
+        guard !clean.isEmpty else { return true }
+        let words = clean.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
+        guard words.count <= 2 else { return false }
+
+        let wordLogProbs: [Float] = results.flatMap { res in
+            res.segments.flatMap { seg in
+                zip(seg.tokens, seg.tokenLogProbs).compactMap { (tok, probDict) -> Float? in
+                    guard tok < 50256, let lp = probDict[tok], lp < 0 else { return nil }
+                    return lp
+                }
+            }
+        }
+        guard !wordLogProbs.isEmpty else { return false }
+        let meanLogProb = wordLogProbs.reduce(0, +) / Float(wordLogProbs.count)
+        let minLogProb = wordLogProbs.min() ?? 0
+
+        if words.count == 1 && (meanLogProb < -0.72 || minLogProb < -1.35) {
+            return true
+        }
+        if words.count == 2 && meanLogProb < -0.90 {
+            return true
+        }
+        return false
+    }
+
+    /// Strips built-in boundary hallucination artifacts (subtitles, credits, YouTube noise loops, and quiet breath/key sounds).
     public static func stripBuiltInHallucinations(_ text: String) -> String {
         guard !text.isEmpty else { return text }
 
@@ -1624,14 +1668,17 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         let stripped = trimmed.trimmingCharacters(in: CharacterSet.punctuationCharacters.union(.whitespacesAndNewlines))
         let lowerStripped = stripped.lowercased()
 
-        // 0. Solitary silence hallucinations generated by Whisper when there is no speech or background noise
+        // 0. Solitary silence / quiet-sound / breath / key-tap hallucinations generated by Whisper
         let solitarySilenceRoots: Set<String> = [
             "you", "you.", "you!", "you?", "you...", "you you",
             "thank you", "thank you.", "thank you!", "thanks", "thanks.", "thanks!",
             "thank you for watching", "thanks for watching", "thank you for listening",
             "thanks for listening", "bye", "bye.", "goodbye", "goodbye.",
             "watching", "watching.", "the end", "the end.", "subscribe",
-            "so", "so.", "yeah", "yeah.", "yes."
+            "so", "so.", "yeah", "yeah.", "yes.",
+            "shift", "шифт", "shh", "sh", "psst",
+            "mm", "mm-", "mm-hmm", "mhm", "uh-huh", "uh", "um", "hmm", "hm",
+            "тсс", "пшш", "шшш", "хм", "гм", "мм", "эм"
         ]
 
         if solitarySilenceRoots.contains(lowerStripped) || lowerStripped == "you" {
@@ -1667,6 +1714,68 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             // Match STRICTLY at the START of string with trailing punctuation/whitespace and whole-word boundary
             let startPattern = "(?i)^[,\\.\\!\\?\\s]*\\b\(escaped)\\b(?:[,\\.\\!\\?\\s]+|$)"
             result = result.replacingOccurrences(of: startPattern, with: "", options: [.regularExpression])
+        }
+
+        // 2. Strip mid-sentence or boundary "shift" / "шифт" hallucinated from a quiet breath or key tap
+        // when Cyrillic speech is present and there is no keyboard/shortcut context in the utterance.
+        let lowerResult = result.lowercased()
+        if lowerResult.contains("shift") || lowerResult.contains("шифт") {
+            let hasCyrillic = result.unicodeScalars.contains { ($0.value >= 0x0400 && $0.value <= 0x04FF) || ($0.value >= 0x0500 && $0.value <= 0x052F) }
+            let keyboardContextTerms = [
+                "cmd", "command", "ctrl", "control", "alt", "option", "opt", "fn", "tab", "capslock",
+                "key", "keys", "button", "shortcut", "hotkey", "press", "hold",
+                "клавиш", "кнопк", "нажм", "нажа", "зажм", "зажа", "удержив", "хоткей", "шорткат",
+                "комбинац", "контрл", "альт", "опшн", "команд", "+"
+            ]
+            let hasKeyboardContext = keyboardContextTerms.contains { lowerResult.contains($0) }
+            if hasCyrillic && !hasKeyboardContext {
+                // Remove isolated "shift" / "шифт" adjacent to Cyrillic words or at utterance boundaries
+                result = result.replacingOccurrences(
+                    of: #"(?i)(^|[а-яёА-ЯЁ][,;:—–-]?\s+)\b(?:shift|шифт)\b[,;:—–-]?\s*"#,
+                    with: "$1",
+                    options: .regularExpression
+                )
+                result = result.replacingOccurrences(
+                    of: #"(?i)\s*[,;:—–-]?\b(?:shift|шифт)\b(?=(?:\s+[а-яёА-ЯЁ]|[.!?]*$))"#,
+                    with: "",
+                    options: .regularExpression
+                )
+            }
+        }
+
+        // 3. Strip Whisper's trailing "You" / "you" breath hallucination at the end of utterances
+        // Case A: Standalone sentence ". You" / "! You" / "? You" at the very end
+        result = result.replacingOccurrences(
+            of: #"(?i)(?<=[.!?])\s+you[.!?]*$"#,
+            with: "",
+            options: .regularExpression
+        )
+        // Case B: Unpunctuated trailing " you" at the end of a 4+ word utterance when not preceded by a valid English verb/preposition
+        let wordsInResult = result.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty }
+        if wordsInResult.count >= 4,
+           let lastRaw = wordsInResult.last {
+            let lastClean = lastRaw.trimmingCharacters(in: .punctuationCharacters).lowercased()
+            if lastClean == "you" {
+                let prevClean = wordsInResult[wordsInResult.count - 2].trimmingCharacters(in: .punctuationCharacters).lowercased()
+                let validPrecedingForYou: Set<String> = [
+                    "to", "for", "with", "at", "on", "in", "by", "from", "of", "about", "around",
+                    "before", "after", "behind", "between", "without", "against", "toward", "towards",
+                    "upon", "within", "thank", "thanks", "see", "saw", "seen", "tell", "told",
+                    "give", "gave", "show", "showed", "help", "helped", "ask", "asked", "call", "called",
+                    "let", "make", "made", "want", "wanted", "need", "needed", "love", "miss",
+                    "hear", "heard", "know", "knew", "like", "if", "when", "that", "what", "where",
+                    "how", "who", "whom", "which", "than", "as", "and", "or", "but", "nor",
+                    "do", "did", "does", "can", "could", "will", "would", "shall", "should",
+                    "may", "might", "must", "are", "were", "have", "had"
+                ]
+                if !validPrecedingForYou.contains(prevClean) {
+                    result = result.replacingOccurrences(
+                        of: #"(?i)\s+\byou\b([.!?]*)$"#,
+                        with: "$1",
+                        options: .regularExpression
+                    )
+                }
+            }
         }
 
         // Clean up punctuation and whitespace
@@ -1862,12 +1971,13 @@ struct Replacement: Identifiable, Codable, Equatable {
 final class TextReplacer {
     /// Built-in vocabulary terms auto-cased & recognized natively
     public static let builtInVocabulary: [String] = [
-        "Scribe", "swag", "топчик", "анскилл", "skill", "MCP", "viperr", "Kai Angel", "9mice",
+        "Scribe", "онбординг", "onboarding", "swag", "топчик", "анскилл", "skill", "MCP", "viperr", "Kai Angel", "9mice",
         "вайб-кодинг", "вайбкодинг", "vibe coding",
         "Claude Code", "Antigravity", "Ollama", "PyTorch", "Supabase", "SwiftData",
         "Docker", "Kubernetes", "Next.js", "Rust", "WhisperKit",
         "HuggingFace", "Vercel", "TailwindCSS", "PostgreSQL", "GraphQL",
-        "TypeScript", "LLM", "Llama", "LangChain", "OpenAI"
+        "TypeScript", "LLM", "Llama", "LangChain", "OpenAI",
+        "doSimple", "doSimple Bot", "демо-сервер"
     ]
 
     static let defaultPhoneticReplacements: [Replacement] = [
@@ -1876,6 +1986,11 @@ final class TextReplacer {
         Replacement(phrase: "скрайбу", replacement: "Scribe"),
         Replacement(phrase: "скрайбом", replacement: "Scribe"),
         Replacement(phrase: "скрайбе", replacement: "Scribe"),
+        Replacement(phrase: "перезапускать скрай", replacement: "перезапускать Scribe"),
+        Replacement(phrase: "перезапустить скрай", replacement: "перезапустить Scribe"),
+        Replacement(phrase: "запускать скрай", replacement: "запускать Scribe"),
+        Replacement(phrase: "запустить скрай", replacement: "запустить Scribe"),
+        Replacement(phrase: "открыть скрай", replacement: "открыть Scribe"),
         Replacement(phrase: "вот этот вот скраб", replacement: "вот этот вот Scribe"),
         Replacement(phrase: "этот скраб", replacement: "этот Scribe"),
         Replacement(phrase: "работает скраб", replacement: "работает Scribe"),
@@ -1955,7 +2070,51 @@ final class TextReplacer {
         Replacement(phrase: "дал почту к", replacement: "дал доступ к"),
         Replacement(phrase: "дали почту к", replacement: "дали доступ к"),
         Replacement(phrase: "сделай релих", replacement: "сделай релиз"),
-        Replacement(phrase: "сделать релих", replacement: "сделать релиз")
+        Replacement(phrase: "сделать релих", replacement: "сделать релиз"),
+
+        // doSimple acoustic corrections & variants
+        Replacement(phrase: "до Simple", replacement: "doSimple"),
+        Replacement(phrase: "до simple", replacement: "doSimple"),
+        Replacement(phrase: "досимпл", replacement: "doSimple"),
+        Replacement(phrase: "до симпл", replacement: "doSimple"),
+        Replacement(phrase: "до-симпл", replacement: "doSimple"),
+        Replacement(phrase: "ду симпл", replacement: "doSimple"),
+        Replacement(phrase: "дусимпл", replacement: "doSimple"),
+        Replacement(phrase: "dosimple", replacement: "doSimple"),
+        Replacement(phrase: "do simple", replacement: "doSimple"),
+
+        // Demo server acoustic mishearings
+        Replacement(phrase: "дело-сервер", replacement: "демо-сервер"),
+        Replacement(phrase: "дело-сервера", replacement: "демо-сервера"),
+        Replacement(phrase: "дело-серверу", replacement: "демо-серверу"),
+        Replacement(phrase: "дело-сервером", replacement: "демо-сервером"),
+        Replacement(phrase: "дело-сервере", replacement: "демо-сервере"),
+        Replacement(phrase: "дело-серверы", replacement: "демо-серверы"),
+        Replacement(phrase: "дело-серверов", replacement: "демо-серверов"),
+        Replacement(phrase: "дело сервер", replacement: "демо-сервер"),
+        Replacement(phrase: "дело сервера", replacement: "демо-сервера"),
+        Replacement(phrase: "дело серверу", replacement: "демо-серверу"),
+        Replacement(phrase: "дело сервером", replacement: "демо-сервером"),
+        Replacement(phrase: "дело сервере", replacement: "демо-сервере"),
+        Replacement(phrase: "дело серверы", replacement: "демо-серверы"),
+        Replacement(phrase: "дело серверов", replacement: "демо-серверов"),
+        Replacement(phrase: "делосервер", replacement: "демо-сервер"),
+        Replacement(phrase: "делосервера", replacement: "демо-сервера"),
+        Replacement(phrase: "делосерверу", replacement: "демо-серверу"),
+        Replacement(phrase: "делосервером", replacement: "демо-сервером"),
+        Replacement(phrase: "делосервере", replacement: "демо-сервере"),
+        Replacement(phrase: "делосерверы", replacement: "демо-серверы"),
+        Replacement(phrase: "делосерверов", replacement: "демо-серверов"),
+
+        // Screenshot command mishearings & slips
+        Replacement(phrase: "отскриншот", replacement: "отскриншоть"),
+        Replacement(phrase: "заскриншот", replacement: "заскриншоть"),
+        Replacement(phrase: "отскриншотить", replacement: "отскриншоть"),
+        Replacement(phrase: "заскриншотить", replacement: "заскриншоть"),
+        Replacement(phrase: "от скриншот", replacement: "отскриншоть"),
+        Replacement(phrase: "от скриншоть", replacement: "отскриншоть"),
+        Replacement(phrase: "за скриншот", replacement: "заскриншоть"),
+        Replacement(phrase: "за скриншоть", replacement: "заскриншоть")
     ]
 
     /// Common Whisper hallucination artifacts and subtitle credits that should never appear in transcriptions
@@ -2205,6 +2364,57 @@ public enum CloudAIProvider: String, CaseIterable, Identifiable, Codable, Sendab
         case .anthropic:    return "Anthropic Claude (Haiku)"
         case .ollama:       return "Ollama (Local Offline)"
         }
+    }
+
+    public var shortDisplayName: String {
+        switch self {
+        case .groq:         return "Groq"
+        case .cerebras:     return "Cerebras"
+        case .gemini:       return "Gemini"
+        case .customOpenAI: return "Custom API"
+        case .openAI:       return "OpenAI"
+        case .anthropic:    return "Anthropic"
+        case .ollama:       return "Ollama"
+        }
+    }
+
+    public var iconName: String {
+        switch self {
+        case .groq:         return "bolt.horizontal.fill"
+        case .cerebras:     return "cpu.fill"
+        case .gemini:       return "sparkles"
+        case .customOpenAI: return "server.rack"
+        case .openAI:       return "brain.head.profile"
+        case .anthropic:    return "character.bubble.fill"
+        case .ollama:       return "terminal.fill"
+        }
+    }
+
+    /// Automatically detects the AI provider from an API key prefix or format.
+    public static func detect(fromAPIKey rawKey: String) -> CloudAIProvider? {
+        let key = rawKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !key.isEmpty else { return nil }
+        let lower = key.lowercased()
+
+        if lower.hasPrefix("gsk_") || lower.hasPrefix("gsk-") {
+            return .groq
+        }
+        if lower.hasPrefix("csk-") || lower.hasPrefix("csk_") {
+            return .cerebras
+        }
+        if key.hasPrefix("AIza") || lower.hasPrefix("aiza") {
+            return .gemini
+        }
+        if lower.hasPrefix("sk-ant-") || lower.hasPrefix("sk-ant_") {
+            return .anthropic
+        }
+        if lower.hasPrefix("sk-or-") {
+            return .customOpenAI
+        }
+        if lower.hasPrefix("sk-") {
+            return .openAI
+        }
+        return nil
     }
 }
 
@@ -2706,7 +2916,7 @@ public final class CloudAIService: @unchecked Sendable {
         customBaseURL: String = "https://api.openai.com/v1",
         customModel: String = "gpt-4o-mini",
         geminiModel: String = "gemini-2.0-flash",
-        groqModel: String = "openai/gpt-oss-120b",
+        groqModel: String = "qwen/qwen3.8-27b",
         cerebrasModel: String = "gpt-oss-120b",
         ollamaEndpoint: String = "http://localhost:11434",
         ollamaModel: String = "qwen2.5:7b"
@@ -2724,11 +2934,41 @@ public final class CloudAIService: @unchecked Sendable {
 
 
 PHONETIC CORRECTION & CANONICAL VOCABULARY:
-Speech recognition models frequently mishear technical terms, product names, domain terms, abbreviations, and websites phonetically (for example: hearing "chat gpt" or "chat gpt.com" instead of "chatgpt.com", "vibe coding" instead of "vibecoding", "ex code" instead of "Xcode").
+Speech recognition models frequently mishear technical terms, product names, domain terms, abbreviations, and websites phonetically (for example: hearing "chat gpt" or "chat gpt.com" instead of "chatgpt.com", "vibe coding" instead of "vibecoding", "ex code" instead of "Xcode", "дело-сервер" instead of "демо-сервер", "кот" instead of "код", "теплица" instead of "таблица").
 Use the following dictionary of canonical words to detect such phonetic mistakes in speech and replace them with their exact correct spelling, while strictly preserving the surrounding language:
 <vocabulary>
 \(trimmedVocab)
 </vocabulary>
+"""
+        }
+
+        // Inject active window, semantic topic, and recent session context so LLM disambiguates homophones accurately
+        let winContext = AetherContextEngine.shared.inspectActiveWindowContext()
+        let detectedTopics = AetherContextEngine.shared.inferSemanticTopics(from: text, includeSession: true)
+        let sessionSummary = AetherContextEngine.shared.recentSessionSummary(maxUtterances: 3)
+        var contextLines: [String] = []
+        if let wt = winContext.windowTitle, !wt.isEmpty {
+            contextLines.append("Active Window: \(wt.prefix(80))")
+        }
+        if let fn = winContext.documentFileName, !fn.isEmpty {
+            contextLines.append("Active File: \(fn)")
+        }
+        if !detectedTopics.isEmpty {
+            let topicText = detectedTopics.map { $0.promptSummaryRu }.joined(separator: " ")
+            contextLines.append("Detected Topic: \(topicText)")
+        }
+        if let recent = sessionSummary, !recent.isEmpty {
+            contextLines.append("Recent Dictation Context: \(recent)")
+        }
+        if !contextLines.isEmpty {
+            instruction += """
+
+
+ACTIVE CONVERSATION & SCREEN CONTEXT:
+Use the following context about what the user is currently working on to resolve acoustically similar words or homophones that were misheard out of context (without paraphrasing or adding unrequested words):
+<active_context>
+\(contextLines.joined(separator: "\n"))
+</active_context>
 """
         }
 
@@ -2751,7 +2991,7 @@ Use the following dictionary of canonical words to detect such phonetic mistakes
         switch provider {
         case .groq:
             let rawGroq = groqModel.trimmingCharacters(in: .whitespacesAndNewlines)
-            let effectiveModel = (rawGroq.isEmpty || rawGroq.contains("llama") || rawGroq.contains("qwen-2.5")) ? "openai/gpt-oss-120b" : rawGroq
+            let effectiveModel = (rawGroq.isEmpty || rawGroq.contains("llama") || rawGroq.contains("qwen-2.5") || rawGroq.contains("gpt-oss-120b")) ? "qwen/qwen3.8-27b" : rawGroq
             let endpoint = URL(string: "https://api.groq.com/openai/v1/chat/completions")!
             var request = URLRequest(url: endpoint)
             request.httpMethod = "POST"
@@ -3050,7 +3290,7 @@ Use the following dictionary of canonical words to detect such phonetic mistakes
         customBaseURL: String = "https://api.openai.com/v1",
         customModel: String = "gpt-4o-mini",
         geminiModel: String = "gemini-2.0-flash",
-        groqModel: String = "openai/gpt-oss-120b",
+        groqModel: String = "qwen/qwen3.8-27b",
         cerebrasModel: String = "gpt-oss-120b",
         ollamaEndpoint: String = "http://localhost:11434",
         ollamaModel: String = "qwen2.5:7b"
@@ -3134,7 +3374,7 @@ Use the following dictionary of canonical words to detect such phonetic mistakes
         transcript: String,
         provider: CloudAIProvider,
         apiKey: String,
-        groqModel: String = "openai/gpt-oss-120b",
+        groqModel: String = "qwen/qwen3.8-27b",
         geminiModel: String = "gemini-2.0-flash",
         cerebrasModel: String = "gpt-oss-120b",
         customBaseURL: String = "https://api.openai.com/v1",
@@ -3152,7 +3392,7 @@ Use the following dictionary of canonical words to detect such phonetic mistakes
         switch provider {
         case .groq:
             let rawGroq = groqModel.trimmingCharacters(in: .whitespacesAndNewlines)
-            let effectiveModel = (rawGroq.isEmpty || rawGroq.contains("llama") || rawGroq.contains("qwen-2.5")) ? "openai/gpt-oss-120b" : rawGroq
+            let effectiveModel = (rawGroq.isEmpty || rawGroq.contains("llama") || rawGroq.contains("qwen-2.5") || rawGroq.contains("gpt-oss-120b")) ? "qwen/qwen3.8-27b" : rawGroq
             let endpoint = URL(string: "https://api.groq.com/openai/v1/chat/completions")!
             var request = URLRequest(url: endpoint)
             request.httpMethod = "POST"
@@ -3344,7 +3584,7 @@ Use the following dictionary of canonical words to detect such phonetic mistakes
         keys: [AIGatewayKey],
         fallbackProvider: CloudAIProvider,
         fallbackKey: String,
-        groqModel: String = "openai/gpt-oss-120b",
+        groqModel: String = "qwen/qwen3.8-27b",
         geminiModel: String = "gemini-2.0-flash",
         cerebrasModel: String = "gpt-oss-120b",
         customBaseURL: String = "https://api.openai.com/v1",
