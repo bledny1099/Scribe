@@ -5,6 +5,20 @@ All notable changes to Scribe will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.10.6] - 2026-10-25
+
+## Added
+- Unified `Recognition & AI` settings tab combining Aether Engine model configuration and AI post-processing controls in one place.
+- Collapsible disclosure sections in `Vocabulary` (`Cities & Locations`, `Custom Presets`, `Open Community Dictionary`, `Personal Language & Speech Habits Monitor`) and `Recognition & AI` (`Test AI Refinement`) to keep the interface compact by default.
+
+## Changed
+- Consolidated transcription `History` directly into the `System` settings tab and reduced the primary settings sidebar from 10 tabs to 8.
+- Moved `App Theme`, `Live Preview`, and `Preview Background` controls from `General` into `Appearance`, leaving `General` focused on core dictation workflow and shortcuts.
+- Removed redundant static informational cards from `Lectures`, `Recognition & AI`, and `Vocabulary` settings views.
+
+## Fixed
+- Fixed visual clutter and excessive vertical scrolling across settings tabs on smaller laptop screens.
+
 ## [2.10.5] - 2026-10-22
 
 ## Added

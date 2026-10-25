@@ -6,13 +6,11 @@ import UniformTypeIdentifiers
 enum SettingsTab: String, CaseIterable {
     case general = "General"
     case appearance = "Appearance"
-    case recognition = "Recognition"
-    case ai = "AI Refinement"
+    case recognition = "Recognition & AI"
     case vocabulary = "Vocabulary"
     case lectures = "Lectures"
     case integrations = "Integrations"
     case replacements = "Replacements"
-    case history = "History"
     case system = "System"
     case statistics = "Statistics"
 
@@ -21,12 +19,10 @@ enum SettingsTab: String, CaseIterable {
         case .general:      return "slider.horizontal.3"
         case .appearance:   return "paintbrush.fill"
         case .recognition:  return "waveform.and.mic"
-        case .ai:           return "wand.and.stars"
         case .vocabulary:   return "book.fill"
         case .lectures:     return "graduationcap.fill"
         case .integrations: return "puzzlepiece.fill"
         case .replacements: return "text.badge.plus"
-        case .history:      return "clock.arrow.circlepath"
         case .system:       return "gearshape.fill"
         case .statistics:   return "chart.bar.fill"
         }
@@ -234,12 +230,10 @@ struct SettingsSidebarView: View {
         .general,
         .appearance,
         .recognition,
-        .ai,
         .vocabulary,
         .lectures,
         .integrations,
         .replacements,
-        .history,
         .system
     ]
 
@@ -377,7 +371,6 @@ struct SettingsContentView: View {
                     AppearanceSettingsView()
                 case .recognition:
                     RecognitionSettingsView()
-                case .ai:
                     AISettingsView()
                 case .vocabulary:
                     VocabularySettingsView()
@@ -387,10 +380,6 @@ struct SettingsContentView: View {
                     IntegrationsSettingsView()
                 case .replacements:
                     ReplacementsSettingsView()
-                case .history:
-                    GlassSection(title: appState.l("History"), icon: "clock.arrow.circlepath") {
-                        HistoryView(inSettings: true)
-                    }
                 case .system:
                     SystemSettingsView()
                 case .statistics:
@@ -7865,6 +7854,11 @@ struct SystemSettingsView: View {
 
                     PermissionsCard()
                 }
+            }
+
+            // SECTION: History
+            GlassSection(title: appState.l("History"), icon: "clock.arrow.circlepath") {
+                HistoryView(inSettings: true)
             }
 
             // SECTION: Bug & Crash Reporting (Only visible if user is registered/signed in)
