@@ -4632,8 +4632,9 @@ struct VocabularySettingsView: View {
     @EnvironmentObject var appState: AppState
     @ObservedObject private var communityVocab = CommunityVocabularyService.shared
     @ObservedObject private var monitor = PersonalVocabularyMonitor.shared
-    @AppStorage("vocabularyCitiesExpanded") private var isCitiesExpanded: Bool = true
-    @AppStorage("vocabularyPresetsExpanded") private var isPresetsExpanded: Bool = true
+    @AppStorage("vocabularyCitiesExpandedV2") private var isCitiesExpanded: Bool = false
+    @AppStorage("vocabularyPresetsExpandedV2") private var isPresetsExpanded: Bool = false
+    @AppStorage("vocabularyCommunityExpandedV2") private var isCommunityExpanded: Bool = false
     @AppStorage("vocabularyPersonalLanguageExpanded") private var isPersonalLanguageExpanded: Bool = false
     @State private var selectedTab: VocabularyTab = .vocabulary
     @State private var newWord: String = ""
@@ -5601,75 +5602,12 @@ struct VocabularySettingsView: View {
                 .padding(14)
             }
 
-            // SECTION 4: Dynamic App Context & Anti-Hallucination
-            GlassSection(title: appState.l("Dynamic App Context & Anti-Hallucination"), icon: "macwindow.badge.plus") {
-                VStack(alignment: .leading, spacing: 14) {
-                    Text(appState.l("Scribe automatically analyzes the destination application (IDE, Messenger, Notes, Browser, Design, Crypto) to inject relevant domain vocabulary and block out-of-context hallucinations."))
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                        .lineSpacing(2)
-
-                    // Live Active App Detection Card
-                    let detected = AetherContextEngine.shared.detectActiveAppDomain(targetApp: appState.targetRunningApplication)
-                    HStack(spacing: 12) {
-                        if let icon = detected.icon {
-                            Image(nsImage: icon)
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 32, height: 32)
-                                .cornerRadius(7)
-                        } else {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.accentColor.opacity(0.15))
-                                    .frame(width: 32, height: 32)
-                                Image(systemName: detected.domain.icon)
-                                    .font(.system(size: 15, weight: .semibold))
-                                    .foregroundStyle(Color.accentColor)
-                            }
-                        }
-
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(appState.l("Active Application Detected"))
-                                .font(.system(size: 10, weight: .bold, design: .rounded))
-                                .foregroundStyle(.secondary)
-                            
-                            HStack(spacing: 6) {
-                                Text(detected.name)
-                                    .font(.system(size: 13, weight: .bold, design: .rounded))
-                                    .foregroundStyle(.primary)
-                                    .lineLimit(1)
-
-                                Text("•")
-                                    .foregroundStyle(.secondary)
-
-                                Text(appState.l(detected.domain.displayName))
-                                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                                    .padding(.horizontal, 7)
-                                    .padding(.vertical, 2.5)
-                                    .background(Color.accentColor.opacity(0.12))
-                                    .foregroundStyle(Color.accentColor)
-                                    .cornerRadius(6)
-                                    .lineLimit(1)
-                                    .fixedSize(horizontal: true, vertical: false)
-                            }
-                        }
-
-                        Spacer()
-                    }
-                    .padding(12)
-                    .background(Color.primary.opacity(0.03))
-                    .cornerRadius(12)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
-                    )
-                }
-                .padding(14)
-            }
-
-            // SECTION 5: Open Community Dictionary (Automated 5-Min Sync)
-            GlassSection(title: appState.l("Open Community Dictionary"), icon: "network") {
+            // SECTION 4: Open Community Dictionary (Automated 5-Min Sync)
+            GlassCollapsibleSection(
+                title: appState.l("Open Community Dictionary"),
+                icon: "network",
+                isExpanded: $isCommunityExpanded
+            ) {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(alignment: .center, spacing: 8) {
                         HStack(spacing: 6) {
@@ -5709,7 +5647,6 @@ struct VocabularySettingsView: View {
                     .background(Color.primary.opacity(0.025))
                     .cornerRadius(8)
                 }
-                .padding(14)
             }
 
             // SECTION 6: Personal Language & Speech Habits Monitor
@@ -6269,29 +6206,6 @@ struct GeneralSettingsView: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            // SECTION: App Theme (Dark, Light, Liquid Glass)
-            GlassSection(title: appState.l("Theme"), icon: "circle.lefthalf.filled") {
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(appState.l("App Theme"))
-                            .font(.system(size: 14, weight: .medium, design: .rounded))
-                            .foregroundStyle(.primary)
-                        Text(appState.l("Choose between Dark, Light, or Liquid Glass appearance"))
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    LiquidGlassSegmentedPicker(
-                        items: PanelAppearance.allCases,
-                        selection: Binding(
-                            get: { appState.selectedPanelAppearance },
-                            set: { appState.selectedPanelAppearance = $0 }
-                        ),
-                        label: { (appState.l($0.displayName), $0.icon) }
-                    )
-                }
-            }
-
             // SECTION: Language
             GlassSection(title: appState.l("Language"), icon: "globe") {
                 HStack {
@@ -6430,62 +6344,6 @@ struct GeneralSettingsView: View {
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .transition(.opacity.combined(with: .move(edge: .top)).combined(with: .scale(scale: 0.98, anchor: .top)))
-                    }
-                }
-            }
-
-            // SECTION: Recording Options
-            GlassSection(title: appState.l("Options"), icon: "gearshape") {
-                VStack(spacing: 16) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(appState.l("Live Preview"))
-                                .font(.system(size: 14, weight: .medium, design: .rounded))
-                                .foregroundStyle(.primary)
-                            Text(appState.l("Shows intermediate text while recording"))
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Toggle("", isOn: Binding(
-                            get: { appState.livePreviewEnabled },
-                            set: { newValue in
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                    appState.livePreviewEnabled = newValue
-                                }
-                                DispatchQueue.main.async {
-                                    if newValue {
-                                        appState.showSettingsPreviewFor5Seconds(includeSubtitle: true)
-                                    } else {
-                                        appState.hideSettingsPreviewPanel()
-                                    }
-                                }
-                            }
-                        ))
-                            .toggleStyle(.switch)
-                            .labelsHidden()
-                    }
-
-                    if appState.livePreviewEnabled {
-                        HStack {
-                            Text(appState.l("Preview Background"))
-                                .font(.system(size: 14, weight: .medium, design: .rounded))
-                                .foregroundStyle(.primary)
-                            Spacer()
-                            LiquidGlassSegmentedPicker(
-                                items: SubtitleBackground.allCases,
-                                selection: Binding(
-                                    get: { appState.livePreviewBackground },
-                                    set: {
-                                        appState.livePreviewBackground = $0
-                                        appState.showSettingsPreviewFor5Seconds(includeSubtitle: true)
-                                    }
-                                ),
-                                label: { (appState.l($0.displayName), $0.icon) }
-                            )
-                        }
-                        .padding(.top, 4)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
                     }
                 }
             }
@@ -6727,37 +6585,7 @@ struct LecturesSettingsView: View {
                 }
             }
 
-            // 3. How it Works Informational Section
-            GlassSection(title: appState.l("How Lecture Mode Works"), icon: "info.circle.fill") {
-                VStack(spacing: 12) {
-                    HowItWorksRow(
-                        icon: "eye.slash.fill",
-                        color: .purple,
-                        title: appState.l("Background Mode"),
-                        description: appState.l("Records silently without covering your screen or interfering with slides, code, and notes.")
-                    )
-                    HowItWorksRow(
-                        icon: "cpu.fill",
-                        color: .blue,
-                        title: appState.l("Apple Silicon Intelligence"),
-                        description: appState.l("Transcribes long audio locally on Neural Engine with zero memory bloat and 100% offline privacy.")
-                    )
-                    HowItWorksRow(
-                        icon: "note.text",
-                        color: .orange,
-                        title: appState.l("Direct Notes Export"),
-                        description: appState.l("Automatically formats the transcript with date, title, and duration and exports directly to Apple Notes.")
-                    )
-                    HowItWorksRow(
-                        icon: "menubar.rectangle",
-                        color: .green,
-                        title: appState.l("Status Bar Timer"),
-                        description: appState.l("Live recording duration is visible in your Mac menu bar so you can monitor progress at a glance.")
-                    )
-                }
-            }
-
-            // 4. Lecture Preferences Section
+            // 3. Lecture Preferences Section
             GlassSection(title: appState.l("Lecture Preferences"), icon: "slider.horizontal.3") {
                 VStack(spacing: 16) {
                     // Note Title Prefix
@@ -6866,36 +6694,6 @@ struct LecturesSettingsView: View {
 }
 
 // MARK: - Helper Views for Lectures
-struct HowItWorksRow: View {
-    let icon: String
-    let color: Color
-    let title: String
-    let description: String
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(color.opacity(0.12))
-                    .frame(width: 28, height: 28)
-                Image(systemName: icon)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(color)
-            }
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.system(size: 12.5, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.primary)
-                Text(description)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer()
-        }
-    }
-}
-
 struct LectureAppTargetButton: View {
     let title: String
     let icon: String
@@ -6928,6 +6726,29 @@ struct AppearanceSettingsView: View {
 
     var body: some View {
         VStack(spacing: 16) {
+            // SECTION: App Theme (Dark, Light, Liquid Glass)
+            GlassSection(title: appState.l("Theme"), icon: "circle.lefthalf.filled") {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(appState.l("App Theme"))
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .foregroundStyle(.primary)
+                        Text(appState.l("Choose between Dark, Light, or Liquid Glass appearance"))
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    LiquidGlassSegmentedPicker(
+                        items: PanelAppearance.allCases,
+                        selection: Binding(
+                            get: { appState.selectedPanelAppearance },
+                            set: { appState.selectedPanelAppearance = $0 }
+                        ),
+                        label: { (appState.l($0.displayName), $0.icon) }
+                    )
+                }
+            }
+
             // SECTION: Overlay Theme & Style
             GlassSection(title: appState.l("Overlay Theme"), icon: "sparkles") {
                 VStack(spacing: 16) {
@@ -7020,6 +6841,58 @@ struct AppearanceSettingsView: View {
             // SECTION: Window & Controls
             GlassSection(title: appState.l("Window & Controls"), icon: "slider.horizontal.3") {
                 VStack(spacing: 16) {
+                    // Live Preview
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(appState.l("Live Preview"))
+                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                .foregroundStyle(.primary)
+                            Text(appState.l("Shows intermediate text while recording"))
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Toggle("", isOn: Binding(
+                            get: { appState.livePreviewEnabled },
+                            set: { newValue in
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                    appState.livePreviewEnabled = newValue
+                                }
+                                DispatchQueue.main.async {
+                                    if newValue {
+                                        appState.showSettingsPreviewFor5Seconds(includeSubtitle: true)
+                                    } else {
+                                        appState.hideSettingsPreviewPanel()
+                                    }
+                                }
+                            }
+                        ))
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                    }
+
+                    if appState.livePreviewEnabled {
+                        HStack {
+                            Text(appState.l("Preview Background"))
+                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            LiquidGlassSegmentedPicker(
+                                items: SubtitleBackground.allCases,
+                                selection: Binding(
+                                    get: { appState.livePreviewBackground },
+                                    set: {
+                                        appState.livePreviewBackground = $0
+                                        appState.showSettingsPreviewFor5Seconds(includeSubtitle: true)
+                                    }
+                                ),
+                                label: { (appState.l($0.displayName), $0.icon) }
+                            )
+                        }
+                        .padding(.top, 4)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
+
                     // Sound feedback
                     HStack {
                         Text(appState.l("Sound Feedback"))
@@ -7260,6 +7133,7 @@ struct AISettingsView: View {
 
     @State private var isAddingGatewayKey: Bool = false
     @State private var isShowingGatewayKeysList: Bool = true
+    @State private var isTestRefinementExpanded: Bool = false
     @State private var newKeyProvider: CloudAIProvider = .groq
     @State private var newKeyString: String = ""
     @State private var newKeyModel: String = ""
@@ -7745,56 +7619,12 @@ struct AISettingsView: View {
                 }
             }
 
-            // SECTION 3: Phonetic Vocabulary Correction
-            GlassSection(title: appState.l("Vocabulary & Phonetic Correction"), icon: "text.book.closed.fill") {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack(spacing: 12) {
-                        Image(systemName: "sparkle.magnifyingglass")
-                            .font(.system(size: 22))
-                            .foregroundStyle(.purple)
-
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(appState.l("Acoustic Slip & Slang Correction"))
-                                .font(.system(size: 13.5, weight: .semibold, design: .rounded))
-                                .foregroundStyle(.primary)
-                            Text(appState.l("Speech-to-text models often mishear technical terms (e.g., 'chat gpt.com' instead of 'chatgpt.com', 'vibe coding' instead of 'vibecoding', 'ex code' instead of 'Xcode'). Scribe feeds your active vocabulary to the LLM to automatically fix them."))
-                                .font(.system(size: 11.5))
-                                .foregroundStyle(.secondary)
-                                .lineSpacing(2)
-                        }
-                    }
-
-                    HStack {
-                        let vocabCount = AetherContextEngine.shared.activeEffectiveVocabulary(
-                            targetApp: appState.targetRunningApplication,
-                            userVocabulary: appState.vocabulary,
-                            userLocation: appState.effectiveUserLocation
-                        ).components(separatedBy: ",").count
-
-                        Text("\(vocabCount) \(appState.l("active terms in dictionary context"))")
-                            .font(.system(size: 11.5, weight: .medium))
-                            .foregroundStyle(.secondary)
-
-                        Spacer()
-
-                        Button(action: {
-                            appState.requestedSettingsTab = .vocabulary
-                        }) {
-                            HStack(spacing: 4) {
-                                Text(appState.l("Edit Vocabulary"))
-                                Image(systemName: "arrow.right")
-                            }
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(.blue)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    .padding(.top, 4)
-                }
-            }
-
-            // SECTION 4: Live Playground / Test Refinement
-            GlassSection(title: appState.l("Test AI Refinement"), icon: "play.circle.fill") {
+            // SECTION 3: Live Playground / Test Refinement
+            GlassCollapsibleSection(
+                title: appState.l("Test AI Refinement"),
+                icon: "play.circle.fill",
+                isExpanded: $isTestRefinementExpanded
+            ) {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(appState.l("Test your API key and vocabulary correction with a quick sample:"))
                         .font(.system(size: 12))
