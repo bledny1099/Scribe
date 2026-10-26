@@ -436,8 +436,30 @@ final class RecordingPanel: NSPanel {
         return nil
     }
 
-    /// Positions the panel based on the selected positioning mode.
+    /// Stores the custom screen position when the user manually drags the overlay.
+    var customUserOrigin: NSPoint?
+    /// Optional callback fired while the user drags the panel so attached subtitle panels stay aligned.
+    var onUserDragged: (() -> Void)?
+
+    private var dragInitialMouseLocation: NSPoint?
+    private var dragInitialWindowOrigin: NSPoint?
+    private var isCurrentlyDraggingPanel: Bool = false
+
+    /// Positions the panel based on the selected positioning mode (or preserves the user's manual drag position).
     func positionPanel(mode: OverlayPositionMode, targetApp: NSRunningApplication? = nil, yOffset: CGFloat = 0) {
+        if let customOrigin = customUserOrigin {
+            let centerPoint = NSPoint(x: customOrigin.x + frame.width / 2, y: customOrigin.y + frame.height / 2)
+            let targetScreen = NSScreen.screens.first(where: { $0.frame.contains(centerPoint) })
+                ?? NSScreen.main
+                ?? NSScreen.screens.first
+            if let screenFrame = targetScreen?.visibleFrame {
+                let clampedX = max(screenFrame.minX + 8, min(customOrigin.x, screenFrame.maxX - frame.width - 8))
+                let clampedY = max(screenFrame.minY + 8, min(customOrigin.y, screenFrame.maxY - frame.height - 8))
+                setFrameOrigin(NSPoint(x: clampedX, y: clampedY))
+                return
+            }
+        }
+
         switch mode {
         case .screenBottom:
             guard let screen = NSScreen.main ?? NSScreen.screens.first else { center(); return }
@@ -523,18 +545,64 @@ final class RecordingPanel: NSPanel {
         setFrameOrigin(NSPoint(x: x, y: y))
     }
 
-    // MARK: - Overrides — keep the panel passive
+    // MARK: - Overrides — keep the panel passive & freely draggable
 
     override var canBecomeKey: Bool  { false }
     override var canBecomeMain: Bool { false }
 
+    override func sendEvent(_ event: NSEvent) {
+        switch event.type {
+        case .leftMouseDown:
+            dragInitialMouseLocation = NSEvent.mouseLocation
+            dragInitialWindowOrigin = frame.origin
+            isCurrentlyDraggingPanel = false
+            super.sendEvent(event)
+
+        case .leftMouseDragged:
+            if let startMouse = dragInitialMouseLocation, let startOrigin = dragInitialWindowOrigin {
+                let currentMouse = NSEvent.mouseLocation
+                let dx = currentMouse.x - startMouse.x
+                let dy = currentMouse.y - startMouse.y
+                if isCurrentlyDraggingPanel || hypot(dx, dy) >= 3.0 {
+                    isCurrentlyDraggingPanel = true
+                    var newOrigin = NSPoint(x: startOrigin.x + dx, y: startOrigin.y + dy)
+                    let targetScreen = NSScreen.screens.first(where: { NSMouseInRect(currentMouse, $0.frame, false) })
+                        ?? screen
+                        ?? NSScreen.main
+                        ?? NSScreen.screens.first
+                    if let screenFrame = targetScreen?.visibleFrame {
+                        newOrigin.x = max(screenFrame.minX + 8, min(newOrigin.x, screenFrame.maxX - frame.width - 8))
+                        newOrigin.y = max(screenFrame.minY + 8, min(newOrigin.y, screenFrame.maxY - frame.height - 8))
+                    }
+                    setFrameOrigin(newOrigin)
+                    customUserOrigin = newOrigin
+                    onUserDragged?()
+                    return
+                }
+            }
+            super.sendEvent(event)
+
+        case .leftMouseUp:
+            let wasDragging = isCurrentlyDraggingPanel
+            dragInitialMouseLocation = nil
+            dragInitialWindowOrigin = nil
+            isCurrentlyDraggingPanel = false
+            if !wasDragging {
+                super.sendEvent(event)
+            }
+
+        default:
+            super.sendEvent(event)
+        }
+    }
+
     // MARK: - Private Setup
 
     private func configurePanel() {
-        isFloatingPanel           = true
-        level                     = .floating
-        isMovableByWindowBackground = false
-        hidesOnDeactivate         = false
+        isFloatingPanel             = true
+        level                       = .floating
+        isMovableByWindowBackground = true
+        hidesOnDeactivate           = false
         isOpaque                  = false
         backgroundColor           = .clear
         hasShadow                 = false // Prevents rectangular window shadow artifacts

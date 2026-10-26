@@ -993,6 +993,8 @@ final class AppState: ObservableObject {
         get { OverlayPositionMode(rawValue: overlayPositionModeRaw) ?? .screenBottom }
         set {
             overlayPositionModeRaw = newValue.rawValue
+            recordingPanel?.customUserOrigin = nil
+            settingsPreviewPanel?.customUserOrigin = nil
             showSettingsPreviewFor5Seconds()
         }
     }
@@ -1910,6 +1912,10 @@ final class AppState: ObservableObject {
                 hasAIMode: hasAI
             )
             panel.alphaValue = 0
+            panel.onUserDragged = { [weak self, weak panel] in
+                guard let self = self, let panel = panel, let sub = self.subtitlePanel else { return }
+                self.updateSubtitlePanelFrame(for: panel, subPanel: sub)
+            }
             recordingPanel = panel
         }
 
@@ -2238,7 +2244,7 @@ final class AppState: ObservableObject {
         if let existingPanel = settingsPreviewPanel {
             guard existingPanel.isVisible else { return }
             // Update existing panel in-place without recreation or flashing
-            existingPanel.ignoresMouseEvents = true
+            existingPanel.ignoresMouseEvents = false
             existingPanel.updateAppearance(selectedOverlayAppearance)
             existingPanel.setContent(
                 overlay,
@@ -2253,7 +2259,8 @@ final class AppState: ObservableObject {
             existingPanel.updateCornerRadius(targetRadius, targetSize: targetSize)
 
             let oldFrame = existingPanel.frame
-            let calculatedFrame = targetFrame
+            let effectiveOrigin = existingPanel.customUserOrigin ?? targetOrigin
+            let calculatedFrame = NSRect(origin: effectiveOrigin, size: targetSize)
             let frameDiff = max(
                 abs(oldFrame.origin.x - calculatedFrame.origin.x),
                 abs(oldFrame.origin.y - calculatedFrame.origin.y),
@@ -2262,8 +2269,8 @@ final class AppState: ObservableObject {
             )
 
             if frameDiff > 1.0 {
-                let isLargeCrossJump = abs(oldFrame.origin.x - targetOrigin.x) > 100 && abs(oldFrame.origin.y - targetOrigin.y) > 80
-                if !isDragging && !isLargeCrossJump && (abs(oldFrame.origin.x - targetOrigin.x) > 4 || abs(oldFrame.origin.y - targetOrigin.y) > 4) {
+                let isLargeCrossJump = abs(oldFrame.origin.x - effectiveOrigin.x) > 100 && abs(oldFrame.origin.y - effectiveOrigin.y) > 80
+                if !isDragging && !isLargeCrossJump && (abs(oldFrame.origin.x - effectiveOrigin.x) > 4 || abs(oldFrame.origin.y - effectiveOrigin.y) > 4) {
                     NSAnimationContext.runAnimationGroup { ctx in
                         ctx.duration = 0.22
                         ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
@@ -2298,23 +2305,33 @@ final class AppState: ObservableObject {
                 hasAIMode: hasAI
             )
             panel.collectionBehavior = [.moveToActiveSpace, .ignoresCycle]
-
-            let refMidX = activePreviewReferenceWindow()?.frame.midX ?? targetOrigin.x
-            let refMidY = activePreviewReferenceWindow()?.frame.midY ?? targetOrigin.y
-            let startOrigin: NSPoint
-            if selectedOverlayStyle.isSquareStyle {
-                let offsetX: CGFloat = (targetOrigin.x >= refMidX) ? -14 : 14
-                startOrigin = NSPoint(x: targetOrigin.x + offsetX, y: targetOrigin.y)
-            } else {
-                let offsetY: CGFloat = (targetOrigin.y <= refMidY) ? 14 : -14
-                startOrigin = NSPoint(x: targetOrigin.x, y: targetOrigin.y + offsetY)
+            panel.onUserDragged = { [weak self, weak panel] in
+                guard let self = self, let panel = panel else { return }
+                self.recordingPanel?.customUserOrigin = panel.customUserOrigin
+                if let sub = self.settingsSubtitlePanel {
+                    self.updateSubtitlePanelFrame(for: panel, subPanel: sub)
+                }
             }
 
-            panel.setFrame(targetFrame, display: false)
+            let effectiveOrigin = recordingPanel?.customUserOrigin ?? targetOrigin
+            let effectiveFrame = NSRect(origin: effectiveOrigin, size: targetSize)
+
+            let refMidX = activePreviewReferenceWindow()?.frame.midX ?? effectiveOrigin.x
+            let refMidY = activePreviewReferenceWindow()?.frame.midY ?? effectiveOrigin.y
+            let startOrigin: NSPoint
+            if selectedOverlayStyle.isSquareStyle {
+                let offsetX: CGFloat = (effectiveOrigin.x >= refMidX) ? -14 : 14
+                startOrigin = NSPoint(x: effectiveOrigin.x + offsetX, y: effectiveOrigin.y)
+            } else {
+                let offsetY: CGFloat = (effectiveOrigin.y <= refMidY) ? 14 : -14
+                startOrigin = NSPoint(x: effectiveOrigin.x, y: effectiveOrigin.y + offsetY)
+            }
+
+            panel.setFrame(effectiveFrame, display: false)
             panel.setFrameOrigin(startOrigin)
             panel.alphaValue = 0
 
-            panel.ignoresMouseEvents = true
+            panel.ignoresMouseEvents = false
             panel.orderFrontRegardless()
             settingsPreviewPanel = panel
 
@@ -2322,7 +2339,7 @@ final class AppState: ObservableObject {
                 ctx.duration = 0.30
                 ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
                 panel.animator().alphaValue = 1
-                panel.animator().setFrameOrigin(targetOrigin)
+                panel.animator().setFrameOrigin(effectiveOrigin)
             }
         }
 

@@ -506,16 +506,15 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
             }
 
             // If detected language is Russian, or Russian probability is higher than the other,
-            // or Russian has meaningful presence (>= 0.10), lock firmly to Russian.
+            // or Russian has meaningful presence (>= 0.10), lock to Russian unless non-Russian is clearly spoken.
             if cleanDetected == "ru" || ruProb >= bestOtherProb || ruProb >= 0.10 {
-                // Only switch to non-Russian if it was explicitly detected AND its probability is overwhelmingly dominant (> 0.70)
-                if cleanDetected == bestOther && bestOtherProb >= 0.70 && bestOtherProb >= (ruProb * 3.0) {
+                if cleanDetected == bestOther && bestOtherProb >= 0.45 && bestOtherProb >= (ruProb * 1.5) {
                     return bestOther
                 }
                 return "ru"
             } else {
                 // cleanDetected != "ru" and ruProb < 0.10
-                if bestOtherProb >= 0.50 || cleanDetected == bestOther {
+                if bestOtherProb >= 0.35 || cleanDetected == bestOther {
                     return bestOther
                 }
                 return "ru"
@@ -641,7 +640,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         options.temperatureFallbackCount = 0
         options.withoutTimestamps = true
         options.skipSpecialTokens = true
-        options.sampleLength = 224
+        options.sampleLength = 448
         options.windowClipTime = 0.0
         options.firstTokenLogProbThreshold = nil
         options.logProbThreshold = nil
@@ -961,7 +960,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         options.temperatureFallbackCount = 0
         options.withoutTimestamps = (conditionedDurationSeconds > 0 && conditionedDurationSeconds <= 28.0)
         options.skipSpecialTokens = true
-        options.sampleLength = 224
+        options.sampleLength = 448
         options.windowClipTime = 0.0
         options.firstTokenLogProbThreshold = nil
         options.logProbThreshold = nil
@@ -987,14 +986,24 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
                 options.detectLanguage = false
                 options.usePrefillCache = true
                 logger.info("Single preferred language mode: locked to '\(single)'")
+            } else if let (detected, langProbs) = try? await kit.detectLanguage(audioPath: path) {
+                let chosen = Self.resolveDetectedLanguage(
+                    rawDetected: detected,
+                    probs: langProbs,
+                    allowedBases: allowedBases
+                )
+                resolvedLang = chosen
+                options.language = chosen
+                options.detectLanguage = false
+                options.usePrefillCache = true
+                logger.info("Multilingual mode resolved language: '\(chosen)' (raw detected: '\(detected)', allowed: \(allowedBases))")
             } else {
-                // Native single-pass language detection directly on encoderOutput (~3ms, no duplicate AudioEncoder pass).
-                // Ensures English utterances are decoded with <|en|> from frame 0 so the opening words are never cut off.
-                resolvedLang = "auto"
-                options.language = nil
-                options.detectLanguage = true
-                options.usePrefillCache = false
-                logger.info("Multilingual mode: detecting language natively from encoderOutput across allowed \(allowedBases)")
+                let fallback = lockedSnapshotLanguage() ?? (allowedBases.contains("ru") ? "ru" : (allowedBases.first ?? "en"))
+                resolvedLang = fallback
+                options.language = fallback
+                options.detectLanguage = false
+                options.usePrefillCache = true
+                logger.info("Multilingual mode fallback locked to '\(fallback)'")
             }
         } else {
             let fallback = (!preferredLanguages.isEmpty ? preferredLanguages.map { baseLanguageCode(for: $0).lowercased() } : ["ru"]).first ?? "ru"
@@ -1651,10 +1660,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         let meanLogProb = wordLogProbs.reduce(0, +) / Float(wordLogProbs.count)
         let minLogProb = wordLogProbs.min() ?? 0
 
-        if words.count == 1 && (meanLogProb < -0.72 || minLogProb < -1.35) {
-            return true
-        }
-        if words.count == 2 && meanLogProb < -0.90 {
+        if words.count == 1 && (meanLogProb < -0.85 || minLogProb < -1.50) {
             return true
         }
         return false

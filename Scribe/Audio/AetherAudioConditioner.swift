@@ -149,24 +149,23 @@ public final class AetherAudioConditioner: @unchecked Sendable {
 
         // 2. Dynamic energy analysis
         let sortedRMS = frameRMSValues.sorted()
-        // Use 20th percentile as ambient noise floor so Gaussian room noise fluctuations are not mistaken for speech
-        let p20Index = max(0, min(totalFrames - 1, totalFrames / 5))
-        let noiseFloorRMS = sortedRMS[p20Index]
+        // Use 5th percentile as ambient noise floor so quiet words and phrase endings are never mistaken for noise
+        let p05Index = max(0, min(totalFrames - 1, totalFrames / 20))
+        let noiseFloorRMS = sortedRMS[p05Index]
         let noiseFloorDb = 20 * log10(max(noiseFloorRMS, 1e-5))
 
         let maxRMS = sortedRMS.last ?? 0
         let maxDb = 20 * log10(max(maxRMS, 1e-5))
         let dynamicRange = maxDb - noiseFloorDb
 
-        // Reject quiet non-speech sounds (breaths, sighs, keyboard taps, rustling) where peak energy is below -44 dBFS
-        // or below -37 dBFS without clear dynamic range above ambient noise.
-        if maxDb < -44.0 || (maxDb < -37.0 && dynamicRange < 5.5) {
-            logger.info("AetherAudioConditioner: Audio is silence or quiet non-speech sound (maxDb: \(maxDb) dBFS, noiseFloor: \(noiseFloorDb) dBFS, dynamicRange: \(dynamicRange) dB).")
+        // Reject only true silence / dead mic where peak energy is below -54 dBFS
+        if maxDb < -54.0 || (maxDb < -46.0 && dynamicRange < 2.5) {
+            logger.info("AetherAudioConditioner: Audio is silence (maxDb: \(maxDb) dBFS, noiseFloor: \(noiseFloorDb) dBFS, dynamicRange: \(dynamicRange) dB).")
             return nil
         }
 
-        // Speech threshold: at least 6.0 dB above ambient noise floor, clamped between -46.0 dBFS and -35.0 dBFS
-        let speechThresholdDb = min(-35.0, max(-46.0, noiseFloorDb + 6.0))
+        // Speech threshold: at least 2.5 dB above ambient noise floor, clamped between -55.0 dBFS and -40.0 dBFS
+        let speechThresholdDb = min(-40.0, max(-55.0, noiseFloorDb + 2.5))
         let speechThresholdRMS = pow(10.0, speechThresholdDb / 20.0)
 
         var firstSpeechFrame: Int?
@@ -174,39 +173,30 @@ public final class AetherAudioConditioner: @unchecked Sendable {
         var totalSpeechFrames = 0
 
         for f in 0..<totalFrames {
-            guard frameRMSValues[f] > speechThresholdRMS else { continue }
-            // Ignore isolated 1-2 frame mechanical clicks (e.g. Shift/hotkey press or mouse click):
-            // require at least 2 neighboring frames in a 5-frame (100ms) window to carry sustained energy.
-            let lo = max(0, f - 2), hi = min(totalFrames - 1, f + 2)
-            var neighbors = 0
-            for k in lo...hi where k != f && frameRMSValues[k] > speechThresholdRMS * 0.72 {
-                neighbors += 1
+            if frameRMSValues[f] > speechThresholdRMS {
+                let offset = f * frameSize
+                if firstSpeechFrame == nil {
+                    firstSpeechFrame = offset
+                }
+                lastSpeechFrame = offset + frameSize
+                totalSpeechFrames += 1
             }
-            guard neighbors >= 2 else { continue }
-
-            let offset = f * frameSize
-            if firstSpeechFrame == nil {
-                firstSpeechFrame = offset
-            }
-            lastSpeechFrame = offset + frameSize
-            totalSpeechFrames += 1
         }
 
-        // Must have at least 5 sustained speech frames (~100ms of voiced speech) to reject breaths and key clicks
-        guard var first = firstSpeechFrame, var last = lastSpeechFrame, totalSpeechFrames >= 5 else {
-            logger.info("AetherAudioConditioner: Only \(totalSpeechFrames) sustained speech frames found (<5). Audio is silence, breath, or key clicks.")
+        // Must have at least 3 speech frames (~60ms of voiced speech)
+        guard var first = firstSpeechFrame, var last = lastSpeechFrame, totalSpeechFrames >= 3 else {
+            logger.info("AetherAudioConditioner: Only \(totalSpeechFrames) speech frames found (<3). Audio is silence or click.")
             return nil
         }
 
-        // Trim boundaries with a softer sustained threshold so quiet syllables at the start/end of a phrase are preserved,
-        // while isolated pre-speech/post-speech breaths and key taps are trimmed away.
-        let boundaryThresholdDb = min(-38.0, max(-48.0, noiseFloorDb + 4.5))
+        // Expand boundaries with a gentle threshold so quiet syllables at the start and end of phrases are preserved
+        let boundaryThresholdDb = min(-48.0, max(-62.0, noiseFloorDb + 1.5))
         let boundaryThresholdRMS = pow(10.0, boundaryThresholdDb / 20.0)
         func isSustained(_ f: Int) -> Bool {
             let lo = max(0, f - 2), hi = min(totalFrames - 1, f + 2)
             var active = 0
             for k in lo...hi where frameRMSValues[k] > boundaryThresholdRMS { active += 1 }
-            return active >= 3
+            return active >= 2
         }
         if let f = (0..<totalFrames).first(where: isSustained) {
             first = min(first, f * frameSize)
@@ -215,12 +205,16 @@ public final class AetherAudioConditioner: @unchecked Sendable {
             last = max(last, (f + 1) * frameSize)
         }
 
-        // Preserve 280ms before speech onset (captures soft unvoiced initial consonants in English/Russian)
-        // and 320ms after speech offset (cuts out trailing hotkey release and breath sounds).
-        let leadPadding = Int(sampleRate * 0.28)
-        let tailPadding = Int(sampleRate * 0.32)
+        // Preserve 400ms before speech onset (captures soft unvoiced initial consonants in English/Russian)
+        // and 1.50s after speech offset so trailing words and endings are never cut off.
+        let leadPadding = Int(sampleRate * 0.40)
+        let tailPadding = Int(sampleRate * 1.50)
         let start = max(0, first - leadPadding)
-        let end = min(count, last + tailPadding)
+        var end = min(count, last + tailPadding)
+        // Only trim trailing audio when there is more than 1.0s of pure silence after padding
+        if count - end < Int(sampleRate * 1.0) {
+            end = count
+        }
 
         let trimmedTail = Float(count - end) / sampleRate
         if trimmedTail > 0.5 {
@@ -230,10 +224,10 @@ public final class AetherAudioConditioner: @unchecked Sendable {
         return (start, end)
     }
 
-    // MARK: - Adaptive Speech Loudness Normalization, Downward Expander & Soft Limiting
+    // MARK: - Adaptive Speech Loudness Normalization & Soft Limiting
 
-    /// Attenuates quiet non-speech sounds (breaths, sighs, keyboard taps in pauses) via a smooth downward expander
-    /// and normalizes active speech energy to optimal Whisper decoding level (-19 dBFS RMS) with soft-knee limiting.
+    /// Normalizes active speech energy to optimal Whisper decoding level (-19 dBFS RMS) with soft-knee limiting
+    /// without gating quiet syllables or unvoiced consonants inside phrases.
     private func normalizeLoudness(buffer: AVAudioPCMBuffer) {
         guard let channelData = buffer.floatChannelData, buffer.frameLength > 0 else { return }
         let channelCount = Int(buffer.format.channelCount)
@@ -243,7 +237,6 @@ public final class AetherAudioConditioner: @unchecked Sendable {
         // 1. Calculate 20ms Window RMS across channels
         let windowSize = max(1, Int(sampleRate * 0.02)) // 20ms window
         let numWindows = length / windowSize
-        var windowRMS = [Float](repeating: 0, count: max(1, numWindows))
         var speechRmsSum: Float = 0
         var speechWindowCount = 0
 
@@ -256,9 +249,8 @@ public final class AetherAudioConditioner: @unchecked Sendable {
                     vDSP_rmsqv(channelData[ch] + offset, 1, &wRms, vDSP_Length(windowSize))
                     loudest = max(loudest, wRms)
                 }
-                windowRMS[w] = loudest
-                // Active speech frame threshold (-45 dBFS = 0.00562)
-                if loudest > 0.00562 {
+                // Active speech frame threshold (-48 dBFS = 0.00398)
+                if loudest > 0.00398 {
                     speechRmsSum += loudest
                     speechWindowCount += 1
                 }
@@ -267,71 +259,12 @@ public final class AetherAudioConditioner: @unchecked Sendable {
 
         let avgSpeechRms = speechWindowCount > 0 ? (speechRmsSum / Float(speechWindowCount)) : 0
 
-        // 2. Smooth Downward Expander (Noise Gate for quiet breaths / keyboard taps during pauses):
-        // Any window more than ~16 dB quieter than the speaker's voice (or below -51 dBFS) and not adjacent to
-        // sustained speech is attenuated so Whisper never hallucinates words like "shift" on quiet breaths/taps.
-        if numWindows >= 5 && avgSpeechRms > 0.0045 {
-            let gateThreshold = max(0.0028, avgSpeechRms * 0.16)
-            var isSustainedVoice = [Bool](repeating: false, count: numWindows)
-            for w in 0..<numWindows {
-                guard windowRMS[w] >= gateThreshold else { continue }
-                let lo = max(0, w - 1), hi = min(numWindows - 1, w + 1)
-                var activeNeighbors = 0
-                for k in lo...hi where k != w && windowRMS[k] >= gateThreshold * 0.68 {
-                    activeNeighbors += 1
-                }
-                // Reject solitary 20ms mechanical key/mouse clicks surrounded by silence
-                if activeNeighbors >= 1 {
-                    isSustainedVoice[w] = true
-                }
-            }
-
-            // Dilate active speech mask by 3 windows (60ms) on each side to preserve soft initial/final consonants
-            var rawGain = [Float](repeating: 0.06, count: numWindows)
-            for w in 0..<numWindows where isSustainedVoice[w] {
-                let lo = max(0, w - 3), hi = min(numWindows - 1, w + 3)
-                for k in lo...hi {
-                    rawGain[k] = 1.0
-                }
-            }
-
-            // Smooth window gains to prevent any envelope clicks
-            var smoothedGain = rawGain
-            for w in 0..<numWindows {
-                let lo = max(0, w - 1), hi = min(numWindows - 1, w + 1)
-                var sum: Float = 0
-                for k in lo...hi { sum += rawGain[k] }
-                smoothedGain[w] = sum / Float(hi - lo + 1)
-            }
-
-            for ch in 0..<channelCount {
-                let ptr = channelData[ch]
-                for w in 0..<numWindows {
-                    let g0 = smoothedGain[w]
-                    let g1 = (w + 1 < numWindows) ? smoothedGain[w + 1] : g0
-                    let offset = w * windowSize
-                    if g0 == 1.0 && g1 == 1.0 { continue }
-                    for i in 0..<windowSize {
-                        let frac = Float(i) / Float(windowSize)
-                        ptr[offset + i] *= (g0 + (g1 - g0) * frac)
-                    }
-                }
-                let remStart = numWindows * windowSize
-                let lastG = smoothedGain.last ?? 1.0
-                if remStart < length && lastG < 1.0 {
-                    for i in remStart..<length {
-                        ptr[i] *= lastG
-                    }
-                }
-            }
-        }
-
-        // 3. Target speech RMS for Whisper attention encoder is ~ -19 dBFS (0.112).
-        // Cap boost gain at 8.0x (+18 dB) and only boost when genuine speech energy is present.
+        // 2. Target speech RMS for Whisper attention encoder is ~ -19 dBFS (0.112).
+        // Cap boost gain at 12.0x (+21.5 dB) and only boost when genuine speech energy is present.
         let targetRms: Float = 0.112
         var gain: Float = 1.0
-        if avgSpeechRms > 0.0045 {
-            gain = min(targetRms / avgSpeechRms, 8.0)
+        if avgSpeechRms > 0.0035 {
+            gain = min(targetRms / avgSpeechRms, 12.0)
         }
 
         if gain != 1.0 {
