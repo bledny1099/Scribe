@@ -128,6 +128,7 @@ enum OverlaySize: String, CaseIterable, Identifiable {
 public enum OverlayPositionMode: String, CaseIterable, Identifiable {
     case activeWindow = "Active Window"
     case screenBottom = "Screen Bottom"
+    case custom = "Free"
 
     public var id: String { rawValue }
 
@@ -135,6 +136,7 @@ public enum OverlayPositionMode: String, CaseIterable, Identifiable {
         switch self {
         case .activeWindow: "Active Window"
         case .screenBottom: "Screen Bottom"
+        case .custom:       "Free"
         }
     }
 
@@ -142,6 +144,7 @@ public enum OverlayPositionMode: String, CaseIterable, Identifiable {
         switch self {
         case .activeWindow: "Active Window"
         case .screenBottom: "Screen Bottom"
+        case .custom:       "Free"
         }
     }
 
@@ -149,6 +152,7 @@ public enum OverlayPositionMode: String, CaseIterable, Identifiable {
         switch self {
         case .activeWindow: "macwindow"
         case .screenBottom: "menubar.dock.rectangle"
+        case .custom:       "hand.draw"
         }
     }
 }
@@ -555,6 +559,9 @@ final class AppState: ObservableObject {
     @AppStorage("selectedOverlayStyle") var selectedOverlayStyleRaw: String = OverlayStyle.waveform.rawValue
     @AppStorage("selectedOverlaySize") var selectedOverlaySizeRaw: String = OverlaySize.s90.rawValue
     @AppStorage("overlayPositionMode") var overlayPositionModeRaw: String = OverlayPositionMode.screenBottom.rawValue
+    @AppStorage("hasCustomOverlayPosition") public var hasCustomOverlayPosition: Bool = false
+    @AppStorage("customOverlayOriginX") public var customOverlayOriginX: Double = 0
+    @AppStorage("customOverlayOriginY") public var customOverlayOriginY: Double = 0
     @AppStorage("selectedOverlayAppearance") var selectedOverlayAppearanceRaw: String = PanelAppearance.liquidGlass.rawValue
     @AppStorage("selectedPanelAppearance") var selectedPanelAppearanceRaw: String = PanelAppearance.liquidGlass.rawValue
     @AppStorage("preserveClipboard") public var preserveClipboard: Bool = true
@@ -990,12 +997,58 @@ final class AppState: ObservableObject {
 
     /// Computed property for type-safe overlay position mode access.
     var overlayPositionMode: OverlayPositionMode {
-        get { OverlayPositionMode(rawValue: overlayPositionModeRaw) ?? .screenBottom }
+        get {
+            if hasCustomOverlayPosition {
+                return .custom
+            }
+            return OverlayPositionMode(rawValue: overlayPositionModeRaw) ?? .screenBottom
+        }
         set {
             overlayPositionModeRaw = newValue.rawValue
-            recordingPanel?.customUserOrigin = nil
-            settingsPreviewPanel?.customUserOrigin = nil
+            if newValue == .custom {
+                if !hasCustomOverlayPosition {
+                    if let currentOrigin = settingsPreviewPanel?.frame.origin ?? recordingPanel?.frame.origin, currentOrigin != .zero {
+                        customOverlayOriginX = Double(currentOrigin.x)
+                        customOverlayOriginY = Double(currentOrigin.y)
+                    } else if let screen = NSScreen.main ?? NSScreen.screens.first {
+                        let screenFrame = screen.visibleFrame
+                        let w = settingsPreviewPanel?.frame.width ?? recordingPanel?.frame.width ?? 220
+                        customOverlayOriginX = Double(screenFrame.midX - w / 2)
+                        customOverlayOriginY = Double(screenFrame.minY + 80)
+                    }
+                    hasCustomOverlayPosition = true
+                }
+                let saved = NSPoint(x: customOverlayOriginX, y: customOverlayOriginY)
+                recordingPanel?.customUserOrigin = saved
+                settingsPreviewPanel?.customUserOrigin = saved
+            } else {
+                hasCustomOverlayPosition = false
+                recordingPanel?.customUserOrigin = nil
+                settingsPreviewPanel?.customUserOrigin = nil
+            }
             showSettingsPreviewFor5Seconds()
+        }
+    }
+
+    func saveCustomOverlayOrigin(_ origin: NSPoint) {
+        customOverlayOriginX = Double(origin.x)
+        customOverlayOriginY = Double(origin.y)
+        if !hasCustomOverlayPosition {
+            hasCustomOverlayPosition = true
+        }
+        if overlayPositionModeRaw != OverlayPositionMode.custom.rawValue {
+            overlayPositionModeRaw = OverlayPositionMode.custom.rawValue
+        }
+        recordingPanel?.customUserOrigin = origin
+        settingsPreviewPanel?.customUserOrigin = origin
+
+        if settingsPreviewPanel != nil {
+            previewDismissTimer?.invalidate()
+            previewDismissTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: false) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.hideSettingsPreviewPanel()
+                }
+            }
         }
     }
 
@@ -1912,9 +1965,15 @@ final class AppState: ObservableObject {
                 hasAIMode: hasAI
             )
             panel.alphaValue = 0
-            panel.onUserDragged = { [weak self, weak panel] in
-                guard let self = self, let panel = panel, let sub = self.subtitlePanel else { return }
-                self.updateSubtitlePanelFrame(for: panel, subPanel: sub)
+            if hasCustomOverlayPosition {
+                panel.customUserOrigin = NSPoint(x: customOverlayOriginX, y: customOverlayOriginY)
+            }
+            panel.onUserDragged = { [weak self, weak panel] newOrigin in
+                guard let self = self, let panel = panel else { return }
+                self.saveCustomOverlayOrigin(newOrigin)
+                if let sub = self.subtitlePanel {
+                    self.updateSubtitlePanelFrame(for: panel, subPanel: sub)
+                }
             }
             recordingPanel = panel
         }
@@ -1969,6 +2028,11 @@ final class AppState: ObservableObject {
             hasAIMode: hasAI
         )
 
+        if hasCustomOverlayPosition {
+            panel.customUserOrigin = NSPoint(x: customOverlayOriginX, y: customOverlayOriginY)
+        } else {
+            panel.customUserOrigin = nil
+        }
         panel.positionPanel(mode: overlayPositionMode, targetApp: targetRunningApplication)
         panel.alphaValue = 1
         panel.orderFrontRegardless()
@@ -1993,18 +2057,23 @@ final class AppState: ObservableObject {
 
         let frame = mainPanel.frame
         let subX = frame.midX - subWidth / 2
+        let isCustomPinned = hasCustomOverlayPosition || (mainPanel as? RecordingPanel)?.customUserOrigin != nil
 
-        // Always position the subtitle panel UNDER mainPanel.
-        // If there isn't enough room below mainPanel on the screen, shift mainPanel upwards so both fit comfortably.
+        // Position the subtitle panel under mainPanel when room permits.
+        // If user dragged mainPanel near the bottom edge of the screen, place subPanel above mainPanel instead of moving mainPanel!
         let rawSubY = frame.minY - subHeight - 10
         let subY: CGFloat
         if rawSubY < screenFrame.minY + 8 {
-            let neededShift = (screenFrame.minY + 8) - rawSubY
-            let newMainY = min(screenFrame.maxY - mainPanel.frame.height - 8, mainPanel.frame.origin.y + neededShift)
-            if abs(mainPanel.frame.origin.y - newMainY) > 1.0 {
-                mainPanel.setFrameOrigin(NSPoint(x: mainPanel.frame.origin.x, y: newMainY))
+            if isCustomPinned {
+                subY = min(screenFrame.maxY - subHeight - 4, frame.maxY + 10)
+            } else {
+                let neededShift = (screenFrame.minY + 8) - rawSubY
+                let newMainY = min(screenFrame.maxY - mainPanel.frame.height - 8, mainPanel.frame.origin.y + neededShift)
+                if abs(mainPanel.frame.origin.y - newMainY) > 1.0 {
+                    mainPanel.setFrameOrigin(NSPoint(x: mainPanel.frame.origin.x, y: newMainY))
+                }
+                subY = max(screenFrame.minY + 4, mainPanel.frame.minY - subHeight - 10)
             }
-            subY = max(screenFrame.minY + 4, mainPanel.frame.minY - subHeight - 10)
         } else {
             subY = rawSubY
         }
@@ -2199,6 +2268,12 @@ final class AppState: ObservableObject {
 
     func moveSettingsPreviewPanelWithWindow() {
         guard let panel = settingsPreviewPanel, panel.isVisible else { return }
+        if hasCustomOverlayPosition || panel.customUserOrigin != nil {
+            if let subPanel = settingsSubtitlePanel {
+                updateSubtitlePanelFrame(for: panel, subPanel: subPanel)
+            }
+            return
+        }
         let targetOrigin = targetPreviewOrigin(for: selectedOverlayStyle, size: panel.frame.size, isDragging: true)
         panel.setFrameOrigin(targetOrigin)
         if let subPanel = settingsSubtitlePanel {
@@ -2238,13 +2313,16 @@ final class AppState: ObservableObject {
             isTimerVisible: isTimerVis,
             hasAIMode: hasAI
         )
-        let targetOrigin = targetPreviewOrigin(for: selectedOverlayStyle, size: targetSize, isDragging: isDragging)
-        let targetFrame = NSRect(origin: targetOrigin, size: targetSize)
+        let savedCustomOrigin: NSPoint? = hasCustomOverlayPosition
+            ? NSPoint(x: customOverlayOriginX, y: customOverlayOriginY)
+            : nil
+        let targetOrigin = savedCustomOrigin ?? targetPreviewOrigin(for: selectedOverlayStyle, size: targetSize, isDragging: isDragging)
 
         if let existingPanel = settingsPreviewPanel {
             guard existingPanel.isVisible else { return }
             // Update existing panel in-place without recreation or flashing
             existingPanel.ignoresMouseEvents = false
+            existingPanel.customUserOrigin = savedCustomOrigin
             existingPanel.updateAppearance(selectedOverlayAppearance)
             existingPanel.setContent(
                 overlay,
@@ -2259,7 +2337,7 @@ final class AppState: ObservableObject {
             existingPanel.updateCornerRadius(targetRadius, targetSize: targetSize)
 
             let oldFrame = existingPanel.frame
-            let effectiveOrigin = existingPanel.customUserOrigin ?? targetOrigin
+            let effectiveOrigin = savedCustomOrigin ?? existingPanel.customUserOrigin ?? targetOrigin
             let calculatedFrame = NSRect(origin: effectiveOrigin, size: targetSize)
             let frameDiff = max(
                 abs(oldFrame.origin.x - calculatedFrame.origin.x),
@@ -2305,15 +2383,16 @@ final class AppState: ObservableObject {
                 hasAIMode: hasAI
             )
             panel.collectionBehavior = [.moveToActiveSpace, .ignoresCycle]
-            panel.onUserDragged = { [weak self, weak panel] in
+            panel.customUserOrigin = savedCustomOrigin
+            panel.onUserDragged = { [weak self, weak panel] newOrigin in
                 guard let self = self, let panel = panel else { return }
-                self.recordingPanel?.customUserOrigin = panel.customUserOrigin
+                self.saveCustomOverlayOrigin(newOrigin)
                 if let sub = self.settingsSubtitlePanel {
                     self.updateSubtitlePanelFrame(for: panel, subPanel: sub)
                 }
             }
 
-            let effectiveOrigin = recordingPanel?.customUserOrigin ?? targetOrigin
+            let effectiveOrigin = savedCustomOrigin ?? recordingPanel?.customUserOrigin ?? targetOrigin
             let effectiveFrame = NSRect(origin: effectiveOrigin, size: targetSize)
 
             let refMidX = activePreviewReferenceWindow()?.frame.midX ?? effectiveOrigin.x

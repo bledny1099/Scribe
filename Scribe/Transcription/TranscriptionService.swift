@@ -640,7 +640,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         options.temperatureFallbackCount = 0
         options.withoutTimestamps = true
         options.skipSpecialTokens = true
-        options.sampleLength = 448
+        options.sampleLength = 224
         options.windowClipTime = 0.0
         options.firstTokenLogProbThreshold = nil
         options.logProbThreshold = nil
@@ -960,7 +960,7 @@ final class TranscriptionService: ObservableObject, @unchecked Sendable {
         options.temperatureFallbackCount = 0
         options.withoutTimestamps = (conditionedDurationSeconds > 0 && conditionedDurationSeconds <= 28.0)
         options.skipSpecialTokens = true
-        options.sampleLength = 448
+        options.sampleLength = 224
         options.windowClipTime = 0.0
         options.firstTokenLogProbThreshold = nil
         options.logProbThreshold = nil

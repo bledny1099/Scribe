@@ -438,8 +438,8 @@ final class RecordingPanel: NSPanel {
 
     /// Stores the custom screen position when the user manually drags the overlay.
     var customUserOrigin: NSPoint?
-    /// Optional callback fired while the user drags the panel so attached subtitle panels stay aligned.
-    var onUserDragged: (() -> Void)?
+    /// Optional callback fired while the user drags the panel so attached subtitle panels stay aligned and coordinates are persisted.
+    var onUserDragged: ((NSPoint) -> Void)?
 
     private var dragInitialMouseLocation: NSPoint?
     private var dragInitialWindowOrigin: NSPoint?
@@ -461,6 +461,13 @@ final class RecordingPanel: NSPanel {
         }
 
         switch mode {
+        case .custom:
+            guard let screen = NSScreen.main ?? NSScreen.screens.first else { center(); return }
+            let screenFrame = screen.visibleFrame
+            let x = screenFrame.midX - frame.width / 2
+            let y = screenFrame.minY + 24 + yOffset
+            setFrameOrigin(NSPoint(x: x, y: y))
+
         case .screenBottom:
             guard let screen = NSScreen.main ?? NSScreen.screens.first else { center(); return }
             let screenFrame = screen.visibleFrame
@@ -563,7 +570,7 @@ final class RecordingPanel: NSPanel {
                 let currentMouse = NSEvent.mouseLocation
                 let dx = currentMouse.x - startMouse.x
                 let dy = currentMouse.y - startMouse.y
-                if isCurrentlyDraggingPanel || hypot(dx, dy) >= 3.0 {
+                if isCurrentlyDraggingPanel || hypot(dx, dy) >= 2.0 {
                     isCurrentlyDraggingPanel = true
                     var newOrigin = NSPoint(x: startOrigin.x + dx, y: startOrigin.y + dy)
                     let targetScreen = NSScreen.screens.first(where: { NSMouseInRect(currentMouse, $0.frame, false) })
@@ -576,7 +583,7 @@ final class RecordingPanel: NSPanel {
                     }
                     setFrameOrigin(newOrigin)
                     customUserOrigin = newOrigin
-                    onUserDragged?()
+                    onUserDragged?(newOrigin)
                     return
                 }
             }
@@ -601,7 +608,7 @@ final class RecordingPanel: NSPanel {
     private func configurePanel() {
         isFloatingPanel             = true
         level                       = .floating
-        isMovableByWindowBackground = true
+        isMovableByWindowBackground = false
         hidesOnDeactivate           = false
         isOpaque                  = false
         backgroundColor           = .clear
