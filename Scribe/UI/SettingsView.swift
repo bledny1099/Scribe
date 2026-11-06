@@ -278,7 +278,7 @@ struct SettingsSidebarView: View {
                 HStack(spacing: 8) {
                     ZStack {
                         Circle()
-                            .fill(supporterColor.opacity(0.14))
+                            .fill(supporterColor.opacity(0.20))
                             .frame(width: 22, height: 22)
                         
                         Image(systemName: isScribeSupporter ? supporterTier.icon : "heart.fill")
@@ -295,18 +295,11 @@ struct SettingsSidebarView: View {
 
                     Image(systemName: "cup.and.saucer.fill")
                         .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.secondary.opacity(0.7))
+                        .foregroundStyle(.primary.opacity(0.75))
                 }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color.primary.opacity(0.03))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .strokeBorder(supporterColor.opacity(0.20), lineWidth: 0.8)
-                )
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .modifier(LiquidGlassPillModifier(cornerRadius: 10, tint: supporterColor, isProminent: true))
             }
             .buttonStyle(.plain)
 
@@ -565,6 +558,107 @@ private struct VersionBadgeView: View {
     }
 }
 
+// MARK: - Liquid Glass Pill Surface Modifier
+struct LiquidGlassPillModifier: ViewModifier {
+    var cornerRadius: CGFloat = 9
+    var tint: Color? = nil
+    var isProminent: Bool = false
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var isHovered: Bool = false
+
+    private var isLight: Bool { colorScheme == .light }
+
+    func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        let activeScale: Double = isProminent ? 1.0 : (isHovered ? 0.85 : 0.65)
+        content
+            .background(
+                ZStack {
+                    shape
+                        .fill(.ultraThinMaterial.opacity(isLight ? 0.90 : (isProminent ? 0.92 : 0.72)))
+
+                    if let tint = tint {
+                        shape
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        tint.opacity((isProminent ? 0.28 : 0.16) * (isHovered ? 1.15 : 1.0)),
+                                        tint.opacity(isProminent ? 0.12 : 0.06)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                    } else {
+                        shape
+                            .fill(
+                                LinearGradient(
+                                    colors: isLight
+                                        ? [
+                                            Color.white.opacity(isProminent ? 0.95 : 0.78),
+                                            Color.white.opacity(isProminent ? 0.80 : 0.58)
+                                        ]
+                                        : [
+                                            Color.white.opacity(0.24 * activeScale),
+                                            Color.white.opacity(0.10 * activeScale),
+                                            Color.white.opacity(0.04 * activeScale)
+                                        ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                    }
+
+                    // Top Specular Highlight Glare
+                    shape
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(isLight ? 0.75 : (0.38 * activeScale)),
+                                    Color.white.opacity(isLight ? 0.20 : (0.10 * activeScale)),
+                                    Color.clear
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                }
+            )
+            .clipShape(shape)
+            .overlay(
+                shape
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: isLight
+                                ? [
+                                    (tint ?? Color.black).opacity(isProminent ? 0.24 : 0.14),
+                                    (tint ?? Color.black).opacity(0.07)
+                                ]
+                                : [
+                                    (tint ?? Color.white).opacity(isProminent ? 0.68 : (isHovered ? 0.52 : 0.36)),
+                                    Color.white.opacity(isProminent ? 0.28 : 0.16),
+                                    Color.white.opacity(0.08)
+                                ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1.0
+                    )
+            )
+            .shadow(
+                color: Color.black.opacity(isLight ? 0.08 : (isProminent ? 0.28 : 0.18)),
+                radius: isProminent ? 5 : 3,
+                x: 0,
+                y: isProminent ? 2 : 1
+            )
+            .onHover { hovering in
+                withAnimation(.easeOut(duration: 0.15)) {
+                    isHovered = hovering
+                }
+            }
+    }
+}
+
 // MARK: - Settings Header View Component
 struct SettingsHeaderView: View {
     @ObservedObject var updateService = AppUpdateService.shared
@@ -599,15 +693,10 @@ struct SettingsHeaderView: View {
                                 .font(.system(size: 10, weight: .semibold, design: .rounded))
                                 .lineLimit(1)
                         }
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 3)
-                        .background(Color.green.opacity(0.18))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3.5)
                         .foregroundStyle(.green)
-                        .cornerRadius(6)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 6)
-                                .stroke(Color.green.opacity(0.35), lineWidth: 1)
-                        )
+                        .modifier(LiquidGlassPillModifier(cornerRadius: 7, tint: .green, isProminent: true))
                     }
                     .buttonStyle(.plain)
                 }
@@ -645,31 +734,21 @@ struct SettingsHeaderView: View {
                         Text(appState.l("Feedback"))
                             .font(.system(size: 10, weight: .semibold, design: .rounded))
                     }
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 3.5)
-                    .background(Color.primary.opacity(0.06))
-                    .cornerRadius(6)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                            .stroke(Color.primary.opacity(0.1), lineWidth: 0.5)
-                    )
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .foregroundStyle(.primary.opacity(0.9))
+                    .modifier(LiquidGlassPillModifier(cornerRadius: 7))
                 }
                 .buttonStyle(.plain)
 
                 Button(action: { SettingsWindowManager.shared.closeWindow() }) {
                     ZStack {
-                        Circle()
-                            .fill(Color.primary.opacity(0.08))
-                            .frame(width: 22, height: 22)
-
                         Image(systemName: "xmark")
                             .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(.primary.opacity(0.75))
+                            .foregroundStyle(.primary.opacity(0.85))
+                            .frame(width: 22, height: 22)
                     }
-                    .overlay(
-                        Circle()
-                            .stroke(Color.primary.opacity(0.14), lineWidth: 1)
-                    )
+                    .modifier(LiquidGlassPillModifier(cornerRadius: 11))
                 }
                 .buttonStyle(.plain)
             }
@@ -692,29 +771,115 @@ struct SidebarTabButton: View {
     let title: String
     let action: () -> Void
 
+    @State private var isHovered: Bool = false
+
+    private var isLight: Bool { panelAppearance == .light }
+
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 8) {
+            HStack(spacing: 9) {
                 Image(systemName: tab.icon)
-                    .font(.system(size: 13, weight: isSelected ? .bold : .medium))
-                    .foregroundStyle(isSelected ? .primary : .secondary)
+                    .font(.system(size: 13, weight: isSelected ? .bold : .semibold))
+                    .foregroundStyle(
+                        isSelected
+                            ? (isLight ? Color.black.opacity(0.92) : Color.white)
+                            : Color.primary.opacity(isHovered ? 0.95 : 0.78)
+                    )
                     .frame(width: 18)
 
                 Text(title)
                     .font(.system(size: 13, weight: isSelected ? .bold : .medium, design: .rounded))
+                    .foregroundStyle(
+                        isSelected
+                            ? (isLight ? Color.black.opacity(0.92) : Color.white)
+                            : Color.primary.opacity(isHovered ? 0.95 : 0.84)
+                    )
                     .lineLimit(1)
                 Spacer()
             }
             .padding(.horizontal, 10)
-            .padding(.vertical, 8)
+            .padding(.vertical, 7.5)
             .background(
-                isSelected
-                    ? (panelAppearance == .liquidGlass ? Color.white.opacity(0.12) : themeGradientColor.opacity(0.2))
-                    : Color.clear
+                ZStack {
+                    if isSelected || isHovered {
+                        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        let strength: Double = isSelected ? 1.0 : 0.45
+
+                        shape
+                            .fill(.ultraThinMaterial.opacity(isLight ? 0.92 : (isSelected ? 0.90 : 0.55)))
+
+                        shape
+                            .fill(
+                                LinearGradient(
+                                    colors: isLight
+                                        ? [
+                                            Color.white.opacity(isSelected ? 0.95 : 0.65),
+                                            Color.white.opacity(isSelected ? 0.80 : 0.45)
+                                        ]
+                                        : [
+                                            Color.white.opacity(0.26 * strength),
+                                            Color.white.opacity(0.11 * strength),
+                                            Color.white.opacity(0.04 * strength)
+                                        ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+
+                        shape
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        Color.white.opacity(isLight ? 0.75 : (0.40 * strength)),
+                                        Color.white.opacity(isLight ? 0.25 : (0.12 * strength)),
+                                        Color.clear
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                    }
+                }
             )
-            .cornerRadius(8)
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay(
+                ZStack {
+                    if isSelected || isHovered {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .strokeBorder(
+                                LinearGradient(
+                                    colors: isLight
+                                        ? [
+                                            Color.black.opacity(isSelected ? 0.16 : 0.08),
+                                            Color.black.opacity(isSelected ? 0.08 : 0.04)
+                                        ]
+                                        : [
+                                            Color.white.opacity(isSelected ? 0.70 : 0.30),
+                                            Color.white.opacity(isSelected ? 0.32 : 0.14),
+                                            Color.white.opacity(isSelected ? 0.14 : 0.06)
+                                        ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1.0
+                            )
+                    }
+                }
+            )
+            .shadow(
+                color: isSelected ? Color.black.opacity(isLight ? 0.10 : 0.28) : Color.clear,
+                radius: isLight ? 4 : 6,
+                x: 0,
+                y: isLight ? 1.5 : 2.5
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
         .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeOut(duration: 0.15)) {
+                isHovered = hovering
+            }
+        }
     }
 }
 
@@ -1718,19 +1883,14 @@ struct GlassCollapsibleSection<Content: View>: View {
                 }) {
                     HStack(spacing: 5) {
                         Text(appState.l(isExpanded ? "Hide" : "Show"))
-                            .font(.system(size: 10.5, weight: .medium, design: .rounded))
+                            .font(.system(size: 10.5, weight: .semibold, design: .rounded))
                         Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                             .font(.system(size: 8.5, weight: .bold))
                     }
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 3.5)
-                    .background(Color.primary.opacity(0.05))
-                    .clipShape(Capsule())
-                    .overlay(
-                        Capsule()
-                            .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.8)
-                    )
+                    .foregroundStyle(.primary.opacity(0.85))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .modifier(LiquidGlassPillModifier(cornerRadius: 12))
                 }
                 .buttonStyle(.plain)
             }
@@ -1770,18 +1930,11 @@ struct GlassCollapsibleSection<Content: View>: View {
 struct GlassButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 12, weight: .medium, design: .rounded))
+            .font(.system(size: 12, weight: .semibold, design: .rounded))
             .foregroundStyle(.primary)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.primary.opacity(configuration.isPressed ? 0.05 : 0.1))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .strokeBorder(Color.primary.opacity(0.15), lineWidth: 1)
-            )
+            .modifier(LiquidGlassPillModifier(cornerRadius: 8, isProminent: configuration.isPressed))
     }
 }
 
@@ -2001,24 +2154,12 @@ struct LiquidGlassMenu<T: Hashable>: View {
 
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary.opacity(0.75))
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
+            .padding(.horizontal, 11)
+            .padding(.vertical, 6.5)
             .frame(width: 180)
-            .background(
-                ZStack {
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color.primary.opacity(0.05))
-
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(.ultraThinMaterial.opacity(0.6))
-                }
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5)
-            )
+            .modifier(LiquidGlassPillModifier(cornerRadius: 10))
         }
         .buttonStyle(.plain)
     }
@@ -2079,24 +2220,12 @@ struct LiquidGlassLanguageMenu: View {
 
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary.opacity(0.75))
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
+            .padding(.horizontal, 11)
+            .padding(.vertical, 6.5)
             .frame(width: 180)
-            .background(
-                ZStack {
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color.primary.opacity(0.05))
-
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(.ultraThinMaterial.opacity(0.6))
-                }
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5)
-            )
+            .modifier(LiquidGlassPillModifier(cornerRadius: 10))
         }
         .buttonStyle(.plain)
     }
@@ -2154,7 +2283,7 @@ struct LiquidGlassAudioInputMenu: View {
                 let currentDevice = deviceManager.activeDevice
                 Image(systemName: currentDevice?.transportType.iconName ?? "mic.fill")
                     .font(.system(size: compact ? 10 : 11, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary.opacity(0.8))
                     .frame(width: 14)
 
                 Text(deviceManager.selectedDeviceUID == AudioDeviceManager.systemDefaultUID ? (compact ? l("System Default") : "\(l("System Default")) (\(deviceManager.defaultDevice?.name ?? ""))") : deviceManager.activeDisplayName)
@@ -2167,24 +2296,12 @@ struct LiquidGlassAudioInputMenu: View {
 
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.system(size: compact ? 8 : 9, weight: .bold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary.opacity(0.75))
             }
-            .padding(.horizontal, compact ? 8 : 10)
-            .padding(.vertical, compact ? 4 : 6)
+            .padding(.horizontal, compact ? 9 : 11)
+            .padding(.vertical, compact ? 4.5 : 6.5)
             .frame(width: compact ? 140 : 210)
-            .background(
-                ZStack {
-                    RoundedRectangle(cornerRadius: compact ? 8 : 10)
-                        .fill(Color.primary.opacity(0.05))
-
-                    RoundedRectangle(cornerRadius: compact ? 8 : 10)
-                        .fill(.ultraThinMaterial.opacity(0.6))
-                }
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: compact ? 8 : 10)
-                    .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5)
-            )
+            .modifier(LiquidGlassPillModifier(cornerRadius: compact ? 8 : 10))
         }
         .buttonStyle(.plain)
     }
@@ -2255,24 +2372,12 @@ struct LiquidGlassMultiLanguageMenu: View {
 
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary.opacity(0.75))
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
+            .padding(.horizontal, 11)
+            .padding(.vertical, 6.5)
             .frame(minWidth: 180, maxWidth: 220)
-            .background(
-                ZStack {
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color.primary.opacity(0.05))
-
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(.ultraThinMaterial.opacity(0.6))
-                }
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .strokeBorder(Color.primary.opacity(0.12), lineWidth: 0.5)
-            )
+            .modifier(LiquidGlassPillModifier(cornerRadius: 10))
         }
         .buttonStyle(.plain)
     }
@@ -3233,20 +3338,14 @@ struct IntegrationsSettingsView: View {
         VStack(spacing: 16) {
             // General Output Mode Card
             GlassSection(title: appState.l("Output Options"), icon: "slider.horizontal.3") {
-                VStack(alignment: .leading, spacing: 14) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(appState.l("Add Date & Time Header"))
-                                .font(.system(size: 13, weight: .semibold))
-                            Text(appState.l("Prefix exported notes with timestamp (e.g. 11.08.2026 17:21)"))
-                                .font(.system(size: 11))
-                                .foregroundStyle(Color.primary.opacity(0.70))
-                        }
-                        Spacer()
-                        Toggle("", isOn: $appState.appendDateToNotes)
-                            .toggleStyle(.switch)
-                            .labelsHidden()
-                    }
+                HStack {
+                    Text(appState.l("Add Date & Time Header"))
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundStyle(.primary)
+                    Spacer()
+                    Toggle("", isOn: $appState.appendDateToNotes)
+                        .toggleStyle(.switch)
+                        .labelsHidden()
                 }
             }
             
@@ -3258,13 +3357,8 @@ struct IntegrationsSettingsView: View {
                         HStack {
                             HStack(spacing: 10) {
                                 AppleNotesAppIconView(size: 26)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Apple Notes")
-                                        .font(.system(size: 14, weight: .bold))
-                                    Text(appState.l("Send transcripts directly to Apple Notes"))
-                                        .font(.system(size: 11))
-                                        .foregroundStyle(Color.primary.opacity(0.70))
-                                }
+                                Text("Apple Notes")
+                                    .font(.system(size: 14, weight: .semibold, design: .rounded))
                             }
                             Spacer()
                             Toggle("", isOn: Binding(
@@ -3296,28 +3390,21 @@ struct IntegrationsSettingsView: View {
                         
                         if appState.enableAppleNotes {
                             VStack(alignment: .leading, spacing: 10) {
-                                // Mode Selector: New note vs Single note
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text(appState.l("Save Destination:"))
-                                        .font(.system(size: 11, weight: .medium))
-                                        .foregroundStyle(.secondary)
-                                    
-                                    LiquidGlassSegmentedPicker(
-                                        items: [ExportMode.append, ExportMode.newNote],
-                                        selection: Binding(
-                                            get: { appState.appleNotesExportMode },
-                                            set: { appState.appleNotesExportMode = $0 }
-                                        ),
-                                        label: { mode in
-                                            switch mode {
-                                            case .append:
-                                                return (name: appState.l("Single Note (Append)"), icon: "note.text")
-                                            case .newNote:
-                                                return (name: appState.l("New Note per Speech"), icon: "doc.badge.plus")
-                                            }
+                                LiquidGlassSegmentedPicker(
+                                    items: [ExportMode.append, ExportMode.newNote],
+                                    selection: Binding(
+                                        get: { appState.appleNotesExportMode },
+                                        set: { appState.appleNotesExportMode = $0 }
+                                    ),
+                                    label: { mode in
+                                        switch mode {
+                                        case .append:
+                                            return (name: appState.l("Single Note (Append)"), icon: "note.text")
+                                        case .newNote:
+                                            return (name: appState.l("New Note per Speech"), icon: "doc.badge.plus")
                                         }
-                                    )
-                                }
+                                    }
+                                )
                                 
                                 if appState.appleNotesExportMode == .append {
                                     HStack(spacing: 8) {
@@ -3334,33 +3421,17 @@ struct IntegrationsSettingsView: View {
                                         }) {
                                             HStack(spacing: 4) {
                                                 Image(systemName: "note.text.badge.plus")
-                                                    .font(.system(size: 10))
+                                                    .font(.system(size: 10, weight: .semibold))
                                                 Text(appState.l("Use 'Scribe Notes'"))
-                                                    .font(.system(size: 11, weight: .medium))
+                                                    .font(.system(size: 11, weight: .semibold, design: .rounded))
                                             }
-                                            .padding(.horizontal, 8)
-                                            .padding(.vertical, 4)
-                                            .background(Color.primary.opacity(0.06))
-                                            .cornerRadius(6)
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 6)
-                                                    .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
-                                            )
+                                            .padding(.horizontal, 10)
+                                            .padding(.vertical, 5)
+                                            .foregroundStyle(.primary)
+                                            .modifier(LiquidGlassPillModifier(cornerRadius: 8))
                                         }
                                         .buttonStyle(.plain)
-                                        .help(appState.l("Set destination to dedicated Scribe note"))
                                     }
-                                    .transition(.opacity.combined(with: .move(edge: .top)))
-                                } else {
-                                    HStack(spacing: 6) {
-                                        Image(systemName: "doc.badge.plus")
-                                            .font(.system(size: 11))
-                                            .foregroundStyle(.secondary)
-                                        Text(appState.l("Each dictation will automatically create a new note in Apple Notes with title and timestamp."))
-                                            .font(.system(size: 11))
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    .padding(.vertical, 2)
                                     .transition(.opacity.combined(with: .move(edge: .top)))
                                 }
                             }
@@ -3376,13 +3447,8 @@ struct IntegrationsSettingsView: View {
                         HStack {
                             HStack(spacing: 10) {
                                 ObsidianAppIconView(size: 26)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Obsidian")
-                                        .font(.system(size: 14, weight: .bold))
-                                    Text(appState.l("Send transcripts directly to Obsidian"))
-                                        .font(.system(size: 11))
-                                        .foregroundStyle(Color.primary.opacity(0.70))
-                                }
+                                Text("Obsidian")
+                                    .font(.system(size: 14, weight: .semibold, design: .rounded))
                             }
                             Spacer()
                             Toggle("", isOn: Binding(
@@ -3399,22 +3465,37 @@ struct IntegrationsSettingsView: View {
                         
                         if appState.enableObsidian {
                             VStack(alignment: .leading, spacing: 8) {
-                                Button(appState.l("Select Vault Folder")) {
-                                    let panel = NSOpenPanel()
-                                    panel.canChooseFiles = false
-                                    panel.canChooseDirectories = true
-                                    panel.allowsMultipleSelection = false
-                                    panel.message = appState.l("Select your Obsidian Vault folder")
-                                    
-                                    if panel.runModal() == .OK, let url = panel.url {
-                                        appState.obsidianVaultURL = url.absoluteString
+                                HStack(spacing: 8) {
+                                    Button {
+                                        let panel = NSOpenPanel()
+                                        panel.canChooseFiles = false
+                                        panel.canChooseDirectories = true
+                                        panel.allowsMultipleSelection = false
+                                        panel.message = appState.l("Select your Obsidian Vault folder")
+                                        
+                                        if panel.runModal() == .OK, let url = panel.url {
+                                            appState.obsidianVaultURL = url.absoluteString
+                                        }
+                                    } label: {
+                                        HStack(spacing: 5) {
+                                            Image(systemName: "folder.fill")
+                                                .font(.system(size: 11, weight: .semibold))
+                                            Text(appState.l("Select Vault Folder"))
+                                                .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                                        }
+                                        .padding(.horizontal, 11)
+                                        .padding(.vertical, 6)
+                                        .foregroundStyle(.primary)
+                                        .modifier(LiquidGlassPillModifier(cornerRadius: 8))
                                     }
+                                    .buttonStyle(.plain)
+
+                                    Text(appState.obsidianVaultURL.isEmpty ? appState.l("No vault selected") : appState.obsidianVaultURL)
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                        .truncationMode(.middle)
                                 }
-                                .buttonStyle(.borderedProminent)
-                                
-                                Text(appState.obsidianVaultURL.isEmpty ? appState.l("No vault selected") : appState.obsidianVaultURL)
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(Color.primary.opacity(0.70))
                                     
                                 HStack {
                                     Text(appState.l("Target Note:"))
@@ -3435,13 +3516,8 @@ struct IntegrationsSettingsView: View {
                         HStack {
                             HStack(spacing: 10) {
                                 NotionAppIconView(size: 26)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Notion")
-                                        .font(.system(size: 14, weight: .bold))
-                                    Text(appState.l("Send transcripts directly to Notion"))
-                                        .font(.system(size: 11))
-                                        .foregroundStyle(Color.primary.opacity(0.70))
-                                }
+                                Text("Notion")
+                                    .font(.system(size: 14, weight: .semibold, design: .rounded))
                             }
                             Spacer()
                             Toggle("", isOn: Binding(
@@ -3507,9 +3583,16 @@ struct ReplacementsSettingsView: View {
                             newReplacement = ""
                         }
                     }) {
-                        Image(systemName: "plus.circle.fill")
-                            .foregroundColor(.blue)
-                            .font(.system(size: 20))
+                        HStack(spacing: 4) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 11, weight: .bold))
+                            Text(appState.l("Add"))
+                                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .foregroundStyle(.primary)
+                        .modifier(LiquidGlassPillModifier(cornerRadius: 8, isProminent: !newPhrase.isEmpty && !newReplacement.isEmpty))
                     }
                     .buttonStyle(.plain)
                 }
@@ -4851,10 +4934,6 @@ struct VocabularySettingsView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     if selectedTab == .vocabulary {
                         // Custom Vocabulary Controls
-                        Text(appState.l("All words below will be prioritized and automatically capitalized by Whisper."))
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-
                         HStack(spacing: 8) {
                             TextField(appState.l("Enter word or acronym..."), text: $newWord, onCommit: addWord)
                                 .textFieldStyle(.plain)
@@ -4876,13 +4955,8 @@ struct VocabularySettingsView: View {
                                 }
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 7)
-                                .background(isValidItem(newWord) ? Color.primary.opacity(0.12) : Color.primary.opacity(0.05))
                                 .foregroundStyle(isValidItem(newWord) ? Color.primary : Color.secondary)
-                                .cornerRadius(8)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .strokeBorder(isValidItem(newWord) ? Color.primary.opacity(0.15) : Color.clear, lineWidth: 1)
-                                )
+                                .modifier(LiquidGlassPillModifier(cornerRadius: 8, isProminent: isValidItem(newWord)))
                             }
                             .buttonStyle(.plain)
                             .disabled(!isValidItem(newWord))
@@ -4931,15 +5005,10 @@ struct VocabularySettingsView: View {
                                         Text(copiedActiveVocabularyFeedback ? appState.l("Copied!") : appState.l("Share Active Words"))
                                     }
                                     .font(.system(size: 11, weight: .semibold))
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(copiedActiveVocabularyFeedback ? Color.green.opacity(0.15) : Color.primary.opacity(0.06))
-                                    .foregroundStyle(copiedActiveVocabularyFeedback ? .green : .secondary)
-                                    .cornerRadius(6)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 6)
-                                            .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
-                                    )
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 5)
+                                    .foregroundStyle(copiedActiveVocabularyFeedback ? .green : .primary.opacity(0.85))
+                                    .modifier(LiquidGlassPillModifier(cornerRadius: 7, tint: copiedActiveVocabularyFeedback ? .green : nil))
                                 }
                                 .buttonStyle(.plain)
 
@@ -4948,23 +5017,6 @@ struct VocabularySettingsView: View {
                             .padding(.top, 2)
                         }
                     } else {
-                        // Blocked Words Controls
-                        HStack(spacing: 8) {
-                            Image(systemName: "checkmark.seal.fill")
-                                .font(.system(size: 12))
-                                .foregroundStyle(.green)
-                            Text(appState.l("Scribe automatically filters common Whisper hallucination artifacts (subtitles, credits). Add your custom blocked words and sensitive terms below."))
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(9)
-                        .background(Color.primary.opacity(0.03))
-                        .cornerRadius(8)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
-                        )
-
                         // Action selector (Remove or Mask)
                         HStack {
                             Text(appState.l("Action for blocked words:"))
@@ -5008,13 +5060,8 @@ struct VocabularySettingsView: View {
                                 }
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 7)
-                                .background(isValidItem(newBlockedWord) ? Color.red.opacity(0.15) : Color.primary.opacity(0.05))
                                 .foregroundStyle(isValidItem(newBlockedWord) ? Color.red : Color.secondary)
-                                .cornerRadius(8)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .strokeBorder(isValidItem(newBlockedWord) ? Color.red.opacity(0.3) : Color.clear, lineWidth: 1)
-                                )
+                                .modifier(LiquidGlassPillModifier(cornerRadius: 8, tint: isValidItem(newBlockedWord) ? .red : nil, isProminent: isValidItem(newBlockedWord)))
                             }
                             .buttonStyle(.plain)
                             .disabled(!isValidItem(newBlockedWord))
@@ -5064,15 +5111,10 @@ struct VocabularySettingsView: View {
                                         Text(copiedActiveBlockedWordsFeedback ? appState.l("Copied!") : appState.l("Share Active Blocked Words"))
                                     }
                                     .font(.system(size: 11, weight: .semibold))
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(copiedActiveBlockedWordsFeedback ? Color.green.opacity(0.15) : Color.primary.opacity(0.06))
-                                    .foregroundStyle(copiedActiveBlockedWordsFeedback ? .green : .secondary)
-                                    .cornerRadius(6)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 6)
-                                            .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
-                                    )
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 5)
+                                    .foregroundStyle(copiedActiveBlockedWordsFeedback ? .green : .primary.opacity(0.85))
+                                    .modifier(LiquidGlassPillModifier(cornerRadius: 7, tint: copiedActiveBlockedWordsFeedback ? .green : nil))
                                 }
                                 .buttonStyle(.plain)
 
@@ -5084,9 +5126,10 @@ struct VocabularySettingsView: View {
                                         Text(appState.l("Clear All"))
                                     }
                                     .font(.system(size: 11, weight: .medium))
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 3)
-                                    .foregroundStyle(.secondary)
+                                    .padding(.horizontal, 9)
+                                    .padding(.vertical, 4)
+                                    .foregroundStyle(.red.opacity(0.85))
+                                    .modifier(LiquidGlassPillModifier(cornerRadius: 7, tint: .red))
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -5117,11 +5160,6 @@ struct VocabularySettingsView: View {
                     isExpanded: $isCitiesExpanded
                 ) {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text(appState.l("Specify your city, frequent neighborhoods or street names (comma-separated). Scribe will bias the transcription model to accurately recognize local addresses, street prefixes, and locations."))
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-                            .lineSpacing(2)
-
                         HStack(spacing: 8) {
                             Image(systemName: "location.fill")
                                 .font(.system(size: 12))
@@ -5140,43 +5178,32 @@ struct VocabularySettingsView: View {
                         )
 
                         // Quick City Tags in Consistent Language
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(appState.l("Quick presets:"))
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(.secondary)
-
-                            FlowLayout(spacing: 6) {
-                                ForEach(quickCityPresets, id: \.self) { city in
-                                    Button(action: {
-                                        var current = appState.userCityLocation.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
-                                        if current.contains(city) {
-                                            current.removeAll { $0 == city }
-                                        } else {
-                                            current.append(city)
-                                        }
-                                        appState.userCityLocation = current.joined(separator: ", ")
-                                    }) {
-                                        let isSelected = appState.userCityLocation.contains(city)
-                                        HStack(spacing: 4) {
-                                            if isSelected {
-                                                Image(systemName: "checkmark")
-                                                    .font(.system(size: 9, weight: .bold))
-                                            }
-                                            Text(city)
-                                                .font(.system(size: 11, weight: isSelected ? .semibold : .regular, design: .rounded))
-                                        }
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(isSelected ? Color.accentColor.opacity(0.2) : Color.primary.opacity(0.05))
-                                        .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
-                                        .cornerRadius(10)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 10)
-                                                .strokeBorder(isSelected ? Color.accentColor.opacity(0.4) : Color.primary.opacity(0.08), lineWidth: 1)
-                                        )
+                        FlowLayout(spacing: 6) {
+                            ForEach(quickCityPresets, id: \.self) { city in
+                                Button(action: {
+                                    var current = appState.userCityLocation.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+                                    if current.contains(city) {
+                                        current.removeAll { $0 == city }
+                                    } else {
+                                        current.append(city)
                                     }
-                                    .buttonStyle(.plain)
+                                    appState.userCityLocation = current.joined(separator: ", ")
+                                }) {
+                                    let isSelected = appState.userCityLocation.contains(city)
+                                    HStack(spacing: 4) {
+                                        if isSelected {
+                                            Image(systemName: "checkmark")
+                                                .font(.system(size: 9, weight: .bold))
+                                        }
+                                        Text(city)
+                                            .font(.system(size: 11, weight: isSelected ? .semibold : .regular, design: .rounded))
+                                    }
+                                    .padding(.horizontal, 9)
+                                    .padding(.vertical, 4.5)
+                                    .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
+                                    .modifier(LiquidGlassPillModifier(cornerRadius: 10, tint: isSelected ? .accentColor : nil, isProminent: isSelected))
                                 }
+                                .buttonStyle(.plain)
                             }
                         }
                     }
@@ -5190,106 +5217,79 @@ struct VocabularySettingsView: View {
                 isExpanded: $isPresetsExpanded
             ) {
                 VStack(alignment: .leading, spacing: 14) {
-                    VStack(spacing: 10) {
-                        HStack(alignment: .center, spacing: 12) {
-                            Text(appState.l("Create custom word packs and share them instantly."))
-                                .font(.system(size: 12))
-                                .foregroundStyle(.secondary)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                    HStack(spacing: 8) {
+                        let categories: [(id: String, title: String, icon: String, count: Int)] = [
+                            ("vocabulary", appState.l("Vocabulary"), "text.quote", appState.customVocabularyPresets.count),
+                            ("blocked", appState.l("Blocked Words"), "nosign", appState.customBlockedWordsPresets.count),
+                            ("location", appState.l("Locations"), "mappin.and.ellipse", appState.customLocationPresets.count)
+                        ]
 
-                            HStack(spacing: 8) {
-                                Button(action: {
-                                    presetModalCategory = selectedPresetCategory
-                                    showingCreatePresetModal = true
-                                }) {
-                                    HStack(spacing: 5) {
-                                        Image(systemName: "plus.circle.fill")
-                                            .font(.system(size: 11, weight: .bold))
-                                        Text(appState.l("Create Preset"))
-                                            .font(.system(size: 11, weight: .bold, design: .rounded))
-                                            .lineLimit(1)
-                                    }
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 7)
-                                    .background(Color.primary.opacity(0.06))
-                                    .foregroundStyle(.primary)
-                                    .cornerRadius(8)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
-                                    )
+                        ForEach(categories, id: \.id) { cat in
+                            let isSelected = selectedPresetCategory == cat.id
+                            Button(action: {
+                                withAnimation(.spring(response: 0.25, dampingFraction: 0.75)) {
+                                    selectedPresetCategory = cat.id
                                 }
-                                .buttonStyle(.plain)
-                                .fixedSize()
-
-                                Button(action: {
-                                    presetModalCategory = selectedPresetCategory
-                                    showingImportPresetModal = true
-                                }) {
-                                    HStack(spacing: 5) {
-                                        Image(systemName: "square.and.arrow.down.fill")
-                                            .font(.system(size: 11, weight: .bold))
-                                        Text(appState.l("Import Preset"))
-                                            .font(.system(size: 11, weight: .bold, design: .rounded))
-                                            .lineLimit(1)
-                                    }
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 7)
-                                    .background(Color.primary.opacity(0.06))
-                                    .foregroundStyle(.primary)
-                                    .cornerRadius(8)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
-                                    )
+                            }) {
+                                HStack(spacing: 5) {
+                                    Image(systemName: cat.icon)
+                                        .font(.system(size: 10, weight: isSelected ? .bold : .regular))
+                                    Text(cat.title)
+                                        .font(.system(size: 11, weight: isSelected ? .semibold : .medium, design: .rounded))
+                                    Text("\(cat.count)")
+                                        .font(.system(size: 9, weight: .bold))
+                                        .padding(.horizontal, 5)
+                                        .padding(.vertical, 1)
+                                        .background(isSelected ? Color.primary.opacity(0.15) : Color.primary.opacity(0.06))
+                                        .cornerRadius(6)
                                 }
-                                .buttonStyle(.plain)
-                                .fixedSize()
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5.5)
+                                .foregroundStyle(isSelected ? Color.accentColor : Color.primary.opacity(0.8))
+                                .modifier(LiquidGlassPillModifier(cornerRadius: 8, tint: isSelected ? .accentColor : nil, isProminent: isSelected))
                             }
+                            .buttonStyle(.plain)
                         }
 
-                        // Category Pill Switcher
-                        HStack(spacing: 6) {
-                            let categories: [(id: String, title: String, icon: String, count: Int)] = [
-                                ("vocabulary", appState.l("Vocabulary"), "text.quote", appState.customVocabularyPresets.count),
-                                ("blocked", appState.l("Blocked Words"), "nosign", appState.customBlockedWordsPresets.count),
-                                ("location", appState.l("Locations"), "mappin.and.ellipse", appState.customLocationPresets.count)
-                            ]
+                        Spacer()
 
-                            ForEach(categories, id: \.id) { cat in
-                                let isSelected = selectedPresetCategory == cat.id
-                                Button(action: {
-                                    withAnimation(.spring(response: 0.25, dampingFraction: 0.75)) {
-                                        selectedPresetCategory = cat.id
-                                    }
-                                }) {
-                                    HStack(spacing: 5) {
-                                        Image(systemName: cat.icon)
-                                            .font(.system(size: 10, weight: isSelected ? .bold : .regular))
-                                        Text(cat.title)
-                                            .font(.system(size: 11, weight: isSelected ? .semibold : .medium, design: .rounded))
-                                        Text("\(cat.count)")
-                                            .font(.system(size: 9, weight: .bold))
-                                            .padding(.horizontal, 5)
-                                            .padding(.vertical, 1)
-                                            .background(isSelected ? Color.primary.opacity(0.15) : Color.primary.opacity(0.06))
-                                            .cornerRadius(6)
-                                    }
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 5)
-                                    .background(isSelected ? Color.accentColor.opacity(0.18) : Color.primary.opacity(0.035))
-                                    .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
-                                    .cornerRadius(8)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .strokeBorder(isSelected ? Color.accentColor.opacity(0.35) : Color.primary.opacity(0.06), lineWidth: 1)
-                                    )
-                                }
-                                .buttonStyle(.plain)
+                        Button(action: {
+                            presetModalCategory = selectedPresetCategory
+                            showingCreatePresetModal = true
+                        }) {
+                            HStack(spacing: 5) {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.system(size: 11, weight: .bold))
+                                Text(appState.l("Create Preset"))
+                                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                                    .lineLimit(1)
                             }
-
-                            Spacer()
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .foregroundStyle(.primary)
+                            .modifier(LiquidGlassPillModifier(cornerRadius: 8))
                         }
+                        .buttonStyle(.plain)
+                        .fixedSize()
+
+                        Button(action: {
+                            presetModalCategory = selectedPresetCategory
+                            showingImportPresetModal = true
+                        }) {
+                            HStack(spacing: 5) {
+                                Image(systemName: "square.and.arrow.down.fill")
+                                    .font(.system(size: 11, weight: .bold))
+                                Text(appState.l("Import Preset"))
+                                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                                    .lineLimit(1)
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .foregroundStyle(.primary)
+                            .modifier(LiquidGlassPillModifier(cornerRadius: 8))
+                        }
+                        .buttonStyle(.plain)
+                        .fixedSize()
                     }
 
                     // Content for selected preset category
@@ -5349,11 +5349,10 @@ struct VocabularySettingsView: View {
                                                     Text(appliedPresetId == preset.id ? appState.l("Applied!") : appState.l("Apply"))
                                                 }
                                                 .font(.system(size: 11, weight: .semibold))
-                                                .padding(.horizontal, 8)
+                                                .padding(.horizontal, 10)
                                                 .padding(.vertical, 5)
-                                                .background(appliedPresetId == preset.id ? Color.green.opacity(0.15) : Color.primary.opacity(0.06))
                                                 .foregroundStyle(appliedPresetId == preset.id ? .green : .primary)
-                                                .cornerRadius(6)
+                                                .modifier(LiquidGlassPillModifier(cornerRadius: 7, tint: appliedPresetId == preset.id ? .green : nil, isProminent: appliedPresetId == preset.id))
                                             }
                                             .buttonStyle(.plain)
 
@@ -5363,11 +5362,10 @@ struct VocabularySettingsView: View {
                                                     Text(copiedPresetId == preset.id ? appState.l("Copied!") : appState.l("Share"))
                                                 }
                                                 .font(.system(size: 11, weight: .semibold))
-                                                .padding(.horizontal, 8)
+                                                .padding(.horizontal, 10)
                                                 .padding(.vertical, 5)
-                                                .background(copiedPresetId == preset.id ? Color.green.opacity(0.15) : Color.primary.opacity(0.08))
                                                 .foregroundStyle(copiedPresetId == preset.id ? .green : .primary)
-                                                .cornerRadius(6)
+                                                .modifier(LiquidGlassPillModifier(cornerRadius: 7, tint: copiedPresetId == preset.id ? .green : nil, isProminent: copiedPresetId == preset.id))
                                             }
                                             .buttonStyle(.plain)
 
@@ -5375,7 +5373,8 @@ struct VocabularySettingsView: View {
                                                 Image(systemName: "trash")
                                                     .font(.system(size: 11))
                                                     .foregroundStyle(.secondary)
-                                                    .padding(6)
+                                                    .frame(width: 26, height: 26)
+                                                    .modifier(LiquidGlassPillModifier(cornerRadius: 7))
                                             }
                                             .buttonStyle(.plain)
                                         }
@@ -5446,11 +5445,10 @@ struct VocabularySettingsView: View {
                                                     Text(appliedPresetId == preset.id ? appState.l("Applied!") : appState.l("Apply"))
                                                 }
                                                 .font(.system(size: 11, weight: .semibold))
-                                                .padding(.horizontal, 8)
+                                                .padding(.horizontal, 10)
                                                 .padding(.vertical, 5)
-                                                .background(appliedPresetId == preset.id ? Color.green.opacity(0.15) : Color.primary.opacity(0.06))
                                                 .foregroundStyle(appliedPresetId == preset.id ? .green : .primary)
-                                                .cornerRadius(6)
+                                                .modifier(LiquidGlassPillModifier(cornerRadius: 7, tint: appliedPresetId == preset.id ? .green : nil, isProminent: appliedPresetId == preset.id))
                                             }
                                             .buttonStyle(.plain)
 
@@ -5460,11 +5458,10 @@ struct VocabularySettingsView: View {
                                                     Text(copiedPresetId == preset.id ? appState.l("Copied!") : appState.l("Share"))
                                                 }
                                                 .font(.system(size: 11, weight: .semibold))
-                                                .padding(.horizontal, 8)
+                                                .padding(.horizontal, 10)
                                                 .padding(.vertical, 5)
-                                                .background(copiedPresetId == preset.id ? Color.green.opacity(0.15) : Color.primary.opacity(0.08))
                                                 .foregroundStyle(copiedPresetId == preset.id ? .green : .primary)
-                                                .cornerRadius(6)
+                                                .modifier(LiquidGlassPillModifier(cornerRadius: 7, tint: copiedPresetId == preset.id ? .green : nil, isProminent: copiedPresetId == preset.id))
                                             }
                                             .buttonStyle(.plain)
 
@@ -5472,7 +5469,8 @@ struct VocabularySettingsView: View {
                                                 Image(systemName: "trash")
                                                     .font(.system(size: 11))
                                                     .foregroundStyle(.secondary)
-                                                    .padding(6)
+                                                    .frame(width: 26, height: 26)
+                                                    .modifier(LiquidGlassPillModifier(cornerRadius: 7))
                                             }
                                             .buttonStyle(.plain)
                                         }
@@ -5559,11 +5557,10 @@ struct VocabularySettingsView: View {
                                                     Text(copiedPresetId == preset.id ? appState.l("Copied!") : appState.l("Share"))
                                                 }
                                                 .font(.system(size: 11, weight: .semibold))
-                                                .padding(.horizontal, 8)
+                                                .padding(.horizontal, 10)
                                                 .padding(.vertical, 5)
-                                                .background(copiedPresetId == preset.id ? Color.green.opacity(0.15) : Color.primary.opacity(0.08))
                                                 .foregroundStyle(copiedPresetId == preset.id ? .green : .primary)
-                                                .cornerRadius(6)
+                                                .modifier(LiquidGlassPillModifier(cornerRadius: 7, tint: copiedPresetId == preset.id ? .green : nil, isProminent: copiedPresetId == preset.id))
                                             }
                                             .buttonStyle(.plain)
 
@@ -5571,7 +5568,8 @@ struct VocabularySettingsView: View {
                                                 Image(systemName: "trash")
                                                     .font(.system(size: 11))
                                                     .foregroundStyle(.secondary)
-                                                    .padding(6)
+                                                    .frame(width: 26, height: 26)
+                                                    .modifier(LiquidGlassPillModifier(cornerRadius: 7))
                                             }
                                             .buttonStyle(.plain)
                                         }
@@ -5622,19 +5620,15 @@ struct VocabularySettingsView: View {
                     }
 
                     // Anonymous Contribution Toggle
-                    Toggle(isOn: $appState.allowAnonymousVocabularyContribution) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(appState.l("Contribute New Words Anonymously"))
-                                .font(.system(size: 12, weight: .semibold, design: .rounded))
-                            Text(appState.l("Syncs and uploads unique custom words to the global community dictionary."))
-                                .font(.system(size: 10.5, weight: .regular))
-                                .foregroundStyle(.secondary)
-                        }
+                    HStack {
+                        Text(appState.l("Contribute New Words Anonymously"))
+                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Toggle("", isOn: $appState.allowAnonymousVocabularyContribution)
+                            .toggleStyle(SwitchToggleStyle(tint: .accentColor))
+                            .labelsHidden()
                     }
-                    .toggleStyle(SwitchToggleStyle(tint: .accentColor))
-                    .padding(10)
-                    .background(Color.primary.opacity(0.025))
-                    .cornerRadius(8)
                 }
             }
 
@@ -5645,11 +5639,6 @@ struct VocabularySettingsView: View {
                 isExpanded: $isPersonalLanguageExpanded
             ) {
                 VStack(alignment: .leading, spacing: 14) {
-                    Text(appState.l("Learns unique vocabulary and command phrasing (like 'create', 'run') across apps in real time."))
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-                        .lineSpacing(2)
-
                     // Control & Status Bar
                     HStack(spacing: 12) {
                         HStack(spacing: 8) {
@@ -5683,18 +5672,8 @@ struct VocabularySettingsView: View {
                             }
                             .padding(.horizontal, 14)
                             .padding(.vertical, 7)
-                            .background(
-                                ZStack {
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(monitor.isRunning ? Color.red.opacity(0.18) : Color.accentColor)
-                                    if !monitor.isRunning {
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .strokeBorder(Color.white.opacity(0.2), lineWidth: 0.8)
-                                    }
-                                }
-                            )
-                            .foregroundStyle(monitor.isRunning ? Color.red : Color.white)
-                            .shadow(color: monitor.isRunning ? Color.clear : Color.accentColor.opacity(0.25), radius: 4, y: 1)
+                            .foregroundStyle(monitor.isRunning ? Color.red : Color.primary)
+                            .modifier(LiquidGlassPillModifier(cornerRadius: 8, tint: monitor.isRunning ? .red : .accentColor, isProminent: true))
                         }
                         .buttonStyle(.plain)
                     }
@@ -5713,7 +5692,7 @@ struct VocabularySettingsView: View {
                             .foregroundStyle(.secondary)
 
                         HStack(spacing: 8) {
-                            ForEach([(7, "7 Days", "1 Week"), (14, "14 Days", "Recommended"), (30, "30 Days", "1 Month")], id: \.0) { item in
+                            ForEach([(7, "7 Days"), (14, "14 Days"), (30, "30 Days")], id: \.0) { item in
                                 let days = item.0
                                 let isSelected = monitor.durationDays == days
                                 Button(action: {
@@ -5721,37 +5700,13 @@ struct VocabularySettingsView: View {
                                         monitor.setDuration(days: days)
                                     }
                                 }) {
-                                    VStack(spacing: 3) {
-                                        Text(appState.l(item.1))
-                                            .font(.system(size: 12, weight: isSelected ? .bold : .semibold, design: .rounded))
-                                            .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
-                                        Text(appState.l(item.2))
-                                            .font(.system(size: 10, weight: isSelected ? .semibold : .medium, design: .rounded))
-                                            .foregroundStyle(isSelected ? Color.accentColor.opacity(0.85) : Color.secondary)
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 8)
-                                    .background(
-                                        ZStack {
-                                            RoundedRectangle(cornerRadius: 10)
-                                                .fill(isSelected ? Color.accentColor.opacity(0.16) : Color.primary.opacity(0.04))
-                                            if isSelected {
-                                                RoundedRectangle(cornerRadius: 10)
-                                                    .strokeBorder(
-                                                        LinearGradient(
-                                                            colors: [Color.accentColor.opacity(0.6), Color.accentColor.opacity(0.2)],
-                                                            startPoint: .topLeading,
-                                                            endPoint: .bottomTrailing
-                                                        ),
-                                                        lineWidth: 1.2
-                                                    )
-                                            } else {
-                                                RoundedRectangle(cornerRadius: 10)
-                                                    .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.8)
-                                            }
-                                        }
-                                    )
-                                    .contentShape(Rectangle())
+                                    Text(appState.l(item.1))
+                                        .font(.system(size: 12, weight: isSelected ? .bold : .semibold, design: .rounded))
+                                        .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 8)
+                                        .modifier(LiquidGlassPillModifier(cornerRadius: 10, tint: isSelected ? .accentColor : nil, isProminent: isSelected))
+                                        .contentShape(Rectangle())
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -5822,11 +5777,10 @@ struct VocabularySettingsView: View {
                                         Text(appState.l("Clear All"))
                                             .font(.system(size: 10, weight: .medium, design: .rounded))
                                     }
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(Color.red.opacity(0.08))
+                                    .padding(.horizontal, 7)
+                                    .padding(.vertical, 3)
                                     .foregroundStyle(Color.red.opacity(0.85))
-                                    .cornerRadius(4)
+                                    .modifier(LiquidGlassPillModifier(cornerRadius: 5, tint: .red))
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -5891,21 +5845,19 @@ struct VocabularySettingsView: View {
                     // Ignored Applications Section
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(appState.l("Ignored Applications"))
-                                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                                    .foregroundStyle(.primary)
-                                Text(appState.l("Terminal emulators, shells, and security apps are never monitored to prevent shell commands or sensitive fragments (e.g. Ghostty, Termius) from entering your vocabulary."))
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(.secondary)
-                            }
+                            Text(appState.l("Ignored Applications"))
+                                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.primary)
                             Spacer()
                             Button(action: {
                                 monitor.resetIgnoredAppsToDefault()
                             }) {
                                 Text(appState.l("Reset Defaults"))
-                                    .font(.system(size: 10.5, weight: .medium))
-                                    .foregroundStyle(.secondary)
+                                    .font(.system(size: 10.5, weight: .semibold))
+                                    .foregroundStyle(.primary.opacity(0.8))
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .modifier(LiquidGlassPillModifier(cornerRadius: 6))
                             }
                             .buttonStyle(.plain)
                         }
@@ -5966,19 +5918,6 @@ struct VocabularySettingsView: View {
                     .padding(12)
                     .background(Color.primary.opacity(0.02))
                     .cornerRadius(10)
-
-                    // Privacy Assurance Footnote
-                    HStack(alignment: .top, spacing: 8) {
-                        Image(systemName: "lock.shield.fill")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-                            .padding(.top, 1)
-
-                        Text(appState.l("Secure password fields, password managers, tokens, and credit cards are strictly filtered at the Accessibility API level. Text is processed 100% locally in memory and never stored."))
-                            .font(.system(size: 10))
-                            .foregroundStyle(.secondary)
-                            .lineSpacing(2)
-                    }
                 }
                 .padding(14)
             }
@@ -6109,10 +6048,8 @@ struct AppUpdatesView: View {
                         }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 7)
-                        .background(Color.green)
-                        .foregroundStyle(.white)
-                        .cornerRadius(8)
-                        .shadow(color: Color.green.opacity(0.3), radius: 4, x: 0, y: 2)
+                        .foregroundStyle(.green)
+                        .modifier(LiquidGlassPillModifier(cornerRadius: 8, tint: .green, isProminent: true))
                     }
                     .buttonStyle(.plain)
                 } else {
@@ -6142,24 +6079,10 @@ struct AppUpdatesView: View {
                                     .font(.system(size: 11, weight: .semibold, design: .rounded))
                             }
                         }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(
-                            updateService.justCheckedUpToDate
-                                ? Color.green.opacity(0.12)
-                                : Color.primary.opacity(0.06)
-                        )
+                        .padding(.horizontal, 11)
+                        .padding(.vertical, 6.5)
                         .foregroundStyle(updateService.justCheckedUpToDate ? Color.green : Color.primary)
-                        .cornerRadius(8)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .strokeBorder(
-                                    updateService.justCheckedUpToDate
-                                        ? Color.green.opacity(0.35)
-                                        : Color.primary.opacity(0.1),
-                                    lineWidth: 1
-                                )
-                        )
+                        .modifier(LiquidGlassPillModifier(cornerRadius: 8, tint: updateService.justCheckedUpToDate ? .green : nil, isProminent: updateService.justCheckedUpToDate))
                     }
                     .buttonStyle(.plain)
                     .disabled(updateService.isChecking)
@@ -6222,14 +6145,9 @@ struct GeneralSettingsView: View {
 
                     // Push-to-Talk Toggle
                     HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(appState.l("Push-to-Talk (Hold to record)"))
-                                .font(.system(size: 14, weight: .medium, design: .rounded))
-                                .foregroundStyle(.primary)
-                            Text(appState.l("Hold the hotkey to record, release to stop"))
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
+                        Text(appState.l("Push-to-Talk (Hold to record)"))
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .foregroundStyle(.primary)
                         Spacer()
                         Toggle("", isOn: $appState.pushToTalk)
                             .toggleStyle(.switch)
@@ -6238,14 +6156,9 @@ struct GeneralSettingsView: View {
 
                     // Enable Direct Note Feature Toggle
                     HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(appState.l("Enable Direct Note Feature"))
-                                .font(.system(size: 14, weight: .medium, design: .rounded))
-                                .foregroundStyle(.primary)
-                            Text(appState.l("Quick shortcut to dictate straight to your notes app"))
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
+                        Text(appState.l("Enable Direct Note Feature"))
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .foregroundStyle(.primary)
                         Spacer()
                         Toggle("", isOn: Binding(
                             get: { appState.enableDirectNote },
@@ -6263,28 +6176,18 @@ struct GeneralSettingsView: View {
                         VStack(alignment: .leading, spacing: 14) {
                             // Direct Note Export Shortcut
                             HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(appState.l("Direct Note Shortcut"))
-                                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                                        .foregroundStyle(.primary)
-                                    Text(appState.l("Send text straight to notes app"))
-                                        .font(.system(size: 11))
-                                        .foregroundStyle(.secondary)
-                                }
+                                Text(appState.l("Direct Note Shortcut"))
+                                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.primary)
                                 Spacer()
                                 KeyboardShortcuts.Recorder(for: .directNoteRecording)
                             }
 
                             // Direct Note Export Target Apps (1 or more)
                             VStack(alignment: .leading, spacing: 8) {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(appState.l("Target Apps"))
-                                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                                        .foregroundStyle(.primary)
-                                    Text(appState.l("Select 1 or more apps for direct export"))
-                                        .font(.system(size: 11))
-                                        .foregroundStyle(.secondary)
-                                }
+                                Text(appState.l("Target Apps"))
+                                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.primary)
 
                                 HStack(spacing: 8) {
                                     ForEach([NoteApp.appleNotes, NoteApp.obsidian, NoteApp.notion], id: \.self) { app in
@@ -6308,6 +6211,7 @@ struct GeneralSettingsView: View {
                                             HStack(spacing: 6) {
                                                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                                                     .font(.system(size: 12, weight: .bold))
+                                                    .foregroundStyle(isSelected ? Color.blue : .secondary)
                                                 Text(appState.l(app.displayName))
                                                     .font(.system(size: 12, weight: isSelected ? .semibold : .medium, design: .rounded))
                                                     .lineLimit(1)
@@ -6315,15 +6219,8 @@ struct GeneralSettingsView: View {
                                             }
                                             .padding(.horizontal, 12)
                                             .padding(.vertical, 7)
-                                            .background(
-                                                RoundedRectangle(cornerRadius: 10)
-                                                    .fill(isSelected ? Color.blue.opacity(0.18) : Color.primary.opacity(0.04))
-                                            )
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 10)
-                                                    .stroke(isSelected ? Color.blue.opacity(0.4) : Color.primary.opacity(0.1), lineWidth: 1)
-                                            )
-                                            .foregroundStyle(isSelected ? Color.blue : .secondary)
+                                            .foregroundStyle(isSelected ? .primary : .secondary)
+                                            .modifier(LiquidGlassPillModifier(cornerRadius: 10, tint: isSelected ? .blue : nil, isProminent: isSelected))
                                         }
                                         .buttonStyle(.plain)
                                     }
@@ -6365,14 +6262,9 @@ struct LecturesSettingsView: View {
                                         .fill(Color.red)
                                         .frame(width: 12, height: 12)
                                 }
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text(appState.l("Recording Lecture in Background..."))
-                                        .font(.system(size: 14, weight: .bold, design: .rounded))
-                                        .foregroundStyle(.primary)
-                                    Text(appState.l("Audio is streaming locally to Apple Silicon Neural Engine"))
-                                        .font(.system(size: 11))
-                                        .foregroundStyle(.secondary)
-                                }
+                                Text(appState.l("Recording Lecture in Background..."))
+                                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                                    .foregroundStyle(.primary)
                                 Spacer()
                                 // Live timer display
                                 Text(formattedDuration(appState.recordingDuration))
@@ -6411,10 +6303,8 @@ struct LecturesSettingsView: View {
                                     }
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 9)
-                                    .background(Color.red.opacity(0.18))
                                     .foregroundStyle(.red)
-                                    .cornerRadius(10)
-                                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.red.opacity(0.35), lineWidth: 1))
+                                    .modifier(LiquidGlassPillModifier(cornerRadius: 10, tint: .red, isProminent: true))
                                 }
                                 .buttonStyle(.plain)
 
@@ -6426,8 +6316,7 @@ struct LecturesSettingsView: View {
                                         .foregroundStyle(.secondary)
                                         .padding(.horizontal, 16)
                                         .padding(.vertical, 9)
-                                        .background(Color.primary.opacity(0.05))
-                                        .cornerRadius(10)
+                                        .modifier(LiquidGlassPillModifier(cornerRadius: 10))
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -6438,15 +6327,9 @@ struct LecturesSettingsView: View {
                     } else {
                         // IDLE STATE - START BUTTON
                         HStack(spacing: 14) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(appState.l("Start Lecture Recording"))
-                                    .font(.system(size: 14, weight: .bold, design: .rounded))
-                                    .foregroundStyle(.primary)
-                                Text(appState.l("Records silently in the background without covering your screen or interfering with slides and notes."))
-                                    .font(.system(size: 11.5))
-                                    .foregroundStyle(.secondary)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
+                            Text(appState.l("Start Lecture Recording"))
+                                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.primary)
                             Spacer()
                             Button {
                                 appState.startLectureRecording()
@@ -6459,15 +6342,8 @@ struct LecturesSettingsView: View {
                                 }
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 9)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .fill(Color.primary.opacity(0.08))
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .stroke(Color.primary.opacity(0.14), lineWidth: 1)
-                                )
                                 .foregroundStyle(.primary)
+                                .modifier(LiquidGlassPillModifier(cornerRadius: 10, isProminent: true))
                             }
                             .buttonStyle(.plain)
                         }
@@ -6502,19 +6378,14 @@ struct LecturesSettingsView: View {
                         // Drag & Drop / Pick File Zone
                         VStack(spacing: 10) {
                             Image(systemName: isTargetDropHovered ? "arrow.down.circle.fill" : "square.and.arrow.down.fill")
-                                .font(.system(size: 26, weight: .semibold))
+                                .font(.system(size: 24, weight: .semibold))
                                 .foregroundStyle(isTargetDropHovered ? Color.blue : Color.indigo.opacity(0.85))
                                 .scaleEffect(isTargetDropHovered ? 1.15 : 1.0)
                                 .animation(.spring(response: 0.3), value: isTargetDropHovered)
 
-                            VStack(spacing: 3) {
-                                Text(appState.l("Drag and drop audio or video file here"))
-                                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                                    .foregroundStyle(.primary)
-                                Text(appState.l("Supports MP3, M4A, WAV, AAC, FLAC, MP4, MOV"))
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(.secondary)
-                            }
+                            Text(appState.l("Drag and drop audio or video file here"))
+                                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.primary)
 
                             Button {
                                 if let url = AudioFileImporter.pickFile() {
@@ -6528,15 +6399,14 @@ struct LecturesSettingsView: View {
                                         .font(.system(size: 12, weight: .semibold, design: .rounded))
                                 }
                                 .padding(.horizontal, 14)
-                                .padding(.vertical, 6)
-                                .background(Color.primary.opacity(0.06))
-                                .cornerRadius(8)
-                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.10), lineWidth: 1))
+                                .padding(.vertical, 6.5)
+                                .foregroundStyle(.primary)
+                                .modifier(LiquidGlassPillModifier(cornerRadius: 8))
                             }
                             .buttonStyle(.plain)
                         }
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 20)
+                        .padding(.vertical, 18)
                         .padding(.horizontal, 16)
                         .background(
                             RoundedRectangle(cornerRadius: 14)
@@ -6579,14 +6449,9 @@ struct LecturesSettingsView: View {
                 VStack(spacing: 16) {
                     // Note Title Prefix
                     HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(appState.l("Note Title Prefix"))
-                                .font(.system(size: 14, weight: .medium, design: .rounded))
-                                .foregroundStyle(.primary)
-                            Text(appState.l("Prefix used when creating new lecture notes (e.g. Lecture — Date)"))
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
+                        Text(appState.l("Note Title Prefix"))
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .foregroundStyle(.primary)
                         Spacer()
                         TextField("Lecture", text: $appState.lectureTitlePrefix)
                             .textFieldStyle(.roundedBorder)
@@ -6595,14 +6460,9 @@ struct LecturesSettingsView: View {
 
                     // Auto-Open Notes
                     HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(appState.l("Auto-Open Notes"))
-                                .font(.system(size: 14, weight: .medium, design: .rounded))
-                                .foregroundStyle(.primary)
-                            Text(appState.l("Bring Apple Notes to front when transcription finishes"))
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
+                        Text(appState.l("Auto-Open Notes"))
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .foregroundStyle(.primary)
                         Spacer()
                         Toggle("", isOn: $appState.autoOpenNotesAfterLecture)
                             .toggleStyle(.switch)
@@ -6611,14 +6471,9 @@ struct LecturesSettingsView: View {
 
                     // Target Apps
                     VStack(alignment: .leading, spacing: 8) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(appState.l("Destination Notes Apps"))
-                                .font(.system(size: 14, weight: .medium, design: .rounded))
-                                .foregroundStyle(.primary)
-                            Text(appState.l("Choose which apps receive exported lecture notes"))
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
+                        Text(appState.l("Destination Notes Apps"))
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .foregroundStyle(.primary)
 
                         HStack(spacing: 10) {
                             LectureAppTargetButton(
@@ -6652,14 +6507,9 @@ struct LecturesSettingsView: View {
 
                     // Show in Menu Bar
                     HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(appState.l("Show in Menu Bar"))
-                                .font(.system(size: 14, weight: .medium, design: .rounded))
-                                .foregroundStyle(.primary)
-                            Text(appState.l("Display quick start button in the menu bar popover"))
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
+                        Text(appState.l("Show in Menu Bar"))
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .foregroundStyle(.primary)
                         Spacer()
                         Toggle("", isOn: $appState.showLectureControls)
                             .toggleStyle(.switch)
@@ -6697,13 +6547,12 @@ struct LectureAppTargetButton: View {
                     .font(.system(size: 11, weight: .bold))
                     .foregroundStyle(isSelected ? color : .secondary)
                 Text(title)
-                    .font(.system(size: 11.5, weight: .medium, design: .rounded))
+                    .font(.system(size: 11.5, weight: isSelected ? .semibold : .medium, design: .rounded))
                     .foregroundStyle(.primary)
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(RoundedRectangle(cornerRadius: 8).fill(isSelected ? color.opacity(0.12) : Color.primary.opacity(0.04)))
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(isSelected ? color.opacity(0.35) : Color.primary.opacity(0.08), lineWidth: 1))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6.5)
+            .modifier(LiquidGlassPillModifier(cornerRadius: 8, tint: isSelected ? color : nil, isProminent: isSelected))
         }
         .buttonStyle(.plain)
     }
@@ -6718,14 +6567,9 @@ struct AppearanceSettingsView: View {
             // SECTION: App Theme (Dark, Light, Liquid Glass)
             GlassSection(title: appState.l("Theme"), icon: "circle.lefthalf.filled") {
                 HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(appState.l("App Theme"))
-                            .font(.system(size: 14, weight: .medium, design: .rounded))
-                            .foregroundStyle(.primary)
-                        Text(appState.l("Choose between Dark, Light, or Liquid Glass appearance"))
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                    }
+                    Text(appState.l("App Theme"))
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundStyle(.primary)
                     Spacer()
                     LiquidGlassSegmentedPicker(
                         items: PanelAppearance.allCases,
@@ -6832,14 +6676,9 @@ struct AppearanceSettingsView: View {
                 VStack(spacing: 16) {
                     // Live Preview
                     HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(appState.l("Live Preview"))
-                                .font(.system(size: 14, weight: .medium, design: .rounded))
-                                .foregroundStyle(.primary)
-                            Text(appState.l("Shows intermediate text while recording"))
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
+                        Text(appState.l("Live Preview"))
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .foregroundStyle(.primary)
                         Spacer()
                         Toggle("", isOn: Binding(
                             get: { appState.livePreviewEnabled },
@@ -6956,16 +6795,9 @@ struct RecognitionSettingsView: View {
                 VStack(spacing: 16) {
                     // Aether Engine Selector
                     HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(appState.l("Aether Engine"))
-                                .font(.system(size: 14, weight: .medium, design: .rounded))
-                                .foregroundStyle(.primary)
-                            Text(appState.isInstantEngine ? 
-                                 appState.l("Native Apple Speech (~0 MB) • English Only") : 
-                                 appState.l("Offline Neural ANE & GPU • 99+ Languages"))
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
+                        Text(appState.l("Aether Engine"))
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .foregroundStyle(.primary)
                         Spacer()
                         LiquidGlassSegmentedPicker(
                             items: ["Aether Neural", "Aether Instant"],
@@ -6988,68 +6820,30 @@ struct RecognitionSettingsView: View {
                     }
 
                     if appState.isInstantEngine {
-                        // Apple Speech (English Only) Info & Details
-                        VStack(alignment: .leading, spacing: 10) {
-                            HStack(spacing: 10) {
-                                Image(systemName: "apple.logo")
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundStyle(.primary.opacity(0.85))
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(appState.l("Apple Speech Engine (English Only)"))
-                                        .font(.system(size: 12.5, weight: .semibold, design: .rounded))
-                                        .foregroundStyle(.primary)
-                                    Text(appState.l("Built-in macOS speech recognizer with zero model downloads (~0 MB). Strictly restricted to English (en-US). For Russian or multilingual dictation, switch to Aether Neural."))
-                                        .font(.system(size: 11, weight: .regular, design: .rounded))
-                                        .foregroundStyle(.secondary)
-                                        .fixedSize(horizontal: false, vertical: true)
-                                }
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 10)
-                            .background(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .fill(Color.primary.opacity(0.04))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 10)
-                                            .stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
-                                    )
-                            )
-
-                            HStack {
-                                Text(appState.l("Supported Language"))
-                                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                        HStack {
+                            Text(appState.l("Supported Language"))
+                                .font(.system(size: 14, weight: .medium, design: .rounded))
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            HStack(spacing: 6) {
+                                Text("English (US)")
+                                    .font(.system(size: 12, weight: .semibold, design: .rounded))
                                     .foregroundStyle(.primary)
-                                Spacer()
-                                HStack(spacing: 6) {
-                                    Text("English (US)")
-                                        .font(.system(size: 12, weight: .semibold, design: .rounded))
-                                        .foregroundStyle(.primary)
-                                    Circle()
-                                        .fill(Color.green)
-                                        .frame(width: 6, height: 6)
-                                }
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 5)
-                                .background(
-                                    Capsule()
-                                        .fill(Color.primary.opacity(0.06))
-                                )
+                                Circle()
+                                    .fill(Color.green)
+                                    .frame(width: 6, height: 6)
                             }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .modifier(LiquidGlassPillModifier(cornerRadius: 999))
                         }
                     } else {
                         // Aether Neural (WhisperKit) Controls
                         VStack(spacing: 16) {
                             HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(appState.l("Dictation Languages"))
-                                        .font(.system(size: 14, weight: .medium, design: .rounded))
-                                        .foregroundStyle(.primary)
-                                    Text(appState.multilingualLanguages.count == 1 ?
-                                         appState.l("Single language mode (exact, zero hallucination)") :
-                                         appState.l("Select up to 3 languages for auto-switching"))
-                                        .font(.system(size: 11))
-                                        .foregroundStyle(.secondary)
-                                }
+                                Text(appState.l("Dictation Languages"))
+                                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.primary)
                                 Spacer()
                                 LiquidGlassMultiLanguageMenu(
                                     items: supportedLanguages,
@@ -7073,13 +6867,13 @@ struct RecognitionSettingsView: View {
                                     Text(appState.l("Model Quality"))
                                         .font(.system(size: 14, weight: .medium, design: .rounded))
                                         .foregroundStyle(.primary)
-                                    Text(appState.l(temporaryHardwareHint ?? (models.first(where: { $0.id == appState.selectedModel })?.desc ?? "")))
-                                        .font(.system(size: 11))
-                                        .foregroundStyle(.secondary)
-                                        .fixedSize(horizontal: false, vertical: true)
-                                        .id(temporaryHardwareHint ?? "desc")
-                                        .transition(.opacity)
-                                        .animation(.easeInOut(duration: 0.25), value: temporaryHardwareHint)
+                                    if let hint = temporaryHardwareHint {
+                                        Text(appState.l(hint))
+                                            .font(.system(size: 11))
+                                            .foregroundStyle(.secondary)
+                                            .fixedSize(horizontal: false, vertical: true)
+                                            .transition(.opacity)
+                                    }
                                 }
                                 Spacer()
                                 LiquidGlassMenu(
@@ -7153,14 +6947,9 @@ struct AISettingsView: View {
             GlassSection(title: appState.l("Dictation Mode"), icon: "wand.and.stars") {
                 VStack(alignment: .leading, spacing: 14) {
                     HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(appState.l("Enable AI Post-Processing"))
-                                .font(.system(size: 14, weight: .medium, design: .rounded))
-                                .foregroundStyle(.primary)
-                            Text(appState.l("Refines speech, removes hesitation, and corrects phonetic errors via LLM"))
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
+                        Text(appState.l("Enable AI Post-Processing"))
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .foregroundStyle(.primary)
                         Spacer()
                         Toggle("", isOn: $appState.enableCloudAI)
                             .toggleStyle(.switch)
@@ -7216,22 +7005,6 @@ struct AISettingsView: View {
                                 trackPadding: 2.5,
                                 label: { (appState.l($0.displayName), $0.icon) }
                             )
-
-                            HStack(spacing: 8) {
-                                Image(systemName: "info.circle.fill")
-                                    .font(.system(size: 12))
-                                    .foregroundStyle(.blue)
-                                Text(modeDescription(appState.selectedAIRefinementMode))
-                                    .font(.system(size: 11.5, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(2)
-                            }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(Color.primary.opacity(0.04))
-                            )
                         }
                     }
                 }
@@ -7244,31 +7017,6 @@ struct AISettingsView: View {
                 icon: "key.fill"
             ) {
                 VStack(alignment: .leading, spacing: 14) {
-                    // Gateway Overview & Description
-                    HStack(alignment: .top, spacing: 10) {
-                        Image(systemName: "shield.righthalf.filled")
-                            .font(.system(size: 16))
-                            .foregroundStyle(.secondary)
-                            .padding(.top, 1)
-
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(appState.l("Automatic failover gateway (up to 10 keys). Scribe routes requests in priority order and automatically switches to the next available key if rate limits (429) or errors occur."))
-                                .font(.system(size: 11.5))
-                                .foregroundStyle(.secondary)
-                                .lineSpacing(2)
-                        }
-
-                        Spacer()
-
-                        Text("\(appState.gatewayKeys.count)/10")
-                            .font(.system(size: 11, weight: .bold, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 3)
-                            .background(Color.primary.opacity(0.05))
-                            .clipShape(Capsule())
-                    }
-
                     // Action Buttons Row: [Add API Key] and [API Keys List (N)]
                     HStack(spacing: 8) {
                         // Button 1: Add Key Toggle
@@ -7281,15 +7029,12 @@ struct AISettingsView: View {
                                 Image(systemName: isAddingGatewayKey ? "xmark" : "plus")
                                     .font(.system(size: 11, weight: .semibold))
                                 Text(isAddingGatewayKey ? appState.l("Cancel") : appState.l("Add API Key"))
-                                    .font(.system(size: 11.5, weight: .medium, design: .rounded))
+                                    .font(.system(size: 11.5, weight: .semibold, design: .rounded))
                             }
-                            .padding(.horizontal, 11)
-                            .padding(.vertical, 5.5)
-                            .background(
-                                Capsule()
-                                    .fill(isAddingGatewayKey ? Color.primary.opacity(0.1) : Color.primary.opacity(0.06))
-                            )
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
                             .foregroundStyle(Color.primary)
+                            .modifier(LiquidGlassPillModifier(cornerRadius: 999, isProminent: isAddingGatewayKey))
                         }
                         .buttonStyle(.plain)
                         .disabled(appState.gatewayKeys.count >= 10 && !isAddingGatewayKey)
@@ -7304,8 +7049,8 @@ struct AISettingsView: View {
                                 Image(systemName: "list.bullet.rectangle")
                                     .font(.system(size: 11, weight: .semibold))
                                 Text(appState.l("API Keys List"))
-                                    .font(.system(size: 11.5, weight: .medium, design: .rounded))
-                                Text("\(appState.gatewayKeys.count)")
+                                    .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                                Text("\(appState.gatewayKeys.count)/10")
                                     .font(.system(size: 10, weight: .bold, design: .monospaced))
                                     .foregroundStyle(.secondary)
                                     .padding(.horizontal, 5)
@@ -7315,21 +7060,12 @@ struct AISettingsView: View {
                                 Image(systemName: isShowingGatewayKeysList ? "chevron.up" : "chevron.down")
                                     .font(.system(size: 9, weight: .bold))
                             }
-                            .padding(.horizontal, 11)
-                            .padding(.vertical, 5.5)
-                            .background(
-                                Capsule()
-                                    .fill(isShowingGatewayKeysList ? Color.primary.opacity(0.08) : Color.primary.opacity(0.04))
-                            )
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
                             .foregroundStyle(Color.primary)
+                            .modifier(LiquidGlassPillModifier(cornerRadius: 999, isProminent: isShowingGatewayKeysList))
                         }
                         .buttonStyle(.plain)
-
-                        if appState.gatewayKeys.count >= 10 && !isAddingGatewayKey {
-                            Text(appState.l("Maximum 10 gateway keys reached"))
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
 
                         Spacer()
                     }
@@ -7420,10 +7156,9 @@ struct AISettingsView: View {
                                 }) {
                                     Text(appState.l("Cancel"))
                                         .font(.system(size: 11.5, weight: .medium))
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 5)
-                                        .background(Color.primary.opacity(0.05))
-                                        .cornerRadius(6)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 6)
+                                        .modifier(LiquidGlassPillModifier(cornerRadius: 8))
                                 }
                                 .buttonStyle(.plain)
 
@@ -7445,12 +7180,11 @@ struct AISettingsView: View {
                                     }
                                 }) {
                                     Text(appState.l("Save Key"))
-                                        .font(.system(size: 11.5, weight: .medium))
-                                        .padding(.horizontal, 12)
-                                        .padding(.vertical, 5)
-                                        .background(Color.primary.opacity(0.12))
+                                        .font(.system(size: 11.5, weight: .semibold))
+                                        .padding(.horizontal, 14)
+                                        .padding(.vertical, 6)
                                         .foregroundStyle(Color.primary)
-                                        .cornerRadius(6)
+                                        .modifier(LiquidGlassPillModifier(cornerRadius: 8, isProminent: true))
                                 }
                                 .buttonStyle(.plain)
                                 .disabled(newKeyString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -7567,8 +7301,7 @@ struct AISettingsView: View {
                                                 .font(.system(size: 11, weight: .medium))
                                                 .foregroundStyle(Color.secondary)
                                                 .frame(width: 26, height: 26)
-                                                .background(Color.primary.opacity(0.05))
-                                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                                                .modifier(LiquidGlassPillModifier(cornerRadius: 7))
                                         }
                                         .menuStyle(.borderlessButton)
                                         .menuIndicator(.hidden)
@@ -7585,8 +7318,7 @@ struct AISettingsView: View {
                                                 .font(.system(size: 11, weight: .medium))
                                                 .foregroundStyle(Color.secondary)
                                                 .frame(width: 26, height: 26)
-                                                .background(Color.primary.opacity(0.05))
-                                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                                                .modifier(LiquidGlassPillModifier(cornerRadius: 7))
                                         }
                                         .buttonStyle(.plain)
                                         .help(appState.l("Delete Key"))
@@ -7615,10 +7347,6 @@ struct AISettingsView: View {
                 isExpanded: $isTestRefinementExpanded
             ) {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text(appState.l("Test your API key and vocabulary correction with a quick sample:"))
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
-
                     TextField(appState.l("Test speech input..."), text: $testInputText)
                         .textFieldStyle(.roundedBorder)
 
@@ -7633,14 +7361,11 @@ struct AISettingsView: View {
                                 }
                                 Text(appState.l("Test Refinement"))
                             }
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
                             .padding(.horizontal, 14)
                             .padding(.vertical, 7)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(Color.blue.opacity(0.85))
-                            )
-                            .foregroundStyle(.white)
+                            .foregroundStyle(.primary)
+                            .modifier(LiquidGlassPillModifier(cornerRadius: 9, tint: .blue, isProminent: true))
                         }
                         .buttonStyle(.plain)
                         .disabled(isTestingRefinement || testInputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -7817,14 +7542,9 @@ struct SystemSettingsView: View {
             // SECTION: Audio Input
             GlassSection(title: appState.l("Audio Input"), icon: "mic.fill") {
                 HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(appState.l("Microphone Source"))
-                            .font(.system(size: 14, weight: .medium, design: .rounded))
-                            .foregroundStyle(.primary)
-                        Text(appState.l("Select the audio input source for dictation"))
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                    }
+                    Text(appState.l("Microphone Source"))
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundStyle(.primary)
                     Spacer()
                     LiquidGlassAudioInputMenu()
                 }
@@ -7933,9 +7653,8 @@ struct SidebarAccountFooterView: View {
                     .buttonStyle(.plain)
                     .help("Sign Out")
                 }
-                .padding(6)
-                .background(Color.primary.opacity(0.04))
-                .cornerRadius(8)
+                .padding(7)
+                .modifier(LiquidGlassPillModifier(cornerRadius: 10))
             } else {
                 Button(action: {
                     showingAuthModal = true
@@ -7946,7 +7665,8 @@ struct SidebarAccountFooterView: View {
                             .foregroundStyle(Color.blue)
 
                         Text(appState.l("Sign In"))
-                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.primary)
 
                         Spacer()
 
@@ -7954,14 +7674,9 @@ struct SidebarAccountFooterView: View {
                             .font(.system(size: 10, weight: .bold))
                             .foregroundStyle(.secondary)
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 7)
-                    .background(Color.primary.opacity(0.04))
-                    .cornerRadius(8)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.primary.opacity(0.1), lineWidth: 1)
-                    )
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .modifier(LiquidGlassPillModifier(cornerRadius: 10))
                 }
                 .buttonStyle(.plain)
             }
@@ -9492,15 +9207,10 @@ struct BugReportView: View {
     @State private var showSuccessBanner: Bool = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(appState.l("Report a Bug or Crash"))
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.primary)
-                Text(appState.l("Send error logs and feedback directly to the developers"))
-                    .font(.system(size: 11.5, weight: .regular))
-                    .foregroundStyle(.secondary)
-            }
+        VStack(alignment: .leading, spacing: 12) {
+            Text(appState.l("Report a Bug or Crash"))
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .foregroundStyle(.primary)
 
             // Description Editor
             ZStack(alignment: .topLeading) {
@@ -9576,11 +9286,8 @@ struct BugReportView: View {
                     }
                     .padding(.horizontal, 14)
                     .padding(.vertical, 7)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(showSuccessBanner ? Color.green.opacity(0.18) : Color.blue.opacity(0.85))
-                    )
-                    .foregroundStyle(showSuccessBanner ? .green : .white)
+                    .foregroundStyle(showSuccessBanner ? .green : .primary)
+                    .modifier(LiquidGlassPillModifier(cornerRadius: 9, tint: showSuccessBanner ? .green : .blue, isProminent: true))
                 }
                 .buttonStyle(.plain)
                 .disabled(reportText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || bugService.isSending)

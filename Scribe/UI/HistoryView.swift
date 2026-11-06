@@ -96,11 +96,10 @@ struct HistoryView: View {
                     Button(action: { history.clearAll() }) {
                         Text(appState.l("Clear All"))
                             .font(.system(size: 11, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.red.opacity(0.85))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.red.opacity(0.08))
-                            .cornerRadius(6)
+                            .foregroundStyle(.red.opacity(0.9))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4.5)
+                            .modifier(LiquidGlassPillModifier(cornerRadius: 7, tint: .red))
                     }
                     .buttonStyle(.plain)
                 }
