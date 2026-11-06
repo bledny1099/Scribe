@@ -14,11 +14,11 @@ cd "$ROOT_DIR"
 mkdir -p "$BUILD_DIR"
 mkdir -p "$DIST_DIR"
 
-DEFAULT_DERIVED_DATA="$HOME/Library/Developer/Xcode/DerivedData/Scribe-adcbtqdoqoitycbubnnzaubemqip"
+DEFAULT_DERIVED_DATA="$HOME/Library/Developer/Xcode/DerivedData/Scribe-gbrhrwzwenpibmgpteqohbqavmer"
 if [ -d "$DEFAULT_DERIVED_DATA" ]; then
     DERIVED_DATA_PATH="$DEFAULT_DERIVED_DATA"
 else
-    DERIVED_DATA_PATH="/tmp/ScribeDerivedData"
+    DERIVED_DATA_PATH="$HOME/Library/Developer/Xcode/DerivedData/Scribe-adcbtqdoqoitycbubnnzaubemqip"
 fi
 
 ARCH=$(uname -m)
@@ -43,14 +43,30 @@ fi
 
 echo "📦 Found App at: $APP_PATH"
 
-CODE_SIGN_IDENTITY=$(security find-identity -v -p codesigning 2>/dev/null | grep "Apple Development" | head -n 1 | awk -F'"' '{print $2}')
-if [ -n "$CODE_SIGN_IDENTITY" ]; then
-    echo "🔏 Signing app with identity: $CODE_SIGN_IDENTITY"
-    codesign --force --deep --sign "$CODE_SIGN_IDENTITY" "$APP_PATH"
-else
-    echo "🔏 Signing app ad-hoc with stable bundle identifier and requirement..."
-    codesign --force --deep --identifier "com.aleksei.scribe" -r='designated => identifier "com.aleksei.scribe"' --sign - "$APP_PATH"
+DEVELOPER_ID_IDENTITY="Developer ID Application: Oleg Tyagunov (2LD8J2PCK3)"
+ENTITLEMENTS="$ROOT_DIR/Scribe/Scribe.entitlements"
+
+echo "🔏 Signing frameworks and Mach-O binaries inside $APP_PATH with $DEVELOPER_ID_IDENTITY..."
+
+# Remove extended attributes (com.apple.quarantine etc.)
+xattr -cr "$APP_PATH"
+
+# Sign all nested dynamic libraries and frameworks inside out
+if [ -d "$APP_PATH/Contents/Frameworks" ]; then
+    for fw in "$APP_PATH/Contents/Frameworks"/*.framework; do
+        if [ -d "$fw" ]; then
+            echo "  Signing framework: $(basename "$fw")"
+            codesign --force --sign "$DEVELOPER_ID_IDENTITY" --timestamp --options runtime "$fw"
+        fi
+    done
 fi
+
+# Sign main executable with hardened runtime and entitlements
+echo "  Signing main app bundle with entitlements: $ENTITLEMENTS"
+codesign --force --sign "$DEVELOPER_ID_IDENTITY" --timestamp --options runtime --entitlements "$ENTITLEMENTS" "$APP_PATH"
+
+echo "🔎 Verifying app bundle signature..."
+codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 
 # Ensure existing mounts are unmounted before recreating DMG
 hdiutil detach "/Volumes/Scribe Installer" 2>/dev/null || true
@@ -97,7 +113,32 @@ if [ ! -f "$DIST_DIR/$DMG_NAME" ]; then
     rm -rf "$TMP_DMG_DIR"
 fi
 
-echo "✅ Successfully built: $DIST_DIR/$DMG_NAME"
+echo "🔏 Signing DMG with $DEVELOPER_ID_IDENTITY..."
+codesign --force --sign "$DEVELOPER_ID_IDENTITY" --timestamp "$DIST_DIR/$DMG_NAME"
+codesign --verify --verbose=2 "$DIST_DIR/$DMG_NAME"
+
+# Notarize DMG with Apple notarytool
+ASC_KEY_ID="RHN6NUV75B"
+ASC_ISSUER_ID="dd2c79d3-8e86-41b6-8f05-a8f2d6ccc1a1"
+ASC_KEY_PATH="$HOME/.appstoreconnect/private_keys/AuthKey_RHN6NUV75B.p8"
+
+if [ -f "$ASC_KEY_PATH" ]; then
+    echo "🚀 Submitting DMG to Apple Notary Service..."
+    xcrun notarytool submit "$DIST_DIR/$DMG_NAME" \
+        --key "$ASC_KEY_PATH" \
+        --key-id "$ASC_KEY_ID" \
+        --issuer "$ASC_ISSUER_ID" \
+        --wait
+
+    echo "📎 Stapling notarization ticket to DMG..."
+    xcrun stapler staple "$DIST_DIR/$DMG_NAME"
+    xcrun stapler validate "$DIST_DIR/$DMG_NAME"
+fi
+
+echo "🛡️ Assessing Gatekeeper compliance on DMG..."
+spctl -a -vvv -t open --context context:primary-signature "$DIST_DIR/$DMG_NAME" || true
+
+echo "✅ Successfully built and notarized: $DIST_DIR/$DMG_NAME"
 ls -lh "$DIST_DIR/$DMG_NAME"
 
 echo "🚀 Updating /Applications/$APP_NAME.app and relaunching..."
