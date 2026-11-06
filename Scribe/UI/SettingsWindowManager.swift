@@ -58,47 +58,27 @@ final class SettingsWindowManager {
         newWindow.showsResizeIndicator = true
 
         newWindow.isMovableByWindowBackground = false
-        newWindow.isOpaque = false
-        newWindow.backgroundColor = .clear 
+        newWindow.isOpaque = true
+        let isLightAppearance = self.currentAppState?.selectedPanelAppearance == .light
+        let defaultBg = isLightAppearance
+            ? NSColor(red: 0xee / 255.0, green: 0xf2 / 255.0, blue: 0xf6 / 255.0, alpha: 1.0)
+            : NSColor(red: 0x12 / 255.0, green: 0x1a / 255.0, blue: 0x1f / 255.0, alpha: 1.0)
+        newWindow.backgroundColor = defaultBg
         newWindow.hasShadow = true
         newWindow.level = .normal
         newWindow.hidesOnDeactivate = false
 
-        let blurView = NSVisualEffectView()
-        self.blurView = blurView
-        
         if let appState = self.currentAppState {
             newWindow.appearance = appState.selectedPanelAppearance.nsAppearance
-            blurView.material = appState.selectedPanelAppearance.material
-        } else {
-            blurView.material = .popover
         }
-        
-        blurView.blendingMode = .behindWindow
-        blurView.state = .active
-        // Removed custom layer corner radius to let the native window handle it perfectly without artifacts
 
-
-        // Wrap the SwiftUI view
+        // Wrap the SwiftUI view directly as contentView
         let settingsView = SettingsView().environmentObject(appState)
         let hostingView = NSHostingView(rootView: settingsView)
-        hostingView.translatesAutoresizingMaskIntoConstraints = false
         hostingView.wantsLayer = true
-        hostingView.layer?.backgroundColor = NSColor.clear.cgColor
-        hostingView.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        hostingView.setContentHuggingPriority(.defaultLow, for: .vertical)
-        hostingView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        hostingView.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
+        hostingView.layer?.backgroundColor = defaultBg.cgColor
 
-        blurView.addSubview(hostingView)
-        NSLayoutConstraint.activate([
-            hostingView.topAnchor.constraint(equalTo: blurView.topAnchor),
-            hostingView.bottomAnchor.constraint(equalTo: blurView.bottomAnchor),
-            hostingView.leadingAnchor.constraint(equalTo: blurView.leadingAnchor),
-            hostingView.trailingAnchor.constraint(equalTo: blurView.trailingAnchor),
-        ])
-
-        newWindow.contentView = blurView
+        newWindow.contentView = hostingView
         newWindow.center()
         newWindow.isReleasedWhenClosed = false
         newWindow.delegate = WindowDelegate.shared
@@ -114,10 +94,12 @@ final class SettingsWindowManager {
     }
 
     func updateAppearance(_ appearance: PanelAppearance) {
+        let isLight = appearance == .light
+        let bg = isLight
+            ? NSColor(red: 0xee / 255.0, green: 0xf2 / 255.0, blue: 0xf6 / 255.0, alpha: 1.0)
+            : NSColor(red: 0x12 / 255.0, green: 0x1a / 255.0, blue: 0x1f / 255.0, alpha: 1.0)
         window?.appearance = appearance.nsAppearance
-        blurView?.material = appearance.material
-        blurView?.wantsLayer = true
-        blurView?.layer?.backgroundColor = appearance.backgroundColor.cgColor
+        window?.backgroundColor = bg
     }
 
     var windowFrame: NSRect? {

@@ -170,11 +170,6 @@ struct SettingsView: View {
                     showingAppleNotesModal: $showingAppleNotesModal
                 )
 
-                Rectangle()
-                    .fill(Color.primary.opacity(0.06))
-                    .frame(width: 1)
-                    .frame(maxHeight: .infinity)
-
                 SettingsContentView(selectedTab: selectedTab)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
@@ -418,9 +413,13 @@ struct SettingsSidebarView: View {
         .padding(.bottom, 6)
         .padding(.horizontal, 10)
         .background(
-            ScribeGlassTokens.slateDeep(isLight).opacity(0.6)
+            ScribeGlassTokens.slateDeep(isLight)
         )
-        .scribeGlass(tint: ScribeGlassTokens.glassTint(isLight), in: .rect)
+        .overlay(alignment: .trailing) {
+            Rectangle()
+                .fill(ScribeGlassTokens.line(isLight))
+                .frame(width: 1)
+        }
         .sheet(isPresented: $showingSupportModal) {
             SupportDeveloperModal(onOpenStatistics: {
                 selectedTab = .statistics
@@ -489,18 +488,6 @@ struct SettingsContentView: View {
             .padding(.bottom, 24)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .mask(
-            LinearGradient(
-                stops: [
-                    .init(color: .clear, location: 0.0),
-                    .init(color: .clear, location: 0.04),
-                    .init(color: .black, location: 0.12),
-                    .init(color: .black, location: 1.0)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        )
     }
 }
 
@@ -843,17 +830,21 @@ struct SidebarTabButton: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 7)
             .background {
-                let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
+                let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
                 if isSelected {
-                    shape.fill(Color.clear)
+                    shape
+                        .fill(isLight ? ScribeGlassTokens.ice(isLight) : Color(red: 0x1f / 255.0, green: 0x3b / 255.0, blue: 0x44 / 255.0).opacity(0.85))
                         .scribeGlass(tint: ScribeGlassTokens.ice(isLight).opacity(0.35), interactive: true, in: shape)
+                        .overlay(
+                            shape.stroke(ScribeGlassTokens.ice(isLight).opacity(isLight ? 0.35 : 0.25), lineWidth: 0.8)
+                        )
                         .matchedGeometryEffect(id: "settings-sidebar-selection", in: namespace)
                 } else if isHovered {
                     shape
                         .fill(ScribeGlassTokens.surfaceRaised(isLight).opacity(0.6))
                 }
             }
-            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
         .buttonStyle(.plain)
         .onHover { hovering in
