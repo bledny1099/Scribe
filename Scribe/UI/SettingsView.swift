@@ -17,112 +17,19 @@ enum SettingsTab: String, CaseIterable {
     var icon: String {
         switch self {
         case .general:      return "slider.horizontal.3"
-        case .appearance:   return "paintbrush"
+        case .appearance:   return "paintbrush.fill"
         case .recognition:  return "waveform.and.mic"
-        case .vocabulary:   return "book"
-        case .lectures:     return "graduationcap"
-        case .integrations: return "puzzlepiece"
+        case .vocabulary:   return "book.fill"
+        case .lectures:     return "graduationcap.fill"
+        case .integrations: return "puzzlepiece.fill"
         case .replacements: return "text.badge.plus"
-        case .system:       return "gearshape"
-        case .statistics:   return "chart.bar"
+        case .system:       return "gearshape.fill"
+        case .statistics:   return "chart.bar.fill"
         }
     }
 
     var preferredWidth: CGFloat {
         736
-    }
-}
-
-// MARK: - Tundra / Blueprint Liquid Glass Tokens
-enum ScribeGlassTokens {
-    static func ice(_ isLight: Bool) -> Color {
-        isLight
-            ? Color(red: 0x1f / 255.0, green: 0x5e / 255.0, blue: 1.0)
-            : Color(red: 0x8f / 255.0, green: 0xdd / 255.0, blue: 0xe8 / 255.0)
-    }
-
-    static func onIce(_ isLight: Bool) -> Color {
-        isLight
-            ? .white
-            : Color(red: 0x0c / 255.0, green: 0x14 / 255.0, blue: 0x17 / 255.0)
-    }
-
-    static func iceSoft(_ isLight: Bool) -> Color {
-        isLight
-            ? Color(red: 0xed / 255.0, green: 0xf2 / 255.0, blue: 1.0)
-            : Color(red: 0x16 / 255.0, green: 0x3a / 255.0, blue: 0x40 / 255.0)
-    }
-
-    static func ink(_ isLight: Bool) -> Color {
-        isLight
-            ? Color(red: 0x10 / 255.0, green: 0x26 / 255.0, blue: 0x3b / 255.0)
-            : Color(red: 0xe3 / 255.0, green: 0xec / 255.0, blue: 0xee / 255.0)
-    }
-
-    static func inkMuted(_ isLight: Bool) -> Color {
-        isLight
-            ? Color(red: 0x3f / 255.0, green: 0x56 / 255.0, blue: 0x6c / 255.0)
-            : Color(red: 0x9f / 255.0, green: 0xb4 / 255.0, blue: 0xb9 / 255.0)
-    }
-
-    static func surface(_ isLight: Bool) -> Color {
-        isLight
-            ? .white
-            : Color(red: 0x1a / 255.0, green: 0x26 / 255.0, blue: 0x2c / 255.0)
-    }
-
-    static func surfaceRaised(_ isLight: Bool) -> Color {
-        isLight
-            ? Color(red: 0xe2 / 255.0, green: 0xe9 / 255.0, blue: 0xf2 / 255.0)
-            : Color(red: 0x24 / 255.0, green: 0x33 / 255.0, blue: 0x3a / 255.0)
-    }
-
-    static func slate(_ isLight: Bool) -> Color {
-        isLight
-            ? Color(red: 0xee / 255.0, green: 0xf2 / 255.0, blue: 0xf6 / 255.0)
-            : Color(red: 0x12 / 255.0, green: 0x1a / 255.0, blue: 0x1f / 255.0)
-    }
-
-    static func slateDeep(_ isLight: Bool) -> Color {
-        isLight
-            ? Color(red: 0xf7 / 255.0, green: 0xf9 / 255.0, blue: 0xfb / 255.0)
-            : Color(red: 0x0c / 255.0, green: 0x13 / 255.0, blue: 0x16 / 255.0)
-    }
-
-    static func depth(_ isLight: Bool) -> Color {
-        isLight
-            ? Color(red: 0xcf / 255.0, green: 0xdc / 255.0, blue: 1.0)
-            : Color(red: 0x1f / 255.0, green: 0x3b / 255.0, blue: 0x44 / 255.0)
-    }
-
-    static func line(_ isLight: Bool) -> Color {
-        isLight
-            ? Color(red: 0xd3 / 255.0, green: 0xdb / 255.0, blue: 0xe4 / 255.0)
-            : Color(red: 0x2a / 255.0, green: 0x3a / 255.0, blue: 0x41 / 255.0)
-    }
-
-    static func lineStrong(_ isLight: Bool) -> Color {
-        isLight
-            ? Color(red: 0x71 / 255.0, green: 0x84 / 255.0, blue: 0x9a / 255.0)
-            : Color(red: 0x5f / 255.0, green: 0x81 / 255.0, blue: 0x8b / 255.0)
-    }
-
-    static func glassTint(_ isLight: Bool) -> Color {
-        isLight
-            ? Color(red: 207 / 255.0, green: 220 / 255.0, blue: 255 / 255.0).opacity(0.35)
-            : Color(red: 31 / 255.0, green: 59 / 255.0, blue: 68 / 255.0).opacity(0.35)
-    }
-}
-
-extension View {
-    @ViewBuilder
-    func scribeGlass(tint: Color = .clear, interactive: Bool = false, in shape: some Shape) -> some View {
-        if #available(macOS 26.0, *) {
-            self.glassEffect(.regular.tint(tint).interactive(interactive), in: shape)
-        } else {
-            self.background(.ultraThinMaterial, in: shape)
-                .background(shape.fill(tint))
-        }
     }
 }
 
@@ -169,6 +76,11 @@ struct SettingsView: View {
                     showingOnboardingNameModal: $showingOnboardingNameModal,
                     showingAppleNotesModal: $showingAppleNotesModal
                 )
+
+                Rectangle()
+                    .fill(Color.primary.opacity(0.06))
+                    .frame(width: 1)
+                    .frame(maxHeight: .infinity)
 
                 SettingsContentView(selectedTab: selectedTab)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -303,7 +215,6 @@ struct SettingsSidebarView: View {
     @Binding var showingOnboardingNameModal: Bool
     @Binding var showingAppleNotesModal: Bool
     @EnvironmentObject var appState: AppState
-    @Namespace private var sidebarNamespace
     @AppStorage("isScribeSupporter") private var isScribeSupporter: Bool = false
     @AppStorage("supporterDonationAmount") private var supporterDonationAmount: Double = 0
 
@@ -313,10 +224,6 @@ struct SettingsSidebarView: View {
 
     private var supporterColor: Color {
         isScribeSupporter ? supporterTier.color : Color.supportAccentPrimary
-    }
-
-    private var isLight: Bool {
-        appState.selectedPanelAppearance == .light
     }
 
     private let mainTabs: [SettingsTab] = [
@@ -339,8 +246,7 @@ struct SettingsSidebarView: View {
                     isSelected: selectedTab == tab,
                     panelAppearance: appState.selectedPanelAppearance,
                     themeGradientColor: .blue,
-                    title: appState.l(tab.rawValue),
-                    namespace: sidebarNamespace
+                    title: appState.l(tab.rawValue)
                 ) {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                         selectedTab = tab
@@ -349,9 +255,8 @@ struct SettingsSidebarView: View {
             }
 
             // Divider Line after System
-            Rectangle()
-                .fill(ScribeGlassTokens.line(isLight).opacity(0.6))
-                .frame(height: 1)
+            Divider()
+                .opacity(0.4)
                 .padding(.vertical, 4)
 
             // Statistics Tab Button
@@ -360,8 +265,7 @@ struct SettingsSidebarView: View {
                 isSelected: selectedTab == .statistics,
                 panelAppearance: appState.selectedPanelAppearance,
                 themeGradientColor: .blue,
-                title: appState.l(SettingsTab.statistics.rawValue),
-                namespace: sidebarNamespace
+                title: appState.l(SettingsTab.statistics.rawValue)
             ) {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                     selectedTab = .statistics
@@ -384,14 +288,14 @@ struct SettingsSidebarView: View {
 
                     Text(appState.l("Support Scribe"))
                         .font(.system(size: 13, weight: .semibold, design: .rounded))
-                        .foregroundStyle(ScribeGlassTokens.ink(isLight))
+                        .foregroundStyle(.primary)
                         .lineLimit(1)
 
                     Spacer(minLength: 4)
 
                     Image(systemName: "cup.and.saucer.fill")
                         .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(ScribeGlassTokens.inkMuted(isLight))
+                        .foregroundStyle(.primary.opacity(0.75))
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 7)
@@ -412,14 +316,7 @@ struct SettingsSidebarView: View {
         .padding(.top, 88)
         .padding(.bottom, 6)
         .padding(.horizontal, 10)
-        .background(
-            ScribeGlassTokens.slateDeep(isLight)
-        )
-        .overlay(alignment: .trailing) {
-            Rectangle()
-                .fill(ScribeGlassTokens.line(isLight))
-                .frame(width: 1)
-        }
+        .background(Color.primary.opacity(0.015))
         .sheet(isPresented: $showingSupportModal) {
             SupportDeveloperModal(onOpenStatistics: {
                 selectedTab = .statistics
@@ -497,7 +394,7 @@ private func openDeviceLimitSupport(appState: AppState) {
     let chip = HardwareAnalyzer.shared.profile.chipName
     let encOS = osVersion.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "macOS"
     let encChip = chip.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "AppleSilicon"
-    let appVer = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "2.10.6"
+    let appVer = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "2.6.10"
     let deviceName = DeviceManager.shared.deviceName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
     let urlStr = "https://scribe.dosimple.app/report.html?type=support&os=\(encOS)&arch=\(encChip)&version=v\(appVer)&device=\(deviceName)"
     if let url = URL(string: urlStr) {
@@ -661,24 +558,86 @@ struct LiquidGlassPillModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-        let effectiveTint = tint ?? (isProminent ? ScribeGlassTokens.ice(isLight) : ScribeGlassTokens.glassTint(isLight))
-        let glassOpacity: Double = isProminent ? 0.45 : (isHovered ? 0.35 : 0.25)
-
+        let activeScale: Double = isProminent ? 1.0 : (isHovered ? 0.85 : 0.65)
         content
-            .scribeGlass(tint: effectiveTint.opacity(glassOpacity), interactive: true, in: shape)
-            .background {
-                if isHovered && !isProminent {
-                    shape.fill(ScribeGlassTokens.surfaceRaised(isLight).opacity(0.4))
+            .background(
+                ZStack {
+                    shape
+                        .fill(.ultraThinMaterial.opacity(isLight ? 0.90 : (isProminent ? 0.92 : 0.72)))
+
+                    if let tint = tint {
+                        shape
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        tint.opacity((isProminent ? 0.28 : 0.16) * (isHovered ? 1.15 : 1.0)),
+                                        tint.opacity(isProminent ? 0.12 : 0.06)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                    } else {
+                        shape
+                            .fill(
+                                LinearGradient(
+                                    colors: isLight
+                                        ? [
+                                            Color.white.opacity(isProminent ? 0.95 : 0.78),
+                                            Color.white.opacity(isProminent ? 0.80 : 0.58)
+                                        ]
+                                        : [
+                                            Color.white.opacity(0.24 * activeScale),
+                                            Color.white.opacity(0.10 * activeScale),
+                                            Color.white.opacity(0.04 * activeScale)
+                                        ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                    }
+
+                    // Top Specular Highlight Glare
+                    shape
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(isLight ? 0.75 : (0.38 * activeScale)),
+                                    Color.white.opacity(isLight ? 0.20 : (0.10 * activeScale)),
+                                    Color.clear
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
                 }
-            }
+            )
+            .clipShape(shape)
             .overlay(
                 shape
                     .strokeBorder(
-                        isLight
-                            ? (tint ?? Color.black).opacity(isProminent ? 0.20 : 0.10)
-                            : (tint ?? Color.white).opacity(isProminent ? 0.50 : (isHovered ? 0.35 : 0.18)),
+                        LinearGradient(
+                            colors: isLight
+                                ? [
+                                    (tint ?? Color.black).opacity(isProminent ? 0.24 : 0.14),
+                                    (tint ?? Color.black).opacity(0.07)
+                                ]
+                                : [
+                                    (tint ?? Color.white).opacity(isProminent ? 0.68 : (isHovered ? 0.52 : 0.36)),
+                                    Color.white.opacity(isProminent ? 0.28 : 0.16),
+                                    Color.white.opacity(0.08)
+                                ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
                         lineWidth: 1.0
                     )
+            )
+            .shadow(
+                color: Color.black.opacity(isLight ? 0.08 : (isProminent ? 0.28 : 0.18)),
+                radius: isProminent ? 5 : 3,
+                x: 0,
+                y: isProminent ? 2 : 1
             )
             .onHover { hovering in
                 withAnimation(.easeOut(duration: 0.15)) {
@@ -751,7 +710,7 @@ struct SettingsHeaderView: View {
                     }
                     let encOS = osVersion.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "macOS"
                     let encChip = chip.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "AppleSilicon"
-                    let appVer = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.10.6"
+                    let appVer = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.5.1"
                     let urlStr = "https://scribe.dosimple.app/report.html?type=support&os=\(encOS)&arch=\(encChip)&version=v\(appVer)"
                     if let url = URL(string: urlStr) {
                         NSWorkspace.shared.open(url)
@@ -798,7 +757,6 @@ struct SidebarTabButton: View {
     let panelAppearance: PanelAppearance
     let themeGradientColor: Color
     let title: String
-    let namespace: Namespace.ID
     let action: () -> Void
 
     @State private var isHovered: Bool = false
@@ -807,43 +765,101 @@ struct SidebarTabButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 10) {
+            HStack(spacing: 9) {
                 Image(systemName: tab.icon)
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.system(size: 13, weight: isSelected ? .bold : .semibold))
                     .foregroundStyle(
                         isSelected
-                            ? ScribeGlassTokens.ice(isLight)
-                            : (isHovered ? ScribeGlassTokens.ink(isLight) : ScribeGlassTokens.inkMuted(isLight))
+                            ? (isLight ? Color.black.opacity(0.92) : Color.white)
+                            : Color.primary.opacity(isHovered ? 0.95 : 0.78)
                     )
                     .frame(width: 18)
 
                 Text(title)
-                    .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+                    .font(.system(size: 13, weight: isSelected ? .bold : .medium, design: .rounded))
                     .foregroundStyle(
                         isSelected
-                            ? ScribeGlassTokens.ink(isLight)
-                            : (isHovered ? ScribeGlassTokens.ink(isLight) : ScribeGlassTokens.inkMuted(isLight))
+                            ? (isLight ? Color.black.opacity(0.92) : Color.white)
+                            : Color.primary.opacity(isHovered ? 0.95 : 0.84)
                     )
                     .lineLimit(1)
                 Spacer()
             }
             .padding(.horizontal, 10)
-            .padding(.vertical, 7)
-            .background {
-                let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
-                if isSelected {
-                    shape
-                        .fill(isLight ? ScribeGlassTokens.ice(isLight) : Color(red: 0x1f / 255.0, green: 0x3b / 255.0, blue: 0x44 / 255.0).opacity(0.85))
-                        .scribeGlass(tint: ScribeGlassTokens.ice(isLight).opacity(0.35), interactive: true, in: shape)
-                        .overlay(
-                            shape.stroke(ScribeGlassTokens.ice(isLight).opacity(isLight ? 0.35 : 0.25), lineWidth: 0.8)
-                        )
-                        .matchedGeometryEffect(id: "settings-sidebar-selection", in: namespace)
-                } else if isHovered {
-                    shape
-                        .fill(ScribeGlassTokens.surfaceRaised(isLight).opacity(0.6))
+            .padding(.vertical, 7.5)
+            .background(
+                ZStack {
+                    if isSelected || isHovered {
+                        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        let strength: Double = isSelected ? 1.0 : 0.45
+
+                        shape
+                            .fill(.ultraThinMaterial.opacity(isLight ? 0.92 : (isSelected ? 0.90 : 0.55)))
+
+                        shape
+                            .fill(
+                                LinearGradient(
+                                    colors: isLight
+                                        ? [
+                                            Color.white.opacity(isSelected ? 0.95 : 0.65),
+                                            Color.white.opacity(isSelected ? 0.80 : 0.45)
+                                        ]
+                                        : [
+                                            Color.white.opacity(0.26 * strength),
+                                            Color.white.opacity(0.11 * strength),
+                                            Color.white.opacity(0.04 * strength)
+                                        ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+
+                        shape
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        Color.white.opacity(isLight ? 0.75 : (0.40 * strength)),
+                                        Color.white.opacity(isLight ? 0.25 : (0.12 * strength)),
+                                        Color.clear
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                    }
                 }
-            }
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay(
+                ZStack {
+                    if isSelected || isHovered {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .strokeBorder(
+                                LinearGradient(
+                                    colors: isLight
+                                        ? [
+                                            Color.black.opacity(isSelected ? 0.16 : 0.08),
+                                            Color.black.opacity(isSelected ? 0.08 : 0.04)
+                                        ]
+                                        : [
+                                            Color.white.opacity(isSelected ? 0.70 : 0.30),
+                                            Color.white.opacity(isSelected ? 0.32 : 0.14),
+                                            Color.white.opacity(isSelected ? 0.14 : 0.06)
+                                        ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1.0
+                            )
+                    }
+                }
+            )
+            .shadow(
+                color: isSelected ? Color.black.opacity(isLight ? 0.10 : 0.28) : Color.clear,
+                radius: isLight ? 4 : 6,
+                x: 0,
+                y: isLight ? 1.5 : 2.5
+            )
             .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
         .buttonStyle(.plain)
@@ -868,30 +884,12 @@ struct SettingsBackgroundView: View {
         ZStack {
             // Panel Appearance base background fill
             switch panelAppearance {
-            case .dark, .liquidGlass:
-                GeometryReader { proxy in
-                    ScribeGlassTokens.slate(false)
-                        .overlay {
-                            RadialGradient(
-                                colors: [ScribeGlassTokens.depth(false), ScribeGlassTokens.depth(false).opacity(0)],
-                                center: .topTrailing,
-                                startRadius: 0,
-                                endRadius: max(proxy.size.width, proxy.size.height) * 0.75
-                            )
-                        }
-                }
+            case .dark:
+                Color(red: 0.05, green: 0.05, blue: 0.07).opacity(0.85)
+            case .liquidGlass:
+                Color.clear
             case .light:
-                GeometryReader { proxy in
-                    ScribeGlassTokens.slate(true)
-                        .overlay {
-                            RadialGradient(
-                                colors: [ScribeGlassTokens.depth(true).opacity(0.35), ScribeGlassTokens.depth(true).opacity(0)],
-                                center: .topTrailing,
-                                startRadius: 0,
-                                endRadius: max(proxy.size.width, proxy.size.height) * 0.75
-                            )
-                        }
-                }
+                Color.white.opacity(0.85)
             }
 
             // Ambient Glow
@@ -1808,33 +1806,32 @@ struct GlassSection<Content: View>: View {
         self.content = content()
     }
 
-    private var isLight: Bool {
-        appState.selectedPanelAppearance == .light
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 6) {
                 Image(systemName: icon)
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(ScribeGlassTokens.ice(isLight))
+                    .foregroundStyle(.primary)
                 Text(title.uppercased())
                     .font(.system(size: 11, weight: .bold, design: .rounded))
-                    .foregroundStyle(ScribeGlassTokens.inkMuted(isLight))
+                    .foregroundStyle(Color.primary.opacity(0.72))
             }
             .padding(.horizontal, 4)
 
             content
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(16)
-                .background {
-                    let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    shape.fill(ScribeGlassTokens.surface(isLight).opacity(0.35))
-                        .scribeGlass(tint: ScribeGlassTokens.glassTint(isLight), in: shape)
-                }
+                .background(
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(.ultraThinMaterial.opacity(appState.selectedPanelAppearance == .liquidGlass ? 0.35 : 0.55))
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(appState.selectedPanelAppearance == .liquidGlass ? Color.white.opacity(0.08) : Color.primary.opacity(0.06))
+                    }
+                )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .strokeBorder(ScribeGlassTokens.line(isLight).opacity(0.5), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 16)
+                        .strokeBorder(appState.selectedPanelAppearance == .liquidGlass ? Color.white.opacity(0.18) : Color.primary.opacity(0.12), lineWidth: 1)
                 )
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1855,19 +1852,15 @@ struct GlassCollapsibleSection<Content: View>: View {
         self.content = content()
     }
 
-    private var isLight: Bool {
-        appState.selectedPanelAppearance == .light
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: isExpanded ? 12 : 0) {
             HStack(spacing: 6) {
                 Image(systemName: icon)
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(ScribeGlassTokens.ice(isLight))
+                    .foregroundStyle(.primary)
                 Text(title.uppercased())
                     .font(.system(size: 11, weight: .bold, design: .rounded))
-                    .foregroundStyle(ScribeGlassTokens.inkMuted(isLight))
+                    .foregroundStyle(Color.primary.opacity(0.72))
 
                 Spacer()
 
@@ -1882,7 +1875,7 @@ struct GlassCollapsibleSection<Content: View>: View {
                         Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                             .font(.system(size: 8.5, weight: .bold))
                     }
-                    .foregroundStyle(ScribeGlassTokens.ink(isLight))
+                    .foregroundStyle(.primary.opacity(0.85))
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
                     .modifier(LiquidGlassPillModifier(cornerRadius: 12))
@@ -1900,14 +1893,17 @@ struct GlassCollapsibleSection<Content: View>: View {
             if isExpanded {
                 content
                     .padding(16)
-                    .background {
-                        let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        shape.fill(ScribeGlassTokens.surface(isLight).opacity(0.35))
-                            .scribeGlass(tint: ScribeGlassTokens.glassTint(isLight), in: shape)
-                    }
+                    .background(
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(.ultraThinMaterial.opacity(appState.selectedPanelAppearance == .liquidGlass ? 0.35 : 0.55))
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(appState.selectedPanelAppearance == .liquidGlass ? Color.white.opacity(0.08) : Color.primary.opacity(0.06))
+                        }
+                    )
                     .overlay(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .strokeBorder(ScribeGlassTokens.line(isLight).opacity(0.5), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: 16)
+                            .strokeBorder(appState.selectedPanelAppearance == .liquidGlass ? Color.white.opacity(0.18) : Color.primary.opacity(0.12), lineWidth: 1)
                     )
                     .transition(.asymmetric(
                         insertion: .opacity.combined(with: .scale(scale: 0.98, anchor: .top)),
@@ -1963,41 +1959,136 @@ struct LiquidGlassSegmentedPicker<T: Hashable>: View {
                     HStack(spacing: (!info.icon.isEmpty && !info.name.isEmpty) ? iconTextSpacing : 0) {
                         if !info.icon.isEmpty {
                             Image(systemName: info.icon)
-                                .font(.system(size: iconSize, weight: isSelected ? .semibold : .medium))
-                                .foregroundStyle(isSelected ? ScribeGlassTokens.ice(isLight) : ScribeGlassTokens.inkMuted(isLight))
+                                .font(.system(size: iconSize, weight: isSelected ? .bold : .semibold))
+                                .foregroundStyle(isSelected ? (isLight ? Color.black.opacity(0.88) : .white) : .primary.opacity(0.7))
                         }
                         if !info.name.isEmpty {
                             Text(info.name)
-                                .font(.system(size: fontSize, weight: isSelected ? .semibold : .regular))
-                                .foregroundStyle(isSelected ? ScribeGlassTokens.ink(isLight) : ScribeGlassTokens.inkMuted(isLight))
+                                .font(.system(size: fontSize, weight: isSelected ? .bold : .medium, design: .rounded))
+                                .foregroundStyle(isSelected ? (isLight ? Color.black.opacity(0.88) : .white) : .primary.opacity(0.75))
                                 .lineLimit(1)
                                 .fixedSize(horizontal: true, vertical: false)
                         }
                     }
                     .padding(.horizontal, horizontalPadding)
                     .padding(.vertical, verticalPadding)
-                    .background {
-                        if isSelected {
-                            Capsule()
-                                .fill(Color.clear)
-                                .scribeGlass(tint: ScribeGlassTokens.ice(isLight).opacity(0.35), interactive: true, in: .capsule)
-                                .matchedGeometryEffect(id: "segment-selection", in: segmentAnimation)
+                    .background(
+                        ZStack {
+                            if isSelected {
+                                // 1. Base Glass Material
+                                Capsule()
+                                    .fill(.ultraThinMaterial)
+                                    .matchedGeometryEffect(id: "segmentBgMaterial", in: segmentAnimation)
+
+                                // 2. Liquid Glass Gradient Tint
+                                Capsule()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: isLight
+                                                ? [
+                                                    Color.white.opacity(0.95),
+                                                    Color.white.opacity(0.82)
+                                                ]
+                                                : [
+                                                    Color.white.opacity(0.28),
+                                                    Color.white.opacity(0.12),
+                                                    Color.white.opacity(0.04)
+                                                ],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .matchedGeometryEffect(id: "segmentBg", in: segmentAnimation)
+
+                                // 3. Glossy Top Specular Reflection Glare
+                                Capsule()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [
+                                                Color.white.opacity(isLight ? 0.8 : 0.45),
+                                                Color.white.opacity(isLight ? 0.3 : 0.15),
+                                                Color.clear
+                                            ],
+                                            startPoint: .top,
+                                            endPoint: .bottom
+                                        )
+                                    )
+                                    .matchedGeometryEffect(id: "segmentHighlight", in: segmentAnimation)
+                            }
                         }
-                    }
-                    .contentShape(Capsule())
+                    )
+                    .clipShape(Capsule())
+                    .overlay(
+                        ZStack {
+                            if isSelected {
+                                Capsule()
+                                    .strokeBorder(
+                                        LinearGradient(
+                                            colors: isLight
+                                                ? [
+                                                    Color.black.opacity(0.14),
+                                                    Color.black.opacity(0.08)
+                                                ]
+                                                : [
+                                                    Color.white.opacity(0.75),
+                                                    Color.white.opacity(0.35),
+                                                    Color.white.opacity(0.15)
+                                                ],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        ),
+                                        lineWidth: 1.0
+                                    )
+                                    .matchedGeometryEffect(id: "segmentBorder", in: segmentAnimation)
+                            }
+                        }
+                    )
+                    .shadow(color: isSelected ? Color.black.opacity(isLight ? 0.12 : 0.35) : Color.clear, radius: isLight ? 4 : 6, x: 0, y: isLight ? 2 : 3)
+                    .shadow(color: isSelected ? Color.white.opacity(0.2) : Color.clear, radius: 4, x: 0, y: -1)
                 }
                 .buttonStyle(.plain)
             }
         }
         .padding(trackPadding)
         .background(
-            ScribeGlassTokens.surface(isLight).opacity(0.5)
+            ZStack {
+                Capsule()
+                    .fill(.ultraThinMaterial.opacity(0.85))
+
+                Capsule()
+                    .fill(
+                        LinearGradient(
+                            colors: isLight
+                                ? [
+                                    Color.black.opacity(0.07),
+                                    Color.black.opacity(0.04)
+                                ]
+                                : [
+                                    Color.black.opacity(0.25),
+                                    Color.black.opacity(0.15)
+                                ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+            }
         )
-        .scribeGlass(tint: ScribeGlassTokens.glassTint(isLight), in: .capsule)
         .overlay(
             Capsule()
                 .strokeBorder(
-                    ScribeGlassTokens.line(isLight).opacity(0.5),
+                    LinearGradient(
+                        colors: isLight
+                            ? [
+                                Color.black.opacity(0.10),
+                                Color.black.opacity(0.06)
+                            ]
+                            : [
+                                Color.white.opacity(0.25),
+                                Color.white.opacity(0.08)
+                            ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
                     lineWidth: 1.0
                 )
         )
