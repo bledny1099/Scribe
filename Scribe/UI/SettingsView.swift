@@ -563,34 +563,36 @@ struct LiquidGlassPillModifier: ViewModifier {
             .background(
                 ZStack {
                     shape
-                        .fill(.ultraThinMaterial.opacity(isLight ? 0.90 : (isProminent ? 0.92 : 0.72)))
+                        .fill(.ultraThinMaterial.opacity(isLight ? 0.90 : (isProminent ? 0.88 : 0.70)))
 
+                    // Neutral Liquid Glass Gradient Base
+                    shape
+                        .fill(
+                            LinearGradient(
+                                colors: isLight
+                                    ? [
+                                        Color.white.opacity(isProminent ? 0.82 : 0.58),
+                                        Color.white.opacity(isProminent ? 0.62 : 0.38)
+                                    ]
+                                    : [
+                                        Color.white.opacity(0.18 * activeScale),
+                                        Color.white.opacity(0.08 * activeScale),
+                                        Color.white.opacity(0.02 * activeScale)
+                                    ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+
+                    // Optional subtle tint highlight (non-saturated, preserving pure glass aesthetic)
                     if let tint = tint {
                         shape
                             .fill(
                                 LinearGradient(
                                     colors: [
-                                        tint.opacity((isProminent ? 0.28 : 0.16) * (isHovered ? 1.15 : 1.0)),
-                                        tint.opacity(isProminent ? 0.12 : 0.06)
+                                        tint.opacity((isProminent ? 0.12 : 0.06) * (isHovered ? 1.15 : 1.0)),
+                                        tint.opacity(isProminent ? 0.04 : 0.02)
                                     ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                    } else {
-                        shape
-                            .fill(
-                                LinearGradient(
-                                    colors: isLight
-                                        ? [
-                                            Color.white.opacity(isProminent ? 0.95 : 0.78),
-                                            Color.white.opacity(isProminent ? 0.80 : 0.58)
-                                        ]
-                                        : [
-                                            Color.white.opacity(0.24 * activeScale),
-                                            Color.white.opacity(0.10 * activeScale),
-                                            Color.white.opacity(0.04 * activeScale)
-                                        ],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 )
@@ -602,8 +604,8 @@ struct LiquidGlassPillModifier: ViewModifier {
                         .fill(
                             LinearGradient(
                                 colors: [
-                                    Color.white.opacity(isLight ? 0.75 : (0.38 * activeScale)),
-                                    Color.white.opacity(isLight ? 0.20 : (0.10 * activeScale)),
+                                    Color.white.opacity(isLight ? 0.55 : (0.28 * activeScale)),
+                                    Color.white.opacity(isLight ? 0.16 : (0.08 * activeScale)),
                                     Color.clear
                                 ],
                                 startPoint: .top,
@@ -619,25 +621,25 @@ struct LiquidGlassPillModifier: ViewModifier {
                         LinearGradient(
                             colors: isLight
                                 ? [
-                                    (tint ?? Color.black).opacity(isProminent ? 0.24 : 0.14),
-                                    (tint ?? Color.black).opacity(0.07)
+                                    Color.black.opacity(isProminent ? 0.18 : 0.10),
+                                    Color.black.opacity(0.05)
                                 ]
                                 : [
-                                    (tint ?? Color.white).opacity(isProminent ? 0.68 : (isHovered ? 0.52 : 0.36)),
-                                    Color.white.opacity(isProminent ? 0.28 : 0.16),
-                                    Color.white.opacity(0.08)
+                                    Color.white.opacity(isProminent ? 0.45 : (isHovered ? 0.32 : 0.20)),
+                                    Color.white.opacity(isProminent ? 0.18 : 0.10),
+                                    Color.white.opacity(0.05)
                                 ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         ),
-                        lineWidth: 1.0
+                        lineWidth: 0.75
                     )
             )
             .shadow(
-                color: Color.black.opacity(isLight ? 0.08 : (isProminent ? 0.28 : 0.18)),
-                radius: isProminent ? 5 : 3,
+                color: Color.black.opacity(isLight ? 0.05 : (isProminent ? 0.20 : 0.12)),
+                radius: isProminent ? 4 : 2.5,
                 x: 0,
-                y: isProminent ? 2 : 1
+                y: isProminent ? 1.5 : 1
             )
             .onHover { hovering in
                 withAnimation(.easeOut(duration: 0.15)) {
@@ -765,6 +767,7 @@ struct SidebarTabButton: View {
 
     var body: some View {
         Button(action: action) {
+            let shape = RoundedRectangle(cornerRadius: 11, style: .continuous)
             HStack(spacing: 9) {
                 Image(systemName: tab.icon)
                     .font(.system(size: 13, weight: isSelected ? .bold : .semibold))
@@ -785,29 +788,26 @@ struct SidebarTabButton: View {
                     .lineLimit(1)
                 Spacer()
             }
-            .padding(.horizontal, 10)
+            .padding(.horizontal, 11)
             .padding(.vertical, 7.5)
             .background(
                 ZStack {
-                    if isSelected || isHovered {
-                        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        let strength: Double = isSelected ? 1.0 : 0.45
-
+                    if isSelected {
                         shape
-                            .fill(.ultraThinMaterial.opacity(isLight ? 0.92 : (isSelected ? 0.90 : 0.55)))
+                            .fill(.ultraThinMaterial.opacity(isLight ? 0.92 : 0.85))
 
                         shape
                             .fill(
                                 LinearGradient(
                                     colors: isLight
                                         ? [
-                                            Color.white.opacity(isSelected ? 0.95 : 0.65),
-                                            Color.white.opacity(isSelected ? 0.80 : 0.45)
+                                            Color.white.opacity(0.70),
+                                            Color.white.opacity(0.40)
                                         ]
                                         : [
-                                            Color.white.opacity(0.26 * strength),
-                                            Color.white.opacity(0.11 * strength),
-                                            Color.white.opacity(0.04 * strength)
+                                            Color.white.opacity(0.16),
+                                            Color.white.opacity(0.06),
+                                            Color.white.opacity(0.02)
                                         ],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
@@ -818,49 +818,55 @@ struct SidebarTabButton: View {
                             .fill(
                                 LinearGradient(
                                     colors: [
-                                        Color.white.opacity(isLight ? 0.75 : (0.40 * strength)),
-                                        Color.white.opacity(isLight ? 0.25 : (0.12 * strength)),
+                                        Color.white.opacity(isLight ? 0.45 : 0.20),
+                                        Color.white.opacity(isLight ? 0.12 : 0.05),
                                         Color.clear
                                     ],
                                     startPoint: .top,
                                     endPoint: .bottom
                                 )
                             )
+                    } else if isHovered {
+                        shape
+                            .fill(Color.primary.opacity(isLight ? 0.05 : 0.07))
                     }
                 }
             )
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .clipShape(shape)
             .overlay(
                 ZStack {
-                    if isSelected || isHovered {
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    if isSelected {
+                        shape
                             .strokeBorder(
                                 LinearGradient(
                                     colors: isLight
                                         ? [
-                                            Color.black.opacity(isSelected ? 0.16 : 0.08),
-                                            Color.black.opacity(isSelected ? 0.08 : 0.04)
+                                            Color.black.opacity(0.12),
+                                            Color.black.opacity(0.05)
                                         ]
                                         : [
-                                            Color.white.opacity(isSelected ? 0.70 : 0.30),
-                                            Color.white.opacity(isSelected ? 0.32 : 0.14),
-                                            Color.white.opacity(isSelected ? 0.14 : 0.06)
+                                            Color.white.opacity(0.35),
+                                            Color.white.opacity(0.14),
+                                            Color.white.opacity(0.06)
                                         ],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 ),
-                                lineWidth: 1.0
+                                lineWidth: 0.75
                             )
+                    } else if isHovered {
+                        shape
+                            .strokeBorder(Color.primary.opacity(isLight ? 0.08 : 0.12), lineWidth: 0.5)
                     }
                 }
             )
             .shadow(
-                color: isSelected ? Color.black.opacity(isLight ? 0.10 : 0.28) : Color.clear,
-                radius: isLight ? 4 : 6,
+                color: isSelected ? Color.black.opacity(isLight ? 0.06 : 0.22) : Color.clear,
+                radius: isLight ? 3 : 5,
                 x: 0,
-                y: isLight ? 1.5 : 2.5
+                y: isLight ? 1 : 2
             )
-            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .contentShape(shape)
         }
         .buttonStyle(.plain)
         .onHover { hovering in
@@ -5188,8 +5194,8 @@ struct VocabularySettingsView: View {
                                     }
                                     .padding(.horizontal, 9)
                                     .padding(.vertical, 4.5)
-                                    .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
-                                    .modifier(LiquidGlassPillModifier(cornerRadius: 10, tint: isSelected ? .accentColor : nil, isProminent: isSelected))
+                                    .foregroundStyle(isSelected ? Color.primary : Color.primary.opacity(0.85))
+                                    .modifier(LiquidGlassPillModifier(cornerRadius: 10, isProminent: isSelected))
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -5233,8 +5239,8 @@ struct VocabularySettingsView: View {
                                 }
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 5.5)
-                                .foregroundStyle(isSelected ? Color.accentColor : Color.primary.opacity(0.8))
-                                .modifier(LiquidGlassPillModifier(cornerRadius: 8, tint: isSelected ? .accentColor : nil, isProminent: isSelected))
+                                .foregroundStyle(isSelected ? Color.primary : Color.primary.opacity(0.8))
+                                .modifier(LiquidGlassPillModifier(cornerRadius: 8, isProminent: isSelected))
                             }
                             .buttonStyle(.plain)
                         }
@@ -6199,7 +6205,7 @@ struct GeneralSettingsView: View {
                                             HStack(spacing: 6) {
                                                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                                                     .font(.system(size: 12, weight: .bold))
-                                                    .foregroundStyle(isSelected ? Color.blue : .secondary)
+                                                    .foregroundStyle(isSelected ? Color.primary.opacity(0.85) : .secondary)
                                                 Text(appState.l(app.displayName))
                                                     .font(.system(size: 12, weight: isSelected ? .semibold : .medium, design: .rounded))
                                                     .lineLimit(1)
@@ -6208,7 +6214,7 @@ struct GeneralSettingsView: View {
                                             .padding(.horizontal, 12)
                                             .padding(.vertical, 7)
                                             .foregroundStyle(isSelected ? .primary : .secondary)
-                                            .modifier(LiquidGlassPillModifier(cornerRadius: 10, tint: isSelected ? .blue : nil, isProminent: isSelected))
+                                            .modifier(LiquidGlassPillModifier(cornerRadius: 10, isProminent: isSelected))
                                         }
                                         .buttonStyle(.plain)
                                     }
@@ -6540,7 +6546,7 @@ struct LectureAppTargetButton: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 6.5)
-            .modifier(LiquidGlassPillModifier(cornerRadius: 8, tint: isSelected ? color : nil, isProminent: isSelected))
+            .modifier(LiquidGlassPillModifier(cornerRadius: 8, isProminent: isSelected))
         }
         .buttonStyle(.plain)
     }

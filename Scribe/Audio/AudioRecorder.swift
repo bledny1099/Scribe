@@ -112,7 +112,6 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
             )
             if status == noErr {
                 logger.info("Configured audio input device ID: \(deviceID)")
-                audioEngine.reset()
             } else {
                 logger.warning("Failed to configure audio input device ID \(deviceID), status: \(status)")
             }

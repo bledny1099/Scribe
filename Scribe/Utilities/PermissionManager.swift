@@ -84,20 +84,42 @@ final class PermissionManager: ObservableObject {
         pollCount = 0
     }
 
-    /// Resets all macOS TCC permissions for Scribe and flushes the permission cache.
-    func resetPermissionsCache() {
-        logger.info("Resetting macOS TCC permissions cache for com.aleksei.scribe...")
+    /// Resets all macOS TCC permissions for Scribe, resets audio routing to system default, flushes temp audio files.
+    func resetPermissionsCache(completion: (@Sendable () -> Void)? = nil) {
+        logger.info("Resetting macOS TCC permissions cache and audio routing for com.aleksei.scribe...")
         let bundleID = "com.aleksei.scribe"
-        let services = ["All", "Accessibility", "Microphone", "AppleEvents", "SpeechRecognition"]
-        for svc in services {
-            let task = Process()
-            task.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
-            task.arguments = ["reset", svc, bundleID]
-            try? task.run()
-            task.waitUntilExit()
+
+        // 1. Reset audio device routing to system default
+        UserDefaults.standard.set(AudioDeviceManager.systemDefaultUID, forKey: "selectedAudioInputDeviceUID")
+        AudioDeviceManager.shared.selectedDeviceUID = AudioDeviceManager.systemDefaultUID
+        AudioDeviceManager.shared.refreshDevices()
+
+        // 2. Perform async cleanup and TCC reset
+        DispatchQueue.global(qos: .userInitiated).async {
+            // Clean temporary WAV audio files
+            let tmp = FileManager.default.temporaryDirectory
+            if let files = try? FileManager.default.contentsOfDirectory(at: tmp, includingPropertiesForKeys: nil) {
+                for file in files where file.lastPathComponent.hasPrefix("scribe_") {
+                    try? FileManager.default.removeItem(at: file)
+                }
+            }
+
+            // Reset permissions
+            let services = ["Microphone", "SpeechRecognition", "Accessibility", "AppleEvents"]
+            for svc in services {
+                let task = Process()
+                task.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
+                task.arguments = ["reset", svc, bundleID]
+                try? task.run()
+                task.waitUntilExit()
+            }
+
+            Task { @MainActor in
+                self.checkPermissions()
+                self.startPolling()
+                completion?()
+            }
         }
-        checkPermissions()
-        startPolling()
     }
 
     func requestMicrophone() {

@@ -9,6 +9,8 @@ import KeyboardShortcuts
 struct PermissionsCard: View {
     @EnvironmentObject var appState: AppState
     @ObservedObject var permissionManager = PermissionManager.shared
+    @State private var isResettingCache: Bool = false
+    @State private var didResetCache: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -61,21 +63,42 @@ struct PermissionsCard: View {
             HStack {
                 Spacer()
                 Button {
-                    permissionManager.resetPermissionsCache()
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.counterclockwise")
-                            .font(.system(size: 10, weight: .semibold))
-                        Text(appState.l("Reset Permissions Cache"))
-                            .font(.system(size: 11, weight: .medium))
+                    guard !isResettingCache else { return }
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isResettingCache = true
                     }
-                    .foregroundStyle(.secondary)
-                    .padding(.vertical, 4)
-                    .padding(.horizontal, 8)
-                    .background(Color.primary.opacity(0.04))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    permissionManager.resetPermissionsCache {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            isResettingCache = false
+                            didResetCache = true
+                        }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                didResetCache = false
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 5) {
+                        if isResettingCache {
+                            ProgressView()
+                                .controlSize(.mini)
+                                .frame(width: 11, height: 11)
+                        } else {
+                            Image(systemName: didResetCache ? "checkmark" : "arrow.counterclockwise")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(didResetCache ? Color.green : Color.primary.opacity(0.8))
+                        }
+                        Text(didResetCache ? appState.l("Cache Cleared!") : appState.l("Reset Permissions Cache"))
+                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                            .foregroundStyle(didResetCache ? Color.green : Color.primary.opacity(0.85))
+                    }
+                    .padding(.vertical, 4.5)
+                    .padding(.horizontal, 9)
+                    .modifier(LiquidGlassPillModifier(cornerRadius: 8, tint: didResetCache ? .green : nil))
                 }
                 .buttonStyle(.plain)
+                .disabled(isResettingCache)
                 .help(appState.l("Flushes macOS TCC cache if permissions get out of sync"))
             }
             .padding(.top, 8)
