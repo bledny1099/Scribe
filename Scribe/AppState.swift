@@ -3,6 +3,7 @@ import KeyboardShortcuts
 import SwiftUI
 import OSLog
 import UserNotifications
+import AVFoundation
 
 extension Array: @retroactive RawRepresentable where Element: Codable {
     public init?(rawValue: String) {
@@ -1272,6 +1273,11 @@ final class AppState: ObservableObject {
         let mic = PermissionManager.shared.isMicrophoneGranted
         let ax = PasteService.isAccessibilityGranted()
         
+        let micStatus = AVCaptureDevice.authorizationStatus(for: .audio)
+        if micStatus == .notDetermined {
+            PermissionManager.shared.requestMicrophone()
+        }
+        
         if !hasCompletedFirstLaunchSetup || !namePromptDone || userName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 PermissionWindowManager.shared.showWindow(appState: self)
@@ -1349,6 +1355,43 @@ final class AppState: ObservableObject {
     // MARK: - Private — Recording Flow
 
     private func startRecording() {
+        let micStatus = AVCaptureDevice.authorizationStatus(for: .audio)
+        if micStatus == .notDetermined {
+            logger.info("Microphone permission not determined, requesting authorization...")
+            AVCaptureDevice.requestAccess(for: .audio) { @Sendable granted in
+                Task { @MainActor in
+                    PermissionManager.shared.isMicrophoneGranted = granted
+                    PermissionManager.shared.checkPermissions()
+                    if granted {
+                        self.startRecording()
+                    } else {
+                        self.recordingStatus = .error("Mic access denied")
+                        self.showPanel()
+                        PermissionWindowManager.shared.showWindow(appState: self)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in
+                            if case .error = self?.recordingStatus {
+                                self?.hidePanel()
+                            }
+                        }
+                    }
+                }
+            }
+            return
+        } else if micStatus == .denied || micStatus == .restricted {
+            logger.warning("Microphone access is denied or restricted")
+            PermissionManager.shared.isMicrophoneGranted = false
+            PermissionManager.shared.requestMicrophone()
+            PermissionWindowManager.shared.showWindow(appState: self)
+            recordingStatus = .error("Mic access denied")
+            showPanel()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in
+                if case .error = self?.recordingStatus {
+                    self?.hidePanel()
+                }
+            }
+            return
+        }
+
         hideSettingsPreviewPanel()
         captureTargetApplication()
         isRecording     = true
@@ -1402,8 +1445,18 @@ final class AppState: ObservableObject {
                     self.isRecording = false
                     self.isLectureRecording = false
                     self.recordingStatus = .error("Mic error")
-                    self.hidePanel()
                     if self.soundFeedbackEnabled { SoundFeedback.play(.error) }
+
+                    let currentMicStatus = AVCaptureDevice.authorizationStatus(for: .audio)
+                    if currentMicStatus == .denied || currentMicStatus == .restricted {
+                        PermissionWindowManager.shared.showWindow(appState: self)
+                    }
+
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+                        if case .error = self?.recordingStatus {
+                            self?.hidePanel()
+                        }
+                    }
                 }
                 logger.error("Failed to start audio recording: \(error.localizedDescription)")
             }

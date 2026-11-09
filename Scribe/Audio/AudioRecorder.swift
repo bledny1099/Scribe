@@ -47,6 +47,7 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
     // Instantaneous lock-free live audio level for 60/120 FPS visualizers
     // 32-bit float loads/stores are hardware-atomic on ARM64, eliminating locks and priority inversions on the CoreAudio thread
     private var _liveAudioLevel: Float = 0
+    private var _isRecordingActive: Bool = false
 
     var liveAudioLevel: Float {
         get { _liveAudioLevel }
@@ -145,7 +146,7 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
         activeInputNode.removeTap(onBus: 0)
 
         activeInputNode.installTap(onBus: 0, bufferSize: 2048, format: recordingFormat) { [weak self] buffer, _ in
-            guard let self = self, self.isRecording else {
+            guard let self = self, self._isRecordingActive else {
                 return
             }
             // Compute adaptive RMS level with AGC and send to subject on audio thread
@@ -213,13 +214,19 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
             }
         }
 
-        isRecording = true
+        _isRecordingActive = true
+        DispatchQueue.main.async {
+            self.isRecording = true
+        }
         audioEngine.prepare()
         do {
             try audioEngine.start()
         } catch {
+            _isRecordingActive = false
             activeInputNode.removeTap(onBus: 0)
-            isRecording = false
+            DispatchQueue.main.async {
+                self.isRecording = false
+            }
             logger.error("Failed to start audio engine: \(error.localizedDescription)")
             throw error
         }
@@ -231,7 +238,11 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
 
     /// Stops the current recording and returns the recorded file URL.
     func stopRecording() -> URL? {
-        isRecording = false
+        _isRecordingActive = false
+        DispatchQueue.main.async {
+            self.isRecording = false
+            self.audioLevel = 0
+        }
         audioEngine.inputNode.removeTap(onBus: 0)
         if audioEngine.isRunning {
             audioEngine.stop()
@@ -243,7 +254,6 @@ final class AudioRecorder: ObservableObject, @unchecked Sendable {
             self.audioFile = nil
         }
         
-        audioLevel = 0
         audioLevelSubject.send(0)
         levelTracker.reset()
         _liveAudioLevel = 0
