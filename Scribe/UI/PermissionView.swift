@@ -95,7 +95,7 @@ struct PermissionsCard: View {
                     }
                     .padding(.vertical, 4.5)
                     .padding(.horizontal, 9)
-                    .modifier(LiquidGlassPillModifier(cornerRadius: 8, tint: didResetCache ? .green : nil))
+                    .modifier(LiquidGlassPillModifier(cornerRadius: 999, tint: didResetCache ? .green : nil))
                 }
                 .buttonStyle(.plain)
                 .disabled(isResettingCache)
@@ -682,7 +682,7 @@ struct PermissionWelcomeView: View {
                         LaunchAtLoginHelper.setEnabled(newValue)
                     }
                 ))
-                .toggleStyle(.switch)
+                .toggleStyle(LiquidGlassToggleStyle())
                 .labelsHidden()
             }
             .padding(.horizontal, 16)
@@ -719,7 +719,7 @@ struct PermissionWelcomeView: View {
                         }
                         Spacer()
                         Toggle("", isOn: $appState.pushToTalk)
-                            .toggleStyle(.switch)
+                            .toggleStyle(LiquidGlassToggleStyle())
                             .labelsHidden()
                     }
 
@@ -832,7 +832,7 @@ struct PermissionWelcomeView: View {
                         }
                         Spacer()
                         Toggle("", isOn: $appState.cleanFillerWords)
-                            .toggleStyle(.switch)
+                            .toggleStyle(LiquidGlassToggleStyle())
                             .labelsHidden()
                     }
 
@@ -850,7 +850,7 @@ struct PermissionWelcomeView: View {
                                 }
                             }
                         ))
-                        .toggleStyle(.switch)
+                        .toggleStyle(LiquidGlassToggleStyle())
                         .labelsHidden()
                     }
 
@@ -864,7 +864,7 @@ struct PermissionWelcomeView: View {
                                 .foregroundStyle(.primary)
                             Spacer()
                             Toggle("", isOn: $appState.enableCloudAI)
-                                .toggleStyle(.switch)
+                                .toggleStyle(LiquidGlassToggleStyle())
                                 .labelsHidden()
                         }
 
@@ -972,7 +972,7 @@ struct PermissionWelcomeView: View {
                                                     get: { key.isEnabled },
                                                     set: { _ in appState.toggleGatewayKey(id: key.id) }
                                                 ))
-                                                .toggleStyle(.switch)
+                                                .toggleStyle(LiquidGlassToggleStyle())
                                                 .controlSize(.mini)
                                                 .labelsHidden()
 
@@ -1111,7 +1111,7 @@ struct PermissionWelcomeView: View {
                                 }
                             }
                         ))
-                        .toggleStyle(.switch)
+                        .toggleStyle(LiquidGlassToggleStyle())
                         .labelsHidden()
                     }
 
@@ -1124,7 +1124,7 @@ struct PermissionWelcomeView: View {
                             .font(.system(size: 13, weight: .medium, design: .rounded))
                         Spacer()
                         Toggle("", isOn: $appState.soundFeedbackEnabled)
-                            .toggleStyle(.switch)
+                            .toggleStyle(LiquidGlassToggleStyle())
                             .labelsHidden()
                     }
 
@@ -1143,7 +1143,7 @@ struct PermissionWelcomeView: View {
                                 appState.showSettingsPreviewFor5Seconds()
                             }
                         ))
-                        .toggleStyle(.switch)
+                        .toggleStyle(LiquidGlassToggleStyle())
                         .labelsHidden()
                     }
 
@@ -1162,7 +1162,7 @@ struct PermissionWelcomeView: View {
                                 appState.showSettingsPreviewFor5Seconds()
                             }
                         ))
-                        .toggleStyle(.switch)
+                        .toggleStyle(LiquidGlassToggleStyle())
                         .labelsHidden()
                     }
                 }
